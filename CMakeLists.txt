@@ -34,13 +34,17 @@ include_directories(leviathan)
 # Configure header
 configure_file("${PROJECT_SOURCE_DIR}/Common.h.in" "${PROJECT_SOURCE_DIR}/Common.h")
 
+add_subdirectory(leviathan)
+
 add_executable(dualviewpp
   main.cpp
   DualView.h DualView.cpp
   Common.h
+
   )
 
 target_link_libraries(dualviewpp ${GTKMM_LIBRARIES})
+target_link_libraries(dualviewpp Leviathan)
 
 
 # Doxygen

@@ -15,6 +15,10 @@ public:
 
 private:
 
+    Glib::RefPtr<Gtk::Application> Application;
+
+    Glib::RefPtr<Gtk::Builder> MainBuilder;
+    
     Gtk::Window* MainMenu = nullptr;
     Gtk::Window* WelcomeWindow = nullptr;
     
