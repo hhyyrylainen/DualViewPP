@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.8.3)
 
 project(DualView++)
 
+set(DUALVIEW_VERSION_STR "0.0.1")
+
 if(CMAKE_BUILD_TYPE STREQUAL "")
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
     "Set the build type, usually Release or RelWithDebInfo" FORCE)
@@ -27,9 +29,37 @@ pkg_check_modules(GTKMM REQUIRED gtkmm-3.0)
 include_directories(${GTKMM_INCLUDE_DIRS})
 link_directories(${GTKMM_LIBRARY_DIRS})
 
+include_directories(leviathan)
+
+# Configure header
+configure_file("${PROJECT_SOURCE_DIR}/Common.h.in" "${PROJECT_SOURCE_DIR}/Common.h")
 
 add_executable(dualviewpp
   main.cpp
+  DualView.h DualView.cpp
+  Common.h
   )
 
 target_link_libraries(dualviewpp ${GTKMM_LIBRARIES})
+
+
+# Doxygen
+find_package(Doxygen)
+if(DOXYGEN_FOUND)
+
+  if(DOCUMENTATION_LOCAL)
+    set(DOXYGEN_SERVER_SEARCH "FALSE")
+  else()
+    set(DOXYGEN_SERVER_SEARCH "TRUE")
+  endif()
+  
+  configure_file("${PROJECT_SOURCE_DIR}/DoxyFile.in"
+    "${PROJECT_BINARY_DIR}/DoxyFile" @ONLY)
+  add_custom_target(doc
+    ${DOXYGEN_EXECUTABLE} ${PROJECT_BINARY_DIR}/DoxyFile
+    WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
+    COMMENT "Generating API documentation with Doxygen" VERBATIM
+    )
+  
+endif(DOXYGEN_FOUND)
+
