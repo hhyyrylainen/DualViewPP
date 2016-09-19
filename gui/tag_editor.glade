@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.20.0 -->
+<interface>
+  <requires lib="gtk+" version="3.20"/>
+  <object class="GtkListStore" id="tagListStore">
+    <columns>
+      <!-- column-name Tag -->
+      <column type="gchararray"/>
+    </columns>
+    <data>
+      <row>
+        <col id="0">Tags loading</col>
+      </row>
+    </data>
+  </object>
+  <object class="GtkBox" id="TagEditor">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="orientation">vertical</property>
+    <child>
+      <object class="GtkLabel">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="label" translatable="yes">Tag Editor</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkTreeView">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="model">tagListStore</property>
+        <property name="enable_search">False</property>
+        <property name="show_expanders">False</property>
+        <child internal-child="selection">
+          <object class="GtkTreeSelection">
+            <property name="mode">multiple</property>
+          </object>
+        </child>
+      </object>
+      <packing>
+        <property name="expand">True</property>
+        <property name="fill">True</property>
+        <property name="position">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkBox">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <child>
+          <object class="GtkButton" id="Add">
+            <property name="label" translatable="yes">Add</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="Create">
+            <property name="label" translatable="yes">Create</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="Delete">
+            <property name="label" translatable="yes">Delete</property>
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="receives_default">True</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">2</property>
+          </packing>
+        </child>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">2</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkSearchEntry" id="TagSearch">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="primary_icon_name">edit-find-symbolic</property>
+        <property name="primary_icon_activatable">False</property>
+        <property name="primary_icon_sensitive">False</property>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">3</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkTreeView">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="model">tagListStore</property>
+        <property name="headers_visible">False</property>
+        <property name="enable_search">False</property>
+        <property name="show_expanders">False</property>
+        <child internal-child="selection">
+          <object class="GtkTreeSelection"/>
+        </child>
+      </object>
+      <packing>
+        <property name="expand">True</property>
+        <property name="fill">True</property>
+        <property name="position">4</property>
+      </packing>
+    </child>
+  </object>
+</interface>
