@@ -1,3 +1,5 @@
 /build
 *.glade~
 Common.h
+cscope.files
+cscope.out
