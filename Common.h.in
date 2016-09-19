@@ -4,43 +4,9 @@
 
 #include <string>
 
-constexpr auto DUALVIEW_VERSION = @DUALVIEW_VERSION_STR@;
+constexpr auto DUALVIEW_VERSION = "@DUALVIEW_VERSION_STR@";
 
-// Logging macros //
-#define LOG_INFO(x) Logger::Get()->Info(x);
-#define LOG_WARNING(x) Logger::Get()->Warning(x);
-#define LOG_ERROR(x) Logger::Get()->Error(x);
-#define LOG_WRITE(x) Logger::Get()->Write(x);
-#define LOG_FATAL(x) Logger::Get()->Fatal(x);
-
-// Assertions for controlled crashing
-#ifndef LEVIATHAN_ASSERT
-#include <stdlib.h>
-#define LEVIATHAN_ASSERT(x, msg) {if(!(x)){ LOG_FATAL(msg); abort(); }};
-#endif //LEVIATHAN_ASSERT
-
-#ifdef _MSC_VER
-
-#ifndef DEBUG_BREAK
-#define DEBUG_BREAK __debugbreak();
-#endif //DEBUG_BREAK
-
-#elif defined __linux
-
-// For making SIGINT work as debug break on linux //
-#include <signal.h>
-#ifndef DEBUG_BREAK
-#define DEBUG_BREAK { LOG_WRITE("DEBUG_BREAK HIT! at:");                \
- LOG_WRITE(__FILE__ "(" + std::to_string(__LINE__) + ")"); raise(SIGINT); }
-#endif //DEBUG_BREAK
-
-#else
-
-#error "Debug break won't work"
-
-#endif
-
-#include "Logger.h"
+#include "leviathan/Define.h"
 using Leviathan::Logger;
 
 

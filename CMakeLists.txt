@@ -29,6 +29,9 @@ pkg_check_modules(GTKMM REQUIRED gtkmm-3.0)
 include_directories(${GTKMM_INCLUDE_DIRS})
 link_directories(${GTKMM_LIBRARY_DIRS})
 
+# Default system threads
+find_package(Threads)
+
 include_directories(leviathan)
 
 # Configure header
@@ -43,8 +46,7 @@ add_executable(dualviewpp
 
   )
 
-target_link_libraries(dualviewpp ${GTKMM_LIBRARIES})
-target_link_libraries(dualviewpp Leviathan)
+target_link_libraries(dualviewpp ${GTKMM_LIBRARIES} Leviathan ${CMAKE_THREAD_LIBS_INIT})
 
 
 # Doxygen

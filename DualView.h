@@ -1,6 +1,8 @@
 #pragma once
-
 #include <gtkmm.h>
+#include <thread>
+
+#include <atomic>
 
 namespace DV{
 
@@ -10,8 +12,19 @@ public:
 
     //! \brief Loads the GUI layout files and starts
     DualView(Glib::RefPtr<Gtk::Application> app);
+
+    //! \brief Closes all resources and then attempts to close all open windows
+    ~DualView();
     
-    
+
+protected:
+
+    //! \brief Ran in the loader thread
+    void _RunInitThread();
+
+    //! \brief Called in the main thread once loading has completed
+    //! \param succeeded True if there were no errors in the loading thread
+    void _OnLoadingFinished();
 
 private:
 
@@ -21,10 +34,13 @@ private:
     
     Gtk::Window* MainMenu = nullptr;
     Gtk::Window* WelcomeWindow = nullptr;
-    
-    
 
-    
+    // Startup code //
+    std::thread LoadThread;
+    Glib::Dispatcher StartDispatcher;
+
+    std::atomic<bool> LoadError = { false };
+
     static DualView* Staticinstance;
 };
 
