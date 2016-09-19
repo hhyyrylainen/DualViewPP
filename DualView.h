@@ -16,6 +16,7 @@ public:
     //! \brief Closes all resources and then attempts to close all open windows
     ~DualView();
 
+    //! \returns The global instance or asserts and quits the program
     static DualView& Get();
 
 protected:
