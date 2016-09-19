@@ -4,8 +4,9 @@
 
 using namespace DV;
 // ------------------------------------ //
-
 DualView::DualView(Glib::RefPtr<Gtk::Application> app) : Application(app){
+
+    Staticinstance = this;
 
     // Connect dispatcher //
     StartDispatcher.connect(sigc::mem_fun(*this, &DualView::_OnLoadingFinished));
@@ -34,6 +35,16 @@ DualView::~DualView(){
 
     WelcomeWindow->close();
     MainMenu->close();
+
+    Staticinstance = nullptr;
+}
+
+DualView* DualView::Staticinstance = nullptr;
+
+DualView& DualView::Get(){
+
+    LEVIATHAN_ASSERT(Staticinstance, "DualView static instance is null");
+    return *Staticinstance;
 }
 // ------------------------------------ //
 void DualView::_RunInitThread(){

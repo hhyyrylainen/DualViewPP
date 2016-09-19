@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.8.3)
 
 project(DualView++)
 
+option(CREATE_DL_PLUGINS "Set to OFF to skip building web download tools" ON)
+
 set(DUALVIEW_VERSION_STR "0.0.1")
 
 if(CMAKE_BUILD_TYPE STREQUAL "")
@@ -29,24 +31,34 @@ pkg_check_modules(GTKMM REQUIRED gtkmm-3.0)
 include_directories(${GTKMM_INCLUDE_DIRS})
 link_directories(${GTKMM_LIBRARY_DIRS})
 
+
 # Default system threads
 find_package(Threads)
 
 include_directories(leviathan)
+include_directories("${PROJECT_SOURCE_DIR}")
 
 # Configure header
 configure_file("${PROJECT_SOURCE_DIR}/Common.h.in" "${PROJECT_SOURCE_DIR}/Common.h")
 
 add_subdirectory(leviathan)
 
+if(CREATE_DL_PLUGINS)
+  add_subdirectory(hcxselect)
+  add_subdirectory(plugins)
+endif()
+
+add_subdirectory(core)
+
 add_executable(dualviewpp
   main.cpp
   DualView.h DualView.cpp
   Common.h
-
+  Plugin.h
   )
 
-target_link_libraries(dualviewpp ${GTKMM_LIBRARIES} Leviathan ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(dualviewpp Core ${GTKMM_LIBRARIES} Leviathan ${CMAKE_THREAD_LIBS_INIT}
+  )
 
 
 # Doxygen
@@ -68,4 +80,13 @@ if(DOXYGEN_FOUND)
     )
   
 endif(DOXYGEN_FOUND)
+
+add_subdirectory(test)
+
+if(UNIX)
+    add_custom_target(check COMMAND "${PROJECT_BINARY_DIR}/test/Test"
+    DEPENDS Test
+    WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/test")
+endif()
+
 

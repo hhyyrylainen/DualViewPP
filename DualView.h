@@ -15,7 +15,8 @@ public:
 
     //! \brief Closes all resources and then attempts to close all open windows
     ~DualView();
-    
+
+    static DualView& Get();
 
 protected:
 
