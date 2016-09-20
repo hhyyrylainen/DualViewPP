@@ -2,11 +2,29 @@
 #include "DualView.h"
 #include "Common.h"
 
+#include "PluginManager.h"
+
 using namespace DV;
 // ------------------------------------ //
+
+//! Used for thread detection
+thread_local static int32_t ThreadSpecifier = 0;
+
+//! Asserts if not called on the main thread
+inline void AssertIfNotMainThread(){
+
+    LEVIATHAN_ASSERT(DualView::IsOnMainThread(), "Function called on the wrong thread");
+}
+
 DualView::DualView(Glib::RefPtr<Gtk::Application> app) : Application(app){
 
     Staticinstance = this;
+    ThreadSpecifier = MAIN_THREAD_MAGIC;
+
+    // Create objects with simple constructors //
+    _PluginManager = std::make_unique<PluginManager>();
+    
+    LEVIATHAN_ASSERT(_PluginManager, "Alloc failed in DualView constructor");
 
     // Connect dispatcher //
     StartDispatcher.connect(sigc::mem_fun(*this, &DualView::_OnLoadingFinished));
@@ -26,12 +44,28 @@ DualView::DualView(Glib::RefPtr<Gtk::Application> app) : Application(app){
     WelcomeWindow->show();
 
     // Start loading thread //
-
-
     LoadThread = std::thread(std::bind(&DualView::_RunInitThread, this));
+
+    // Get rest of the widgets while load thread is already running //
+    Gtk::Button* OpenImageFile = nullptr;
+    MainBuilder->get_widget("OpenImageFile", OpenImageFile);
+    LEVIATHAN_ASSERT(OpenImageFile, "Invalid .glade file");
+
+    OpenImageFile->signal_clicked().connect(
+        sigc::mem_fun(*this, &DualView::OpenImageFile_OnClick));
+    
+    
+    // MainBuilder->get_widget("OpenImageFromFile", OpenImageFromFile);
+    // LEVIATHAN_ASSERT(OpenImageFromFile, "Invalid .glade file");
+        
+    
 }
 
 DualView::~DualView(){
+
+    LOG_INFO("DualView releasing resources");
+
+    _PluginManager.reset();
 
     WelcomeWindow->close();
     MainMenu->close();
@@ -46,10 +80,24 @@ DualView& DualView::Get(){
     LEVIATHAN_ASSERT(Staticinstance, "DualView static instance is null");
     return *Staticinstance;
 }
+
+bool DualView::IsOnMainThread(){
+
+    return ThreadSpecifier == MAIN_THREAD_MAGIC;
+}
 // ------------------------------------ //
 void DualView::_RunInitThread(){
 
     LoadError = false;
+
+    // Load plugins //
+    //libPlugin_Imgur.so
+    if(!_PluginManager->LoadPlugin("plugins/libPlugin_Imgur.so")){
+
+        LoadError = true;
+        LOG_ERROR("Failed to load plugin");
+    }
+    
 
     std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     
@@ -58,6 +106,8 @@ void DualView::_RunInitThread(){
 }
 
 void DualView::_OnLoadingFinished(){
+
+    AssertIfNotMainThread();
 
     // The thread needs to be joined or an exception is thrown
     if(LoadThread.joinable())
@@ -81,4 +131,57 @@ void DualView::_OnLoadingFinished(){
 }
 // ------------------------------------ //
 
+
+// ------------------------------------ //
+// Gtk callbacks
+void DualView::OpenImageFile_OnClick(){
+
+    Gtk::FileChooserDialog dialog("Choose an image to open",
+        Gtk::FILE_CHOOSER_ACTION_OPEN);
+    dialog.set_transient_for(*MainMenu);
+
+    //Add response buttons the the dialog:
+    dialog.add_button("_Cancel", Gtk::RESPONSE_CANCEL);
+    dialog.add_button("_Open", Gtk::RESPONSE_OK);
+
+    //Add filters, so that only certain file types can be selected:
+    auto filter_image = Gtk::FileFilter::create();
+    filter_image->set_name("Image Files");
+
+    for(const auto& type : SUPPORTED_EXTENSIONS){
+
+        filter_image->add_mime_type(std::get<1>(type));
+    }
+    dialog.add_filter(filter_image);
+
+    auto filter_any = Gtk::FileFilter::create();
+    filter_any->set_name("Any files");
+    filter_any->add_pattern("*");
+    dialog.add_filter(filter_any);
+
+    // Wait for a selection
+    int result = dialog.run();
+
+    //Handle the response:
+    switch(result)
+    {
+    case(Gtk::RESPONSE_OK):
+    {
+        std::string filename = dialog.get_filename();
+
+        if(filename.empty())
+            return;
+        
+        LOG_INFO("Opening single image for viewing: " + filename);
+        
+        return;
+    }
+    case(Gtk::RESPONSE_CANCEL):
+    default:
+    {
+        // Canceled / nothing selected //
+        return;
+    }
+    }
+}
 

@@ -269,7 +269,7 @@
             <property name="spacing">2</property>
             <property name="homogeneous">True</property>
             <child>
-              <object class="GtkButton">
+              <object class="GtkButton" id="OpenImageFile">
                 <property name="label" translatable="yes">Open Image File</property>
                 <property name="height_request">50</property>
                 <property name="visible">True</property>

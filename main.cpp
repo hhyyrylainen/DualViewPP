@@ -8,7 +8,7 @@ int main(int argc, char* argv[]){
 
     Logger log("log.txt");
 
-    LOG_WRITE("DualView++ Starting. Version " + std::string(DUALVIEW_VERSION));
+    LOG_WRITE("DualView++ Starting. Version " + std::string(DV::DUALVIEW_VERSION));
     
     auto app =
         Gtk::Application::create(argc, argv,

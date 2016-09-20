@@ -1,10 +1,13 @@
 #pragma once
 #include <gtkmm.h>
-#include <thread>
 
+#include <thread>
 #include <atomic>
+#include <memory>
 
 namespace DV{
+
+class PluginManager;
 
 //! \brief Main class that contains all the windows and systems
 class DualView final {
@@ -16,7 +19,13 @@ public:
     //! \brief Closes all resources and then attempts to close all open windows
     ~DualView();
 
-    //! \returns The global instance or asserts and quits the program
+
+    //! \brief Returns true if called on the main thread
+    //!
+    //! Used to detect errors where functions are called on the wrong thread
+    static bool IsOnMainThread();
+    
+    //! \brief Returns the global instance or asserts and quits the program
     static DualView& Get();
 
 protected:
@@ -28,6 +37,11 @@ protected:
     //! \param succeeded True if there were no errors in the loading thread
     void _OnLoadingFinished();
 
+private:
+
+    // Gtk callbacks
+    void OpenImageFile_OnClick();
+    
 private:
 
     Glib::RefPtr<Gtk::Application> Application;
@@ -42,6 +56,9 @@ private:
     Glib::Dispatcher StartDispatcher;
 
     std::atomic<bool> LoadError = { false };
+
+    //! Plugin manager. For loading extra functionality
+    std::unique_ptr<PluginManager> _PluginManager;
 
     static DualView* Staticinstance;
 };
