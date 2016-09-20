@@ -7,6 +7,6 @@ link_directories(${GUMBO_LIBRARY_DIRS})
 
 add_library(Plugin_Imgur SHARED Plugin_Imgur.cpp)
 
-target_link_libraries(Plugin_Imgur hcxselect ${GUMBO_LIBRARIES})
+target_link_libraries(Plugin_Imgur hcxselect ${GUMBO_LIBRARIES} ${CMAKE_DL_LIBS})
 
 

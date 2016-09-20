@@ -55,10 +55,11 @@ add_executable(dualviewpp
   DualView.h DualView.cpp
   Common.h
   Plugin.h
+  PluginManager.h PluginManager.cpp
   )
 
 target_link_libraries(dualviewpp Core ${GTKMM_LIBRARIES} Leviathan ${CMAKE_THREAD_LIBS_INIT}
-  )
+  ${CMAKE_DL_LIBS})
 
 
 # Doxygen
@@ -81,6 +82,7 @@ if(DOXYGEN_FOUND)
   
 endif(DOXYGEN_FOUND)
 
+# Testing
 add_subdirectory(test)
 
 if(UNIX)
