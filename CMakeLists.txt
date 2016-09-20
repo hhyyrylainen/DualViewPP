@@ -56,6 +56,13 @@ add_executable(dualviewpp
   Common.h
   Plugin.h
   PluginManager.h PluginManager.cpp
+
+  # Window stuff
+  windows/BaseWindow.h windows/BaseWindow.cpp
+  windows/SingleView.h windows/SingleView.cpp
+
+  # Components for windows
+  components/SuperViewer.h components/SuperViewer.cpp
   )
 
 target_link_libraries(dualviewpp Core ${GTKMM_LIBRARIES} Leviathan ${CMAKE_THREAD_LIBS_INIT}

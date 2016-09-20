@@ -1,10 +1,28 @@
 #pragma once
+//
+// CMake generated file DO NOT EDIT Common.h !
+//
 
 //! \file Common definitions and macros. Taken from Leviathan
 
 #include <string>
+#include <tuple>
+
+namespace DV{
 
 constexpr auto DUALVIEW_VERSION = "@DUALVIEW_VERSION_STR@";
+constexpr auto MAIN_THREAD_MAGIC = 42;
+
+//! List of all image types that are supported and their mimetypes
+constexpr auto SUPPORTED_EXTENSIONS = {
+    std::make_tuple(".gif", "image/gif"),
+    std::make_tuple(".png", "image/png"),
+    std::make_tuple(".jpg", "image/jpeg"),
+    std::make_tuple(".jpeg", "image/jpeg"),
+    std::make_tuple(".bmp", "image/bmp"),
+};
+
+}
 
 #include "leviathan/Define.h"
 using Leviathan::Logger;
