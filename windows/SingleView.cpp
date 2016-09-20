@@ -33,7 +33,8 @@ SingleView::SingleView(const std::string &file){
         
     } catch(const Leviathan::InvalidArgument &e){
 
-        LOG_WARNING("SingleView: failed to create SuperViewer");
+        LOG_WARNING("SingleView: failed to create SuperViewer, exception: ");
+        e.PrintToLog();
         throw;
     }
     

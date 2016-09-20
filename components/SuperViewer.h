@@ -17,6 +17,12 @@ public:
     
 protected:
 
+    bool on_draw(const Cairo::RefPtr<Cairo::Context>& cr) override;
+
+    void SetupCairoContext();
     
+private:
+
+    Cairo::RefPtr<Cairo::Context> DrawingContext;
 };
 }

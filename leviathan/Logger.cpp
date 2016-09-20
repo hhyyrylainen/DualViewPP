@@ -122,6 +122,7 @@ void Leviathan::Logger::Fatal(const std::string &data) {
     }
 
     // Exit process //
+    DEBUG_BREAK;
     abort();
 }
 // ------------------------------------ //
