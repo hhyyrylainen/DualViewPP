@@ -6,6 +6,9 @@
 
 namespace DV{
 
+//! \brief Image viewing widget
+//!
+//! Manages drawing ImageMagick images with cairo
 class SuperViewer : public Gtk::DrawingArea{
 public:
 
