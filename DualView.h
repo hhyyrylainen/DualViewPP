@@ -3,9 +3,16 @@
 
 #include "windows/BaseWindow.h"
 
+
 #include <thread>
 #include <atomic>
 #include <memory>
+
+
+namespace Leviathan{
+
+class Logger;
+}
 
 namespace DV{
 
@@ -33,6 +40,12 @@ public:
     //! won't be dereferenced.
     //! \note This usually gets called twice when closing windows
     void WindowClosed(std::shared_ptr<WindowClosedEvent> event);
+
+    //! \brief Add cmd to a queue to be ran on the main thread.
+    //! \note Won't notify the main thread. So it must be notified
+    //! through another function
+    //! \todo Add that notify function
+    void QueueCmd(std::function<void (DualView&)> cmd);
     
     //! \brief Returns true if called on the main thread
     //!
@@ -58,11 +71,28 @@ protected:
     //!
     //! This is needed to make sure that they aren't deallocated immediately
     void _AddOpenWindow(std::shared_ptr<BaseWindow> window);
+
+    //! \brief Handles all queued commandline arguments
+    void _ProcessCmdQueue();
     
 private:
 
     // Gtk callbacks
     void OpenImageFile_OnClick();
+
+    //! Once an instance is loaded init can start properly
+    void _OnInstanceLoaded();
+
+    //! \brief Extra instances will pass parameters here
+    //! \returns The exit code for the extra instance
+    int _HandleCmdLine(const Glib::RefPtr<Gio::ApplicationCommandLine> &command_line);
+
+
+    int _OnPreParseCommandLine(const Glib::RefPtr<Glib::VariantDict> &options);
+
+    //! \brief Receives a list of files to open
+    void _OnSignalOpen(const std::vector<Glib::RefPtr<Gio::File>> &files,
+        const Glib::ustring &stuff);
     
 private:
 
@@ -74,10 +104,15 @@ private:
     Gtk::Window* WelcomeWindow = nullptr;
 
     // Startup code //
+    //! Makes sure initialization is ran only once
+    bool IsInitialized = false;
     std::thread LoadThread;
     Glib::Dispatcher StartDispatcher;
 
     std::atomic<bool> LoadError = { false };
+
+    //! Set to true once _OnLoadingFinished is done
+    std::atomic<bool> LoadCompletelyFinished = { false };
 
     //! Used to call the main thread when a message has been added
     Glib::Dispatcher MessageDispatcher;
@@ -90,12 +125,26 @@ private:
     //! MessageQueueMutex must be locked when changing this
     std::list<std::shared_ptr<WindowClosedEvent>> CloseEvents;
 
+    //! Command line commands are stored here while the application
+    //! is loading
+    std::list<std::function<void (DualView&)>> QueuedCmds;
+
+    //! Mutex for accessing QueuedCmds
+    std::mutex QueuedCmdsMutex;
+
+    //! Set to true to suppress destructor notify message (to the main instance)
+    //! if not initialized
+    bool SuppressSecondInstance = false;
+
     //! List of open windows
     //! Used to keep the windows allocated while they are open
     std::vector<std::shared_ptr<BaseWindow>> OpenWindows;
 
     //! Plugin manager. For loading extra functionality
     std::unique_ptr<PluginManager> _PluginManager;
+
+    //! Logger object
+    std::unique_ptr<Leviathan::Logger> _Logger;
 
     static DualView* Staticinstance;
 };

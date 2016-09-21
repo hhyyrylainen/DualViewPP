@@ -7,6 +7,8 @@
 #include "PluginManager.h"
 #include "Exceptions.h"
 
+#include <iostream>
+
 using namespace DV;
 // ------------------------------------ //
 
@@ -23,6 +25,88 @@ DualView::DualView(Glib::RefPtr<Gtk::Application> app) : Application(app){
 
     Staticinstance = this;
     ThreadSpecifier = MAIN_THREAD_MAGIC;
+
+    // Listen for open events //
+    app->signal_activate().connect(sigc::mem_fun(*this, &DualView::_OnInstanceLoaded));
+    app->signal_command_line().connect(sigc::mem_fun(*this, &DualView::_HandleCmdLine),
+        false);
+
+    // This is called when the application is ran with a file //
+    app->signal_open().connect(sigc::mem_fun(*this, &DualView::_OnSignalOpen));
+
+    app->signal_handle_local_options().connect(sigc::mem_fun(*this,
+            &DualView::_OnPreParseCommandLine));
+}
+
+DualView::~DualView(){
+
+    if(!IsInitialized){
+
+        if(!SuppressSecondInstance)
+            std::cout << "DualView++ Main Instance Notified. Extra instance quitting" <<
+                std::endl;
+        
+        return;
+    }
+
+    LOG_INFO("DualView releasing resources");
+
+    // Force close windows //
+    OpenWindows.clear();
+
+    // Unload plugins //
+    _PluginManager.reset();
+
+    // Close windows managed directly by us //
+    WelcomeWindow->close();
+    MainMenu->close();
+
+    Staticinstance = nullptr;
+}
+
+DualView* DualView::Staticinstance = nullptr;
+
+DualView& DualView::Get(){
+
+    LEVIATHAN_ASSERT(Staticinstance, "DualView static instance is null");
+    return *Staticinstance;
+}
+
+bool DualView::IsOnMainThread(){
+
+    return ThreadSpecifier == MAIN_THREAD_MAGIC;
+}
+// ------------------------------------ //
+void DualView::_OnInstanceLoaded(){
+
+    if(IsInitialized){
+
+        {
+            std::lock_guard<std::mutex> lock(QueuedCmdsMutex);
+            if(QueuedCmds.empty()){
+
+                // Pointless call to this function
+                LOG_INFO("Skipping second initialization");
+                return;
+            }
+        }
+        
+        _ProcessCmdQueue();
+        return;
+    }
+
+    AssertIfNotMainThread();
+
+    _Logger = std::make_unique<Leviathan::Logger>("log.txt");
+
+    if(!_Logger){
+        
+        std::cerr << "Logger creation failed" << std::endl;
+        abort();
+        return;
+    }
+    
+    LOG_WRITE("DualView++ Starting. Version " + std::string(DV::DUALVIEW_VERSION));
 
     // Create objects with simple constructors //
     _PluginManager = std::make_unique<PluginManager>();
@@ -62,42 +146,106 @@ DualView::DualView(Glib::RefPtr<Gtk::Application> app) : Application(app){
     
     // MainBuilder->get_widget("OpenImageFromFile", OpenImageFromFile);
     // LEVIATHAN_ASSERT(OpenImageFromFile, "Invalid .glade file");
-        
+
+    LOG_INFO("Basic initialization completed");
     
+    IsInitialized = true;
+}
+// ------------------------------------ //
+void DualView::_ProcessCmdQueue(){
+
+    // Skip if not properly loaded yet //
+    if(!LoadCompletelyFinished){
+
+        LOG_INFO("Skipping _ProcessCmdQueue as not completely loaded yet");
+        return;
+    }
+
+    AssertIfNotMainThread();
+
+    std::lock_guard<std::mutex> lock(QueuedCmdsMutex);
+
+    while(!QueuedCmds.empty()){
+
+        LOG_INFO("Running queued command");
+
+        QueuedCmds.front()(*this);
+        QueuedCmds.pop_front();
+    }
 }
 
-DualView::~DualView(){
+void DualView::QueueCmd(std::function<void (DualView&)> cmd){
 
-    LOG_INFO("DualView releasing resources");
+    std::lock_guard<std::mutex> lock(QueuedCmdsMutex);
 
-    // Force close windows //
-    OpenWindows.clear();
+    QueuedCmds.push_back(cmd);
+}
+// ------------------------------------ //
+int DualView::_HandleCmdLine(const Glib::RefPtr<Gio::ApplicationCommandLine>
+    &command_line)
+{
 
-    // Unload plugins //
-    _PluginManager.reset();
+    // First handle already parsed things //
+    auto alreadyParsed = command_line->get_options_dict();
 
-    // Close windows managed directly by us //
-    WelcomeWindow->close();
-    MainMenu->close();
+    Glib::ustring fileUrl;
+    if(alreadyParsed->lookup_value("dl-image", fileUrl)){
 
-    Staticinstance = nullptr;
+        QueueCmd([fileUrl](DualView &instance) -> void
+                {
+                    LOG_INFO("File to download: " + std::string(fileUrl.c_str()));
+
+                    
+                });
+    }
+
+    int argc;
+    char** argv = command_line->get_arguments(argc);
+
+    if(argc > 1){
+
+        std::cout << "Extra arguments: " << std::endl;
+
+        for(int i = 1; i < argc; ++i)
+            std::cout << argv[i] << (i + 1 < argc ? ", " : " ");
+
+        std::cout << std::endl;
+
+        std::cout << "TODO: check if it is a file and open" << std::endl;
+    }
+    
+    Application->activate();
+
+    return 0;
 }
 
-DualView* DualView::Staticinstance = nullptr;
+int DualView::_OnPreParseCommandLine(const Glib::RefPtr<Glib::VariantDict> &options){
 
-DualView& DualView::Get(){
+    bool version;
+    if(options->lookup_value("version", version)){
 
-    LEVIATHAN_ASSERT(Staticinstance, "DualView static instance is null");
-    return *Staticinstance;
+        std::cout << "DualView++ Version " << DUALVIEW_VERSION << std::endl;
+        SuppressSecondInstance = true;
+        return 0;
+    }
+    
+    return -1;
 }
+// ------------------------------------ //
+void DualView::_OnSignalOpen(const std::vector<Glib::RefPtr<Gio::File>> &files,
+    const Glib::ustring &stuff)
+{
+    LOG_INFO("Got file list to open:");
 
-bool DualView::IsOnMainThread(){
+    for(const auto& file : files){
 
-    return ThreadSpecifier == MAIN_THREAD_MAGIC;
+        LOG_WRITE("\t" + file->get_path());
+    }
 }
 // ------------------------------------ //
 void DualView::_RunInitThread(){
 
+    LOG_INFO("Running Init thread");
     LoadError = false;
 
     // Load plugins //
@@ -107,6 +255,9 @@ void DualView::_RunInitThread(){
         LoadError = true;
         LOG_ERROR("Failed to load plugin");
     }
+
+    // Load database //
+    
     
 
     //std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -138,6 +289,13 @@ void DualView::_OnLoadingFinished(){
 
     // Hide the loading window after, just in case
     WelcomeWindow->close();
+
+    // Run command line //
+    LoadCompletelyFinished = true;
+    
+    _ProcessCmdQueue();
+
+    OpenImageViewer("/home/hhyyrylainen/690806.jpg");
 }
 // ------------------------------------ //
 void DualView::_HandleMessages(){

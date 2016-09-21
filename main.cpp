@@ -2,27 +2,37 @@
 
 #include <gtkmm.h>
 
-#include "Common.h"
+#include <iostream>
 
 int main(int argc, char* argv[]){
 
-    Logger log("log.txt");
-
-    LOG_WRITE("DualView++ Starting. Version " + std::string(DV::DUALVIEW_VERSION));
-    
     auto app =
         Gtk::Application::create(argc, argv,
-            "org.gtkmm.examples.base");
+            "com.boostslair.dualview", Gio::APPLICATION_HANDLES_COMMAND_LINE);
+
+    // Add command line argument handling //
+    app->add_main_option_entry(
+        Gio::Application::OPTION_TYPE_BOOL,
+        "version",
+        'v',
+        "Print version number",
+        ""
+    );
+    app->add_main_option_entry(
+        Gio::Application::OPTION_TYPE_STRING,
+        "dl-image",
+        '\0',
+        "Open downloader with the image open",
+        "http://file.url.com/img.png"
+    );
     
-    app->register_application();
+    if(!app->register_application()){
+
+        std::cerr << "Register failed" << std::endl;
+        return 1;
+    }
     
     DV::DualView dview(app);
 
-    LOG_INFO("Init completed. Running");
-    
-    const auto ret = app->run();
-
-    LOG_INFO("Event Loop Has Exited. Quitting");
-
-    return ret;
+    return app->run();
 }
