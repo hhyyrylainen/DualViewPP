@@ -17,6 +17,8 @@ public:
     //! \brief Constructor called by glade builder when loading a widget of this type
     SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
         std::shared_ptr<Image> displayedResource);
+
+    ~SuperViewer();
     
     
 protected:
@@ -25,6 +27,11 @@ protected:
 
     //! \brief Returns true if DisplayImage has finished loading
     bool IsImageReadyToShow() const;
+
+    //! \brief Called from a timer, forces redraws when things happen
+    //! \returns False when Gtk should disable the current timer. This happens
+    //! when a new timer has been added
+    bool _OnTimerCheck();
     
 private:
 

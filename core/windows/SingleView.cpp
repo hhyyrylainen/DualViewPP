@@ -47,6 +47,8 @@ SingleView::SingleView(const std::string &file){
 SingleView::~SingleView(){
 
     Close();
+
+
 }
 // ------------------------------------ //
 void SingleView::Close(){
@@ -57,7 +59,12 @@ void SingleView::Close(){
 
     LOG_INFO("SingleView window closed");
 
+    // Unref widget //
+    //ImageView->unreference();
+
     OurWindow->close();
+    delete OurWindow;
+    //OurWindow->unreference();
     OurWindow = nullptr;
 
     // Destroy the widgets from the Builder //

@@ -9,8 +9,16 @@ using namespace DV;
 SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
     std::shared_ptr<Image> displayedResource) : Gtk::DrawingArea(area)
 {
+    // Add redraw timer //
+    Glib::signal_timeout().connect(sigc::mem_fun(*this, &SuperViewer::_OnTimerCheck), 1000);
+    
     // Do setup stuff //
     DisplayImage = displayedResource->GetImage();
+}
+
+SuperViewer::~SuperViewer(){
+
+    LOG_WRITE("SUper destructed");
 }
 // ------------------------------------ //
 bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
@@ -57,5 +65,22 @@ bool SuperViewer::IsImageReadyToShow() const{
         return false;
 
     return DisplayImage->IsLoaded();
+}
+// ------------------------------------ //
+bool SuperViewer::_OnTimerCheck(){
+
+    LOG_WRITE("Timeout");
+    
+    // Cause a redraw //
+    queue_draw();
+
+    if(false){
+
+        // Change timer //
+        Glib::signal_timeout().connect(sigc::mem_fun(*this, &SuperViewer::_OnTimerCheck), 1000);
+        return false;
+    }
+
+    return true;
 }
 

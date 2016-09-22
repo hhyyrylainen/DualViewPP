@@ -62,10 +62,14 @@ DualView::~DualView(){
     _PluginManager.reset();
 
 
-
     // Close windows managed directly by us //
     WelcomeWindow->close();
+    delete WelcomeWindow;
+    WelcomeWindow = nullptr;
+    
     MainMenu->close();
+    delete MainMenu;
+    MainMenu = nullptr;
 
     // Unload image loader. All images must be closed before this is called //
     _CacheManager.reset();

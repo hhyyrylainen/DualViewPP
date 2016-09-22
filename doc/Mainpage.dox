@@ -3,5 +3,9 @@
     \section cool_stuff Cool Stuff
 
     \ref DV::DualView
+
+    \section watch_out Watch Out For
+
+    Gtk::Builder get derived: destructor doesn't get called without deleting the windows
     
 */

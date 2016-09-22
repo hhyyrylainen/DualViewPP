@@ -26,10 +26,8 @@ CacheManager::CacheManager(){
 CacheManager::~CacheManager(){
 
     // Stop loading threads //
+    // This might already have been set to true
     Quitting = true;
-
-    
-    
 
     NotifyFullLoaderThread.notify_all();
     NotifyCacheCleanup.notify_all();
@@ -133,7 +131,7 @@ void CacheManager::_RunFullSizeLoaderThread(){
             // Unlock while loading the image file
             lock.unlock();
 
-            
+            LOG_INFO("Loaded fullsize");
             
             lock.lock();
         }
@@ -189,7 +187,7 @@ void CacheManager::_RunThumbnailGenerationThread(){
             // Unlock while loading the image file
             lock.unlock();
 
-            
+            LOG_INFO("Loaded thumbnail");
             
             lock.lock();
         }
