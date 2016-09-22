@@ -11,6 +11,8 @@ if(CMAKE_BUILD_TYPE STREQUAL "")
     "Set the build type, usually Release or RelWithDebInfo" FORCE)
 endif()
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+
 if(WIN32)
   
   # program database flag for debug
@@ -26,6 +28,10 @@ endif(WIN32)
 
 # Find boost
 find_package(Boost REQUIRED COMPONENTS filesystem)
+
+find_package(CryptoPP REQUIRED)
+
+include_directories(${CRYPTOPP_INCLUDE_DIRS})
 
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
@@ -54,6 +60,7 @@ include_directories("${PROJECT_SOURCE_DIR}")
 configure_file("${PROJECT_SOURCE_DIR}/Common.h.in" "${PROJECT_SOURCE_DIR}/Common.h")
 
 add_subdirectory(leviathan)
+add_subdirectory(third_party)
 
 if(CREATE_DL_PLUGINS)
   add_subdirectory(hcxselect)
