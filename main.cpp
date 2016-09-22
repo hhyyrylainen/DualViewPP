@@ -1,4 +1,4 @@
-#include "DualView.h"
+#include "core/DualView.h"
 
 #include <gtkmm.h>
 

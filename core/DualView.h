@@ -17,6 +17,7 @@ class Logger;
 namespace DV{
 
 class PluginManager;
+class CacheManager;
 
 //! \brief Main class that contains all the windows and systems
 class DualView final {
@@ -46,6 +47,13 @@ public:
     //! through another function
     //! \todo Add that notify function
     void QueueCmd(std::function<void (DualView&)> cmd);
+
+    //! \brief Returns the CacheManager. use to load images
+    //! \todo Assert if _CacheManager is null
+    inline CacheManager& GetCacheManager(){
+
+        return *_CacheManager;
+    }
     
     //! \brief Returns true if called on the main thread
     //!
@@ -142,6 +150,9 @@ private:
 
     //! Plugin manager. For loading extra functionality
     std::unique_ptr<PluginManager> _PluginManager;
+
+    //! CacheManager handles loading all images
+    std::unique_ptr<CacheManager> _CacheManager;
 
     //! Logger object
     std::unique_ptr<Leviathan::Logger> _Logger;

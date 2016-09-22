@@ -1,6 +1,6 @@
 //! \file Contains plugin implementation for an imgur downloader
 // ------------------------------------ //
-#include "../Plugin.h"
+#include "core/Plugin.h"
 
 using namespace DV;
 // ------------------------------------ //

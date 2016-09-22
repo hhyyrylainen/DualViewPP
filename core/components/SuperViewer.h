@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/resources/Image.h"
+#include "core/CacheManager.h"
 
 #include <gtkmm.h>
 
@@ -22,7 +23,14 @@ protected:
 
     bool on_draw(const Cairo::RefPtr<Cairo::Context>& cr) override;
 
+    //! \brief Returns true if DisplayImage has finished loading
+    bool IsImageReadyToShow() const;
+    
 private:
 
+    //! Currently shown image resource
+    std::shared_ptr<LoadedImage> DisplayImage;
+
+    
 };
 }

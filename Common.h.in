@@ -22,6 +22,10 @@ constexpr auto SUPPORTED_EXTENSIONS = {
     std::make_tuple(".bmp", "image/bmp"),
 };
 
+
+//! The amount of time before CacheManager automatically unloads images
+constexpr auto DUALVIEW_SETTINGS_UNLOAD_TIME_MS = 30000;
+
 }
 
 #include "leviathan/Define.h"

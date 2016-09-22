@@ -24,6 +24,12 @@ else(WIN32)
   
 endif(WIN32)
 
+# Find boost
+find_package(Boost REQUIRED COMPONENTS filesystem)
+
+include_directories(${Boost_INCLUDE_DIRS})
+link_directories(${Boost_LIBRARY_DIRS})
+
 # Find Gtk
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTKMM REQUIRED gtkmm-3.0)
@@ -31,6 +37,12 @@ pkg_check_modules(GTKMM REQUIRED gtkmm-3.0)
 include_directories(${GTKMM_INCLUDE_DIRS})
 link_directories(${GTKMM_LIBRARY_DIRS})
 
+# This is not in the default ImageMagick-devel package.
+# it is in: ImageMagick-c++-devel
+pkg_check_modules(MAGICK REQUIRED Magick++)
+
+include_directories(${MAGICK_INCLUDE_DIRS})
+link_directories(${MAGICK_LIBRARY_DIRS})
 
 # Default system threads
 find_package(Threads)
@@ -52,17 +64,8 @@ add_subdirectory(core)
 
 add_executable(dualviewpp
   main.cpp
-  DualView.h DualView.cpp
+
   Common.h
-  Plugin.h
-  PluginManager.h PluginManager.cpp
-
-  # Window stuff
-  windows/BaseWindow.h windows/BaseWindow.cpp
-  windows/SingleView.h windows/SingleView.cpp
-
-  # Components for windows
-  components/SuperViewer.h components/SuperViewer.cpp
   )
 
 target_link_libraries(dualviewpp Core ${GTKMM_LIBRARIES} Leviathan ${CMAKE_THREAD_LIBS_INIT}

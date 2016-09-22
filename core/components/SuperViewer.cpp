@@ -9,10 +9,8 @@ using namespace DV;
 SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
     std::shared_ptr<Image> displayedResource) : Gtk::DrawingArea(area)
 {
-
     // Do setup stuff //
-
-
+    DisplayImage = displayedResource->GetImage();
 }
 // ------------------------------------ //
 bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
@@ -39,7 +37,25 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
     // cr->line_to(center.X - (dir.X * 50), center.Y - (dir.Y * 50));
 
     // cr->stroke();
+
+    if(!IsImageReadyToShow()){
+
+        // Draw loading animation //
+        
+    } else {
+
+        // Draw positioned image //
+        
+    }
     
     return true;
 }
 // ------------------------------------ //
+bool SuperViewer::IsImageReadyToShow() const{
+
+    if(!DisplayImage)
+        return false;
+
+    return DisplayImage->IsLoaded();
+}
+

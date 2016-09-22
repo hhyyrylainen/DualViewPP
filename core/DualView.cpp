@@ -3,6 +3,7 @@
 #include "Common.h"
 
 #include "windows/SingleView.h"
+#include "core/CacheManager.h"
 
 #include "PluginManager.h"
 #include "Exceptions.h"
@@ -51,15 +52,23 @@ DualView::~DualView(){
 
     LOG_INFO("DualView releasing resources");
 
+    // Cache manager start close //
+    _CacheManager->QuitProcessingThreads();
+
     // Force close windows //
     OpenWindows.clear();
 
     // Unload plugins //
     _PluginManager.reset();
 
+
+
     // Close windows managed directly by us //
     WelcomeWindow->close();
     MainMenu->close();
+
+    // Unload image loader. All images must be closed before this is called //
+    _CacheManager.reset();
 
     Staticinstance = nullptr;
 }
@@ -151,6 +160,64 @@ void DualView::_OnInstanceLoaded(){
     
     IsInitialized = true;
 }
+
+void DualView::_RunInitThread(){
+
+    LOG_INFO("Running Init thread");
+    LoadError = false;
+
+    // Load plugins //
+    //libPlugin_Imgur.so
+    if(!_PluginManager->LoadPlugin("plugins/libPlugin_Imgur.so")){
+
+        LoadError = true;
+        LOG_ERROR("Failed to load plugin");
+    }
+
+    // Load ImageMagick library //
+    _CacheManager = std::make_unique<CacheManager>();
+
+    // Load database //
+    
+    
+
+    //std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    
+    // Invoke the callback on the main thread //
+    StartDispatcher.emit();
+}
+
+void DualView::_OnLoadingFinished(){
+
+    AssertIfNotMainThread();
+
+    // The thread needs to be joined or an exception is thrown
+    if(LoadThread.joinable())
+        LoadThread.join();
+
+    if(LoadError){
+
+        // Loading failed
+        LOG_ERROR("Loading Failed");
+        WelcomeWindow->close();
+        return;
+    }
+
+    LOG_INFO("Loading Succeeded");
+
+    Application->add_window(*MainMenu);
+    MainMenu->show();
+
+    // Hide the loading window after, just in case
+    WelcomeWindow->close();
+
+    // Run command line //
+    LoadCompletelyFinished = true;
+    
+    _ProcessCmdQueue();
+
+    OpenImageViewer("/home/hhyyrylainen/690806.jpg");
+}
 // ------------------------------------ //
 void DualView::_ProcessCmdQueue(){
 
@@ -241,61 +308,6 @@ void DualView::_OnSignalOpen(const std::vector<Glib::RefPtr<Gio::File>> &files,
 
         LOG_WRITE("\t" + file->get_path());
     }
-}
-// ------------------------------------ //
-void DualView::_RunInitThread(){
-
-    LOG_INFO("Running Init thread");
-    LoadError = false;
-
-    // Load plugins //
-    //libPlugin_Imgur.so
-    if(!_PluginManager->LoadPlugin("plugins/libPlugin_Imgur.so")){
-
-        LoadError = true;
-        LOG_ERROR("Failed to load plugin");
-    }
-
-    // Load database //
-    
-    
-
-    //std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    
-    // Invoke the callback on the main thread //
-    StartDispatcher.emit();
-}
-
-void DualView::_OnLoadingFinished(){
-
-    AssertIfNotMainThread();
-
-    // The thread needs to be joined or an exception is thrown
-    if(LoadThread.joinable())
-        LoadThread.join();
-
-    if(LoadError){
-
-        // Loading failed
-        LOG_ERROR("Loading Failed");
-        WelcomeWindow->close();
-        return;
-    }
-
-    LOG_INFO("Loading Succeeded");
-
-    Application->add_window(*MainMenu);
-    MainMenu->show();
-
-    // Hide the loading window after, just in case
-    WelcomeWindow->close();
-
-    // Run command line //
-    LoadCompletelyFinished = true;
-    
-    _ProcessCmdQueue();
-
-    OpenImageViewer("/home/hhyyrylainen/690806.jpg");
 }
 // ------------------------------------ //
 void DualView::_HandleMessages(){
