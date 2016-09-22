@@ -25,6 +25,12 @@ set(GroupEntities "Entities/EntityCommon.h")
 
 set(GroupUtility "Utility/Convert.cpp" "Utility/Convert.h")
 
+file(GLOB GroupIterators
+  "Iterators/IteratorData.h"
+  "Iterators/StringDataIterator.cpp" "Iterators/StringDataIterator.h"
+  "Iterators/StringIterator.cpp" "Iterators/StringIterator.h"
+  )
+
 # collect all files to one group
 set(EngineFiles ${GroupCore} ${GroupEntities} ${GroupUtility} ${GroupStatistics}
   ${GroupMath} ${GroupSound}

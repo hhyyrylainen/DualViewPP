@@ -75,7 +75,7 @@ add_executable(dualviewpp
   Common.h
   )
 
-target_link_libraries(dualviewpp Core ${GTKMM_LIBRARIES} Leviathan ${CMAKE_THREAD_LIBS_INIT}
+target_link_libraries(dualviewpp Core ${GTKMM_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT}
   ${CMAKE_DL_LIBS})
 
 

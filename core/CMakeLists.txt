@@ -24,7 +24,7 @@ add_library(Core
   )
 
 
-target_link_libraries(Core ThirdParty
+target_link_libraries(Core ThirdParty Leviathan
   ${MAGICK_LIBRARIES} ${Boost_LIBRARIES} ${CRYPTOPP_LIBRARIES})
 
 target_compile_options(Core PUBLIC ${MAGICK_CFLAGS_OTHER})

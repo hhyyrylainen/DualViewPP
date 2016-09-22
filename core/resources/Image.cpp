@@ -4,6 +4,8 @@
 #include "DualView.h"
 #include "CacheManager.h"
 #include "Exceptions.h"
+#include "FileSystem.h"
+#include "Common/StringOperations.h"
 
 // TODO: remove when DEBUG_BREAK is gone
 #include "Common.h"
@@ -43,8 +45,23 @@ std::shared_ptr<LoadedImage> Image::GetThumbnail() const{
 // ------------------------------------ //
 std::string Image::CalculateFileHash() const{
 
+    // Load file bytes //
+    std::string contents;
+    if(!Leviathan::FileSystem::ReadFileEntirely(ResourcePath, contents)){
+
+        LEVIATHAN_ASSERT(0, "Failed to read file for hash calculation");
+    }
+
     DEBUG_BREAK;
-    return "";
+
+    // Calculate sha256 hash //
+    std::string hash = contents;
+
+
+    // Encode it //
+    hash = Leviathan::StringOperations::Replace<std::string>(hash, "/", "_");
+
+    return contents;
 }
 
 void Image::_DoHashCalculation(){
