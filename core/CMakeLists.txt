@@ -21,6 +21,7 @@ add_library(Core
   
   # Resources
   resources/Image.h resources/Image.cpp
+  resources/Collection.h resources/Collection.cpp
   )
 
 

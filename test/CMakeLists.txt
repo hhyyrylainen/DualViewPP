@@ -1,8 +1,11 @@
 
 add_executable(Test
   testmain.cpp
+
+  # Actual tests
   tests.cpp
   test_image.cpp
+  test_collection.cpp
 
   DummyLog.h DummyLog.cpp
   )
