@@ -11,6 +11,9 @@
 #include "Common.h"
 
 #include <boost/filesystem.hpp>
+#include <cryptopp/sha.h>
+
+#include "third_party/base64.h"
 
 using namespace DV;
 // ------------------------------------ //
@@ -52,16 +55,21 @@ std::string Image::CalculateFileHash() const{
         LEVIATHAN_ASSERT(0, "Failed to read file for hash calculation");
     }
 
-    DEBUG_BREAK;
-
     // Calculate sha256 hash //
-    std::string hash = contents;
+    byte digest[CryptoPP::SHA256::DIGESTSIZE];
 
+    CryptoPP::SHA256().CalculateDigest(digest, reinterpret_cast<const byte*>(
+            contents.data()), contents.length());
+
+    static_assert(sizeof(digest) == CryptoPP::SHA256::DIGESTSIZE, "sizeof funkyness");
 
     // Encode it //
-    hash = Leviathan::StringOperations::Replace<std::string>(hash, "/", "_");
+    std::string hash = base64_encode(digest, sizeof(digest));
 
-    return contents;
+    // Make it path safe //
+    hash = Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(hash, "/", '_');
+
+    return hash;
 }
 
 void Image::_DoHashCalculation(){

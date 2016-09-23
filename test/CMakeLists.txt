@@ -2,6 +2,18 @@
 add_executable(Test
   testmain.cpp
   tests.cpp
+  test_image.cpp
+
+  DummyLog.h DummyLog.cpp
   )
 
-target_link_libraries(Test Core)
+target_link_libraries(Test Core
+  # Need to be linked to same libraries as dualviewpp executable
+  ${CMAKE_THREAD_LIBS_INIT}
+  ${CMAKE_DL_LIBS}
+  )
+
+# Create symbolic link for test data
+file(MAKE_DIRECTORY "${PROJECT_BINARY_DIR}/test")
+# and copy it
+file(COPY data DESTINATION "${PROJECT_BINARY_DIR}/test")

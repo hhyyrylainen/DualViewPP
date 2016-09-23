@@ -29,12 +29,22 @@ endif(WIN32)
 # Find boost
 find_package(Boost REQUIRED COMPONENTS filesystem)
 
-find_package(CryptoPP REQUIRED)
-
-include_directories(${CRYPTOPP_INCLUDE_DIRS})
+if(NOT Boost_FOUND)
+  message(SEND_ERROR "boost libraries not found")
+endif()
 
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
+
+
+find_package(CryptoPP REQUIRED)
+
+if(NOT CRYPTOPP_FOUND)
+  message(SEND_ERROR "Crypto++ not found")
+endif()
+
+include_directories(${CRYPTOPP_INCLUDE_DIRS})
+
 
 # Find Gtk
 find_package(PkgConfig REQUIRED)
@@ -49,6 +59,12 @@ pkg_check_modules(MAGICK REQUIRED Magick++)
 
 include_directories(${MAGICK_INCLUDE_DIRS})
 link_directories(${MAGICK_LIBRARY_DIRS})
+
+
+pkg_check_modules(SQLITE3 REQUIRED sqlite3)
+
+include_directories(${SQLITE3_INCLUDE_DIRS})
+
 
 # Default system threads
 find_package(Threads)
@@ -75,7 +91,7 @@ add_executable(dualviewpp
   Common.h
   )
 
-target_link_libraries(dualviewpp Core ${GTKMM_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT}
+target_link_libraries(dualviewpp Core ${CMAKE_THREAD_LIBS_INIT}
   ${CMAKE_DL_LIBS})
 
 
