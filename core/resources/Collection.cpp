@@ -23,7 +23,7 @@ std::string Collection::GetNameForFolder() const{
     // And then get rid of all characters under 0x1F
     for(auto iter = sanitized.begin(); iter != sanitized.end(); ++iter){
 
-        if((*iter) < 0x1F)
+        if((*iter) <= 0x1F)
             (*iter) = ' ';
     }
 
