@@ -37,6 +37,10 @@ std::string Collection::GetNameForFolder() const{
     if(sanitized.back() == '.')
         sanitized += "d";
 
+    // Don't start with a dot or an hyphen //
+    if(sanitized.front() == '.' || sanitized.front() == '-')
+        sanitized = "d" + sanitized;
+
     // Verify that it is a valid name //
     if(!boost::filesystem::windows_name(sanitized)){
 
