@@ -63,4 +63,3 @@ TEST_CASE("Cache Manager loads images", "[image]"){
         CHECK(img->GetFrameCount() == 142);
     }
 }
-

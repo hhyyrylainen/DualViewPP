@@ -2,6 +2,8 @@
 
 #include "Exceptions.h"
 
+#include <gdkmm/pixbuf.h>
+
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -19,6 +21,7 @@ namespace DV{
 
 class CacheManager;
 
+//! \brief Holds an image that has been loaded into memory
 class LoadedImage{
     friend CacheManager;
 public:
@@ -88,7 +91,23 @@ public:
 
 
     //! \brief Creates a gtk image for drawing
-    
+    //! \param page The page to get the image for. 0 for first image.
+    //! GetFrameCount() - 1 for last image.
+    //! \exception Leviathan::InvalidArgument if page is outside valid range
+    //! \exception Leviathan::InvalidState if no image loaded
+    //! \note It looks like Gtk rounds up sizes for some images,
+    //! but they seem to work just fine
+    //! \todo Alpha support
+    Glib::RefPtr<Gdk::Pixbuf> CreateGtkImage(size_t page = 0) const;
+
+    //! \brief Returns the internal magick image.
+    //!
+    //! This should only be used if this class doesn't provide some
+    //! required Magick function
+    std::shared_ptr<std::vector<Magick::Image>> GetMagickImage(){
+
+        return MagickImage;
+    }
 
     //! \brief Loads an image from file to the Magick++ object
     //! \exception Leviathan::InvalidArgument If the file couldn't be loaded

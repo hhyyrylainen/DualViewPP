@@ -297,3 +297,54 @@ size_t LoadedImage::GetFrameCount() const{
     return MagickImage->size();
 }
 
+// ------------------------------------ //
+Glib::RefPtr<Gdk::Pixbuf> LoadedImage::CreateGtkImage(size_t page /*= 0*/) const{
+
+    if(!IsImageObjectLoaded())
+        throw Leviathan::InvalidState("MagickImage not loaded");
+
+    if(page >= MagickImage->size())
+        throw Leviathan::InvalidArgument("page is outside valid range");
+
+    Magick::Image& image = MagickImage->at(page);
+
+    const bool hasAlpha = false;
+    const auto bitsPerSample = 8;
+    const int width = image.columns();
+    const int height = image.rows();
+
+    const size_t stride = (bitsPerSample / 8) * 3 * width;
+    
+    // Create buffer //
+    auto pixbuf = Gdk::Pixbuf::create(Gdk::Colorspace::COLORSPACE_RGB,
+        hasAlpha, bitsPerSample, width, height);
+
+    if(!pixbuf)
+        throw Leviathan::Exception("Failed to create pixbuf");
+
+    LEVIATHAN_ASSERT(pixbuf->get_width() == width, "Pixbuf wrong width created");
+    LEVIATHAN_ASSERT(pixbuf->get_height() == height, "Pixbuf wrong height created");
+
+    // It looks like Gtk might round up sizes for some reason
+    LEVIATHAN_ASSERT(static_cast<size_t>(pixbuf->get_rowstride())
+        >= stride, "Gtk stride is unexpected, " + std::to_string(pixbuf->get_rowstride()) +
+        " != " + std::to_string(stride));
+
+    LEVIATHAN_ASSERT(pixbuf->get_byte_length() >= stride * height,
+        "Magick and Gtk have different image sizes: " +
+        std::to_string(pixbuf->get_byte_length()) + " != " + std::to_string(stride * height));
+
+    // Copy data //
+    unsigned char* destination = pixbuf->get_pixels();
+    
+    for(int y = 0; y < height; ++y)
+    {
+        image.write(0, y, width, 1, "RGB", Magick::CharPixel, destination);
+
+        //destination += stride;
+        destination += pixbuf->get_rowstride();
+    }
+
+    return pixbuf;
+}
+

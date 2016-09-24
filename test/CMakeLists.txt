@@ -7,6 +7,8 @@ add_executable(Test
   test_image.cpp
   test_collection.cpp
 
+  gtk_tests.cpp
+
   DummyLog.h DummyLog.cpp
   TestDualView.h
   )

@@ -10,7 +10,8 @@ SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> build
     std::shared_ptr<Image> displayedResource) : Gtk::DrawingArea(area)
 {
     // Add redraw timer //
-    Glib::signal_timeout().connect(sigc::mem_fun(*this, &SuperViewer::_OnTimerCheck), 1000);
+    Glib::signal_timeout().connect(sigc::mem_fun(*this, &SuperViewer::_OnTimerCheck),
+        CurrentTimer);
     
     // Do setup stuff //
     DisplayImage = displayedResource->GetImage();
@@ -52,8 +53,19 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
         
     } else {
 
-        // Draw positioned image //
+        if(!DisplayImage->IsValid()){
+
+            // Draw error message //
+            
+        } else {
         
+            // Draw positioned image //
+            auto img = DisplayImage->CreateGtkImage();
+
+            Gdk::Cairo::set_source_pixbuf(cr, img, 0, 0);
+            cr->rectangle(0, 0, img->get_width(), img->get_height());
+            cr->fill();
+        }
     }
     
     return true;
@@ -69,15 +81,19 @@ bool SuperViewer::IsImageReadyToShow() const{
 // ------------------------------------ //
 bool SuperViewer::_OnTimerCheck(){
 
-    LOG_WRITE("Timeout");
+    int newTimer = 1000;
     
     // Cause a redraw //
     queue_draw();
 
-    if(false){
+    if(newTimer != CurrentTimer){
 
         // Change timer //
-        Glib::signal_timeout().connect(sigc::mem_fun(*this, &SuperViewer::_OnTimerCheck), 1000);
+        CurrentTimer = newTimer;
+        
+        Glib::signal_timeout().connect(sigc::mem_fun(*this, &SuperViewer::_OnTimerCheck),
+            CurrentTimer);
+        
         return false;
     }
 

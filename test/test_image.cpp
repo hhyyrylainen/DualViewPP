@@ -41,3 +41,4 @@ TEST_CASE("ImageMagick properly loads the test image", "[image]"){
 
     
 }
+

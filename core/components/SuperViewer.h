@@ -38,6 +38,7 @@ private:
     //! Currently shown image resource
     std::shared_ptr<LoadedImage> DisplayImage;
 
-    
+    //! Currently used timer for _OnTimerCheck in milliseconds
+    int CurrentTimer = 1000;
 };
 }
