@@ -20,14 +20,14 @@ TEST_CASE("File hash generation is correct", "[image, hash]") {
 
 TEST_CASE("ImageMagick properly loads the test image", "[image]"){
 
-    std::shared_ptr<std::list<Magick::Image>> imageobj;
+    std::shared_ptr<std::vector<Magick::Image>> imageobj;
     
     REQUIRE_NOTHROW(LoadedImage::LoadImage("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg",
             imageobj));
 
     REQUIRE(imageobj);
 
-    std::list<Magick::Image>& images = *imageobj;
+    std::vector<Magick::Image>& images = *imageobj;
 
     REQUIRE(images.size() > 0);
     CHECK(images.size() == 1);

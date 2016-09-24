@@ -84,18 +84,16 @@ public:
 
     //! \brief Returns the number of frames in the image
     //! \exception Leviathan::InvalidState if no image loaded
-    size_t GetFrameCount() const{
+    size_t GetFrameCount() const;
 
-        if(!IsImageObjectLoaded())
-            throw Leviathan::InvalidState("MagickImage not loaded");
 
-        return MagickImage->size();
-    }
+    //! \brief Creates a gtk image for drawing
+    
 
     //! \brief Loads an image from file to the Magick++ object
     //! \exception Leviathan::InvalidArgument If the file couldn't be loaded
     static void LoadImage(const std::string &file,
-        std::shared_ptr<std::list<Magick::Image>> &image);
+        std::shared_ptr<std::vector<Magick::Image>> &image);
 
 public:
 
@@ -131,7 +129,7 @@ protected:
 
     //! The magick image objects
     //! \todo Check if std::vector gives better performance
-    std::shared_ptr<std::list<Magick::Image>> MagickImage;
+    std::shared_ptr<std::vector<Magick::Image>> MagickImage;
     
 };
 

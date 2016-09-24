@@ -222,15 +222,15 @@ void LoadedImage::UnloadImage(){
 }
 // ------------------------------------ //
 void LoadedImage::LoadImage(const std::string &file,
-    std::shared_ptr<std::list<Magick::Image>> &image)
+    std::shared_ptr<std::vector<Magick::Image>> &image)
 {
     if(!boost::filesystem::exists(file))
         throw Leviathan::InvalidArgument("File doesn't exist");
     
-    auto createdImage = std::make_shared<std::list<Magick::Image>>();
+    auto createdImage = std::make_shared<std::vector<Magick::Image>>();
 
     if(!createdImage)
-        throw Leviathan::InvalidArgument("Allocating image list failed");
+        throw Leviathan::InvalidArgument("Allocating image vector failed");
 
     // Load image //
     readImages(createdImage.get(), file);
@@ -241,7 +241,7 @@ void LoadedImage::LoadImage(const std::string &file,
     // Coalesce animated images //
     if(createdImage->size() > 1){
 
-        image = std::make_shared<std::list<Magick::Image>>();
+        image = std::make_shared<std::vector<Magick::Image>>();
         coalesceImages(image.get(), createdImage->begin(), createdImage->end());
 
         if(image->empty())
@@ -287,5 +287,13 @@ size_t LoadedImage::GetHeight() const{
         throw Leviathan::InvalidState("MagickImage not loaded");
     
     return MagickImage->front().rows();
+}
+
+size_t LoadedImage::GetFrameCount() const{
+
+    if(!IsImageObjectLoaded())
+        throw Leviathan::InvalidState("MagickImage not loaded");
+
+    return MagickImage->size();
 }
 
