@@ -5,6 +5,8 @@
 #include <Magick++.h>
 #include <gtkmm.h>
 
+#include "Exceptions.h"
+
 using namespace DV;
 // ------------------------------------ //
 
@@ -216,5 +218,22 @@ void LoadedImage::UnloadImage(){
     Status = IMAGE_LOAD_STATUS::Error;
     FromPath = "Forced unload";
     MagickImage.reset();
+}
+// ------------------------------------ //
+void LoadedImage::LoadImage(const std::string &file,
+    std::shared_ptr<std::list<Magick::Image>> &image)
+{
+    auto createdImage = std::make_shared<std::list<Magick::Image>>();
+
+    if(!createdImage)
+        throw Leviathan::InvalidArgument("Allocating image list failed");
+
+    // Load image //
+    readImages(createdImage.get(), file);
+
+    if(createdImage->empty())
+        throw Leviathan::InvalidArgument("Loaded image is empty");
+
+    image = createdImage;
 }
 

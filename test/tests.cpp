@@ -1,9 +1,12 @@
 #include "catch.hpp"
 
+#include "TestDualView.h"
+
 #include <memory>
 
 
-TEST_CASE("It starts", "[tests]") {
+TEST_CASE("Cache Manager loads images", "[image]"){
 
-    CHECK(true);
+    
 }
+

@@ -20,7 +20,7 @@ class PluginManager;
 class CacheManager;
 
 //! \brief Main class that contains all the windows and systems
-class DualView final {
+class DualView {
 public:
 
     //! \brief Loads the GUI layout files and starts
@@ -64,6 +64,9 @@ public:
     static DualView& Get();
 
 protected:
+
+    //! \brief Constructor for test subclass to use
+    DualView(bool tests);
 
     //! \brief Ran in the loader thread
     void _RunInitThread();

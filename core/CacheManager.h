@@ -19,6 +19,7 @@ namespace DV{
 class CacheManager;
 
 class LoadedImage{
+    friend CacheManager;
 public:
     //! \brief Status of image
     enum class IMAGE_LOAD_STATUS {
@@ -72,6 +73,11 @@ public:
         return LastUsed;
     }
 
+    //! \brief Loads an image from file to the Magick++ object
+    //! \exception Leviathan::InvalidArgument If the file couldn't be loaded
+    static void LoadImage(const std::string &file,
+        std::shared_ptr<std::list<Magick::Image>> &image);
+
 public:
 
     //! \brief Create new
@@ -97,7 +103,7 @@ protected:
 
     //! The path this was loaded from. Or the error message
     std::string FromPath;
-    std::shared_ptr<Magick::Image> MagickImage;
+    std::shared_ptr<std::list<Magick::Image>> MagickImage;
     
 };
 

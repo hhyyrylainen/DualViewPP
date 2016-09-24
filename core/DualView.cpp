@@ -43,6 +43,8 @@ DualView::~DualView(){
 
     if(!IsInitialized){
 
+        Staticinstance = nullptr;
+        
         if(!SuppressSecondInstance)
             std::cout << "DualView++ Main Instance Notified. Extra instance quitting" <<
                 std::endl;
@@ -75,6 +77,18 @@ DualView::~DualView(){
     _CacheManager.reset();
 
     Staticinstance = nullptr;
+}
+
+DualView::DualView(bool tests){
+
+    LEVIATHAN_ASSERT(tests, "DualView test constructor called with false");
+
+    SuppressSecondInstance = true;
+
+    Staticinstance = this;
+    ThreadSpecifier = MAIN_THREAD_MAGIC;
+
+    _CacheManager = std::make_unique<CacheManager>();
 }
 
 DualView* DualView::Staticinstance = nullptr;

@@ -8,6 +8,7 @@ add_executable(Test
   test_collection.cpp
 
   DummyLog.h DummyLog.cpp
+  TestDualView.h
   )
 
 target_link_libraries(Test Core
