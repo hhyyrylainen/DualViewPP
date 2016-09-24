@@ -7,10 +7,10 @@
 
 #include "Exceptions.h"
 
+#include <boost/filesystem.hpp>
+
 using namespace DV;
 // ------------------------------------ //
-
-
 CacheManager::CacheManager(){
 
     Magick::InitializeMagick(Glib::get_current_dir().c_str());
@@ -133,7 +133,10 @@ void CacheManager::_RunFullSizeLoaderThread(){
             // Unlock while loading the image file
             lock.unlock();
 
-            LOG_INFO("Loaded fullsize");
+            LOG_INFO("Loading");
+            current->DoLoad();
+
+            LOG_INFO("Loaded: " + std::to_string((int)current->Status));
             
             lock.lock();
         }
@@ -189,7 +192,8 @@ void CacheManager::_RunThumbnailGenerationThread(){
             // Unlock while loading the image file
             lock.unlock();
 
-            LOG_INFO("Loaded thumbnail");
+            LOG_INFO("DEBUG_BREAK thumbnail");
+            DEBUG_BREAK;
             
             lock.lock();
         }
@@ -204,7 +208,7 @@ void CacheManager::_RunThumbnailGenerationThread(){
 
 // ------------------------------------ //
 // LoadedImage
-LoadedImage::LoadedImage(const std::string &path){
+LoadedImage::LoadedImage(const std::string &path) : FromPath(path){
 
 }
 
@@ -223,6 +227,9 @@ void LoadedImage::UnloadImage(){
 void LoadedImage::LoadImage(const std::string &file,
     std::shared_ptr<std::list<Magick::Image>> &image)
 {
+    if(!boost::filesystem::exists(file))
+        throw Leviathan::InvalidArgument("File doesn't exist");
+    
     auto createdImage = std::make_shared<std::list<Magick::Image>>();
 
     if(!createdImage)
@@ -234,6 +241,54 @@ void LoadedImage::LoadImage(const std::string &file,
     if(createdImage->empty())
         throw Leviathan::InvalidArgument("Loaded image is empty");
 
-    image = createdImage;
+    // Coalesce animated images //
+    if(createdImage->size() > 1){
+
+        image = std::make_shared<std::list<Magick::Image>>();
+        coalesceImages(image.get(), createdImage->begin(), createdImage->end());
+
+        if(image->empty())
+            throw Leviathan::InvalidArgument("Coalesced image is empty");
+        
+    } else {
+
+        image = createdImage;
+    }
+}
+
+void LoadedImage::DoLoad(){
+
+    try{
+
+        LoadImage(FromPath, MagickImage);
+
+        LEVIATHAN_ASSERT(MagickImage, "MagickImage is null after LoadImage, "
+            "expected an exception");
+
+        Status = IMAGE_LOAD_STATUS::Loaded;
+
+    } catch(const std::exception &e){
+
+        LOG_WARNING("LoadedImage: failed to load from path: " + FromPath);
+
+        FromPath = "Error Loading: " + std::string(e.what());
+        Status = IMAGE_LOAD_STATUS::Error;
+    }
+}
+// ------------------------------------ //
+size_t LoadedImage::GetWidth() const{
+    
+    if(!IsImageObjectLoaded())
+        throw Leviathan::InvalidState("MagickImage not loaded");
+    
+    return MagickImage->front().columns();
+}
+
+size_t LoadedImage::GetHeight() const{
+    
+    if(!IsImageObjectLoaded())
+        throw Leviathan::InvalidState("MagickImage not loaded");
+    
+    return MagickImage->front().rows();
 }
 

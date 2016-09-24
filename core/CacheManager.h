@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Exceptions.h"
 
 #include <atomic>
 #include <chrono>
@@ -38,25 +39,25 @@ public:
     ~LoadedImage();
 
     //! \brief Returns true if this image is no longer waiting
-    inline bool IsLoaded(){
+    inline bool IsLoaded() const{
 
         return Status != IMAGE_LOAD_STATUS::Waiting;
     }
 
     //! \brief Returns true if loading was successfull
-    inline bool IsValid(){
+    inline bool IsValid() const{
 
         return MagickImage && (Status == IMAGE_LOAD_STATUS::Loaded);
     }
 
     //! \brief Returns true if MagickImage is loaded
-    inline bool IsImageObjectLoaded(){
+    inline bool IsImageObjectLoaded() const{
 
         return MagickImage.operator bool();
     }
 
     //! \brief Returns true if path matches the path that this image has loaded
-    inline bool PathMatches(const std::string &path){
+    inline bool PathMatches(const std::string &path) const{
 
         return Status != IMAGE_LOAD_STATUS::Error && FromPath == path;
     }
@@ -73,6 +74,14 @@ public:
         return LastUsed;
     }
 
+    //! \brief Returns the width of the image
+    //! \exception Leviathan::InvalidState if no image loaded
+    size_t GetWidth() const;
+
+    //! \brief Returns the width of the image
+    //! \exception Leviathan::InvalidState if no image loaded
+    size_t GetHeight() const;
+
     //! \brief Loads an image from file to the Magick++ object
     //! \exception Leviathan::InvalidArgument If the file couldn't be loaded
     static void LoadImage(const std::string &file,
@@ -80,12 +89,18 @@ public:
 
 public:
 
-    //! \brief Create new
+    //! \brief Create new LoadedImage
     //! \protected
     //! \warning Don't call this from anywhere else than CacheManager
     LoadedImage(const std::string &path);
 
+
 protected:
+
+    //! \brief Loads this image
+    //!
+    //! Called in a worker thread by CacheManager
+    void DoLoad();
 
     //! \brief Forcefully unloads MagickImage.
     //!
@@ -182,8 +197,6 @@ protected:
 
     std::mutex ThumbQueueMutex;
     std::list<std::shared_ptr<LoadedImage>> ThumbQueue;
-    
-    
 };
 
 
