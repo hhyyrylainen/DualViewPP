@@ -133,10 +133,7 @@ void CacheManager::_RunFullSizeLoaderThread(){
             // Unlock while loading the image file
             lock.unlock();
 
-            LOG_INFO("Loading");
             current->DoLoad();
-
-            LOG_INFO("Loaded: " + std::to_string((int)current->Status));
             
             lock.lock();
         }

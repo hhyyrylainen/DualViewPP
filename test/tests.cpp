@@ -14,27 +14,53 @@ TEST_CASE("Cache Manager loads images", "[image]"){
     
     DV::TestDualView test;
 
-    auto img = test.GetCacheManager().LoadFullImage(
-        "data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
+    SECTION("Normal test image"){
+        auto img = test.GetCacheManager().LoadFullImage(
+            "data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
 
-    REQUIRE(img);
+        REQUIRE(img);
 
-    // Loop while loading //
-    while(!img->IsLoaded()){
+        // Loop while loading //
+        while(!img->IsLoaded()){
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
+        // Check that it succeeded //
+        CHECK(img->IsValid());
+
+        CHECK(img->GetWidth() == 914);
+        CHECK(img->GetHeight() == 1280);
+
+        // Same object with the same path //
+        auto img2 = test.GetCacheManager().LoadFullImage(
+            "data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
+
+        CHECK(img2.get() == img.get());
     }
 
-    // Check that it succeeded //
-    CHECK(img->IsValid());
 
-    CHECK(img->GetWidth() == 914);
-    CHECK(img->GetHeight() == 1280);
+    SECTION("Gif image"){
+        
+        auto img = test.GetCacheManager().LoadFullImage(
+            "data/bird bathing.gif");
 
-    // Same object with the same path //
-    auto img2 = test.GetCacheManager().LoadFullImage(
-        "data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
+        REQUIRE(img);
 
-    CHECK(img2.get() == img.get());
+        // Loop while loading //
+        while(!img->IsLoaded()){
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
+        // Check that it succeeded //
+        CHECK(img->IsValid());
+
+        CHECK(img->GetWidth() == 250);
+        CHECK(img->GetHeight() == 250);
+
+        // Page count //
+        CHECK(img->GetFrameCount() == 142);
+    }
 }
 

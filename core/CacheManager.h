@@ -82,6 +82,16 @@ public:
     //! \exception Leviathan::InvalidState if no image loaded
     size_t GetHeight() const;
 
+    //! \brief Returns the number of frames in the image
+    //! \exception Leviathan::InvalidState if no image loaded
+    size_t GetFrameCount() const{
+
+        if(!IsImageObjectLoaded())
+            throw Leviathan::InvalidState("MagickImage not loaded");
+
+        return MagickImage->size();
+    }
+
     //! \brief Loads an image from file to the Magick++ object
     //! \exception Leviathan::InvalidArgument If the file couldn't be loaded
     static void LoadImage(const std::string &file,
@@ -118,6 +128,9 @@ protected:
 
     //! The path this was loaded from. Or the error message
     std::string FromPath;
+
+    //! The magick image objects
+    //! \todo Check if std::vector gives better performance
     std::shared_ptr<std::list<Magick::Image>> MagickImage;
     
 };
