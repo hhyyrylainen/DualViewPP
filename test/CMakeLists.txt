@@ -1,4 +1,6 @@
 
+include_directories("${PROJECT_SOURCE_DIR}/third_party")
+
 add_executable(Test
   testmain.cpp
 
