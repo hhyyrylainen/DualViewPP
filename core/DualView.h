@@ -3,7 +3,8 @@
 
 #include "windows/BaseWindow.h"
 
-
+#include <condition_variable>
+#include <mutex>
 #include <thread>
 #include <atomic>
 #include <memory>
@@ -15,6 +16,8 @@ class Logger;
 }
 
 namespace DV{
+
+class Image;
 
 class PluginManager;
 class CacheManager;
@@ -48,6 +51,24 @@ public:
     //! \todo Add that notify function
     void QueueCmd(std::function<void (DualView&)> cmd);
 
+    //! \brief Adds an image to hash calculation queue
+    //!
+    //! After the image is added its hash will be calculated on a worker thread.
+    //! If the image was already in the database it the passed in image will be made
+    //! into a duplicate of the existing image
+    void QueueImageHashCalculate(std::shared_ptr<Image> img);
+
+    //
+    // Database object retrieve functions
+    //
+    //! \brief Retrieves an Image from the database matching the has, or null
+    std::shared_ptr<Image> GetImageByHash(const std::string &hash);
+
+    
+
+
+    
+
     //! \brief Returns the CacheManager. use to load images
     //! \todo Assert if _CacheManager is null
     inline CacheManager& GetCacheManager(){
@@ -68,6 +89,9 @@ protected:
     //! \brief Constructor for test subclass to use
     DualView(bool tests);
 
+    //! \brief Constructor for test subclass to use
+    DualView(std::string tests);
+
     //! \brief Ran in the loader thread
     void _RunInitThread();
 
@@ -85,6 +109,11 @@ protected:
 
     //! \brief Handles all queued commandline arguments
     void _ProcessCmdQueue();
+
+    //! \brief Processes hash calculation queue
+    //! \todo Make this return images that are duplicates of currently loaded images,
+    //! that are loaded but aren't in the database
+    void _RunHashCalculateThread();
     
 private:
 
@@ -104,6 +133,15 @@ private:
     //! \brief Receives a list of files to open
     void _OnSignalOpen(const std::vector<Glib::RefPtr<Gio::File>> &files,
         const Glib::ustring &stuff);
+
+    //! \brief Starts the background worker threads
+    virtual void _StartWorkerThreads();
+
+    //! \brief Waits for worker threads to quit.
+    //!
+    //! Must hbe called before destructing, otherwise the background threads will
+    //! assert
+    virtual void _WaitForWorkerThreads();
     
 private:
 
@@ -121,6 +159,7 @@ private:
     Glib::Dispatcher StartDispatcher;
 
     std::atomic<bool> LoadError = { false };
+    std::atomic<bool> QuitWorkerThreads = { false };
 
     //! Set to true once _OnLoadingFinished is done
     std::atomic<bool> LoadCompletelyFinished = { false };
@@ -159,6 +198,16 @@ private:
 
     //! Logger object
     std::unique_ptr<Leviathan::Logger> _Logger;
+
+
+    //! Hash loading thread
+    std::thread HashCalculationThread;
+    std::condition_variable HashCalculationThreadNotify;
+
+    std::list<std::weak_ptr<Image>> HashImageQueue;
+    std::mutex HashImageQueueMutex;
+
+
 
     static DualView* Staticinstance;
 };

@@ -13,7 +13,7 @@ using namespace DV;
 SingleView::SingleView(const std::string &file){
 
     // Create resource //
-    auto resource = std::make_shared<Image>(file);
+    auto resource = Image::Create(file);
 
 
     // Load gtk stuff //

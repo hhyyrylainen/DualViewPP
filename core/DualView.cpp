@@ -41,8 +41,19 @@ DualView::DualView(Glib::RefPtr<Gtk::Application> app) : Application(app){
 
 DualView::~DualView(){
 
+    QuitWorkerThreads = true;
+
+    if(_CacheManager){
+
+        // Cache manager start close //
+        _CacheManager->QuitProcessingThreads();
+    }
+
     if(!IsInitialized){
 
+        _WaitForWorkerThreads();
+        _CacheManager.reset();
+        
         Staticinstance = nullptr;
         
         if(!SuppressSecondInstance)
@@ -54,15 +65,11 @@ DualView::~DualView(){
 
     LOG_INFO("DualView releasing resources");
 
-    // Cache manager start close //
-    _CacheManager->QuitProcessingThreads();
-
     // Force close windows //
     OpenWindows.clear();
 
     // Unload plugins //
     _PluginManager.reset();
-
 
     // Close windows managed directly by us //
     WelcomeWindow->close();
@@ -76,10 +83,14 @@ DualView::~DualView(){
     // Unload image loader. All images must be closed before this is called //
     _CacheManager.reset();
 
+    _WaitForWorkerThreads();
+
     Staticinstance = nullptr;
 }
 
 DualView::DualView(bool tests){
+
+    _Logger = std::make_unique<Leviathan::Logger>("test_log.txt");
 
     LEVIATHAN_ASSERT(tests, "DualView test constructor called with false");
 
@@ -89,7 +100,21 @@ DualView::DualView(bool tests){
     ThreadSpecifier = MAIN_THREAD_MAGIC;
 
     _CacheManager = std::make_unique<CacheManager>();
+
+    _StartWorkerThreads();
 }
+
+DualView::DualView(std::string tests){
+
+    _Logger = std::make_unique<Leviathan::Logger>("empty_dualview_log.txt");
+
+    LEVIATHAN_ASSERT(tests == "empty", "DualView test constructor called with not empty");
+
+    SuppressSecondInstance = true;
+
+    Staticinstance = this;
+}
+
 
 DualView* DualView::Staticinstance = nullptr;
 
@@ -173,6 +198,9 @@ void DualView::_OnInstanceLoaded(){
     
     // MainBuilder->get_widget("OpenImageFromFile", OpenImageFromFile);
     // LEVIATHAN_ASSERT(OpenImageFromFile, "Invalid .glade file");
+
+    // Start worker threads //
+    _StartWorkerThreads();
 
     LOG_INFO("Basic initialization completed");
     
@@ -354,6 +382,68 @@ void DualView::_HandleMessages(){
     }
 }
 // ------------------------------------ //
+void DualView::QueueImageHashCalculate(std::shared_ptr<Image> img){
+
+    std::lock_guard<std::mutex> lock(HashImageQueueMutex);
+
+    HashImageQueue.push_back(img);
+
+    HashCalculationThreadNotify.notify_all();
+}
+
+void DualView::_RunHashCalculateThread(){
+
+    std::unique_lock<std::mutex> lock(HashImageQueueMutex);
+
+    while(!QuitWorkerThreads){
+
+        while(!HashImageQueue.empty()){
+
+            auto img = HashImageQueue.front().lock();
+
+            HashImageQueue.pop_front();
+
+            if(!img){
+
+                // Image has been deallocated already //
+                continue;
+            }
+
+            img->_DoHashCalculation();
+
+            // Replace with an existing image if the hash exists //
+            auto existing = GetImageByHash(img->GetHash());
+
+            if(existing){
+
+                LOG_INFO("Calculated hash for a duplicate image");
+                img->BecomeDuplicateOf(*existing);
+            }
+        }
+
+        HashCalculationThreadNotify.wait(lock);
+    }
+}
+// ------------------------------------ //
+void DualView::_StartWorkerThreads(){
+
+    QuitWorkerThreads = false;
+
+    HashCalculationThread = std::thread(std::bind(&DualView::_RunHashCalculateThread, this));
+}
+
+void DualView::_WaitForWorkerThreads(){
+
+    // Make sure this is set //
+    QuitWorkerThreads = true;
+
+    HashCalculationThreadNotify.notify_all();
+
+    if(HashCalculationThread.joinable())
+        HashCalculationThread.join();
+}
+
+// ------------------------------------ //
 bool DualView::OpenImageViewer(const std::string &file){
 
     AssertIfNotMainThread();
@@ -399,6 +489,13 @@ void DualView::_AddOpenWindow(std::shared_ptr<BaseWindow> window){
 
     OpenWindows.push_back(window);
 }
+// ------------------------------------ //
+// Database load functions
+std::shared_ptr<Image> DualView::GetImageByHash(const std::string &hash){
+
+    return nullptr;
+}
+
 // ------------------------------------ //
 // Gtk callbacks
 void DualView::OpenImageFile_OnClick(){

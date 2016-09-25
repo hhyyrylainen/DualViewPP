@@ -17,20 +17,16 @@
 class GtkTestsFixture {
 public:
     
-    GtkTestsFixture() :
-        log(std::make_unique<Leviathan::TestLogger>("gtk_tests.txt"))
+    GtkTestsFixture()
     {
         app = Gtk::Application::create("com.boostslair.dualview.tests");
 
         REQUIRE(app->register_application());
     }
 
-
 protected:
 
     Glib::RefPtr<Gtk::Application> app;
-    
-    std::unique_ptr<Leviathan::TestLogger> log;
     
     DV::TestDualView DualView;
 };

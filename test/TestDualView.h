@@ -10,9 +10,29 @@ public:
 
     TestDualView() : DualView(true){
 
+
         
     }
 
+};
+
+//! \brief Version of DualView that has no worker threads
+class DummyDualView : public DualView{
+public:
+    
+    DummyDualView() : DualView(std::string("empty")){
+
+        
+    }
+private:
+
+    void _StartWorkerThreads() override {
+
+    }
+
+    void _WaitForWorkerThreads() override {
+
+    }
 };
 
 }

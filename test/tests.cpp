@@ -10,8 +10,6 @@
 
 TEST_CASE("Cache Manager loads images", "[image]"){
 
-    Leviathan::TestLogger log("tests.txt");
-    
     DV::TestDualView test;
 
     SECTION("Normal test image"){

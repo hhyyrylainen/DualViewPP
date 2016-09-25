@@ -6,8 +6,6 @@
 #include "Exceptions.h"
 #include "FileSystem.h"
 #include "Common/StringOperations.h"
-
-// TODO: remove when DEBUG_BREAK is gone
 #include "Common.h"
 
 #include <boost/filesystem.hpp>
@@ -28,8 +26,15 @@ Image::Image(const std::string &file) : ResourcePath(file), ImportLocation(file)
     ResourceName = boost::filesystem::path(ResourcePath).filename().string();
     Extension = boost::filesystem::path(ResourcePath).extension().string();
 
-    // Register hash calculation //
-    
+
+}
+
+void Image::Init(){
+
+    if(!IsReadyToAdd){
+        // Register hash calculation //
+        _QueueHashCalculation();
+    }
 }
 // ------------------------------------ //
 std::shared_ptr<LoadedImage> Image::GetImage() const{
@@ -45,6 +50,13 @@ std::shared_ptr<LoadedImage> Image::GetThumbnail() const{
     return DualView::Get().GetCacheManager().LoadThumbImage(ResourcePath, Hash);
 }
 
+std::string Image::GetHash() const{
+
+    if(!IsReadyToAdd)
+        throw Leviathan::InvalidState("Hash hasn't been calculated");
+
+    return Hash;
+}
 // ------------------------------------ //
 std::string Image::CalculateFileHash() const{
 
@@ -76,7 +88,18 @@ void Image::_DoHashCalculation(){
 
     Hash = CalculateFileHash();
 
+    LEVIATHAN_ASSERT(!Hash.empty(), "Image created an empty hash");
 
     IsReadyToAdd = true;
+}
+// ------------------------------------ //
+void Image::_QueueHashCalculation(){
+
+    DualView::Get().QueueImageHashCalculate(shared_from_this());
+}
+// ------------------------------------ //
+void Image::BecomeDuplicateOf(const Image &other){
+
+    DEBUG_BREAK;
 }
 
