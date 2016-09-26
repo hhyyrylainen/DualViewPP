@@ -90,6 +90,9 @@ public:
     size_t GetFrameCount() const;
 
 
+    //! \brief Returns the time current frame should be shown for
+    std::chrono::duration<float> GetAnimationTime(size_t page) const;
+    
     //! \brief Creates a gtk image for drawing
     //! \param page The page to get the image for. 0 for first image.
     //! GetFrameCount() - 1 for last image.

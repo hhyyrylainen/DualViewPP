@@ -297,6 +297,16 @@ size_t LoadedImage::GetFrameCount() const{
     return MagickImage->size();
 }
 
+std::chrono::duration<float> LoadedImage::GetAnimationTime(size_t page) const{
+    
+    if(!IsImageObjectLoaded())
+        throw Leviathan::InvalidState("MagickImage not loaded");
+
+    if(page >= MagickImage->size())
+        throw Leviathan::InvalidArgument("page is outside valid range");
+
+    return std::chrono::duration<float>(0.01f * MagickImage->at(page).animationDelay());
+}
 // ------------------------------------ //
 Glib::RefPtr<Gdk::Pixbuf> LoadedImage::CreateGtkImage(size_t page /*= 0*/) const{
 

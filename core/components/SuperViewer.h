@@ -3,6 +3,8 @@
 #include "core/resources/Image.h"
 #include "core/CacheManager.h"
 
+#include "Common/Types.h"
+
 #include <gtkmm.h>
 
 #include <chrono>
@@ -17,6 +19,7 @@ namespace DV{
 class SuperViewer : public Gtk::DrawingArea{
 
     using ClockType = std::chrono::high_resolution_clock;
+    using Point = Leviathan::Float2;
     
 public:
 
@@ -26,6 +29,13 @@ public:
         std::shared_ptr<Image> displayedResource);
 
     ~SuperViewer();
+
+    //! \brief Moves between collection images
+    //!
+    //! Only works if this object is told about the current collection
+    //! \param forwards If true moves forwards, if false moves backwards
+    //! \param wrap If true will continue from the first image if the end is reached
+    bool MoveInCollection(bool forwards, bool wrap = true);
     
     
 protected:
@@ -35,26 +45,36 @@ protected:
     //! \brief Draws the CachedDrawnImage with all the current settings
     void _DrawCurrentImage(const Cairo::RefPtr<Cairo::Context>& cr) const;
 
+    //! \brief Returns the top left of the image at zoomlevel
+    Point CalculateImageRenderTopLeft(size_t width, size_t height,
+        float zoomlevel) const;
+
+    //! \brief Automatically adjusts ImageZoom to make the entire image fit
+    void DoAutoFit();
+
+    //! \brief Adds a redraw timer with the specific amount of milliseconds
+    void _AddRedrawTimer(int32_t ms);
+
+
     //! \brief Returns true if DisplayImage has finished loading
     bool IsImageReadyToShow() const;
 
     //! \brief Called when switching from a full image to a thumbnail image
     void _SwitchToThumbnailMode(bool isthumbnail);
 
-    //! \brief Resets variables both for _OnNewImageReady and _SwitchToThumbnailMode
-    void _ResetImageInstanceVariables();
-
     //! \brief Called from a timer, forces redraws when things happen
     //! \returns False when Gtk should disable the current timer. This happens
     //! when a new timer has been added
-    bool _OnTimerCheck();
+    bool _OnTimerCheck(int32_t currenttime);
 
     //! \brief Resets all per image variables to start rendering from a fresh state
     void _OnNewImageReady();
 
     //! \brief Sets the LoadedImage to be shown
     void _SetLoadedImage(std::shared_ptr<LoadedImage> image);
+    
 
+    // Gtk events //
     bool _OnMouseMove(GdkEventMotion* motion_event);
 
     bool _OnMouseButtonPressed(GdkEventButton* event);
@@ -62,6 +82,7 @@ protected:
 
     bool _OnKeyPressed(GdkEventKey* event);
 
+    //! \todo Clean and comment this method. Right now it's a mess copied from c# code
     bool _OnScroll(GdkEventScroll* event);
     
 private:
@@ -83,7 +104,7 @@ private:
 
     float ImageZoom = 1.0f;
 
-    //Point BaseOffset = new Point(0, 0);
+    Point BaseOffset = Point(0, 0);
 
     bool ResetZoom = true;
 
@@ -120,7 +141,7 @@ private:
     ClockType::time_point LastFrame;
 
     //! Currently used timer for _OnTimerCheck in milliseconds
-    int CurrentTimer = 1000;
+    int32_t CurrentTimer = 1000;
 
 
     //! True if mouse is down and dragging can start
@@ -129,8 +150,12 @@ private:
     //! True when dragging the image around
     bool DoingDrag = false;
 
-    //        Point DragStartPos = new Point(0, 0);
+    
+    Point DragStartPos = Point(0, 0);
 
-    // Point OffsetBeforeDrag = new Point(0, 0);
+    Point OffsetBeforeDrag;
+
+    //! Used for loading animation
+    int LoadingLineCount = 1;
 };
 }
