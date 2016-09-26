@@ -84,6 +84,8 @@ protected:
 
     //! \todo Clean and comment this method. Right now it's a mess copied from c# code
     bool _OnScroll(GdkEventScroll* event);
+
+    void _OnResize(Gtk::Allocation &allocation);
     
 private:
 

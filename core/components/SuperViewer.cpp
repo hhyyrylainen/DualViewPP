@@ -29,6 +29,8 @@ SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> build
     signal_scroll_event().connect(sigc::mem_fun(*this, &SuperViewer::_OnScroll));
     signal_key_press_event().connect(sigc::mem_fun(*this, &SuperViewer::_OnKeyPressed));
 
+    signal_size_allocate().connect(sigc::mem_fun(*this, &SuperViewer::_OnResize));
+
     // Do setup stuff //
 }
 
@@ -515,4 +517,16 @@ bool SuperViewer::_OnScroll(GdkEventScroll* event){
     IsAutoFit = false;
     queue_draw();
     return true;
+}
+
+void SuperViewer::_OnResize(Gtk::Allocation &allocation){
+
+    if(!IsImageReady)
+        return;
+
+    LOG_INFO("Resized");
+    
+    if (IsAutoFit || IsInThumbnailMode)
+        DoAutoFit();
+    
 }
