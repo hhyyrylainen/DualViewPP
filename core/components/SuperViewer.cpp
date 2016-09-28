@@ -202,7 +202,7 @@ void SuperViewer::_DrawCurrentImage(const Cairo::RefPtr<Cairo::Context>& cr) con
     const auto topLeft = CalculateImageRenderTopLeft(CachedDrawnImage->get_width(),
         CachedDrawnImage->get_height(), ImageZoom);
 
-    const auto finalOffset = topLeft + BaseOffset;
+    const auto finalOffset = topLeft /*+ BaseOffset*/ /* + Point(50, 50)*/;
     
     cr->translate(finalOffset.X, finalOffset.Y);
     
@@ -380,8 +380,7 @@ bool SuperViewer::_OnMouseMove(GdkEventMotion* motion_event){
         BaseOffset = OffsetBeforeDrag;
 
         BaseOffset += (mousePos - DragStartPos);
-        
-        LOG_WRITE("Drag");
+
         queue_draw();
     } 
 
@@ -461,6 +460,20 @@ bool SuperViewer::_OnScroll(GdkEventScroll* event){
     if(!IsImageReady)
         return false;
 
+    float scrollAmount = 1.f;
+
+    // Setup the scroll amount //
+    if(event->delta_x == 0 && event->delta_y == 0){
+
+        // Just the direction //
+        scrollAmount = event->direction == GDK_SCROLL_UP ? 1.08f : 0.92f;
+        
+    } else {
+
+        // Multiply with the delta //
+        scrollAmount = 1.f + (event->delta_y / 750.f);
+    }
+
     if(BaseOffset.X != 0 || BaseOffset.Y != 0)
     {
         Point mousepos = Point(event->x, event->y);
@@ -475,7 +488,7 @@ bool SuperViewer::_OnScroll(GdkEventScroll* event){
             (mousepos.X - topleft.X) / (float)twidth,
             (mousepos.Y - topleft.Y) / (float)theight);
 
-        ImageZoom *= 1 + (0.001f * event->delta_y);
+        ImageZoom *= scrollAmount;
         
         theight = (int)(DisplayImage->GetHeight() * ImageZoom);
         twidth = (int)(DisplayImage->GetWidth() * ImageZoom);
@@ -511,7 +524,7 @@ bool SuperViewer::_OnScroll(GdkEventScroll* event){
     }
     else
     {
-        ImageZoom *= 1 + (0.001f * event->delta_y);
+        ImageZoom *= scrollAmount;
     }
 
     IsAutoFit = false;
@@ -524,9 +537,6 @@ void SuperViewer::_OnResize(Gtk::Allocation &allocation){
     if(!IsImageReady)
         return;
 
-    LOG_INFO("Resized");
-    
     if (IsAutoFit || IsInThumbnailMode)
         DoAutoFit();
-    
 }
