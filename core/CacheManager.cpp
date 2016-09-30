@@ -315,6 +315,9 @@ void CacheManager::_LoadThumbnail(LoadedImage &thumb, const std::string &hash) c
         thumb.OnLoadSuccess(FullImage);
     }
 
+    // Save it to a file //
+    Magick::writeImages(FullImage->begin(), FullImage->end(), target.c_str());
+
     LOG_INFO("Generated thumbnail for: " + thumb.GetPath());
 }
 // ------------------------------------ //

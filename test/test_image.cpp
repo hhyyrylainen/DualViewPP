@@ -6,6 +6,7 @@
 #include "core/CacheManager.h"
 
 #include <Magick++.h>
+#include <boost/filesystem.hpp>
 
 using namespace DV;
 
@@ -76,3 +77,48 @@ TEST_CASE("File hash calculation happens on a worker thread", "[image, hash]"){
 
     CHECK(img->GetHash() == "II+O7pSQgH8BG_gWrc+bAetVgxJNrJNX4zhA4oWV+V0=");
 }
+
+TEST_CASE("Thumbnail generation doew something", "[image]"){
+
+    TestDualView dualview;
+
+    // Recreate thumbnail folder //
+    auto folder = boost::filesystem::path(dualview.GetThumbnailFolder());
+
+    if(boost::filesystem::exists(folder)){
+
+        boost::filesystem::remove_all(folder);
+    }
+
+    boost::filesystem::create_directories(folder);
+
+    auto img = Image::Create("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
+
+    int failCount = 0;
+
+    while(!img->IsReady()){
+
+        ++failCount;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+
+        // Fail after 30 seconds //
+        REQUIRE(failCount < 6000);
+    }
+
+    // Get thumbnail //
+    auto thumb = img->GetThumbnail();
+
+    while(!thumb->IsLoaded()){
+
+        ++failCount;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+
+        // Fail after 30 seconds //
+        REQUIRE(failCount < 6000);
+    }
+
+    CHECK(thumb->IsValid());
+    CHECK(boost::filesystem::exists(folder / boost::filesystem::path(
+                img->GetHash() + ".jpg")));
+}
+

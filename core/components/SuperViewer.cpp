@@ -82,10 +82,11 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
         _SwitchToThumbnailMode(shouldBeThumbnailMode);
     }
 
-    // If there is no image here, load the full image //
+    // If there is no image here, try to load the right image //
     if(!DisplayImage){
-
-        _SetLoadedImage(DisplayedResource->GetImage());
+        
+        _SetLoadedImage(IsInThumbnailMode ? DisplayedResource->GetThumbnail() :
+            DisplayedResource->GetImage());
     }
 
     // paint the background

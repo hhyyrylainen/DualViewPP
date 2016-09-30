@@ -107,6 +107,8 @@ DualView::DualView(bool tests){
 
     _CacheManager = std::make_unique<CacheManager>();
 
+    _Settings = std::make_unique<Settings>("test_settings.levof");
+
     _StartWorkerThreads();
 }
 
