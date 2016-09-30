@@ -63,9 +63,6 @@ protected:
     //! \brief Returns true if DisplayImage has finished loading
     bool IsImageReadyToShow() const;
 
-    //! \brief Called when switching from a full image to a thumbnail image
-    void _SwitchToThumbnailMode(bool isthumbnail);
-
     //! \brief Called from a timer, forces redraws when things happen
     //! \returns False when Gtk should disable the current timer. This happens
     //! when a new timer has been added

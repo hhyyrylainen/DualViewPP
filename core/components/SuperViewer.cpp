@@ -79,7 +79,8 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
     const bool shouldBeThumbnailMode = ForceOnlyThumbnail || (width <= 256 && height <= 256);
     if(shouldBeThumbnailMode != IsInThumbnailMode){
 
-        _SwitchToThumbnailMode(shouldBeThumbnailMode);
+        IsInThumbnailMode = shouldBeThumbnailMode;
+        _SetLoadedImage(nullptr);
     }
 
     // If there is no image here, try to load the right image //
@@ -304,16 +305,6 @@ void SuperViewer::_OnNewImageReady(){
         DoAutoFit();
 
     LastFrame = ClockType::now();
-}
-
-void SuperViewer::_SwitchToThumbnailMode(bool isthumbnail){
-
-    if(IsInThumbnailMode == isthumbnail)
-        return;
-
-    IsInThumbnailMode = isthumbnail;
-
-    _SetLoadedImage(DisplayedResource->GetThumbnail());
 }
 
 void SuperViewer::_SetLoadedImage(std::shared_ptr<LoadedImage> image){
