@@ -6,6 +6,7 @@
 
 namespace DV{
 
+//! The current version of the configuration file format
 constexpr auto SETTINGS_VERSION = 1;
 
 //! \brief Contains runtime settings
@@ -26,8 +27,8 @@ public:
     //! \brief Forces a save of the settings
     void Save();
 
-
-    
+    //! \brief Returns true if loadversion is compatible with SETTINGS_VERSION
+    static bool IsVersionCompatible(int loadversion);
 
 protected:
 
