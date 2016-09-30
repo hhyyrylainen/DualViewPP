@@ -31,6 +31,11 @@ file(GLOB GroupIterators
   "Iterators/StringIterator.cpp" "Iterators/StringIterator.h"
   )
 
+set(GroupObjectFiles
+  "ObjectFiles/ObjectFile.cpp" "ObjectFiles/ObjectFile.h"
+  "ObjectFiles/ObjectFileProcessor.cpp" "ObjectFiles/ObjectFileProcessor.h"
+  )
+
 # collect all files to one group
 set(EngineFiles ${GroupCore} ${GroupEntities} ${GroupUtility} ${GroupStatistics}
   ${GroupMath} ${GroupSound}
@@ -48,6 +53,7 @@ set(EngineFiles ${GroupCore} ${GroupEntities} ${GroupUtility} ${GroupStatistics}
 # engine exporting define
 add_definitions(-DENGINE_EXPORTS)
 add_definitions(-DLEVIATHAN_BUILD)
+add_definitions(-DNO_DEFAULT_DATAINDEX)
 
 # create library with all the files
 if(CREATE_STATIC)

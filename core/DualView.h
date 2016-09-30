@@ -22,6 +22,8 @@ class Image;
 class PluginManager;
 class CacheManager;
 
+class Settings;
+
 //! \brief Main class that contains all the windows and systems
 class DualView {
 public:
@@ -74,6 +76,13 @@ public:
     inline CacheManager& GetCacheManager(){
 
         return *_CacheManager;
+    }
+
+    //! \brief Returns settings
+    //! \todo Assert if _Settings is null
+    inline Settings& GetSettings(){
+
+        return *_Settings;
     }
     
     //! \brief Returns true if called on the main thread
@@ -199,6 +208,8 @@ private:
     //! Logger object
     std::unique_ptr<Leviathan::Logger> _Logger;
 
+    //! Main settings
+    std::unique_ptr<Settings> _Settings;
 
     //! Hash loading thread
     std::thread HashCalculationThread;

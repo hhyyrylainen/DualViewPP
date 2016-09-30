@@ -2,9 +2,11 @@
 #include "DualView.h"
 #include "Common.h"
 
+
 #include "windows/SingleView.h"
 #include "core/CacheManager.h"
 
+#include "Settings.h"
 #include "PluginManager.h"
 #include "Exceptions.h"
 
@@ -212,6 +214,11 @@ void DualView::_RunInitThread(){
     LOG_INFO("Running Init thread");
     LoadError = false;
 
+    // Load settings //
+    _Settings = std::make_unique<Settings>("dv_settings.levof");
+
+    _Settings->VerifyFoldersExist();
+
     // Load plugins //
     //libPlugin_Imgur.so
     if(!_PluginManager->LoadPlugin("plugins/libPlugin_Imgur.so")){
@@ -223,8 +230,8 @@ void DualView::_RunInitThread(){
     // Load ImageMagick library //
     _CacheManager = std::make_unique<CacheManager>();
 
+
     // Load database //
-    
     
 
     //std::this_thread::sleep_for(std::chrono::milliseconds(1000));

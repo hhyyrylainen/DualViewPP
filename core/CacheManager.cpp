@@ -189,8 +189,7 @@ void CacheManager::_RunThumbnailGenerationThread(){
             // Unlock while loading the image file
             lock.unlock();
 
-            LOG_INFO("DEBUG_BREAK thumbnail");
-            DEBUG_BREAK;
+            _LoadThumbnail(*current);
             
             lock.lock();
         }
@@ -199,10 +198,14 @@ void CacheManager::_RunThumbnailGenerationThread(){
         NotifyThumbnailGenerationThread.wait(lock);
     }
 }
+// ------------------------------------ //
+void CacheManager::_LoadThumbnail(LoadedImage &thumb) const{
 
+    LOG_INFO("DEBUG_BREAK thumbnail");
+    DEBUG_BREAK;
 
-
-
+    
+}
 // ------------------------------------ //
 // LoadedImage
 LoadedImage::LoadedImage(const std::string &path) : FromPath(path){

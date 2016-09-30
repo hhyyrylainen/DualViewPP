@@ -6,6 +6,8 @@ add_library(Core
 
   DualView.h DualView.cpp
   Plugin.h PluginManager.h PluginManager.cpp
+  
+  Settings.h Settings.cpp
 
   # Window stuff
   windows/BaseWindow.h windows/BaseWindow.cpp
@@ -13,6 +15,8 @@ add_library(Core
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp
+  components/ListItem.h components/ListItem.cpp
+  components/ImageListItem.h components/ImageListItem.cpp
 
   
   Database.cpp

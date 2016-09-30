@@ -40,6 +40,10 @@ public:
     
 protected:
 
+    //! \brief Common constructor code for all constructor overloads
+    void _CommonCtor(bool hookmouseevents, bool hookkeypressevents);
+    
+    //! \brief Main drawing function
     bool on_draw(const Cairo::RefPtr<Cairo::Context>& cr) override;
 
     //! \brief Draws the CachedDrawnImage with all the current settings
@@ -104,16 +108,22 @@ private:
     //! True when there are multiple frames in DisplayImage
     bool IsMultiFrame = false;
 
+    //! Image size multiplier
     float ImageZoom = 1.0f;
 
+    //! Image offset 
     Point BaseOffset = Point(0, 0);
 
+    //! If true zoom is reset when changing images
     bool ResetZoom = true;
 
     //! Set to true to allow this to react to image change keys / arrow keys
     bool ReactToKeyPress = false;
 
+    //! \todo find out what this is for. Maybe for setting autofit = true when changing images
     bool OriginalIsAutoFit = true;
+    
+    //! If true the image will automatically fit to the widget size
     bool IsAutoFit = true;
 
     //! If true currently has the thumbnail image loaded
@@ -152,9 +162,9 @@ private:
     //! True when dragging the image around
     bool DoingDrag = false;
 
-    
+    //! Used for mouse drag
     Point DragStartPos = Point(0, 0);
-
+    //! \ditto
     Point OffsetBeforeDrag;
 
     //! Used for loading animation

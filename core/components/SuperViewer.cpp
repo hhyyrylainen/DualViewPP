@@ -12,26 +12,41 @@ SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> build
     std::shared_ptr<Image> displayedResource) :
     Gtk::DrawingArea(area), DisplayedResource(displayedResource)
 {
-    // Register for events //
-    add_events(
-        Gdk::POINTER_MOTION_MASK |
-        Gdk::BUTTON_PRESS_MASK | Gdk::BUTTON_RELEASE_MASK |
-        Gdk::SCROLL_MASK |
-        Gdk::KEY_PRESS_MASK);
+    // Do setup stuff //
+    _CommonCtor(true, true);
+}
 
-    signal_motion_notify_event().connect(sigc::mem_fun(*this, &SuperViewer::_OnMouseMove));
+void SuperViewer::_CommonCtor(bool hookmouseevents, bool hookkeypressevents){
 
-    signal_button_press_event().connect(
-        sigc::mem_fun(*this, &SuperViewer::_OnMouseButtonPressed));
-    signal_button_release_event().connect(
-        sigc::mem_fun(*this, &SuperViewer::_OnMouseButtonReleased));
+    // Event registration //
+    if(hookmouseevents){
+
+        add_events(
+            Gdk::POINTER_MOTION_MASK |
+            Gdk::BUTTON_PRESS_MASK | Gdk::BUTTON_RELEASE_MASK |
+            Gdk::SCROLL_MASK
+        );
+
+        signal_motion_notify_event().connect(sigc::mem_fun(*this, &SuperViewer::_OnMouseMove));
+
+        signal_button_press_event().connect(
+            sigc::mem_fun(*this, &SuperViewer::_OnMouseButtonPressed));
+        signal_button_release_event().connect(
+            sigc::mem_fun(*this, &SuperViewer::_OnMouseButtonReleased));
     
-    signal_scroll_event().connect(sigc::mem_fun(*this, &SuperViewer::_OnScroll));
-    signal_key_press_event().connect(sigc::mem_fun(*this, &SuperViewer::_OnKeyPressed));
+        signal_scroll_event().connect(sigc::mem_fun(*this, &SuperViewer::_OnScroll));
+
+    }
+
+    if(hookkeypressevents){
+
+        add_events(Gdk::KEY_PRESS_MASK);
+
+        signal_key_press_event().connect(sigc::mem_fun(*this, &SuperViewer::_OnKeyPressed));
+    }
 
     signal_size_allocate().connect(sigc::mem_fun(*this, &SuperViewer::_OnResize));
-
-    // Do setup stuff //
+    
 }
 
 SuperViewer::~SuperViewer(){

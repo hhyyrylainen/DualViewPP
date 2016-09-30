@@ -196,6 +196,11 @@ protected:
     void _RunCacheCleanupThread();
 
     void _RunThumbnailGenerationThread();
+
+    //! \brief Loads a thumbnail
+    //!
+    //! The thumnail will be created if it doesn't exist already
+    void _LoadThumbnail(LoadedImage &thumb) const;
     
 
 protected:
