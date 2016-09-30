@@ -11,6 +11,7 @@
 #include "Exceptions.h"
 
 #include <iostream>
+#include <boost/filesystem.hpp>
 
 using namespace DV;
 // ------------------------------------ //
@@ -505,6 +506,12 @@ void DualView::_AddOpenWindow(std::shared_ptr<BaseWindow> window){
     AssertIfNotMainThread();
 
     OpenWindows.push_back(window);
+}
+// ------------------------------------ //
+std::string DualView::GetThumbnailFolder() const{
+
+    return (boost::filesystem::path(GetSettings().GetPrivateCollection()) /
+        boost::filesystem::path("thumbnails/")).c_str();
 }
 // ------------------------------------ //
 // Database load functions

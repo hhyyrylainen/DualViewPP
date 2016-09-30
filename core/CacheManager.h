@@ -77,6 +77,15 @@ public:
         return LastUsed;
     }
 
+    //! \brief Returns the path or empty if the path has been replaced by an error message
+    inline std::string GetPath() const{
+
+        if(Status == IMAGE_LOAD_STATUS::Error)
+            return "";
+
+        return FromPath;
+    }
+
     //! \brief Returns the width of the image
     //! \exception Leviathan::InvalidState if no image loaded
     size_t GetWidth() const;
@@ -132,6 +141,17 @@ protected:
     //! Called in a worker thread by CacheManager
     void DoLoad();
 
+    //! \brief Loads a thumbnail into this object
+    //!
+    //! Called by the thumbnail thread
+    void DoLoad(const std::string &thumbfile);
+
+    //! \brief When an error occurs this is called by the loader thread
+    void OnLoadFail(const std::string &error);
+
+    //! \brief Called by CacheManager when this is properly loaded
+    void OnLoadSuccess(std::shared_ptr<std::vector<Magick::Image>> image);
+
     //! \brief Forcefully unloads MagickImage.
     //!
     //! Sets error to "Force unloaded"
@@ -186,6 +206,10 @@ public:
     //! \brief Marks the processing threads as quitting
     void QuitProcessingThreads();
 
+    //! \brief Calculates the parameter for magick image resize
+    static std::string CreateResizeSizeForImage(const Magick::Image &image, int width,
+        int height);
+
 protected:
 
     std::shared_ptr<LoadedImage> GetCachedImage(const std::lock_guard<std::mutex> &lock,
@@ -200,7 +224,7 @@ protected:
     //! \brief Loads a thumbnail
     //!
     //! The thumnail will be created if it doesn't exist already
-    void _LoadThumbnail(LoadedImage &thumb) const;
+    void _LoadThumbnail(LoadedImage &thumb, const std::string &hash) const;
     
 
 protected:
@@ -234,7 +258,9 @@ protected:
     std::thread ThumbnailGenerationThread;
 
     std::mutex ThumbQueueMutex;
-    std::list<std::shared_ptr<LoadedImage>> ThumbQueue;
+    //! List of thumbnails that need to be loaded. The string in the tuple is the
+    //! file hash
+    std::list<std::tuple<std::shared_ptr<LoadedImage>, std::string>> ThumbQueue;
 };
 
 

@@ -7,6 +7,8 @@
 
 #include "Exceptions.h"
 
+#include "DualView.h"
+
 #include <boost/filesystem.hpp>
 
 using namespace DV;
@@ -79,6 +81,8 @@ std::shared_ptr<LoadedImage> CacheManager::LoadFullImage(const std::string &file
 std::shared_ptr<LoadedImage> CacheManager::LoadThumbImage(const std::string &file,
     const std::string &hash)
 {
+    LEVIATHAN_ASSERT(!hash.empty(), "LoadThumb called with empty hash");
+    
     // Create new //
     auto created = std::make_shared<LoadedImage>(file);
 
@@ -88,7 +92,7 @@ std::shared_ptr<LoadedImage> CacheManager::LoadThumbImage(const std::string &fil
     // Add it to load queue //
     {
         std::lock_guard<std::mutex> lock(ThumbQueueMutex);
-        ThumbQueue.push_back(created);
+        ThumbQueue.push_back(std::make_tuple(created, hash));
     }
 
     // Notify loader thread //
@@ -189,7 +193,7 @@ void CacheManager::_RunThumbnailGenerationThread(){
             // Unlock while loading the image file
             lock.unlock();
 
-            _LoadThumbnail(*current);
+            _LoadThumbnail(*std::get<0>(current), std::get<1>(current));
             
             lock.lock();
         }
@@ -199,12 +203,137 @@ void CacheManager::_RunThumbnailGenerationThread(){
     }
 }
 // ------------------------------------ //
-void CacheManager::_LoadThumbnail(LoadedImage &thumb) const{
+void CacheManager::_LoadThumbnail(LoadedImage &thumb, const std::string &hash) const{
 
-    LOG_INFO("DEBUG_BREAK thumbnail");
-    DEBUG_BREAK;
+    // Get the thumbnail folder //
+    const auto extension = boost::filesystem::extension(thumb.FromPath);
 
+    if(extension.empty()){
+
+        // Failed //
+        thumb.OnLoadFail("Filename has no extension");
+        return;
+    }
     
+    const auto target = boost::filesystem::path(DualView::Get().GetThumbnailFolder()) /
+        boost::filesystem::path(hash + extension);
+
+    // Use already created thumbnail if one exists //
+    if(boost::filesystem::exists(target)){
+
+        // Load the existing thumbnail //
+        thumb.DoLoad(target.c_str());
+
+        if(!thumb.IsValid()){
+
+            LOG_WARNING("Deleting invalid thumbnail: " + std::string(target.c_str()));
+            boost::filesystem::remove(target);
+            _LoadThumbnail(thumb, hash);
+        }
+        
+        return;
+    }
+
+    // Load the full file //
+    std::shared_ptr<std::vector<Magick::Image>> FullImage;
+
+    try{
+
+        LoadedImage::LoadImage(thumb.GetPath(), FullImage);
+
+        if(!FullImage || FullImage->size() < 1)
+            throw std::runtime_error("FullImage is null or empty");
+        
+    } catch(const std::exception &e){
+
+        const auto error = "Failed to open full image for thumbnail generation: " +
+            std::string(e.what());
+        LOG_ERROR(error);
+        thumb.OnLoadFail(error);
+        return;
+    }
+
+    // Dispose of the actual image and store the thumbnail in memory //
+
+    // Single frame image
+    if (FullImage->size() < 2)
+    {
+        FullImage->at(0).resize(CreateResizeSizeForImage(FullImage->at(0), 128, 0));
+
+        thumb.OnLoadSuccess(FullImage);
+    }
+    else
+    {
+        // This will remove the optimization and change the image to how it looks at that point
+        // during the animation.
+        // More info here: http://www.imagemagick.org/Usage/anim_basics/#coalesce
+
+        // The images are already coalesced here //
+        
+        if(FullImage->at(0).animationDelay() < 25 && FullImage->size() > 10)
+        {
+            // Resize and remove every other frame //
+            bool remove = false;
+                    
+            for(size_t i = 0; i < FullImage->size(); )
+            {
+                if (remove)
+                {
+                    FullImage->erase(FullImage->begin() + i);
+
+                } else
+                {
+                    // Increase delay and resize //
+                    size_t extradelay = 0;
+
+                    if (i + 1 < FullImage->size())
+                    {
+                        extradelay = FullImage->at(i + 1).animationDelay();
+                    }
+
+                    FullImage->at(i).animationDelay(FullImage->at(i).animationDelay() +
+                                                   extradelay);
+                    
+                    FullImage->at(i).resize(
+                        CreateResizeSizeForImage(FullImage->at(i), 128, 0));
+
+                    ++i;
+                }
+
+                remove = !remove;
+            }
+
+        } else
+        {
+            // Just resize
+            for(auto& frame : *FullImage){
+
+                frame.resize(CreateResizeSizeForImage(frame, 128, 0));
+            }
+        }
+
+        thumb.OnLoadSuccess(FullImage);
+    }
+
+    LOG_INFO("Generated thumbnail for: " + thumb.GetPath());
+}
+// ------------------------------------ //
+std::string CacheManager::CreateResizeSizeForImage(const Magick::Image &image, int width,
+    int height)
+{
+    if (width <= 0 && height <= 0)
+        throw Leviathan::InvalidArgument("Both width and height are 0 or under");
+
+    // TODO: verify that this width calculation is correct
+    if (width <= 0)
+        width = (int)((float)height * image.columns() / image.rows());
+
+    if (height <= 0)
+        height = (int)((float)width * image.rows() / image.columns());
+
+    std::stringstream stream;
+    stream << width << "x" << height;
+    return stream.str();
 }
 // ------------------------------------ //
 // LoadedImage
@@ -274,6 +403,41 @@ void LoadedImage::DoLoad(){
         FromPath = "Error Loading: " + std::string(e.what());
         Status = IMAGE_LOAD_STATUS::Error;
     }
+}
+
+void LoadedImage::DoLoad(const std::string &thumbfile){
+
+    try{
+
+        LoadImage(thumbfile, MagickImage);
+
+        LEVIATHAN_ASSERT(MagickImage, "MagickImage is null after LoadImage, "
+            "expected an exception");
+
+        Status = IMAGE_LOAD_STATUS::Loaded;
+
+    } catch(const std::exception &e){
+
+        LOG_WARNING("LoadedImage: failed to load thumbnail from: " + thumbfile);
+
+        FromPath = "Error Loading: " + std::string(e.what());
+        Status = IMAGE_LOAD_STATUS::Error;
+    }
+}
+
+void LoadedImage::OnLoadFail(const std::string &error){
+
+    FromPath = error;
+    Status = IMAGE_LOAD_STATUS::Error;
+}
+
+void LoadedImage::OnLoadSuccess(std::shared_ptr<std::vector<Magick::Image>> image){
+
+    LEVIATHAN_ASSERT(Status != IMAGE_LOAD_STATUS::Error,
+        "OnLoadSuccess called on an errored image");
+
+    MagickImage = image;
+    Status = IMAGE_LOAD_STATUS::Loaded;
 }
 // ------------------------------------ //
 size_t LoadedImage::GetWidth() const{

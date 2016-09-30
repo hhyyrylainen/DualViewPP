@@ -27,6 +27,12 @@ public:
     //! \brief Forces a save of the settings
     void Save();
 
+    //! \brief Returns PrivateCollection
+    const std::string& GetPrivateCollection() const{
+        
+        return PrivateCollection;
+    }
+
     //! \brief Returns true if loadversion is compatible with SETTINGS_VERSION
     static bool IsVersionCompatible(int loadversion);
 

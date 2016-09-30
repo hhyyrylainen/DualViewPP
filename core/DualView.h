@@ -69,24 +69,27 @@ public:
     
 
 
+
     
+    //! \brief Returns the thumbnail folder
+    std::string GetThumbnailFolder() const;
 
     //! \brief Returns the CacheManager. use to load images
     //! \todo Assert if _CacheManager is null
-    inline CacheManager& GetCacheManager(){
+    inline CacheManager& GetCacheManager() const{
 
         return *_CacheManager;
     }
 
     //! \brief Returns settings
     //! \todo Assert if _Settings is null
-    inline Settings& GetSettings(){
+    inline Settings& GetSettings() const{
 
         return *_Settings;
     }
 
     //! \brief Returns settings
-    inline Leviathan::Logger* GetLogger(){
+    inline Leviathan::Logger* GetLogger() const{
 
         return _Logger.get();
     }
