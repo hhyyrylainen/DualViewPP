@@ -55,6 +55,7 @@ DualView::~DualView(){
 
         _WaitForWorkerThreads();
         _CacheManager.reset();
+        _Settings.reset();
         
         Staticinstance = nullptr;
         
@@ -84,6 +85,8 @@ DualView::~DualView(){
 
     // Unload image loader. All images must be closed before this is called //
     _CacheManager.reset();
+
+    _Settings.reset();
 
     _WaitForWorkerThreads();
 
@@ -215,7 +218,16 @@ void DualView::_RunInitThread(){
     LoadError = false;
 
     // Load settings //
-    _Settings = std::make_unique<Settings>("dv_settings.levof");
+    try{
+        _Settings = std::make_unique<Settings>("dv_settings.levof");
+        
+    } catch(const Leviathan::InvalidArgument &e){
+
+        LoadError = true;
+        LOG_ERROR("Failed to parse configuration file. Please delete it and try again.");
+        e.PrintToLog();
+        return;
+    }
 
     _Settings->VerifyFoldersExist();
 
@@ -268,8 +280,6 @@ void DualView::_OnLoadingFinished(){
     LoadCompletelyFinished = true;
     
     _ProcessCmdQueue();
-
-    OpenImageViewer("/home/hhyyrylainen/690806.jpg");
 }
 // ------------------------------------ //
 void DualView::_ProcessCmdQueue(){

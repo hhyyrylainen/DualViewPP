@@ -84,6 +84,12 @@ public:
 
         return *_Settings;
     }
+
+    //! \brief Returns settings
+    inline Leviathan::Logger* GetLogger(){
+
+        return _Logger.get();
+    }
     
     //! \brief Returns true if called on the main thread
     //!
@@ -106,6 +112,7 @@ protected:
 
     //! \brief Called in the main thread once loading has completed
     //! \param succeeded True if there were no errors in the loading thread
+    //! \todo Show load error to user
     void _OnLoadingFinished();
 
     //! \brief Called when messages are received to handle them

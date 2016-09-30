@@ -6,6 +6,8 @@
 
 namespace DV{
 
+constexpr auto SETTINGS_VERSION = 1;
+
 //! \brief Contains runtime settings
 class Settings{
 public:
@@ -18,6 +20,7 @@ public:
     ~Settings();
 
     //! \brief Verifies that the settings folders exists, if they don't creates them
+    //! \exception Leaks boost exceptions
     void VerifyFoldersExist() const;
 
     //! \brief Forces a save of the settings
@@ -31,16 +34,38 @@ protected:
     //! \brief Called when a setting has changed
     void _MarkDirty();
 
+    //! \brief Loads settings from a file
+    //! \note The file must exist for this to do anything
+    void _Load();
+
 protected:
+
+    //! If true needs to be saved to disk
+    bool IsDirty = true;
+
+    //! The file this will be saved to
+    std::string SettingsFile;
 
     // Main settings //
     //! The folder where the sqlite database is loaded from
     std::string DatabaseFolder = "./";
 
     //! The base folder for public collection
+    std::string PublicCollection = "./public_collection/";
+
+    //! The base folder for private collection
+    std::string PrivateCollection = "./private_collection/";
     
-    
-    
+
+    // Image view settings //
+    //! When next image key is held down how long is each image shown
+    float NextImageDelay = 0.2f;
+
+    //! How many images ahead of the current one are loaded
+    int32_t PreloadCollectionForward = 3;
+
+    //! How many images behind the current one are loaded
+    int32_t PreloadCollectionBackwards = 1;
 
     //! Settings storage object
     //! \todo This will be used to preserve comments in the file, currently does nothing
