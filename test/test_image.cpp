@@ -78,7 +78,7 @@ TEST_CASE("File hash calculation happens on a worker thread", "[image, hash]"){
     CHECK(img->GetHash() == "II+O7pSQgH8BG_gWrc+bAetVgxJNrJNX4zhA4oWV+V0=");
 }
 
-TEST_CASE("Thumbnail generation doew something", "[image]"){
+TEST_CASE("Thumbnail generation does something", "[image]"){
 
     TestDualView dualview;
 
