@@ -31,5 +31,6 @@ constexpr auto DUALVIEW_SETTINGS_UNLOAD_TIME_MS = 30000;
 #include "leviathan/Define.h"
 using Leviathan::Logger;
 
-
+#include "Utility/Convert.h"
+using Leviathan::Convert;
 

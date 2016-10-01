@@ -284,7 +284,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton">
+              <object class="GtkButton" id="OpenCollection">
                 <property name="label" translatable="yes">Open Collection</property>
                 <property name="height_request">50</property>
                 <property name="visible">True</property>

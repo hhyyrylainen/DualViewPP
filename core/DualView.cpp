@@ -4,6 +4,8 @@
 
 
 #include "windows/SingleView.h"
+#include "windows/CollectionView.h"
+
 #include "core/CacheManager.h"
 
 #include "Settings.h"
@@ -71,6 +73,8 @@ DualView::~DualView(){
 
     // Force close windows //
     OpenWindows.clear();
+
+    _CollectionView.reset();
 
     // Unload plugins //
     _PluginManager.reset();
@@ -202,7 +206,24 @@ void DualView::_OnInstanceLoaded(){
 
     OpenImageFile->signal_clicked().connect(
         sigc::mem_fun(*this, &DualView::OpenImageFile_OnClick));
-    
+
+
+    Gtk::Button* OpenCollection = nullptr;
+    MainBuilder->get_widget("OpenCollection", OpenCollection);
+    LEVIATHAN_ASSERT(OpenCollection, "Invalid .glade file");
+
+    OpenCollection->signal_clicked().connect(
+        sigc::mem_fun(*this, &DualView::OpenCollection_OnClick));
+
+
+    //_CollectionView
+    CollectionView* tmpCollection = nullptr;
+    MainBuilder->get_widget_derived("CollectionView", tmpCollection);
+    LEVIATHAN_ASSERT(tmpCollection, "Invalid .glade file");
+
+    // Store the window //
+    _CollectionView = std::shared_ptr<CollectionView>(tmpCollection);
+    Application->add_window(*_CollectionView);
     
     // MainBuilder->get_widget("OpenImageFromFile", OpenImageFromFile);
     // LEVIATHAN_ASSERT(OpenImageFromFile, "Invalid .glade file");
@@ -575,5 +596,11 @@ void DualView::OpenImageFile_OnClick(){
         return;
     }
     }
+}
+
+void DualView::OpenCollection_OnClick(){
+
+    // Show it //
+    _CollectionView->show();
 }
 

@@ -12,6 +12,7 @@ add_library(Core
   # Window stuff
   windows/BaseWindow.h windows/BaseWindow.cpp
   windows/SingleView.h windows/SingleView.cpp
+  windows/CollectionView.h windows/CollectionView.cpp
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp

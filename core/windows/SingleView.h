@@ -2,7 +2,7 @@
 
 #include "BaseWindow.h"
 
-#include "components/SuperViewer.h"
+#include "core/components/SuperViewer.h"
 
 #include <gtkmm.h>
 

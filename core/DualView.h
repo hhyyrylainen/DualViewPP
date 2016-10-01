@@ -24,6 +24,8 @@ class CacheManager;
 
 class Settings;
 
+class CollectionView;
+
 //! \brief Main class that contains all the windows and systems
 class DualView {
 public:
@@ -139,6 +141,8 @@ private:
     // Gtk callbacks
     void OpenImageFile_OnClick();
 
+    void OpenCollection_OnClick();
+
     //! Once an instance is loaded init can start properly
     void _OnInstanceLoaded();
 
@@ -208,6 +212,9 @@ private:
     //! List of open windows
     //! Used to keep the windows allocated while they are open
     std::vector<std::shared_ptr<BaseWindow>> OpenWindows;
+
+    //! Collection window
+    std::shared_ptr<CollectionView> _CollectionView;
 
     //! Plugin manager. For loading extra functionality
     std::unique_ptr<PluginManager> _PluginManager;
