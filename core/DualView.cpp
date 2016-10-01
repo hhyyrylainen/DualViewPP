@@ -283,6 +283,9 @@ void DualView::_OnLoadingFinished(){
     LoadCompletelyFinished = true;
     
     _ProcessCmdQueue();
+
+    // For testing SuperViewer uncomment this to quickly open images
+    //OpenImageViewer("/home/hhyyrylainen/Kuvat/0 fucks given bullup wrong side.gif");
 }
 // ------------------------------------ //
 void DualView::_ProcessCmdQueue(){

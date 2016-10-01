@@ -90,25 +90,6 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
             DisplayedResource->GetImage());
     }
 
-    // paint the background
-    //auto refStyleContext = get_style_context();
-    //refStyleContext->render_background(cr,
-    //allocation.get_x(), allocation.get_y(),
-    //allocation.get_width(), allocation.get_height());
-
-    //angle += (Leviathan::PI * 2) / 360;
-
-    // cr->set_source_rgb(0.8, 0.0, 0.0);
-    
-    // cr->move_to(center.X, center.Y);
-    // cr->line_to(center.X + (dir.X * 50), center.Y + (dir.Y * 50));
-
-
-    // cr->move_to(center.X, center.Y);
-    // cr->line_to(center.X - (dir.X * 50), center.Y - (dir.Y * 50));
-
-    // cr->stroke();
-
     if(!IsImageReadyToShow()){
 
         // Draw loading animation //
@@ -292,7 +273,6 @@ void SuperViewer::_OnNewImageReady(){
     // Reset variables //
     IsMultiFrame = DisplayImage->GetFrameCount() > 1;
 
-    IsMultiFrame = false;
     CurrentAnimationFrame = 0;
     BaseOffset = Point(0, 0);
     DoingDrag = false;
