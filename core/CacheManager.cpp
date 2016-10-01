@@ -128,6 +128,9 @@ void CacheManager::_RunFullSizeLoaderThread(){
 
     while(!Quitting){
 
+        // Wait for more work //
+        NotifyFullLoaderThread.wait(lock);
+
         // Process whole queue //
         while(!LoadQueue.empty()){
 
@@ -141,9 +144,6 @@ void CacheManager::_RunFullSizeLoaderThread(){
             
             lock.lock();
         }
-        
-        // Wait for more work //
-        NotifyFullLoaderThread.wait(lock);
     }
 }
 
@@ -153,6 +153,8 @@ void CacheManager::_RunCacheCleanupThread(){
     
     while(!Quitting){
 
+        NotifyCacheCleanup.wait_for(lock, std::chrono::seconds(10));
+        
         {
             std::unique_lock<std::mutex> lock(ImageCacheLock);
             const auto time = std::chrono::high_resolution_clock::now();
@@ -173,8 +175,6 @@ void CacheManager::_RunCacheCleanupThread(){
                 }
             }
         }
-
-        NotifyCacheCleanup.wait_for(lock, std::chrono::seconds(10));
     }
 }
 
@@ -183,6 +183,9 @@ void CacheManager::_RunThumbnailGenerationThread(){
     std::unique_lock<std::mutex> lock(ThumbQueueMutex);
     
     while(!Quitting){
+
+        // Wait for more work //
+        NotifyThumbnailGenerationThread.wait(lock);
 
         // Process whole queue //
         while(!ThumbQueue.empty()){
@@ -197,9 +200,6 @@ void CacheManager::_RunThumbnailGenerationThread(){
             
             lock.lock();
         }
-        
-        // Wait for more work //
-        NotifyThumbnailGenerationThread.wait(lock);
     }
 }
 // ------------------------------------ //
@@ -438,6 +438,8 @@ void LoadedImage::OnLoadSuccess(std::shared_ptr<std::vector<Magick::Image>> imag
 
     LEVIATHAN_ASSERT(Status != IMAGE_LOAD_STATUS::Error,
         "OnLoadSuccess called on an errored image");
+
+    LEVIATHAN_ASSERT(image, "OnLoadSuccess called with invalid image");
 
     MagickImage = image;
     Status = IMAGE_LOAD_STATUS::Loaded;
