@@ -223,7 +223,9 @@ void DualView::_OnInstanceLoaded(){
 
     // Store the window //
     _CollectionView = std::shared_ptr<CollectionView>(tmpCollection);
-    Application->add_window(*_CollectionView);
+    //Application->add_window(*_CollectionView);
+    //_CollectionView->show();
+    //_CollectionView->hide();
     
     // MainBuilder->get_widget("OpenImageFromFile", OpenImageFromFile);
     // LEVIATHAN_ASSERT(OpenImageFromFile, "Invalid .glade file");
@@ -236,10 +238,7 @@ void DualView::_OnInstanceLoaded(){
     IsInitialized = true;
 }
 
-void DualView::_RunInitThread(){
-
-    LOG_INFO("Running Init thread");
-    LoadError = false;
+bool DualView::_DoInitThreadAction(){
 
     // Load settings //
     try{
@@ -247,10 +246,9 @@ void DualView::_RunInitThread(){
         
     } catch(const Leviathan::InvalidArgument &e){
 
-        LoadError = true;
-        LOG_ERROR("Failed to parse configuration file. Please delete it and try again.");
+        LOG_ERROR("Invalid configuration. Please delete it and try again:");
         e.PrintToLog();
-        return;
+        return true;
     }
 
     _Settings->VerifyFoldersExist();
@@ -259,8 +257,8 @@ void DualView::_RunInitThread(){
     //libPlugin_Imgur.so
     if(!_PluginManager->LoadPlugin("plugins/libPlugin_Imgur.so")){
 
-        LoadError = true;
         LOG_ERROR("Failed to load plugin");
+        return true;
     }
 
     // Load ImageMagick library //
@@ -268,10 +266,23 @@ void DualView::_RunInitThread(){
 
 
     // Load database //
-    
+    return false;
+}
 
-    //std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+void DualView::_RunInitThread(){
+
+    LOG_INFO("Running Init thread");
+    LoadError = false;
+
+    bool result = _DoInitThreadAction();
     
+    if(result){
+        // Sleep if an error occured to let the user read it
+        LoadError = true;
+        
+        //std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+    }
+
     // Invoke the callback on the main thread //
     StartDispatcher.emit();
 }
@@ -601,6 +612,7 @@ void DualView::OpenImageFile_OnClick(){
 void DualView::OpenCollection_OnClick(){
 
     // Show it //
+    Application->add_window(*_CollectionView);
     _CollectionView->show();
 }
 

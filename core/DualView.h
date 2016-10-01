@@ -115,6 +115,10 @@ protected:
     //! \brief Ran in the loader thread
     void _RunInitThread();
 
+    //! \brief The Actual load function used by _RunInitThread
+    //! \returns True if an error occured
+    bool _DoInitThreadAction();
+
     //! \brief Called in the main thread once loading has completed
     //! \param succeeded True if there were no errors in the loading thread
     //! \todo Show load error to user
