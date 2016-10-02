@@ -6,19 +6,32 @@ using namespace DV;
 // ------------------------------------ //
 
 ListItem::ListItem(std::shared_ptr<Image> showImage, const std::string &name) :
-    Gtk::Box(Gtk::ORIENTATION_VERTICAL),
+    Container(Gtk::ORIENTATION_VERTICAL),
     ImageIcon(showImage)
 {
-    pack_start(ImageIcon);
+    add(Container);
+
+    Container.set_homogeneous(false);
+    Container.set_spacing(2);
+    Container.show();
+
+
+    Container.pack_start(ImageIcon, Gtk::PACK_EXPAND_WIDGET);
     ImageIcon.show();
 
-    pack_end(TextAreaOverlay);
+    Container.pack_end(TextAreaOverlay, Gtk::PACK_SHRINK);
     TextAreaOverlay.add(NameLabel);
-    
+
+    TextAreaOverlay.set_margin_bottom(3);
     TextAreaOverlay.show();
     NameLabel.show();
     
     _SetName(name);
+
+    TextAreaOverlay.set_valign(Gtk::ALIGN_CENTER);
+    
+    NameLabel.set_valign(Gtk::ALIGN_CENTER);
+    NameLabel.set_halign(Gtk::ALIGN_FILL);
 }
 
 ListItem::~ListItem(){
@@ -43,6 +56,9 @@ Gtk::SizeRequestMode ListItem::get_request_mode_vfunc() const{
 
 void ListItem::get_preferred_width_vfunc(int& minimum_width, int& natural_width) const{
 
+    int box_width_min, box_width_natural;
+    Container.get_preferred_width(box_width_min, box_width_natural);
+    
     if(ConstantSize){
 
         minimum_width = natural_width = 96;
@@ -54,6 +70,9 @@ void ListItem::get_preferred_width_vfunc(int& minimum_width, int& natural_width)
 }
 
 void ListItem::get_preferred_height_vfunc(int& minimum_height, int& natural_height) const{
+
+    int box_height_min, box_height_natural;
+    Container.get_preferred_height(box_height_min, box_height_natural);
 
     if(ConstantSize){
 

@@ -20,11 +20,19 @@ CollectionView::CollectionView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> bu
         auto thing = std::make_shared<ListItem>(
             Image::Create("/home/hhyyrylainen/690806.jpg"), "image " + Convert::ToString(i)
             + ".jpg");
-
-        thing->set_size_request(256, 196);
         
-        box->put(*thing, (256 + 5) * i, 5);
+        int width_min, width_natural;
+        int height_min, height_natural;
+
         thing->show();
+        
+        thing->get_preferred_width(width_min, width_natural);
+        thing->get_preferred_height_for_width(width_natural, height_min, height_natural);
+
+        thing->set_size_request(width_natural, height_natural);
+        
+        box->put(*thing, (width_natural + 2) * i, 5);
+        
 
         stuffs.push_back(thing);
     }

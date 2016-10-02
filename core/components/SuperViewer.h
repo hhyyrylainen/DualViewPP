@@ -11,11 +11,15 @@
 
 namespace DV{
 
+//! If the widget size is below this value the viewer will go into thumbnail mode
+constexpr auto SUPER_THUMBNAIL_WIDTH_THRESHOLD = 150;
+//! If the widget size is below this value the viewer will go into thumbnail mode
+constexpr auto SUPER_THUMBNAIL_HEIGHT_THRESHOLD = 150;
+
 //! \brief Image viewing widget
 //!
 //! Manages drawing ImageMagick images with cairo
-//! \todo Make mouse disable function also disconnect singal handlers
-//! (https://developer.gnome.org/gtkmm-tutorial/stable/sec-disconnecting-signal-handlers.html.en)
+//! \todo When unmapped (hidden and won't be rendered) should unload the converted image
 class SuperViewer : public Gtk::DrawingArea{
 
     using ClockType = std::chrono::high_resolution_clock;

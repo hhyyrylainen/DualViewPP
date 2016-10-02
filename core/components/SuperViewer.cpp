@@ -94,7 +94,10 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
     }
 
     // Verify thumbnail mode //
-    const bool shouldBeThumbnailMode = ForceOnlyThumbnail || (width <= 256 && height <= 256);
+    const bool shouldBeThumbnailMode = ForceOnlyThumbnail ||
+        (width <= SUPER_THUMBNAIL_WIDTH_THRESHOLD &&
+            height <= SUPER_THUMBNAIL_HEIGHT_THRESHOLD);
+    
     if(shouldBeThumbnailMode != IsInThumbnailMode){
 
         IsInThumbnailMode = shouldBeThumbnailMode;

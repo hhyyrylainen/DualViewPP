@@ -61,6 +61,8 @@ std::shared_ptr<LoadedImage> CacheManager::LoadFullImage(const std::string &file
     // Create new //
     auto created = std::make_shared<LoadedImage>(file);
 
+    LOG_INFO("Opening full size image: " + file);
+
     // Add to cache //
     ImageCache.push_back(created);
 

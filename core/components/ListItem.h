@@ -8,7 +8,7 @@
 
 namespace DV{
 
-class ListItem : public Gtk::Box{
+class ListItem : public Gtk::Frame{
 public:
 
     ListItem(std::shared_ptr<Image> showImage, const std::string &name);
@@ -29,6 +29,8 @@ protected:
 
 private:
 
+    Gtk::Box Container;
+    
     SuperViewer ImageIcon;
 
     Gtk::Overlay TextAreaOverlay;

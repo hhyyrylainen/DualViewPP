@@ -26,11 +26,13 @@
       <object class="GtkOverlay">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
+        <property name="valign">center</property>
         <child>
           <object class="GtkLabel">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Image Name Goes here Or if it is quite long then it will wrap into multiple linnes which take quite a bit of space</property>
+            <property name="valign">center</property>
+            <property name="label" translatable="yes">Image Name Goes here</property>
             <property name="justify">center</property>
             <property name="wrap">True</property>
             <property name="max_width_chars">25</property>
