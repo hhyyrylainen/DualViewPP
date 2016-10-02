@@ -266,6 +266,10 @@ bool DualView::_DoInitThreadAction(){
 
 
     // Load database //
+
+    
+
+    // Succeeded //
     return false;
 }
 
@@ -317,7 +321,7 @@ void DualView::_OnLoadingFinished(){
     _ProcessCmdQueue();
 
     // For testing SuperViewer uncomment this to quickly open images
-    //OpenImageViewer("/home/hhyyrylainen/Kuvat/0 fucks given bullup wrong side.gif");
+    //OpenImageViewer("/home/hhyyrylainen/690806.jpg");
 }
 // ------------------------------------ //
 void DualView::_ProcessCmdQueue(){
@@ -473,6 +477,9 @@ void DualView::_RunHashCalculateThread(){
 
                 LOG_INFO("Calculated hash for a duplicate image");
                 img->BecomeDuplicateOf(*existing);
+            } else {
+
+                img->_OnFinishHash();
             }
         }
 

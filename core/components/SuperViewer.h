@@ -23,6 +23,8 @@ class SuperViewer : public Gtk::DrawingArea{
     
 public:
 
+    //! \brief Non-glade constructor
+    SuperViewer(std::shared_ptr<Image> displayedResource, bool useEvents = false);
     
     //! \brief Constructor called by glade builder when loading a widget of this type
     SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,

@@ -31,7 +31,7 @@ Image::Image(const std::string &file) : ResourcePath(file), ImportLocation(file)
 
 void Image::Init(){
 
-    if(!IsReadyToAdd){
+    if(!IsHashValid){
         // Register hash calculation //
         _QueueHashCalculation();
     }
@@ -44,7 +44,7 @@ std::shared_ptr<LoadedImage> Image::GetImage() const{
     
 std::shared_ptr<LoadedImage> Image::GetThumbnail() const{
 
-    if(!IsReadyToAdd)
+    if(!IsHashValid)
         return nullptr;
 
     return DualView::Get().GetCacheManager().LoadThumbImage(ResourcePath, Hash);
@@ -52,7 +52,7 @@ std::shared_ptr<LoadedImage> Image::GetThumbnail() const{
 
 std::string Image::GetHash() const{
 
-    if(!IsReadyToAdd)
+    if(!IsHashValid)
         throw Leviathan::InvalidState("Hash hasn't been calculated");
 
     return Hash;
@@ -87,8 +87,15 @@ std::string Image::CalculateFileHash() const{
 void Image::_DoHashCalculation(){
 
     Hash = CalculateFileHash();
+    IsHashValid = true;
 
     LEVIATHAN_ASSERT(!Hash.empty(), "Image created an empty hash");
+
+    // IsReadyToAdd will be set by DualView once it is confirmed that
+    // this isn't a duplicate
+}
+
+void Image::_OnFinishHash(){
 
     IsReadyToAdd = true;
 }

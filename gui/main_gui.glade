@@ -466,11 +466,9 @@
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <child>
-                  <object class="GtkFlowBox">
+                  <object class="GtkFixed" id="ImageContainer">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="selection_mode">none</property>
-                    <property name="activate_on_single_click">False</property>
                   </object>
                 </child>
               </object>

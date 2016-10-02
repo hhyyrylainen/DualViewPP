@@ -88,10 +88,13 @@ protected:
     //! \brief Called by DualView from a worker thread to calculate the hash
     //! for this image
     void _DoHashCalculation();
+
+    //! \brief Called after _DoHashCalculation if this wasn't a duplicate
+    void _OnFinishHash();
     
 private:
 
-    //! True when Hash has been calculated
+    //! True when Hash has been calculated and duplicate check has completed
     std::atomic<bool> IsReadyToAdd = { false };
 
     std::string ResourcePath;
@@ -106,6 +109,8 @@ private:
 
     std::string ImportLocation;
 
+    //! True if Hash has been set to a valid value
+    bool IsHashValid = false;
     std::string Hash;
 
 

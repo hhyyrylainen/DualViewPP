@@ -21,6 +21,7 @@ private:
     
 private:
 
+    std::vector<std::shared_ptr<ListItem>> stuffs;
 };
 
 }

@@ -5,6 +5,13 @@
 
 using namespace DV;
 // ------------------------------------ //
+//#define PRINT_EXTRA_DEBUG
+
+#ifdef PRINT_EXTRA_DEBUG
+#define PRINT_INFO(x) {LOG_WRITE(std::string("SuperViewer: ") + x );}
+#else
+#define PRINT_INFO(x) {}
+#endif
 
 constexpr auto MAX_LOADING_LINES = 6;
 
@@ -14,6 +21,13 @@ SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> build
 {
     // Do setup stuff //
     _CommonCtor(true, true);
+}
+
+SuperViewer::SuperViewer(std::shared_ptr<Image> displayedResource, bool useEvents /*= false*/)
+    : DisplayedResource(displayedResource)
+{
+    PRINT_INFO("constructed with a resource");
+    _CommonCtor(useEvents, useEvents);
 }
 
 void SuperViewer::_CommonCtor(bool hookmouseevents, bool hookkeypressevents){
@@ -51,8 +65,7 @@ void SuperViewer::_CommonCtor(bool hookmouseevents, bool hookkeypressevents){
 
 SuperViewer::~SuperViewer(){
 
-    LOG_WRITE("Super destructed");
-
+    PRINT_INFO("Super destructed");
     
 }
 // ------------------------------------ //
@@ -70,6 +83,11 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
         refStyleContext->render_background(cr,
         allocation.get_x(), allocation.get_y(),
         allocation.get_width(), allocation.get_height());
+
+        // Draw a grey rectangle //
+        cr->set_source_rgb(0.47, 0.47, 0.47);
+        cr->rectangle(0, 0, width, height);
+        cr->fill();
 
         _AddRedrawTimer(-1);
         return true;
@@ -211,7 +229,7 @@ void SuperViewer::_DrawCurrentImage(const Cairo::RefPtr<Cairo::Context>& cr) con
     Gdk::Cairo::set_source_pixbuf(cr, CachedDrawnImage, 0, 0);
     cr->rectangle(0, 0,
         CachedDrawnImage->get_width(), CachedDrawnImage->get_height());
-    cr->fill();    
+    cr->fill();
 }
 // ------------------------------------ //
 SuperViewer::Point SuperViewer::CalculateImageRenderTopLeft(size_t width, size_t height,
