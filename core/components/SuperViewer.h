@@ -16,10 +16,16 @@ constexpr auto SUPER_THUMBNAIL_WIDTH_THRESHOLD = 150;
 //! If the widget size is below this value the viewer will go into thumbnail mode
 constexpr auto SUPER_THUMBNAIL_HEIGHT_THRESHOLD = 150;
 
+//! The amount of time in milliseconds that has elapsed since last draw after
+//! the cached image is released
+constexpr auto SUPER_UNLOAD_IMAGE_AFTER_MS = 15000;
+
+
 //! \brief Image viewing widget
 //!
 //! Manages drawing ImageMagick images with cairo
-//! \todo When unmapped (hidden and won't be rendered) should unload the converted image
+//! \todo Immediately unload when unrealized or unmapped or something when the parent window
+//! is hidden
 class SuperViewer : public Gtk::DrawingArea{
 
     using ClockType = std::chrono::high_resolution_clock;
@@ -51,6 +57,12 @@ protected:
     
     //! \brief Main drawing function
     bool on_draw(const Cairo::RefPtr<Cairo::Context>& cr) override;
+
+    //! \brief Used to unload the current image if this hasn't been drawn for a few seconds
+    bool _OnUnloadTimer();
+
+    //! \brief Starts an unload timer, should be called whenever CachedDrawnImage is set
+    void _AddUnloadTimer();
 
     //! \brief Draws the CachedDrawnImage with all the current settings
     void _DrawCurrentImage(const Cairo::RefPtr<Cairo::Context>& cr) const;
@@ -172,5 +184,11 @@ private:
 
     //! Used for loading animation
     int LoadingLineCount = 1;
+
+    //! Used to unload CachedDrawnImage after some time of not rendering
+    bool HasBeenDrawn = false;
+
+    //! If true has a unload timer
+    bool HasUnloadTimer = false;
 };
 }

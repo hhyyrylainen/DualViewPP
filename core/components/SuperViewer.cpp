@@ -60,7 +60,7 @@ void SuperViewer::_CommonCtor(bool hookmouseevents, bool hookkeypressevents){
     }
 
     signal_size_allocate().connect(sigc::mem_fun(*this, &SuperViewer::_OnResize));
-    
+
 }
 
 SuperViewer::~SuperViewer(){
@@ -74,6 +74,8 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
     Gtk::Allocation allocation = get_allocation();
     const int width = allocation.get_width();
     const int height = allocation.get_height();
+
+    HasBeenDrawn = true;
 
     // If no image, stop //
     if(!DisplayedResource){
@@ -203,8 +205,11 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
             }
         
             // Draw positioned image //
-            if(!CachedDrawnImage)
+            if(!CachedDrawnImage){
+                
                 CachedDrawnImage = DisplayImage->CreateGtkImage(CurrentAnimationFrame);
+                _AddUnloadTimer();
+            }
 
             _DrawCurrentImage(cr);
         }
@@ -362,6 +367,32 @@ bool SuperViewer::_OnTimerCheck(int32_t currenttime){
     queue_draw();
 
     return true;
+}
+
+void SuperViewer::_AddUnloadTimer(){
+
+    if(HasUnloadTimer)
+        return;
+
+    HasUnloadTimer = true;
+    
+    // Unload timer //
+    Glib::signal_timeout().connect(sigc::mem_fun(*this, &SuperViewer::_OnUnloadTimer),
+        SUPER_UNLOAD_IMAGE_AFTER_MS);
+}
+
+bool SuperViewer::_OnUnloadTimer(){
+
+    if(HasBeenDrawn){
+
+        HasBeenDrawn = false;
+        return true;
+    }
+
+    // Unload it //
+    CachedDrawnImage.reset();
+    HasUnloadTimer = false;
+    return false;
 }
 
 bool SuperViewer::_OnMouseMove(GdkEventMotion* motion_event){
