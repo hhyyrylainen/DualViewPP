@@ -60,7 +60,7 @@ void SuperViewer::_CommonCtor(bool hookmouseevents, bool hookkeypressevents){
     }
 
     signal_size_allocate().connect(sigc::mem_fun(*this, &SuperViewer::_OnResize));
-
+    signal_unmap().connect(sigc::mem_fun(*this, &SuperViewer::_OnUnMapped));
 }
 
 SuperViewer::~SuperViewer(){
@@ -394,6 +394,12 @@ bool SuperViewer::_OnUnloadTimer(){
     HasUnloadTimer = false;
     return false;
 }
+void SuperViewer::_OnUnMapped(){
+
+    HasBeenDrawn = false;
+    CachedDrawnImage.reset();
+}
+// ------------------------------------ //
 
 bool SuperViewer::_OnMouseMove(GdkEventMotion* motion_event){
 

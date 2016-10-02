@@ -10,32 +10,12 @@ CollectionView::CollectionView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> bu
 {
 
     signal_delete_event().connect(sigc::mem_fun(*this, &CollectionView::_OnClose));
+
+    signal_unmap().connect(sigc::mem_fun(*this, &CollectionView::_OnHidden));
+    signal_map().connect(sigc::mem_fun(*this, &CollectionView::_OnShown));
     
-    Gtk::Fixed* box;
-    builder->get_widget("ImageContainer", box);
-    LEVIATHAN_ASSERT(box, "Invalid .glade file");
-
-    for(int i = 0; i < 25; ++i){
-
-        auto thing = std::make_shared<ListItem>(
-            Image::Create("/home/hhyyrylainen/690806.jpg"), "image " + Convert::ToString(i)
-            + ".jpg");
-        
-        int width_min, width_natural;
-        int height_min, height_natural;
-
-        thing->show();
-        
-        thing->get_preferred_width(width_min, width_natural);
-        thing->get_preferred_height_for_width(width_natural, height_min, height_natural);
-
-        thing->set_size_request(width_natural, height_natural);
-        
-        box->put(*thing, (width_natural + 2) * i, 5);
-        
-
-        stuffs.push_back(thing);
-    }
+    builder->get_widget_derived("ImageContainer", Container);
+    LEVIATHAN_ASSERT(Container, "Invalid .glade file");
 }
 
 CollectionView::~CollectionView(){
@@ -52,6 +32,16 @@ bool CollectionView::_OnClose(GdkEventAny* event){
     
     return true;
 }
+// ------------------------------------ //
+void CollectionView::_OnShown(){
 
+    // Load items //
+}
+
+void CollectionView::_OnHidden(){
+
+    // Explicitly unload items //
+    
+}
 
 

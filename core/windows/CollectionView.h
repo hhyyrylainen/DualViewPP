@@ -3,6 +3,7 @@
 #include "BaseWindow.h"
 
 #include "core/components/ImageListItem.h"
+#include "core/components/SuperContainer.h"
 
 #include <gtkmm.h>
 
@@ -18,10 +19,13 @@ public:
 private:
 
     bool _OnClose(GdkEventAny* event);
+
+    void _OnShown();
+    void _OnHidden();
     
 private:
 
-    std::vector<std::shared_ptr<ListItem>> stuffs;
+    SuperContainer* Container = nullptr;
 };
 
 }

@@ -24,8 +24,6 @@ constexpr auto SUPER_UNLOAD_IMAGE_AFTER_MS = 15000;
 //! \brief Image viewing widget
 //!
 //! Manages drawing ImageMagick images with cairo
-//! \todo Immediately unload when unrealized or unmapped or something when the parent window
-//! is hidden
 class SuperViewer : public Gtk::DrawingArea{
 
     using ClockType = std::chrono::high_resolution_clock;
@@ -63,6 +61,9 @@ protected:
 
     //! \brief Starts an unload timer, should be called whenever CachedDrawnImage is set
     void _AddUnloadTimer();
+
+    //! \brief Unloads the image immediately
+    void _OnUnMapped();
 
     //! \brief Draws the CachedDrawnImage with all the current settings
     void _DrawCurrentImage(const Cairo::RefPtr<Cairo::Context>& cr) const;

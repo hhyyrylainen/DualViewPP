@@ -16,6 +16,7 @@ add_library(Core
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp
+  components/SuperContainer.h components/SuperContainer.cpp
   components/ListItem.h components/ListItem.cpp
   components/ImageListItem.h components/ImageListItem.cpp
 
