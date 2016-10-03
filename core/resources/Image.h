@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ResourceWithPreview.h"
+
 #include <string>
 #include <memory>
 #include <chrono>
@@ -8,7 +10,7 @@
 namespace DV{
 
 class LoadedImage;
-
+class ImageListItem;
 class DualView;
 
 //! \brief Main class for all image files that are handled by DualView
@@ -17,7 +19,7 @@ class DualView;
 //! data will be loaded by CacheManager
 //! \note Once the image has been loaded this will be made a duplicate of
 //! another image that is in the database IF the hashes match
-class Image : public std::enable_shared_from_this<Image> {
+class Image : public ResourceWithPreview, public std::enable_shared_from_this<Image> {
     friend DualView;
 
 protected:
@@ -65,11 +67,27 @@ public:
         return shared_from_this();
     }
 
+    //! \brief Returns the name
+    inline std::string GetName() const{
+
+        return ResourceName;
+    }
+
     //! \brief Returns a hash calculated from the file at ResourcePath
     //! \note This takes a while and should be called from a background thread
     //! \returns A base64 encoded sha256 of the entire file contents. With /'s replaced
     //! with _'s
     std::string CalculateFileHash() const;
+
+    //! \brief Returns true if the images represent the same image
+    //! \todo Fix this
+    bool operator ==(const Image& other);
+
+
+    // Implementation of ResourceWithPreview
+    std::shared_ptr<ListItem> CreateListItem() override;
+    bool IsSame(const ResourceWithPreview &other) override;
+    bool UpdateWidgetWithValues(ListItem &control) override;
 
 protected:
 
@@ -91,6 +109,9 @@ protected:
 
     //! \brief Called after _DoHashCalculation if this wasn't a duplicate
     void _OnFinishHash();
+
+    //! \brief Fills a widget with this resource
+    void _FillWidget(ImageListItem &widget);
     
 private:
 

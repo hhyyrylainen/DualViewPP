@@ -26,6 +26,9 @@ add_library(Core
   CacheManager.h CacheManager.cpp
   
   # Resources
+  resources/DatabaseResource.h resources/DatabaseResource.cpp
+  resources/ResourceWithPreview.h resources/ResourceWithPreview.cpp
+  
   resources/Image.h resources/Image.cpp
   resources/Collection.h resources/Collection.cpp
   )

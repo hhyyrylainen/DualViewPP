@@ -2,12 +2,11 @@
 
 #include "BaseWindow.h"
 
-#include "core/components/ImageListItem.h"
-#include "core/components/SuperContainer.h"
-
 #include <gtkmm.h>
 
 namespace DV{
+
+class SuperContainer;
 
 //! \brief Window that shows all the (image) things in the database
 class CollectionView : public Gtk::Window{

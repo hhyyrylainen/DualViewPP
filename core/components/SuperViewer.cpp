@@ -116,8 +116,6 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
     if(!IsImageReadyToShow()){
 
         // Draw loading animation //
-        // Pen pen = new Pen(Brushes.CadetBlue);
-
         // CadetBlue
         cr->set_source_rgb(0.37, 0.61, 0.63);
         cr->set_line_width(4);

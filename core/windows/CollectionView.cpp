@@ -1,6 +1,8 @@
 // ------------------------------------ //
 #include "CollectionView.h"
 
+#include "core/components/SuperContainer.h"
+
 #include "Common.h"
 
 using namespace DV;
@@ -36,6 +38,12 @@ bool CollectionView::_OnClose(GdkEventAny* event){
 void CollectionView::_OnShown(){
 
     // Load items //
+    std::vector<std::shared_ptr<Image>> images;
+    
+    for(int i = 0; i < 30; ++i)
+        images.push_back(Image::Create("/home/hhyyrylainen/690806.jpg"));
+
+    Container->SetShownItems(images.begin(), images.end());
 }
 
 void CollectionView::_OnHidden(){

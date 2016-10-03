@@ -5,9 +5,12 @@
 
 #include <gtkmm.h>
 
+#include <memory>
+
 
 namespace DV{
 
+//! \brief Base class for all widget types that are used with a SuperContainer
 class ListItem : public Gtk::Frame{
 public:
 

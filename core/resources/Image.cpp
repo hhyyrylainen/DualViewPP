@@ -1,6 +1,8 @@
 // ------------------------------------ //
 #include "Image.h"
 
+#include "core/components/ImageListItem.h"
+
 #include "DualView.h"
 #include "CacheManager.h"
 #include "Exceptions.h"
@@ -106,6 +108,48 @@ void Image::_QueueHashCalculation(){
 }
 // ------------------------------------ //
 void Image::BecomeDuplicateOf(const Image &other){
+
+    DEBUG_BREAK;
+}
+
+bool Image::operator ==(const Image& other){
+
+    return ResourcePath == other.ResourcePath;
+}
+// ------------------------------------ //
+std::shared_ptr<ListItem> Image::CreateListItem(){
+
+    auto widget = std::make_shared<ImageListItem>();
+    
+    _FillWidget(*widget);
+
+    return widget;
+}
+
+bool Image::IsSame(const ResourceWithPreview &other){
+
+    auto* asThis = dynamic_cast<const Image*>(&other);
+
+    if(!asThis)
+        return false;
+
+    // Check is the image same //
+    return *this == *asThis;
+}
+
+bool Image::UpdateWidgetWithValues(ListItem &control){
+
+    auto* asOurType = dynamic_cast<ImageListItem*>(&control);
+
+    if(!asOurType)
+        return false;
+
+    // Update the properties //
+    _FillWidget(*asOurType);
+    return true;
+}
+
+void _FillWidget(ImageListItem &widget){
 
     DEBUG_BREAK;
 }
