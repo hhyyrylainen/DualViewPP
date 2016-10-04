@@ -6,6 +6,8 @@
 using namespace DV;
 // ------------------------------------ //
 
+//#define SUPERCONTAINER_RESIZE_REFLOW_CHECK_ONLY_FIRST_ROW
+
 SuperContainer::SuperContainer(_GtkScrolledWindow* widget, Glib::RefPtr<Gtk::Builder> builder)
     : Gtk::ScrolledWindow(widget), View(get_hadjustment(), get_vadjustment())
 {
@@ -338,6 +340,9 @@ void SuperContainer::_AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item){
 // Callbacks
 void SuperContainer::_OnResize(Gtk::Allocation &allocation){
 
+    if(Positions.empty())
+        return;
+
     bool reflow = false;
 
     if(allocation.get_width() < WidestRow){
@@ -348,8 +353,35 @@ void SuperContainer::_OnResize(Gtk::Allocation &allocation){
     } else {
 
         // Check would wider rows fit //
-        DEBUG_BREAK;
-        
+        int32_t CurrentRow = 0;
+        int32_t CurrentY = Positions.front().Y;
+
+        for(auto& position : Positions){
+
+            if(position.Y != CurrentY){
+
+                // Row changed //
+
+                if(SUPERCONTAINER_MARGIN + CurrentRow + SUPERCONTAINER_PADDING + position.Width
+                    < allocation.get_width())
+                {
+                    // The previous row (this is the first position of the first row) could
+                    // now fit this widget
+                    reflow = true;
+                    break;
+                }
+
+                CurrentRow = 0;
+                CurrentY = position.Y;
+
+                // Break if only checking first line
+            #ifdef SUPERCONTAINER_RESIZE_REFLOW_CHECK_ONLY_FIRST_ROW
+                break;
+            #endif
+            }
+
+            CurrentRow += position.Width;
+        }
     }
 
     if(reflow){
