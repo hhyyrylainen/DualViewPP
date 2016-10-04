@@ -69,6 +69,21 @@ SuperViewer::~SuperViewer(){
     
 }
 // ------------------------------------ //
+void SuperViewer::SetImage(std::shared_ptr<Image> displayedResource){
+
+    DisplayedResource = displayedResource;
+
+    // Reset things //
+    DisplayImage.reset();
+    CachedDrawnImage.reset();
+    IsImageReady = false;
+
+    // And reset display settings //
+    IsAutoFit = true;
+    
+    queue_draw();    
+}
+// ------------------------------------ //
 bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
 
     Gtk::Allocation allocation = get_allocation();

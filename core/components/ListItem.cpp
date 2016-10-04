@@ -43,6 +43,11 @@ void ListItem::_SetName(const std::string &name){
     NameLabel.set_text(name);
 }
 
+void ListItem::_SetImage(std::shared_ptr<Image> image){
+
+    ImageIcon.SetImage(image);
+}
+
 // ------------------------------------ //
 // Gtk overrides
 Gtk::SizeRequestMode ListItem::get_request_mode_vfunc() const{

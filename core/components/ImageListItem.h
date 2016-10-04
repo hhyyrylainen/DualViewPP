@@ -15,7 +15,13 @@ public:
     
     ImageListItem(std::shared_ptr<Image> shownImage = nullptr);
 
-    
+    //! \brief Sets the shown image
+    void SetImage(std::shared_ptr<Image> image);
+
+
+private:
+
+    std::shared_ptr<Image> CurrentImage;
 };
 
 }

@@ -46,6 +46,9 @@ public:
     //! \param forwards If true moves forwards, if false moves backwards
     //! \param wrap If true will continue from the first image if the end is reached
     bool MoveInCollection(bool forwards, bool wrap = true);
+
+    //! \brief Sets the image to show
+    void SetImage(std::shared_ptr<Image> displayedResource);
     
     
 protected:

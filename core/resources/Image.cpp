@@ -149,7 +149,7 @@ bool Image::UpdateWidgetWithValues(ListItem &control){
     return true;
 }
 
-void _FillWidget(ImageListItem &widget){
+void Image::_FillWidget(ImageListItem &widget){
 
     DEBUG_BREAK;
 }
