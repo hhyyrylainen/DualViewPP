@@ -24,7 +24,7 @@ TEST_CASE("Image getptr works", "[image]"){
     CHECK(img.use_count() == img2.use_count());
 }
 
-TEST_CASE("File hash generation is correct", "[image, hash]") {
+TEST_CASE("File hash generation is correct", "[image][hash]") {
 
     DummyDualView dummy;
 
@@ -79,7 +79,7 @@ TEST_CASE("ImageMagick properly loads the test image", "[image]"){
 }
 
 
-TEST_CASE("File hash calculation happens on a worker thread", "[image, hash]"){
+TEST_CASE("File hash calculation happens on a worker thread", "[image][hash]"){
     
     TestDualView dualview;
 
@@ -143,7 +143,7 @@ TEST_CASE("Thumbnail generation does something", "[image]"){
                 img->GetHash() + ".jpg")));
 }
 
-TEST_CASE("Thumbnail for gif has fewer frames", "[image]"){
+TEST_CASE("Thumbnail for gif has fewer frames", "[image][expensive]"){
 
     TestDualView dualview;
 

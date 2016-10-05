@@ -151,6 +151,6 @@ bool Image::UpdateWidgetWithValues(ListItem &control){
 
 void Image::_FillWidget(ImageListItem &widget){
 
-    DEBUG_BREAK;
+    widget.SetImage(shared_from_this());
 }
 

@@ -61,6 +61,9 @@ class SuperContainer : public Gtk::ScrolledWindow{
     };
 
 public:
+
+    //! \brief Non-glade constructor
+    SuperContainer();
     
     //! \brief Constructor called by glade builder when loading a widget of this type
     SuperContainer(_GtkScrolledWindow* widget, Glib::RefPtr<Gtk::Builder> builder);
@@ -122,9 +125,21 @@ public:
     //! \brief Calculates positions for GridPositions starting at index
     void Reflow(size_t index);
 
+    //! \brief Returns the number of lines the shown items take
+    size_t CountRows() const;
+    
+    //! \brief Returns the width of the widest row, in pixels
+    //! \note UpdatePositioning needs to be called before this is updated
+    inline auto GetWidestRowWidth() const{
+
+        return WidestRow;
+    }
+
     // Callbacks for contained items //
 
-    
+private:
+
+    void _CommonCtor();
     
 protected:
 

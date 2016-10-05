@@ -5,7 +5,7 @@
 
 using namespace DV;
 
-TEST_CASE("Collection name sanitization works", "[collection, file]") {
+TEST_CASE("Collection name sanitization works", "[collection][file]") {
 
     Leviathan::TestLogger log("test_collection.txt");
 

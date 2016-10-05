@@ -3,6 +3,7 @@
 #include "TestDualView.h"
 #include "DummyLog.h"
 #include "core/CacheManager.h"
+#include "core/components/SuperContainer.h"
 
 #include <Magick++.h>
 
@@ -11,7 +12,6 @@
 
 #include <iostream>
 
-
 //! \file All tests that require gtk to be initialized
 
 class GtkTestsFixture {
@@ -19,7 +19,8 @@ public:
     
     GtkTestsFixture()
     {
-        app = Gtk::Application::create("com.boostslair.dualview.tests");
+        app = Gtk::Application::create("com.boostslair.dualview.tests.test" +
+            std::to_string(++InstanceCount));
 
         REQUIRE(app->register_application());
     }
@@ -28,8 +29,12 @@ protected:
 
     Glib::RefPtr<Gtk::Application> app;
     
-    DV::TestDualView DualView;
+private:
+
+    static int InstanceCount;
 };
+
+int GtkTestsFixture::InstanceCount = 0;
 
 //#define PRINT_PIXEL_VALUES
 
@@ -71,8 +76,10 @@ void CheckPixel(Glib::RefPtr<Gdk::Pixbuf> &pixbuf, Magick::Image &image, size_t 
     }
 }
 
-TEST_CASE_METHOD(GtkTestsFixture, "Gdk pixbuf creation works", "[image, gtk]") {
+TEST_CASE_METHOD(GtkTestsFixture, "Gdk pixbuf creation works", "[image][gtk]") {
 
+    DV::TestDualView DualView;
+    
     auto img = DualView.GetCacheManager().LoadFullImage(
         "data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
 
@@ -107,5 +114,30 @@ TEST_CASE_METHOD(GtkTestsFixture, "Gdk pixbuf creation works", "[image, gtk]") {
     
 }
 
+
+TEST_CASE_METHOD(GtkTestsFixture, "Basic SuperContainer operations",
+    "[components][gtk]")
+{
+    DV::DummyDualView dualview;
+    DV::SuperContainer container;
+
+    container.set_size_request(700, 500);
+
+    container.show();
+
+    std::vector<std::shared_ptr<DV::Image>> images;
+    
+    for(int i = 0; i < 30; ++i)
+        images.push_back(DV::Image::Create("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg"));
+
+    container.SetShownItems(images.begin(), images.end());
+
+    // TODO: find a way to get gtk to initialize the container
+    // // 30 images should not be able to fit in 700 pixels
+    // CHECK(container.CountRows() > 1);
+    
+    // CHECK(container.GetWidestRowWidth() > 0);
+    // CHECK(container.GetWidestRowWidth() <= 700);
+}
 
 

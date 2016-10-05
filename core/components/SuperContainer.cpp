@@ -8,37 +8,26 @@ using namespace DV;
 
 //#define SUPERCONTAINER_RESIZE_REFLOW_CHECK_ONLY_FIRST_ROW
 
+SuperContainer::SuperContainer() :
+    Gtk::ScrolledWindow(), View(get_hadjustment(), get_vadjustment())
+{
+    _CommonCtor();
+}
+
 SuperContainer::SuperContainer(_GtkScrolledWindow* widget, Glib::RefPtr<Gtk::Builder> builder)
     : Gtk::ScrolledWindow(widget), View(get_hadjustment(), get_vadjustment())
 {
+    _CommonCtor();
+}
+
+void SuperContainer::_CommonCtor(){
+
     add(View);
     View.add(Container);
     View.show();
     Container.show();
 
     signal_size_allocate().connect(sigc::mem_fun(*this, &SuperContainer::_OnResize));
-    
-    // for(int i = 0; i < 25; ++i){
-
-    //     auto thing = std::make_shared<ListItem>(
-    //         Image::Create("/home/hhyyrylainen/690806.jpg"), "image " + Convert::ToString(i)
-    //         + ".jpg");
-        
-    //     int width_min, width_natural;
-    //     int height_min, height_natural;
-
-    //     thing->show();
-        
-    //     thing->get_preferred_width(width_min, width_natural);
-    //     thing->get_preferred_height_for_width(width_natural, height_min, height_natural);
-
-    //     thing->set_size_request(width_natural, height_natural);
-        
-    //     Container.put(*thing, (width_natural + 2) * i, 5);
-        
-
-    //     stuffs.push_back(thing);
-    // }
 }
 
 SuperContainer::~SuperContainer(){
@@ -65,7 +54,7 @@ void SuperContainer::UpdatePositioning(){
     
     WidestRow = 0;
 
-    int32_t CurrentRow = 0;
+    int32_t CurrentRow = SUPERCONTAINER_MARGIN;
     int32_t CurrentY = Positions.front().Y;
 
     for(auto& position : Positions){
@@ -76,16 +65,38 @@ void SuperContainer::UpdatePositioning(){
             if(WidestRow < CurrentRow)
                 WidestRow = CurrentRow;
 
-            CurrentRow = 0;
+            CurrentRow = SUPERCONTAINER_MARGIN;
             CurrentY = position.Y;
         }
 
-        CurrentRow += position.Width;
+        CurrentRow += position.Width + SUPERCONTAINER_PADDING;
 
         auto& element = position.WidgetToPosition;
 
         Container.move(*element->Widget, position.X, position.Y);
     }
+
+    // Last row needs to be included, too //
+    if(WidestRow < CurrentRow)
+        WidestRow = CurrentRow;
+}
+
+size_t SuperContainer::CountRows() const{
+
+    size_t count = 0;
+
+    int32_t CurrentY = -1;
+
+    for(auto& position : Positions){
+
+        if(position.Y != CurrentY){
+            
+            ++count;
+            CurrentY = position.Y;
+        }
+    }
+    
+    return count;
 }
 // ------------------------------------ //
 void SuperContainer::Reflow(size_t index){
@@ -374,7 +385,7 @@ void SuperContainer::_OnResize(Gtk::Allocation &allocation){
                 CurrentRow = 0;
                 CurrentY = position.Y;
 
-                // Break if only checking first line
+                // Break if only checking first row
             #ifdef SUPERCONTAINER_RESIZE_REFLOW_CHECK_ONLY_FIRST_ROW
                 break;
             #endif
