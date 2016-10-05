@@ -196,6 +196,8 @@ protected:
     
     // Callbacks //
     //! \brief Repositions GridPositions if size has changed enough
+    //! \todo Check if `Container.check_resize();` is a performance problem and is there a
+    //! alternative fix to forcing position updates when maximizing
     void _OnResize(Gtk::Allocation &allocation);
     
 private:

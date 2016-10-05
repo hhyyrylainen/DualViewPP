@@ -65,7 +65,7 @@ void SuperContainer::UpdatePositioning(){
             if(WidestRow < CurrentRow)
                 WidestRow = CurrentRow;
 
-            CurrentRow = SUPERCONTAINER_MARGIN;
+            CurrentRow = position.X;
             CurrentY = position.Y;
         }
 
@@ -79,6 +79,9 @@ void SuperContainer::UpdatePositioning(){
     // Last row needs to be included, too //
     if(WidestRow < CurrentRow)
         WidestRow = CurrentRow;
+
+    // Add margin
+    WidestRow += SUPERCONTAINER_MARGIN;
 }
 
 size_t SuperContainer::CountRows() const{
@@ -448,7 +451,8 @@ void SuperContainer::_OnResize(Gtk::Allocation &allocation){
     LastWidthReflow = allocation.get_width();
     bool reflow = false;
 
-    if(allocation.get_width() < WidestRow){
+    // If doesn't fit dual margins
+    if(allocation.get_width() < WidestRow + SUPERCONTAINER_MARGIN){
 
         // Rows don't fit anymore //
         reflow = true;
@@ -491,6 +495,9 @@ void SuperContainer::_OnResize(Gtk::Allocation &allocation){
 
         Reflow(0);
         UpdatePositioning();
+
+        // Forces update of positions
+        Container.check_resize();
     }
 }
 
