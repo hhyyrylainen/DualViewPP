@@ -5,6 +5,8 @@
 #include "core/CacheManager.h"
 #include "core/components/SuperContainer.h"
 
+#include "Common.h"
+
 #include <Magick++.h>
 
 #include <thread>
@@ -115,11 +117,18 @@ TEST_CASE_METHOD(GtkTestsFixture, "Gdk pixbuf creation works", "[image][gtk]") {
 }
 
 
+
 TEST_CASE_METHOD(GtkTestsFixture, "Basic SuperContainer operations",
     "[components][gtk]")
 {
     DV::DummyDualView dualview;
+    
+    Gtk::Window window;
+    
     DV::SuperContainer container;
+
+    window.add(container);
+    window.show();
 
     container.set_size_request(700, 500);
 
@@ -132,11 +141,12 @@ TEST_CASE_METHOD(GtkTestsFixture, "Basic SuperContainer operations",
 
     container.SetShownItems(images.begin(), images.end());
 
+    CHECK(container.GetWidestRowWidth() > 0);
+    CHECK(container.CountRows() > 1);
+
+    // TODO: show an actual gtk window for this test to work
     // TODO: find a way to get gtk to initialize the container
     // // 30 images should not be able to fit in 700 pixels
-    // CHECK(container.CountRows() > 1);
-    
-    // CHECK(container.GetWidestRowWidth() > 0);
     // CHECK(container.GetWidestRowWidth() <= 700);
 }
 

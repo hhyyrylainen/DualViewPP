@@ -49,7 +49,7 @@ void SuperContainer::UpdatePositioning(){
 
     LayoutDirty = false;
 
-    if(!Positions.empty())
+    if(Positions.empty())
         return;
     
     WidestRow = 0;
@@ -109,18 +109,24 @@ void SuperContainer::Reflow(size_t index){
     // The first one doesn't have a previous position //
     if(index == 0){
 
-        _PositionGridPosition(Positions.front(), nullptr);
+        LastWidthReflow = get_width();
+        
+        _PositionGridPosition(Positions.front(), nullptr, Positions.size());
         ++index;
     }
 
+    _CheckPositions();
+    
     for(size_t i = index; i < Positions.size(); ++i){
 
-        _PositionGridPosition(Positions.front(), &Positions[i - 1]);
+        LEVIATHAN_ASSERT(i > 0, "Positions reflow loop started too early");
+
+        _PositionGridPosition(Positions[i], &Positions[i - 1], i - 1);
     }
 }
 
 void SuperContainer::_PositionGridPosition(GridPosition& current,
-    const GridPosition* previous) const
+    const GridPosition* const previous, size_t previousindex) const
 {
     // First is at fixed position //
     if(previous == nullptr){
@@ -128,17 +134,54 @@ void SuperContainer::_PositionGridPosition(GridPosition& current,
         current.X = SUPERCONTAINER_MARGIN;
         current.Y = SUPERCONTAINER_MARGIN;
         return;
-    } 
+    }
+
+    LEVIATHAN_ASSERT(previousindex < Positions.size(), "previousindex is out of range");
 
     // Check does it fit on the line //
 
     if(previous->X + previous->Width + SUPERCONTAINER_PADDING + current.Width <= get_width()){
 
         // It fits on the line //
-        
+        current.Y = previous->Y;
+        current.X = previous->X + previous->Width + SUPERCONTAINER_PADDING;
+        return;
     }
-    
-        
+
+    // A new line is needed //
+
+    // Find the tallest element in the last row
+    int32_t lastRowMaxHeight = previous->Height;
+
+    // Start from the one before previous, doesn't matter if the index wraps around as
+    // the loop won't be entered in that case
+    size_t scanIndex = previousindex - 1;
+
+    const auto rowY = previous->Y;
+
+    while(scanIndex < Positions.size()){
+
+        if(Positions[scanIndex].Y != rowY){
+
+            // Full row scanned //
+            break;
+        }
+
+        // Check current height //
+        const auto currentHeight = Positions[scanIndex].Height;
+
+        if(currentHeight > lastRowMaxHeight)
+            lastRowMaxHeight = currentHeight;
+
+        // Move to previous //
+        --scanIndex;
+        if(scanIndex == 0)
+            break;
+    }
+
+    // Position according to the maximum height of the last row
+    current.X = SUPERCONTAINER_MARGIN;
+    current.Y = previous->Y + lastRowMaxHeight + SUPERCONTAINER_PADDING;
 }
 
 SuperContainer::GridPosition& SuperContainer::_AddNewGridPosition(
@@ -148,24 +191,35 @@ SuperContainer::GridPosition& SuperContainer::_AddNewGridPosition(
     pos.Width = width;
     pos.Height = height;
 
-    _PositionGridPosition(pos, &Positions.back());
+    if(Positions.empty()){
+
+        _PositionGridPosition(pos, nullptr, 0);
+
+    } else {
+
+        _PositionGridPosition(pos, &Positions.back(), Positions.size() - 1);
+    }
     
     Positions.push_back(pos);
 
     return Positions.back();
 }
 // ------------------------------------ //
-void SuperContainer::_SetWidgetSize(ListItem &widget){
+void SuperContainer::_SetWidgetSize(Element &widget){
 
     int width_min, width_natural;
     int height_min, height_natural;
 
-    widget.show();
-        
-    widget.get_preferred_width(width_min, width_natural);
-    widget.get_preferred_height_for_width(width_natural, height_min, height_natural);
+    Container.add(*widget.Widget);
+    widget.Widget->show();
+    
+    widget.Widget->get_preferred_width(width_min, width_natural);
+    widget.Widget->get_preferred_height_for_width(width_natural, height_min, height_natural);
 
-    widget.set_size_request(width_natural, height_natural);
+    widget.Width = width_natural;
+    widget.Height = height_natural;
+        
+    widget.Widget->set_size_request(widget.Width, widget.Height);
 }
 // ------------------------------------ //
 void SuperContainer::_SetKeepFalse(){
@@ -271,7 +325,7 @@ void SuperContainer::_SetWidget(size_t index, std::shared_ptr<Element> widget,
     }
 
     // Initialize a size for the widget
-    _SetWidgetSize(*widget->Widget);
+    _SetWidgetSize(*widget);
 
     // Set it //
     if(Positions[index].SetNewWidget(widget)){
@@ -324,7 +378,7 @@ void SuperContainer::_AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item){
     auto element = std::make_shared<Element>(item);
 
     // Initialize a size for the widget
-    _SetWidgetSize(*element->Widget);
+    _SetWidgetSize(*element);
 
     // Find the first empty spot //
     for(size_t i = 0; i < Positions.size(); ++i){
@@ -342,10 +396,42 @@ void SuperContainer::_AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item){
     }
 
     // No empty spots, create a new one //
-    GridPosition& pos = _AddNewGridPosition(element->Widget->get_width(),
-        element->Widget->get_height());
+    GridPosition& pos = _AddNewGridPosition(element->Width, element->Height);
 
     pos.WidgetToPosition = element;
+}
+// ------------------------------------ //
+void SuperContainer::_CheckPositions() const{
+
+    // Find duplicate stuff //
+    for(size_t i = 0; i < Positions.size(); ++i){
+
+        for(size_t a = 0; a < Positions.size(); ++a){
+
+            if(a == i)
+                continue;
+
+            if(Positions[i].WidgetToPosition.get() == Positions[a].WidgetToPosition.get()){
+
+                LEVIATHAN_ASSERT(false,
+                    "SuperContainer::_CheckPositions: duplicate Element ptr");
+            }
+
+            if(Positions[i].X == Positions[a].X &&
+                Positions[i].Y == Positions[a].Y)
+            {
+                LEVIATHAN_ASSERT(false,
+                    "SuperContainer::_CheckPositions: duplicate position");
+            }
+
+            if(Positions[i].WidgetToPosition->Widget.get() ==
+                Positions[a].WidgetToPosition->Widget.get()){
+
+                LEVIATHAN_ASSERT(false,
+                    "SuperContainer::_CheckPositions: duplicate ListItem ptr");
+            }
+        }
+    }
 }
 // ------------------------------------ //
 // Callbacks
@@ -353,7 +439,13 @@ void SuperContainer::_OnResize(Gtk::Allocation &allocation){
 
     if(Positions.empty())
         return;
+    
+    // Skip if width didn't change //
+    if(allocation.get_width() == LastWidthReflow)
+        return;
 
+    // Even if we don't reflow we don't want to be called again with the same width
+    LastWidthReflow = allocation.get_width();
     bool reflow = false;
 
     if(allocation.get_width() < WidestRow){
@@ -406,8 +498,8 @@ void SuperContainer::_OnResize(Gtk::Allocation &allocation){
 // GridPosition
 bool SuperContainer::GridPosition::SetNewWidget(std::shared_ptr<Element> widget){
 
-    const auto newWidth = widget->Widget->get_width();
-    const auto newHeight = widget->Widget->get_height();
+    const auto newWidth = widget->Width;
+    const auto newHeight = widget->Height;
 
     WidgetToPosition = widget;
 

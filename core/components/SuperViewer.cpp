@@ -221,7 +221,9 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
             if(!CachedDrawnImage){
                 
                 CachedDrawnImage = DisplayImage->CreateGtkImage(CurrentAnimationFrame);
-                _AddUnloadTimer();
+
+                if(CachedDrawnImage)
+                    _AddUnloadTimer();
             }
 
             _DrawCurrentImage(cr);

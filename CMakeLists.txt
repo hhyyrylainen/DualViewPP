@@ -4,6 +4,8 @@ project(DualView++)
 
 option(CREATE_DL_PLUGINS "Set to OFF to skip building web download tools" ON)
 
+option(USE_GPROF "Set to ON to use gprof profiling" OFF)
+
 set(DUALVIEW_VERSION_STR "0.0.1")
 
 if(CMAKE_BUILD_TYPE STREQUAL "")
@@ -23,6 +25,11 @@ else(WIN32)
   # Has to be on one line or else ';'s will be included
   # C++14
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wno-unused-function -Wno-unused-variable -Wno-unknown-pragmas -Wl,--no-undefined -Wl,--no-allow-shlib-undefined -Wno-pragma-once-outside-header")
+
+  if(USE_GPROF)
+    # Enabling profiling
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pg")
+  endif()
   
 endif(WIN32)
 

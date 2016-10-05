@@ -31,6 +31,10 @@ class SuperContainer : public Gtk::ScrolledWindow{
         
         std::shared_ptr<ResourceWithPreview> CreatedFrom;
 
+        //! The size Widget is set to be, This is used because Gtk is very lazy about
+        //! calculating the sizes for widgets
+        int32_t Width, Height;
+        
         std::shared_ptr<ListItem> Widget;
 
         //! Used to remove removed items when updating the list
@@ -75,6 +79,12 @@ public:
     template<class Iterator>
         void SetShownItems(Iterator begin, Iterator end)
     {
+        if(Positions.empty()){
+
+            // Update initial width
+            LastWidthReflow = get_width();
+        }
+        
         _SetKeepFalse();
 
         auto newIndex = begin;
@@ -146,13 +156,17 @@ protected:
     //! \brief Sets the position of a grid position according to the previous position
     //!
     //! Takes into account the current window size and the height of previous line
-    void _PositionGridPosition(GridPosition& current, const GridPosition* previous) const;
+    //! \param previous The previous position after which current should be placed
+    //! \param previousindex The index of previous in Positions or Positions.size() if
+    //! previous is null
+    void _PositionGridPosition(GridPosition& current, const GridPosition* const previous,
+        size_t previousindex) const;
 
     //! \brief Creates a new GridPosition and calculates a spot for it
     GridPosition& _AddNewGridPosition(int32_t width, int32_t height);
 
     //! \brief Sets the size of a new widget
-    void _SetWidgetSize(ListItem &widget);
+    void _SetWidgetSize(Element &widget);
 
     //! \brief Sets keep to false on all the widgets
     void _SetKeepFalse();
@@ -175,6 +189,10 @@ protected:
 
     //! \brief Adds a new widget to the end
     void _AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item);
+
+
+    //! \brief A debug helper, errors if there are duplicates in Positions
+    void _CheckPositions() const;
     
     // Callbacks //
     //! \brief Repositions GridPositions if size has changed enough
@@ -190,6 +208,9 @@ private:
 
     //! The width of the widest row, updated by UpdatePositioning
     int32_t WidestRow = 0;
+
+    //! Used to skip size changes that don't change width
+    int LastWidthReflow = 0;
 
     //! The calculated positions for widgets
     //! All the empty positions must be in a row starting from the last one, so that all

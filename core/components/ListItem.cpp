@@ -69,8 +69,8 @@ void ListItem::get_preferred_width_vfunc(int& minimum_width, int& natural_width)
         minimum_width = natural_width = 96;
 
     } else {
-        minimum_width = 128;
-        natural_width = 256;
+        minimum_width = 64;
+        natural_width = 128;
     }
 }
 
@@ -86,7 +86,7 @@ void ListItem::get_preferred_height_vfunc(int& minimum_height, int& natural_heig
     } else {
 
         minimum_height = 64;
-        natural_height = 192;
+        natural_height = 126;
     }
 }
 

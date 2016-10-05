@@ -15,4 +15,5 @@ void ImageListItem::SetImage(std::shared_ptr<Image> image){
 
     CurrentImage = image;
     _SetImage(image);
+    _SetName(image->GetName());
 }
