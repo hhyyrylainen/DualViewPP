@@ -10,7 +10,7 @@ CurlWrapper::CurlWrapper(){
 
     CheckCurlInit();
 
-    CURL *curl = curl_easy_init();
+    WrappedObject = curl_easy_init();
 
     LEVIATHAN_ASSERT(WrappedObject, "cURL initialization failed");
 }

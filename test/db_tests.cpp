@@ -77,9 +77,18 @@ TEST_CASE("Database in memory creation", "[db]"){
 
 TEST_CASE("Disk database can be opened", "[db]"){
 
-    boost::filesystem::remove("test_db.sqlite");
+    SECTION("Without ./"){
+        boost::filesystem::remove("test_db.sqlite");
     
-    REQUIRE_NOTHROW(Database("test_db.sqlite"));
+        REQUIRE_NOTHROW(Database("test_db.sqlite"));
+    }
+
+    SECTION("With ./"){
+
+        boost::filesystem::remove("test_db.sqlite");
+    
+        REQUIRE_NOTHROW(Database("./test_db.sqlite"));
+    }
 }
 
 TEST_CASE("Normal database setup works", "[db][expensive]"){

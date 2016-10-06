@@ -34,16 +34,25 @@ Database::Database(std::string dbfile){
     
     // Add the file uri specifier
     dbfile = "file:" + dbfile;
-    
-    const auto result = sqlite3_open_v2(dbfile.c_str(), &SQLiteDb,
+
+    const auto result = sqlite3_open_v2("dualview.sqlite", &SQLiteDb,
         SQLITE_OPEN_URI | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
-        ""
+        nullptr
     );
 
-    if(result != SQLITE_OK || SQLiteDb == nullptr){
+    if(!SQLiteDb){
+
+        throw Leviathan::InvalidState("failed to allocate memory for sqlite database");
+    }
+
+    if(result != SQLITE_OK){
+
+        const std::string errormessage(sqlite3_errmsg(SQLiteDb));
 
         sqlite3_close(SQLiteDb);
         SQLiteDb = nullptr;
+        LOG_ERROR("Sqlite failed to open database '" + dbfile + "' errorcode: " +
+            Convert::ToString(result) + " message: " + errormessage);
         throw Leviathan::InvalidState("failed to open sqlite database");
     }
 }
@@ -106,8 +115,6 @@ void Database::Init(){
     }
 
     // Verify database version and setup tables if they don't exist //
-    
-    
     
 }
 

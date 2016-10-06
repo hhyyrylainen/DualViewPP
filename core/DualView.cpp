@@ -274,6 +274,7 @@ bool DualView::_DoInitThreadAction(){
     _CacheManager = std::make_unique<CacheManager>();
 
     // Load database //
+    //_Database = std::make_unique<Database>(true);
     _Database = std::make_unique<Database>(_Settings->GetDatabaseFile());
 
     try{
