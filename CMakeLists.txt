@@ -53,6 +53,15 @@ endif()
 include_directories(${CRYPTOPP_INCLUDE_DIRS})
 
 
+find_package(CURL REQUIRED)
+
+if(NOT CURL_FOUND)
+  message(SEND_ERROR "Crypto++ not found")
+endif()
+
+include_directories(${CURL_INCLUDE_DIRS})
+
+
 # Find Gtk
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTKMM REQUIRED gtkmm-3.0)

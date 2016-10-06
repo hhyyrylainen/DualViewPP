@@ -39,10 +39,9 @@ void CollectionView::_OnShown(){
 
     // Load items //
     std::vector<std::shared_ptr<Image>> images;
-    
-    for(int i = 0; i < 30; ++i)
-        images.push_back(Image::Create("/home/hhyyrylainen/690806.jpg"));
 
+    LOG_INFO("TODO: load collections and folders for CollectionView_OnShown");
+    
     Container->SetShownItems(images.begin(), images.end());
 }
 

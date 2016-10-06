@@ -21,6 +21,7 @@ class Image;
 
 class PluginManager;
 class CacheManager;
+class CurlWrapper;
 
 class Settings;
 
@@ -231,6 +232,9 @@ private:
 
     //! Main settings
     std::unique_ptr<Settings> _Settings;
+
+    //! A wrapper for the global curl instance
+    std::unique_ptr<CurlWrapper> _CurlWrapper;
 
     //! Hash loading thread
     std::thread HashCalculationThread;

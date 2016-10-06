@@ -7,6 +7,8 @@
 #include "windows/CollectionView.h"
 
 #include "core/CacheManager.h"
+#include "core/CurlWrapper.h"
+
 
 #include "Settings.h"
 #include "PluginManager.h"
@@ -252,6 +254,9 @@ bool DualView::_DoInitThreadAction(){
     }
 
     _Settings->VerifyFoldersExist();
+
+    // Load curl //
+    _CurlWrapper = std::make_unique<CurlWrapper>();
 
     // Load plugins //
     //libPlugin_Imgur.so

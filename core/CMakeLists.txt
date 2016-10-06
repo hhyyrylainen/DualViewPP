@@ -8,6 +8,7 @@ add_library(Core
   Plugin.h PluginManager.h PluginManager.cpp
   
   Settings.h Settings.cpp
+  CurlWrapper.h CurlWrapper.cpp
 
   # Window stuff
   windows/BaseWindow.h windows/BaseWindow.cpp
@@ -36,6 +37,7 @@ add_library(Core
 
 target_link_libraries(Core ThirdParty Leviathan
   ${GTKMM_LIBRARIES} 
-  ${MAGICK_LIBRARIES} ${Boost_LIBRARIES} ${CRYPTOPP_LIBRARIES} ${SQLITE3_LIBRARIES})
+  ${MAGICK_LIBRARIES} ${Boost_LIBRARIES} ${CRYPTOPP_LIBRARIES} ${SQLITE3_LIBRARIES}
+  ${CURL_LIBRARIES})
 
 target_compile_options(Core PUBLIC ${MAGICK_CFLAGS_OTHER})
