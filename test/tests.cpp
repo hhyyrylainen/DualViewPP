@@ -3,6 +3,7 @@
 #include "TestDualView.h"
 #include "DummyLog.h"
 #include "core/CacheManager.h"
+#include "core/Settings.h"
 
 #include <thread>
 #include <memory>
@@ -60,4 +61,12 @@ TEST_CASE("Cache Manager loads images", "[image]"){
         // Page count //
         CHECK(img->GetFrameCount() == 142);
     }
+}
+
+TEST_CASE("Settings right default stuff", "[random][settings]"){
+
+    DV::DummyDualView dv;
+    DV::Settings settings("settings_test_settingsfile");
+
+    CHECK(settings.GetDatabaseFile() == "./dualview.sqlite");
 }

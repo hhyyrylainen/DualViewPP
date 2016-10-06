@@ -22,6 +22,7 @@ class Image;
 class PluginManager;
 class CacheManager;
 class CurlWrapper;
+class Database;
 
 class Settings;
 
@@ -82,6 +83,13 @@ public:
     inline CacheManager& GetCacheManager() const{
 
         return *_CacheManager;
+    }
+
+    //! \brief Returns the Database. Query all data from here
+    //! \todo Assert if _Database is null
+    inline Database& GetDatabase() const{
+
+        return *_Database;
     }
 
     //! \brief Returns settings
@@ -226,6 +234,9 @@ private:
 
     //! CacheManager handles loading all images
     std::unique_ptr<CacheManager> _CacheManager;
+
+    //! Database holds all the data related to images
+    std::unique_ptr<Database> _Database;
 
     //! Logger object
     std::unique_ptr<Leviathan::Logger> _Logger;

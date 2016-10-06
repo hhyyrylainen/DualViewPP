@@ -7,6 +7,7 @@
 #include "windows/CollectionView.h"
 
 #include "core/CacheManager.h"
+#include "core/Database.h"
 #include "core/CurlWrapper.h"
 
 
@@ -96,6 +97,9 @@ DualView::~DualView(){
     _Settings.reset();
 
     _WaitForWorkerThreads();
+
+    // Close database //
+    _Database.reset();
 
     Staticinstance = nullptr;
 }
@@ -269,10 +273,18 @@ bool DualView::_DoInitThreadAction(){
     // Load ImageMagick library //
     _CacheManager = std::make_unique<CacheManager>();
 
-
     // Load database //
+    _Database = std::make_unique<Database>(_Settings->GetDatabaseFile());
 
-    
+    try{
+        _Database->Init();
+
+    } catch(const Leviathan::InvalidState &e){
+
+        LOG_ERROR("Database initialization failed: ");
+        e.PrintToLog();
+        return true;
+    }
 
     // Succeeded //
     return false;

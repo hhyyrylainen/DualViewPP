@@ -1,8 +1,8 @@
 #pragma once
 
-
 #include "leviathan/ObjectFiles/ObjectFile.h"
 
+#include <boost/filesystem.hpp>
 
 namespace DV{
 
@@ -31,6 +31,13 @@ public:
     const std::string& GetPrivateCollection() const{
         
         return PrivateCollection;
+    }
+
+    //! \brief Returns the database file
+    const auto GetDatabaseFile() const{
+
+        return std::string((boost::filesystem::path(DatabaseFolder) /
+                boost::filesystem::path("dualview.sqlite")).c_str());
     }
 
     //! \brief Returns true if loadversion is compatible with SETTINGS_VERSION
