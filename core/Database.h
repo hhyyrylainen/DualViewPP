@@ -1,7 +1,13 @@
 #pragma once
 
+#include "Common/ThreadSafe.h"
+
 #include <string>
 #include <vector>
+
+#include <thread>
+
+
 
 // Forward declare sqlite //
 struct sqlite3;
@@ -13,7 +19,7 @@ class CurlWrapper;
 //! \brief All database manipulation happens through this class
 //!
 //! There should be only one database object at a time. It is contained in DualView
-class Database{
+class Database : Leviathan::ThreadSafe{
 
     //! \brief Holds data in SqliteExecGrabResult
     struct GrabResultHolder{
@@ -42,6 +48,7 @@ public:
 
     //! \brief Must be called before using the database. Setups all the tables
     //! \exception Leviathan::InvalidState if the database setup fails
+    //! \note Must be called on the thread that 
     void Init();
 
 
@@ -57,11 +64,6 @@ protected:
 
 
     sqlite3* SQLiteDb = nullptr;
-    
-private:
-
-    //Could be used to force all db accesses to be from a specific thread
-    //std::thread::id AllowedThread;
 };
 
 }

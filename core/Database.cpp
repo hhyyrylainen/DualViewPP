@@ -35,7 +35,7 @@ Database::Database(std::string dbfile){
     // Add the file uri specifier
     dbfile = "file:" + dbfile;
 
-    const auto result = sqlite3_open_v2("dualview.sqlite", &SQLiteDb,
+    const auto result = sqlite3_open_v2(dbfile.c_str(), &SQLiteDb,
         SQLITE_OPEN_URI | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
         nullptr
     );
@@ -93,6 +93,8 @@ Database::~Database(){
 // ------------------------------------ //
 void Database::Init(){
 
+    DV_LOCK;
+    
     if(SQLITE_OK != sqlite3_exec(SQLiteDb,
             "PRAGMA foreign_keys = ON; PRAGMA recursive_triggers = ON",
             nullptr, nullptr, nullptr))
