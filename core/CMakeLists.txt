@@ -2,6 +2,24 @@
 # twice
 include_directories("${PROJECT_SOURCE_DIR}/core")
 
+# Sql file generation
+set(GENERATED_SQL_FILES)
+make_directory("${PROJECT_SOURCE_DIR}/generated")
+
+macro(add_sql_generated file)
+
+  list(APPEND GENERATED_SQL_FILES "${PROJECT_SOURCE_DIR}/generated/${file}.h")
+  
+  add_custom_command(OUTPUT "${PROJECT_SOURCE_DIR}/generated/${file}.h"
+    COMMAND "ruby" "${PROJECT_SOURCE_DIR}/generator/SqlToC.rb"
+    "${PROJECT_SOURCE_DIR}/sql/${file}" "${PROJECT_SOURCE_DIR}/generated/${file}.h"
+    DEPENDS "${PROJECT_SOURCE_DIR}/generator/SqlToC.rb" "${PROJECT_SOURCE_DIR}/sql/${file}"
+    )
+
+endmacro(add_sql_generated)
+
+add_sql_generated("maintables.sql")
+
 add_library(Core
 
   DualView.h DualView.cpp
@@ -32,6 +50,9 @@ add_library(Core
   
   resources/Image.h resources/Image.cpp
   resources/Collection.h resources/Collection.cpp
+
+  # Generated headers
+  ${GENERATED_SQL_FILES}
   )
 
 
