@@ -89,7 +89,12 @@ include_directories(leviathan)
 include_directories("${PROJECT_SOURCE_DIR}")
 
 # Configure header
-configure_file("${PROJECT_SOURCE_DIR}/Common.h.in" "${PROJECT_SOURCE_DIR}/Common.h")
+configure_file("${PROJECT_SOURCE_DIR}/Common.h.in" "${PROJECT_BINARY_DIR}/Common.h")
+# Make a readonly copy of it
+file(COPY "${PROJECT_BINARY_DIR}/Common.h" DESTINATION "${PROJECT_SOURCE_DIR}"
+  NO_SOURCE_PERMISSIONS
+  FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ)
+
 
 add_subdirectory(leviathan)
 add_subdirectory(third_party)
