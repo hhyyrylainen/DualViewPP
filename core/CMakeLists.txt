@@ -19,6 +19,8 @@ macro(add_sql_generated file)
 endmacro(add_sql_generated)
 
 add_sql_generated("maintables.sql")
+add_sql_generated("defaulttablevalues.sql")
+add_sql_generated("defaulttags.sql")
 
 add_library(Core
 

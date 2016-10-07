@@ -5,6 +5,8 @@
 
 
 #include "generated/maintables.sql.h"
+#include "generated/defaulttablevalues.sql.h"
+#include "generated/defaulttags.sql.h"
 
 #include "core/CurlWrapper.h"
 
@@ -248,7 +250,14 @@ void Database::_SetCurrentDatabaseVersion(Lock &guard, int newversion){
 void Database::_CreateTableStructure(Lock &guard){
 
     LOG_INFO("Initializing new database");
+    
     if(sqlite3_exec(SQLiteDb, STR_MAINTABLES_SQL,
+            nullptr, nullptr, nullptr) != SQLITE_OK)
+    {
+        ThrowCurrentSqlError(guard);
+    }
+
+    if(sqlite3_exec(SQLiteDb, STR_DEFAULTTABLEVALUES_SQL,
             nullptr, nullptr, nullptr) != SQLITE_OK)
     {
         ThrowCurrentSqlError(guard);
@@ -267,6 +276,11 @@ void Database::_CreateTableStructure(Lock &guard){
     
 void Database::_InsertDefaultTags(Lock &guard){
 
+    if(sqlite3_exec(SQLiteDb, STR_DEFAULTTAGS_SQL,
+            nullptr, nullptr, nullptr) != SQLITE_OK)
+    {
+        ThrowCurrentSqlError(guard);
+    }
 }
 // ------------------------------------ //
 int Database::SqliteExecGrabResult(void* user, int columns, char** columnsastext,

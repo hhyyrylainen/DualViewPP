@@ -294,5 +294,12 @@ CREATE TABLE net_gallery (
     tags_string TEXT
 );
 
+-- Plugin management tables
+-- This table is used to initialize all plugins once
+CREATE TABLE activated_db_plugins (
+
+       plugin_uuid TEXT PRIMARY KEY
+);
+
 
 COMMIT TRANSACTION;
