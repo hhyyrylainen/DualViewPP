@@ -7,19 +7,47 @@
 
 #include <thread>
 
-
-
 // Forward declare sqlite //
 struct sqlite3;
 
 namespace DV{
 
+//! \brief An exception thrown when sql errors occur
+class InvalidSQL : public std::exception{
+public:
+
+    InvalidSQL(const std::string &message,
+        int32_t code, const std::string &codedescription) noexcept;
+    InvalidSQL(const InvalidSQL &e) = default;
+    
+    ~InvalidSQL() = default;
+    
+    InvalidSQL& operator=(const InvalidSQL &other) = default;
+    
+    const char* what() const noexcept override;
+    void PrintToLog() const noexcept;
+
+    inline operator bool() const noexcept{
+
+        return ErrorCode != 0;
+    }
+
+protected:
+    
+    std::string FinalMessage;
+    int32_t ErrorCode;
+
+};
+
 class CurlWrapper;
+
+//! \brief The version number of the database
+constexpr auto DATABASE_CURRENT_VERSION = 14;
 
 //! \brief All database manipulation happens through this class
 //!
 //! There should be only one database object at a time. It is contained in DualView
-class Database : Leviathan::ThreadSafe{
+class Database : public Leviathan::ThreadSafe{
 
     //! \brief Holds data in SqliteExecGrabResult
     struct GrabResultHolder{
@@ -52,6 +80,10 @@ public:
     void Init();
 
 
+    //! \brief Selects the database version
+    //! \returns True if succeeded, false if np version exists.
+    bool SelectDatabaseVersion(Lock &guard, int &result);
+
     // Statistics functions //
     size_t CountExistingTags();
 
@@ -59,6 +91,30 @@ public:
     //! \warning The user parameter has to be a pointer to Database::GrabResultHolder
     static int SqliteExecGrabResult(void* user, int columns, char** columnsastext,
         char** columnname);
+
+private:
+
+    //! \brief Throws an InvalidSQL exception, filling it with values from the database
+    //! connection
+    void ThrowCurrentSqlError(Lock &guard);
+
+    //! \brief Creates default tables and also calls _InsertDefaultTags
+    void _CreateTableStructure(Lock &guard);
+    
+    //! \brief Inserts default inbuilt tags
+    void _InsertDefaultTags(Lock &guard);
+
+    //! \brief Verifies that the specified version is compatible with the current version
+    bool _VerifyLoadedVersion(Lock &guard, int fileversion);
+
+    //! \brief Called if a loaded database version is older than DATABASE_CURRENT_VERSION
+    //! \param oldversion The version from which the update is done, will contain the new
+    //! version after this returns. Can be called again to update to the next version
+    //! \returns True if succeeded, false if update is not supported
+    bool _UpdateDatabase(Lock &guard, int &oldversion);
+
+    //! \brief Sets the database version. Should only be called from _UpdateDatabase
+    void _SetCurrentDatabaseVersion(Lock &guard, int newversion);
     
 protected:
 

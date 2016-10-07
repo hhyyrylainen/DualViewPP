@@ -285,6 +285,11 @@ bool DualView::_DoInitThreadAction(){
         LOG_ERROR("Database initialization failed: ");
         e.PrintToLog();
         return true;
+    } catch(const InvalidSQL &e){
+
+        LOG_ERROR("Database initialization logic has a bug, sql error: ");
+        e.PrintToLog();
+        return true;
     }
 
     // Succeeded //
