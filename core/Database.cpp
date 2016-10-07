@@ -172,10 +172,71 @@ bool Database::SelectDatabaseVersion(Lock &guard, int &result){
     result = Convert::StringTo<int>(grab.Rows[0].ColumnValues[0]);
     return true;
 }
+
+std::shared_ptr<Image> Database::SelectImageByHash() const{
+
+    return nullptr;
+}
 // ------------------------------------ //
 size_t Database::CountExistingTags(){
 
-    return 1;
+    GUARD_LOCK();
+
+    const char str[] = "SELECT COUNT(*) FROM tags";
+    const char* uncompiled;
+
+    sqlite3_stmt* statement;
+    
+    if(sqlite3_prepare_v2(SQLiteDb, str, sizeof(str), &statement, &uncompiled) !=
+        SQLITE_OK)
+    {
+        sqlite3_finalize(statement);
+        ThrowCurrentSqlError(guard);
+    }
+
+    // Call this after getting the result if this is wanted to be reused
+    // sqlite3_reset()
+    // 
+
+    size_t count = 0;
+
+    if(uncompiled < str + sizeof(str)){
+
+        std::string left(uncompiled);
+        LOG_WARNING("SQL statement not processed completely: " + left);
+    }
+
+    while(true){
+
+        const auto stepResult = sqlite3_step(statement);
+
+        if(stepResult == SQLITE_ROW){
+
+            // Handle row
+            const auto columns = sqlite3_column_count(statement);
+
+            //if(sqlite3_column_type(statement, 0) == SQLITE_NULL)
+            //sqlite3_column_name(statement, 0);
+            count = sqlite3_column_int(statement, 0);
+            continue;
+        }
+
+        if(stepResult == SQLITE_DONE)
+            break;
+        // Someone else has a lock on the database
+        if(stepResult == SQLITE_BUSY)
+            continue;
+
+        // It's an error //
+        auto* desc = sqlite3_errstr(stepResult);
+
+        throw InvalidSQL("SQL step failed", stepResult,
+            desc ? desc : "no description");        
+    }
+    
+    
+    sqlite3_finalize(statement);
+    return count;
 }
 // ------------------------------------ //
 void Database::ThrowCurrentSqlError(Lock &guard){

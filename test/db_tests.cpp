@@ -93,6 +93,7 @@ TEST_CASE("Disk database can be opened", "[db]"){
 
 TEST_CASE("Normal database setup works", "[db][expensive]"){
 
+    DummyDualView dv;
     boost::filesystem::remove("test_init.sqlite");
     Database db("test_init.sqlite");
 

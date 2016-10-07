@@ -40,6 +40,7 @@ protected:
 };
 
 class CurlWrapper;
+class Image;
 
 //! \brief The version number of the database
 constexpr auto DATABASE_CURRENT_VERSION = 14;
@@ -61,6 +62,9 @@ class Database : public Leviathan::ThreadSafe{
         size_t MaxRows = 0;
         std::vector<Row> Rows;
     };
+
+    //! \brief Helper class for creating prepared statements
+    
     
 public:
 
@@ -79,10 +83,13 @@ public:
     //! \note Must be called on the thread that 
     void Init();
 
-
+    //! \brief Returns an Image matching the hash, or null
+    std::shared_ptr<Image> SelectImageByHash() const;
+    
     //! \brief Selects the database version
     //! \returns True if succeeded, false if np version exists.
     bool SelectDatabaseVersion(Lock &guard, int &result);
+    
 
     // Statistics functions //
     size_t CountExistingTags();
