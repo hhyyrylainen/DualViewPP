@@ -3,6 +3,9 @@
 #include "Common.h"
 #include "Exceptions.h"
 
+
+#include "generated/maintables.sql.h"
+
 #include "core/CurlWrapper.h"
 
 #include <sqlite3.h>
@@ -245,7 +248,13 @@ void Database::_SetCurrentDatabaseVersion(Lock &guard, int newversion){
 void Database::_CreateTableStructure(Lock &guard){
 
     LOG_INFO("Initializing new database");
+    if(sqlite3_exec(SQLiteDb, STR_MAINTABLES_SQL,
+            nullptr, nullptr, nullptr) != SQLITE_OK)
+    {
+        ThrowCurrentSqlError(guard);
+    }
 
+    _InsertDefaultTags(guard);
     
     // Insert version last //
     if(sqlite3_exec(SQLiteDb, ("INSERT INTO version(number) VALUES(" +
@@ -254,8 +263,6 @@ void Database::_CreateTableStructure(Lock &guard){
     {
         ThrowCurrentSqlError(guard);
     }
-
-    _InsertDefaultTags(guard);
 }
     
 void Database::_InsertDefaultTags(Lock &guard){

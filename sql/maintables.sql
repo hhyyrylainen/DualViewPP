@@ -1,3 +1,6 @@
+-- All succeed or all will fail
+BEGIN TRANSACTION;
+
 -- Version info 
 CREATE TABLE version( number INTEGER );
 
@@ -12,8 +15,8 @@ CREATE TABLE pictures (
     -- Friendly name, shown in image browser
     name TEXT, 
     extension TEXT, 
-    add_date TEXT DEFAULT (datetime('now', 'localtime')), 
-    last_view TEXT DEFAULT (datetime('now', 'localtime')),
+    add_date TEXT DEFAULT ( datetime('now', 'localtime') ), 
+    last_view TEXT DEFAULT ( datetime('now', 'localtime') ),
     -- If 1 only visible in private mode
     is_private INTEGER DEFAULT 0,
     
@@ -35,7 +38,7 @@ CREATE TABLE ratings (
     stars INTEGER DEFAULT -1, 
     
     -- Rated image
-    image INTEGER UNIQUE REFERENCES pictures(id) ON DELETE CASCADE,
+    image INTEGER UNIQUE REFERENCES pictures(id) ON DELETE CASCADE
 );
 
 -- Region of an image, used to apply tags to specific regions
@@ -195,9 +198,9 @@ CREATE TABLE collections (
     -- Name showed in collection browser. Has to be unique
     name TEXT UNIQUE CHECK (name NOT LIKE "%/%"),
     
-    add_date TEXT DEFAULT (datetime('now', 'localtime')), 
-    modify_date TEXT DEFAULT (datetime('now', 'localtime')), 
-    last_view TEXT DEFAULT (datetime('now', 'localtime')),
+    add_date TEXT DEFAULT ( datetime('now', 'localtime') ), 
+    modify_date TEXT DEFAULT ( datetime('now', 'localtime') ), 
+    last_view TEXT DEFAULT ( datetime('now', 'localtime') ),
     -- If 1 only visible in private mode
     is_private INTEGER DEFAULT 0,
     
@@ -288,11 +291,8 @@ CREATE TABLE net_gallery (
     is_downloaded INTEGER DEFAULT 0,
     
     -- Contains ';' delimited list of tags
-    tags_string TEXT,
+    tags_string TEXT
 );
 
 
-
-
-
-
+COMMIT TRANSACTION;
