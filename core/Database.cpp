@@ -12,10 +12,12 @@
 
 #include <sqlite3.h>
 
+#include <boost/filesystem.hpp>
+
 using namespace DV;
 // ------------------------------------ //
 
-Database::Database(std::string dbfile){
+Database::Database(std::string dbfile) : DatabaseFile(dbfile){
 
     if(dbfile.empty())
         throw Leviathan::InvalidArgument("dbfile is empty");
@@ -224,6 +226,22 @@ bool Database::_UpdateDatabase(Lock &guard, int &oldversion){
         return false;
     }
 
+    LEVIATHAN_ASSERT(boost::filesystem::exists(DatabaseFile),
+        "UpdateDatabase called when DatabaseFile doesn't exist");
+    
+    // Create a backup //
+    int suffix = 1;
+    std::string targetfile;
+
+    do
+    {
+        targetfile = DatabaseFile + "." + Convert::ToString(suffix) + ".bak";
+        ++suffix;
+
+    } while (boost::filesystem::exists(targetfile));
+
+    boost::filesystem::copy(DatabaseFile, targetfile);
+    
     switch(oldversion){
         
 

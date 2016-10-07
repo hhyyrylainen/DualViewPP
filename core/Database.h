@@ -120,6 +120,9 @@ protected:
 
 
     sqlite3* SQLiteDb = nullptr;
+
+    //! Used for backups before potentially dangerous operations
+    std::string DatabaseFile;
 };
 
 }
