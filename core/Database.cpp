@@ -239,6 +239,12 @@ template<>
 }
 
 template<>
+    void PreparedStatement::SetBindWithType(int index, const int64_t &value)
+{
+    CheckBindSuccess(sqlite3_bind_int64(Statement, index, value), index);
+}
+
+template<>
     void PreparedStatement::SetBindWithType(int index, const std::string &value)
 {
     CheckBindSuccess(sqlite3_bind_text(Statement, index, value.c_str(), value.size(),

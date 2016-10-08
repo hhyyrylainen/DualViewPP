@@ -28,7 +28,7 @@ constexpr auto SUPPORTED_EXTENSIONS = {
 constexpr auto DUALVIEW_SETTINGS_UNLOAD_TIME_MS = 30000;
 
 //! Database id type
-using DBID = uint64_t;
+using DBID = int64_t;
 
 }
 
