@@ -84,7 +84,7 @@ public:
     void Init();
 
     //! \brief Returns an Image matching the hash, or null
-    std::shared_ptr<Image> SelectImageByHash() const;
+    std::shared_ptr<Image> SelectImageByHash(const std::string &hash) const;
     
     //! \brief Selects the database version
     //! \returns True if succeeded, false if np version exists.
@@ -98,6 +98,10 @@ public:
     //! \warning The user parameter has to be a pointer to Database::GrabResultHolder
     static int SqliteExecGrabResult(void* user, int columns, char** columnsastext,
         char** columnname);
+
+    //! \brief Throws an InvalidSQL exceptions from sqlite current error
+    static void ThrowErrorFromDB(sqlite3* sqlite, int code = 0,
+        const std::string &extramessage = "");
 
 private:
 

@@ -16,6 +16,13 @@
 
 using namespace DV;
 
+TEST_CASE("String length counting", "[db]"){
+
+    const char str[] = "SELECT COUNT(*) FROM tags;";
+
+    REQUIRE(sizeof(str) == strlen(str) + 1);
+}
+
 int SqliteHelperCallback(void* user, int columns, char** columnsastext, char** columnname){
 
     REQUIRE(columns > 0);
@@ -89,6 +96,16 @@ TEST_CASE("Disk database can be opened", "[db]"){
     
         REQUIRE_NOTHROW(Database("./test_db.sqlite"));
     }
+}
+
+TEST_CASE("Basic database retrieves don't throw", "[db]"){
+
+    DummyDualView dv;
+    Database db(true);
+
+    REQUIRE_NOTHROW(db.Init());
+
+    CHECK_NOTHROW(db.SelectImageByHash("ladlsafh"));
 }
 
 TEST_CASE("Normal database setup works", "[db][expensive]"){

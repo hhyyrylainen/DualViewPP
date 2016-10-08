@@ -27,7 +27,13 @@ constexpr auto SUPPORTED_EXTENSIONS = {
 //! \todo Add this to settings
 constexpr auto DUALVIEW_SETTINGS_UNLOAD_TIME_MS = 30000;
 
+//! Database id type
+using DBID = uint64_t;
+
 }
+
+
+
 
 #include "leviathan/Define.h"
 using Leviathan::Logger;
