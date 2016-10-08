@@ -42,6 +42,8 @@ void CollectionView::_OnShown(){
 
     LOG_INFO("TODO: load collections and folders for CollectionView_OnShown");
     
+    DEBUG_BREAK;
+    
     Container->SetShownItems(images.begin(), images.end());
 }
 
