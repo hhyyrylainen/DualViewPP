@@ -64,6 +64,16 @@ public:
     //! into a duplicate of the existing image
     void QueueImageHashCalculate(std::shared_ptr<Image> img);
 
+    //! \brief Queues a function to be ran on the database thread
+    void QueueDBThreadFunction(std::function<void()> func);
+    
+    //
+    // Database insert and modify functions
+    //
+
+    
+
+    
     //
     // Database object retrieve functions
     //
@@ -148,6 +158,9 @@ protected:
     //! \todo Make this return images that are duplicates of currently loaded images,
     //! that are loaded but aren't in the database
     void _RunHashCalculateThread();
+
+    //! \brief Processes DatabaseFuncQueue
+    void _RunDatabaseThread();
     
 private:
 
@@ -254,6 +267,13 @@ private:
     std::list<std::weak_ptr<Image>> HashImageQueue;
     std::mutex HashImageQueueMutex;
 
+
+    //! Database background thread
+    std::thread DatabaseThread;
+    std::condition_variable DatabaseThreadNotify;
+
+    std::list<std::unique_ptr<std::function<void()>>> DatabaseFuncQueue;
+    std::mutex DatabaseFuncQueueMutex;
 
 
     static DualView* Staticinstance;

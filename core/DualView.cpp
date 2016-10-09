@@ -292,6 +292,8 @@ bool DualView::_DoInitThreadAction(){
         return true;
     }
 
+    DatabaseThread = std::thread(&DualView::_RunDatabaseThread, this);
+
     // Succeeded //
     return false;
 }
@@ -491,7 +493,11 @@ void DualView::_RunHashCalculateThread(){
                 continue;
             }
 
+            lock.unlock();
+
             img->_DoHashCalculation();
+
+            lock.lock();
 
             // Replace with an existing image if the hash exists //
             auto existing = GetImageByHash(img->GetHash());
@@ -510,6 +516,38 @@ void DualView::_RunHashCalculateThread(){
     }
 }
 // ------------------------------------ //
+void DualView::QueueDBThreadFunction(std::function<void()> func){
+
+    std::lock_guard<std::mutex> lock(DatabaseFuncQueueMutex);
+
+    DatabaseFuncQueue.push_back(std::make_unique<std::function<void()>>(func));
+
+    DatabaseThreadNotify.notify_all();
+}
+
+void DualView::_RunDatabaseThread(){
+
+    std::unique_lock<std::mutex> lock(HashImageQueueMutex);
+
+    while(!QuitWorkerThreads){
+
+        while(!DatabaseFuncQueue.empty()){
+
+            auto func = std::move(DatabaseFuncQueue.front());
+
+            DatabaseFuncQueue.pop_front();
+
+            lock.unlock();
+
+            func-> operator()();
+            
+            lock.lock();
+        }
+
+        DatabaseThreadNotify.wait(lock);
+    }
+}
+// ------------------------------------ //
 void DualView::_StartWorkerThreads(){
 
     QuitWorkerThreads = false;
@@ -523,9 +561,13 @@ void DualView::_WaitForWorkerThreads(){
     QuitWorkerThreads = true;
 
     HashCalculationThreadNotify.notify_all();
+    DatabaseThreadNotify.notify_all();
 
     if(HashCalculationThread.joinable())
         HashCalculationThread.join();
+
+    if(DatabaseThread.joinable())
+        DatabaseThread.join();
 }
 
 // ------------------------------------ //
