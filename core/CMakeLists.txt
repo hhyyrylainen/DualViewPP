@@ -30,6 +30,11 @@ add_library(Core
   Settings.h Settings.cpp
   CurlWrapper.h CurlWrapper.cpp
 
+  Database.h Database.cpp
+  CacheManager.h CacheManager.cpp
+
+  VirtualPath.h VirtualPath.cpp
+  
   # Window stuff
   windows/BaseWindow.h windows/BaseWindow.cpp
   windows/SingleView.h windows/SingleView.cpp
@@ -40,11 +45,6 @@ add_library(Core
   components/SuperContainer.h components/SuperContainer.cpp
   components/ListItem.h components/ListItem.cpp
   components/ImageListItem.h components/ImageListItem.cpp
-
-  
-  Database.cpp
-
-  CacheManager.h CacheManager.cpp
   
   # Resources
   resources/DatabaseResource.h resources/DatabaseResource.cpp
