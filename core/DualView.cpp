@@ -508,16 +508,22 @@ void DualView::_RunHashCalculateThread(){
             lock.lock();
 
             // Replace with an existing image if the hash exists //
-            auto existing = _Database->SelectImageByHash(img->GetHash());
+            try{
+                auto existing = _Database->SelectImageByHash(img->GetHash());
 
-            if(existing){
+                if(existing){
 
-                LOG_INFO("Calculated hash for a duplicate image");
-                img->BecomeDuplicateOf(*existing);
-            } else {
+                    LOG_INFO("Calculated hash for a duplicate image");
+                    img->BecomeDuplicateOf(*existing);
+                    continue;
+                }
+                
+            } catch(const InvalidSQL&){
 
-                img->_OnFinishHash();
+                // Database probably isn't initialized
             }
+            
+            img->_OnFinishHash();
         }
 
         HashCalculationThreadNotify.wait(lock);

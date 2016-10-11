@@ -208,8 +208,7 @@ std::shared_ptr<Image> Database::SelectImageByHash(const std::string &hash){
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = PreparedStatement::SetupStatementForUse(statementobj,
-        hash);
+    auto statementinuse = statementobj.Setup(hash);
     
     while(statementobj.Step(statementinuse) != PreparedStatement::STEP_RESULT::COMPLETED){
 
@@ -252,12 +251,11 @@ std::shared_ptr<Collection> Database::SelectCollectionByName(const std::string &
 
     GUARD_LOCK();
 
-    const char str[] = "SELECT FROM collection WHERE name = ?1;";
+    const char str[] = "SELECT * FROM collection WHERE name = ?1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = PreparedStatement::SetupStatementForUse(statementobj,
-        name);
+    auto statementinuse = statementobj.Setup(name);
 
     if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
 
@@ -289,8 +287,7 @@ bool Database::InsertImageToCollection(Collection &collection, Image &image,
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = PreparedStatement::SetupStatementForUse(statementobj,
-        collection.GetID(), image.GetID(), showorder);
+    auto statementinuse = statementobj.Setup(collection.GetID(), image.GetID(), showorder);
 
     statementobj.StepAll(statementinuse);
 
@@ -312,8 +309,7 @@ bool Database::DeleteImageFromCollection(Collection &collection, Image &image){
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = PreparedStatement::SetupStatementForUse(statementobj,
-        collection.GetID(), image.GetID());
+    auto statementinuse = statementobj.Setup(collection.GetID(), image.GetID());
 
     statementobj.StepAll(statementinuse);
 
@@ -333,7 +329,7 @@ size_t Database::CountExistingTags(){
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = PreparedStatement::SetupStatementForUse(statementobj);
+    auto statementinuse = statementobj.Setup();
     
     size_t count = 0;
     

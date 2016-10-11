@@ -20,21 +20,26 @@ public:
     //! Must be created each time a statement is to be used
     class SetupStatementForUse{
     public:
-        template<typename... TBindTypes>
-            SetupStatementForUse(PreparedStatement& statement,
-                const TBindTypes&... valuestobind) :
-                Statement(statement)
-        {
-            Statement.Reset();
-            Statement.BindAll(valuestobind...);
+
+        SetupStatementForUse(PreparedStatement &statement) : Statement(statement){
+
         }
 
+        SetupStatementForUse(SetupStatementForUse&& other) : Statement(other.Statement){
+
+            other.DontReset = true;
+        }
+
+        SetupStatementForUse(const SetupStatementForUse &other) = delete;
+        SetupStatementForUse& operator =(const SetupStatementForUse &other) = delete;
+        
         ~SetupStatementForUse(){
 
             Statement.Reset();
         }
 
         PreparedStatement& Statement;
+        bool DontReset = false;
     };
 
     enum class STEP_RESULT {
@@ -56,6 +61,16 @@ public:
 
         CurrentBindIndex = 1;
         sqlite3_reset(Statement);
+    }
+
+    //! \brief Setups this statement for use in Step
+    template<typename... TBindTypes>
+        SetupStatementForUse Setup(const TBindTypes&... valuestobind)
+    {
+        
+        Reset();
+        BindAll(valuestobind...);
+        return SetupStatementForUse(*this);
     }
 
     //! \brief Steps the statement forwards, automatically throws if fails
@@ -226,7 +241,7 @@ template<>
     void PreparedStatement::SetBindWithType(int index, const int64_t &value);
 
 template<>
-        void PreparedStatement::SetBindWithType(int index, const std::string &value);
+    void PreparedStatement::SetBindWithType(int index, const std::string &value);
 
 template<>
     void PreparedStatement::SetBindWithType(int index, const std::nullptr_t &value);
