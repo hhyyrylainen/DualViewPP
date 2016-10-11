@@ -30,6 +30,14 @@ constexpr auto DUALVIEW_SETTINGS_UNLOAD_TIME_MS = 30000;
 //! Database id type
 using DBID = int64_t;
 
+// Default database thing IDs
+constexpr auto DATABASE_ROOT_FOLDER_ID = 1;
+constexpr auto DATABASE_UNCATEGORIZED_COLLECTION_ID = 1;
+constexpr auto DATABASE_UNCATEGORIZED_PRIVATECOLLECTION_ID = 2;
+
+//! Used to shorten filenames when moving around to make sure no paths are too long
+constexpr auto DUALVIEW_MAX_ALLOWED_PATH = 240;
+
 }
 
 

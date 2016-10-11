@@ -3,7 +3,10 @@
 
 #include "core/components/ImageListItem.h"
 
+#include "Tags.h"
+
 #include "DualView.h"
+#include "Database.h"
 #include "CacheManager.h"
 #include "Exceptions.h"
 #include "FileSystem.h"
@@ -18,7 +21,8 @@
 using namespace DV;
 // ------------------------------------ //
 
-Image::Image(const std::string &file) : ResourcePath(file), ImportLocation(file)
+Image::Image(const std::string &file) :
+    DatabaseResource(true), ResourcePath(file), ImportLocation(file)
 {
     if(!boost::filesystem::exists(file)){
 
@@ -28,6 +32,7 @@ Image::Image(const std::string &file) : ResourcePath(file), ImportLocation(file)
     ResourceName = boost::filesystem::path(ResourcePath).filename().string();
     Extension = boost::filesystem::path(ResourcePath).extension().string();
 
+    Tags = std::make_shared<TagCollection>();
 
 }
 
@@ -58,6 +63,22 @@ std::string Image::GetHash() const{
         throw Leviathan::InvalidState("Hash hasn't been calculated");
 
     return Hash;
+}
+// ------------------------------------ //
+void Image::SetResourcePath(const std::string &newpath){
+
+    if(!boost::filesystem::exists(newpath)){
+
+        throw Leviathan::InvalidArgument("Image: update path: file doesn't exist");
+    }
+
+    ResourcePath = newpath;
+    Extension = boost::filesystem::path(ResourcePath).extension().string();
+}
+// ------------------------------------ //
+void Image::_DoSave(Database &db){
+
+    db.UpdateImage(*this);
 }
 // ------------------------------------ //
 std::string Image::CalculateFileHash() const{
@@ -114,6 +135,12 @@ void Image::BecomeDuplicateOf(const Image &other){
 
 bool Image::operator ==(const Image& other){
 
+    if(static_cast<DatabaseResource&>(*this) ==
+        static_cast<const DatabaseResource&>(other))
+    {
+        return true;
+    }
+    
     return ResourcePath == other.ResourcePath;
 }
 // ------------------------------------ //

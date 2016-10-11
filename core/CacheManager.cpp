@@ -116,6 +116,17 @@ std::shared_ptr<LoadedImage> CacheManager::GetCachedImage(
     return nullptr;
 }
 // ------------------------------------ //
+void CacheManager::NotifyMovedFile(const std::string &oldfile, const std::string &newfile){
+
+    std::lock_guard<std::mutex> lock(ImageCacheLock);
+
+    for(const auto& cachedImage : ImageCache){
+
+        if(cachedImage->PathMatches(oldfile))
+            cachedImage->OnMoved(newfile);
+    }
+}
+// ------------------------------------ //
 void CacheManager::QuitProcessingThreads(){
 
     Quitting = true;

@@ -10,6 +10,7 @@ namespace DV{
 constexpr auto SETTINGS_VERSION = 1;
 
 //! \brief Contains runtime settings
+//! \todo Make sure that folders are recreated if settings are changed
 class Settings{
 public:
 
@@ -33,11 +34,28 @@ public:
         return PrivateCollection;
     }
 
+    //! \brief Returns PublicCollection
+    const std::string& GetPublicCollection() const{
+        
+        return PublicCollection;
+    }
+
+
     //! \brief Returns the database file
     const auto GetDatabaseFile() const{
 
         return std::string((boost::filesystem::path(DatabaseFolder) /
                 boost::filesystem::path("dualview.sqlite")).c_str());
+    }
+
+    //! \brief Sets the private collection
+    void SetPrivateCollection(const std::string &newfolder, bool save = true){
+
+        PrivateCollection = newfolder;
+        IsDirty = true;
+
+        if(save)
+            Save();
     }
 
     //! \brief Returns true if loadversion is compatible with SETTINGS_VERSION

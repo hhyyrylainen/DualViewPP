@@ -4,6 +4,7 @@
 #include "TestDualView.h"
 #include "core/resources/Image.h"
 #include "core/CacheManager.h"
+#include "core/Settings.h"
 
 #include <Magick++.h>
 #include <boost/filesystem.hpp>
@@ -188,3 +189,38 @@ TEST_CASE("Thumbnail for gif has fewer frames", "[image][expensive]"){
 
     CHECK(thumb->GetFrameCount() <= 142 / 2);
 }
+
+TEST_CASE("Thumbnail is created in a different folder", "[image][expensive]"){
+
+    DV::TestDualView dualview;
+
+    dualview.GetSettings().SetPrivateCollection("new-folder-thumbnails");
+    boost::filesystem::remove_all("new-folder-thumbnails");
+    boost::filesystem::create_directories(dualview.GetThumbnailFolder());
+    
+    auto img = DV::Image::Create("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
+
+    REQUIRE(img);
+
+    while(!img->IsReady()){
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    REQUIRE(img->IsReady());
+
+    auto thumb = img->GetThumbnail();
+
+    while(!thumb->IsLoaded()){
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    REQUIRE(thumb->IsValid());
+    
+    auto path = boost::filesystem::path(dualview.GetThumbnailFolder()) /
+        boost::filesystem::path(img->GetHash() + ".jpg");
+    REQUIRE(boost::filesystem::exists(path));
+
+}
+

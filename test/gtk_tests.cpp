@@ -3,7 +3,10 @@
 #include "TestDualView.h"
 #include "DummyLog.h"
 #include "core/CacheManager.h"
+#include "core/Database.h"
+#include "core/Settings.h"
 #include "core/components/SuperContainer.h"
+#include "core/resources/Image.h"
 
 #include "Common.h"
 
@@ -11,6 +14,8 @@
 
 #include <thread>
 #include <memory>
+
+#include <boost/filesystem.hpp>
 
 #include <iostream>
 
@@ -148,6 +153,38 @@ TEST_CASE_METHOD(GtkTestsFixture, "Basic SuperContainer operations",
     // TODO: find a way to get gtk to initialize the container
     // // 30 images should not be able to fit in 700 pixels
     // CHECK(container.GetWidestRowWidth() <= 700);
+}
+
+
+TEST_CASE_METHOD(GtkTestsFixture, "Creating collections and importing image",
+    "[full][integration][expensive][db][gtk]")
+{
+    DV::TestDualView dualview;
+
+    dualview.GetSettings().SetPrivateCollection("non-volatile-test-thumbnails");
+    boost::filesystem::create_directories(dualview.GetThumbnailFolder());
+    
+    boost::filesystem::remove("image_import_test.sqlite");
+    DV::Database db("image_import_test.sqlite");
+
+    auto img = DV::Image::Create("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
+
+    REQUIRE(img);
+
+    REQUIRE_NOTHROW(db.Init());
+
+    while(!img->IsReady()){
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    REQUIRE(img->IsReady());
+
+    SECTION("Import one image to one collection"){
+
+        
+    }
+
 }
 
 

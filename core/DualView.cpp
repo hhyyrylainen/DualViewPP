@@ -10,12 +10,14 @@
 #include "core/Database.h"
 #include "core/CurlWrapper.h"
 
+#include "resources/Collection.h"
 
 #include "Settings.h"
 #include "PluginManager.h"
 #include "Exceptions.h"
 
 #include <iostream>
+#include <chrono>
 #include <boost/filesystem.hpp>
 
 using namespace DV;
@@ -294,6 +296,9 @@ bool DualView::_DoInitThreadAction(){
 
     DatabaseThread = std::thread(&DualView::_RunDatabaseThread, this);
 
+
+    UncategorizedCollection = _Database->SelectCollectionByName("Uncategorized");
+
     // Succeeded //
     return false;
 }
@@ -500,7 +505,7 @@ void DualView::_RunHashCalculateThread(){
             lock.lock();
 
             // Replace with an existing image if the hash exists //
-            auto existing = GetImageByHash(img->GetHash());
+            auto existing = _Database->SelectImageByHash(img->GetHash());
 
             if(existing){
 
@@ -569,6 +574,119 @@ void DualView::_WaitForWorkerThreads(){
     if(DatabaseThread.joinable())
         DatabaseThread.join();
 }
+// ------------------------------------ //
+std::string DualView::GetPathToCollection(bool isprivate) const{
+
+    if(isprivate){
+
+        return _Settings->GetPrivateCollection();
+        
+    } else {
+
+        return _Settings->GetPublicCollection();
+    }
+}
+
+std::string DualView::MakePathUniqueAndShort(const std::string &path){
+
+    const auto original = boost::filesystem::path(path);
+    
+    // First cut it //
+    const auto length = boost::filesystem::absolute(original).string().size();
+
+    const auto extension = original.extension();
+    const auto baseFolder = original.parent_path();
+    const auto fileName = original.stem();
+    
+    if(length > DUALVIEW_MAX_ALLOWED_PATH){
+
+        std::string name = fileName.string();
+        name = name.substr(0, name.size() / 2);
+        return MakePathUniqueAndShort((baseFolder / (name + extension.string())).string());
+    }
+
+    // Then make sure it doesn't exist //
+    if(!boost::filesystem::exists(original)){
+
+        return original.c_str();
+    }
+    
+    long number = 0;
+
+    boost::filesystem::path finaltarget;
+
+    do{
+        
+        finaltarget = baseFolder / (fileName.string() + "_" + Convert::ToString(++number) +
+            extension.string());
+
+    } while(boost::filesystem::exists(finaltarget));
+
+    // Make sure it is still short enough
+    return MakePathUniqueAndShort(finaltarget.string());
+}
+
+bool DualView::MoveFileToCollectionFolder(std::shared_ptr<Image> img,
+    std::shared_ptr<Collection> collection, bool move)
+{
+    std::string targetfolder = "";
+
+    // Special case, uncategorized //
+    if(collection->GetID() == DATABASE_UNCATEGORIZED_COLLECTION_ID ||
+        collection->GetID() == DATABASE_UNCATEGORIZED_PRIVATECOLLECTION_ID)
+    {
+        targetfolder = (boost::filesystem::path(
+                GetPathToCollection(collection->GetIsPrivate())) / "no_category/").c_str();
+    }
+    else
+    {
+        targetfolder = (boost::filesystem::path(
+                GetPathToCollection(collection->GetIsPrivate())) /
+            collection->GetNameForFolder()).c_str();
+        
+        boost::filesystem::create_directory(targetfolder);
+    }
+
+    // Skip if already there //
+    if(boost::filesystem::equivalent(targetfolder,
+            boost::filesystem::path(img->GetResourcePath()).remove_filename()))
+    {
+        return true;
+    }
+
+    const auto targetPath = boost::filesystem::path(targetfolder) /
+        boost::filesystem::path(img->GetResourcePath()).filename();
+
+    // Make short enough and unique //
+    const auto finalPath = MakePathUniqueAndShort(targetPath.string());
+
+    try{
+        if(move){
+
+            boost::filesystem::rename(img->GetResourcePath(), finalPath);
+        
+        } else {
+
+            boost::filesystem::copy_file(img->GetResourcePath(), finalPath);
+        }
+    } catch(const boost::filesystem::filesystem_error &e){
+
+        LOG_ERROR("Failed to copy file to collection: " + img->GetResourcePath()
+            + " -> " + finalPath);
+        LOG_WRITE("Exception: " + std::string(e.what()));
+        return false;
+    }
+
+    LEVIATHAN_ASSERT(boost::filesystem::exists(finalPath),
+        "Move to collection, final path doesn't exist after copy");
+    
+    // Notify image cache that the file was moved //
+    if(move)
+        _CacheManager->NotifyMovedFile(img->GetResourcePath(), finalPath);
+
+    img->SetResourcePath(finalPath);
+    return true;
+}
 
 // ------------------------------------ //
 bool DualView::OpenImageViewer(const std::string &file){
@@ -623,11 +741,149 @@ std::string DualView::GetThumbnailFolder() const{
         boost::filesystem::path("thumbnails/")).c_str();
 }
 // ------------------------------------ //
-// Database load functions
-std::shared_ptr<Image> DualView::GetImageByHash(const std::string &hash){
+// Database saving functions
+bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bool move,
+    std::string collectionname, const TagCollection &addcollectiontags,
+    std::function<void(float)> progresscallback /*= nullptr*/)
+{
+    // Make sure ready to add //
+    for(const auto& img : resources){
 
-    return nullptr;
+        if(!img->IsReady())
+            return false;
+    }
+
+    std::shared_ptr<Collection> addtocollection;
+
+    bool canapplytags = true;
+
+    // No collection specified, get Uncategorized //
+    if (collectionname.empty() < 1)
+    {
+        addtocollection = UncategorizedCollection;
+        canapplytags = false;
+
+    } else
+    {
+        addtocollection = GetOrCreateCollection(collectionname, IsInPrivateMode);
+
+        if (addtocollection)
+            throw Leviathan::InvalidArgument("Invalid collection name");
+    }
+
+    if (canapplytags)
+        addtocollection->AddTags(addcollectiontags);
+
+    size_t currentitem = 0;
+    const auto maxitems = resources.size();
+
+    auto order = addtocollection->GetLastShowOrder();
+
+    std::vector<std::string> filestodelete;
+
+    // Save resources to database if not loaded from the database //
+
+    for(auto& resource : resources)
+    {
+        std::shared_ptr<Image> actualresource;
+
+        if (!resource->IsInDatabase())
+        {
+            // If the image hash is in the collection then we shouldn't be here //
+
+            if (!MoveFileToCollectionFolder(resource, addtocollection, move))
+            {
+                LOG_ERROR("Failed to move file to collection's folder");
+                return false;
+            }
+            
+            std::shared_ptr<TagCollection> tagstoapply;
+
+            // Store tags for applying //
+            if (resource->GetTags()->HasTags())
+                tagstoapply = resource->GetTags();
+
+            try
+            {
+                _Database->InsertImage(*resource);
+            }
+            catch (const InvalidSQL &e)
+            {
+                LOG_ERROR("Sql error adding image to collection: ");
+                e.PrintToLog();
+                return false;
+            }
+
+            // Apply tags //
+            if (tagstoapply)
+                resource->GetTags()->AddTags(*tagstoapply);
+
+            actualresource = resource;
+        } else
+        {
+            actualresource = resource;
+
+            // Remove from uncategorized if not adding to that //
+            if(addtocollection != UncategorizedCollection)
+            {
+                UncategorizedCollection->RemoveImage(actualresource);
+            }
+        }
+
+        // Associate with collection //
+        addtocollection->AddImage(actualresource, ++order);
+
+        currentitem++;
+
+        if(progresscallback)
+            progresscallback(currentitem / (float)maxitems);
+    }
+
+    // These are duplicate files of already existing ones
+    bool exists = false;
+
+    do
+    {
+        exists = false;
+
+        for(const std::string& file : filestodelete)
+        {
+            if (boost::filesystem::exists(file))
+            {
+                exists = true;
+
+                try{
+                    boost::filesystem::remove(file);
+                } catch(const boost::filesystem::filesystem_error&){
+
+                }
+            }
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    } while (exists);
+
+    return true;
 }
+
+
+std::shared_ptr<Collection> DualView::GetOrCreateCollection(const std::string &name,
+    bool isprivate)
+{
+    auto existing = _Database->SelectCollectionByName(name);
+
+    if(existing)
+        return existing;
+
+    return _Database->InsertCollection(name, isprivate);
+}
+
+
+
+// ------------------------------------ //
+// Database load functions
+
 
 // ------------------------------------ //
 // Gtk callbacks

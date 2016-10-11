@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ResourceWithPreview.h"
+#include "DatabaseResource.h"
 
 #include <string>
 #include <memory>
@@ -12,6 +13,7 @@ namespace DV{
 class LoadedImage;
 class ImageListItem;
 class DualView;
+class TagCollection;
 
 //! \brief Main class for all image files that are handled by DualView
 //!
@@ -19,7 +21,9 @@ class DualView;
 //! data will be loaded by CacheManager
 //! \note Once the image has been loaded this will be made a duplicate of
 //! another image that is in the database IF the hashes match
-class Image : public ResourceWithPreview, public std::enable_shared_from_this<Image> {
+class Image : public ResourceWithPreview, public DatabaseResource,
+                public std::enable_shared_from_this<Image>
+{
     friend DualView;
 
 protected:
@@ -55,6 +59,16 @@ public:
     //! \exception Leviathan::InvalidState if hash hasn't been calculated yet
     std::string GetHash() const;
 
+    //! \brief Returns a tag collection
+    //!
+    //! If this is in the databse then the collection will automatically save to the database.
+    //! If this isn't in the database the collection won't be saved unless this image
+    //! is imported to the collection in DualView::AddToCollection
+    std::shared_ptr<TagCollection> GetTags(){
+        
+        return Tags;
+    }
+
     //! \brief Returns true if this is ready to be added to the database
     inline bool IsReady() const{
 
@@ -73,6 +87,21 @@ public:
         return ResourceName;
     }
 
+    inline auto GetResourcePath() const{
+
+        return ResourcePath;
+    }
+
+    inline auto GetExtension() const{
+
+        return Extension;
+    }
+
+    //! \brief Updates the resources location. Must be called after the file at ResourcePath
+    //! is moved
+    void SetResourcePath(const std::string &newpath);
+
+
     //! \brief Returns a hash calculated from the file at ResourcePath
     //! \note This takes a while and should be called from a background thread
     //! \returns A base64 encoded sha256 of the entire file contents. With /'s replaced
@@ -90,6 +119,9 @@ public:
     bool UpdateWidgetWithValues(ListItem &control) override;
 
 protected:
+
+    // DatabaseResource implementation
+    void _DoSave(Database &db) override;
 
     //! \brief Once hash is calculated this is called if this is a duplicate of an
     //! existing image
@@ -137,6 +169,9 @@ private:
 
     int Height = 0;
     int Width = 0;
+
+
+    std::shared_ptr<TagCollection> Tags;
 };
 
 }

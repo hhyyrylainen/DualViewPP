@@ -65,6 +65,16 @@ public:
         return Status != IMAGE_LOAD_STATUS::Error && FromPath == path;
     }
 
+    //! \brief Called when the image that is in this object is moved
+    void OnMoved(const std::string &newfile){
+
+        // Don't erase error message
+        if(Status == IMAGE_LOAD_STATUS::Error)
+            return;
+        
+        FromPath = newfile;
+    }
+
     //! \brief Resets the last use time
     inline void ResetActiveTime(){
 
@@ -202,6 +212,9 @@ public:
         std::lock_guard<std::mutex> lock(ImageCacheLock);
         return GetCachedImage(lock, file);
     }
+
+    //! \brief Called when a file is moved, updates cache references to that file
+    void NotifyMovedFile(const std::string &oldfile, const std::string &newfile);
 
     //! \brief Marks the processing threads as quitting
     void QuitProcessingThreads();

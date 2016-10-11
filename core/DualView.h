@@ -18,6 +18,8 @@ class Logger;
 namespace DV{
 
 class Image;
+class TagCollection;
+class Collection;
 
 class PluginManager;
 class CacheManager;
@@ -66,23 +68,39 @@ public:
 
     //! \brief Queues a function to be ran on the database thread
     void QueueDBThreadFunction(std::function<void()> func);
+
+    //! \brief Returns a path to the collection root folder, where imported images are
+    //! copied or moved to
+    std::string GetPathToCollection(bool isprivate) const;
+
+    //! \brief Makes a target file path shorter than DUALVIEW_MAX_ALLOWED_PATH and one
+    //! that doesn't exist
+    static std::string MakePathUniqueAndShort(const std::string &path);
+    
+    //! \brief Moves an image to the folder determined from the collection's name
+    //! \return True if succeeded, false if it failed for some reason
+    //! \param move If true the file will be moved. If false the file will be copied instead
+    bool MoveFileToCollectionFolder(std::shared_ptr<Image> img,
+        std::shared_ptr<Collection> collection, bool move);
     
     //
     // Database insert and modify functions
     //
-
     
+    //! \brief Imports images to the database and adds them to the collection
+    //! \param move If true the original file is deleted (only if  the file is not in the
+    //! collection folder)
+    bool AddToCollection(std::vector<std::shared_ptr<Image>> resources, bool move,
+        std::string collectionname, const TagCollection &addcollectiontags,
+        std::function<void(float)> progresscallback = nullptr);    
 
+    //! \brief Retrieves a Collection from the database by name
+    std::shared_ptr<Collection> GetOrCreateCollection(const std::string &name, bool isprivate);
     
     //
     // Database object retrieve functions
     //
-    //! \brief Retrieves an Image from the database matching the has, or null
-    std::shared_ptr<Image> GetImageByHash(const std::string &hash);
-
     
-
-
 
     
     //! \brief Returns the thumbnail folder
@@ -200,6 +218,13 @@ private:
     
     Gtk::Window* MainMenu = nullptr;
     Gtk::Window* WelcomeWindow = nullptr;
+
+
+    std::shared_ptr<Collection> UncategorizedCollection;
+
+    //! \brief If true everything that is created should be marked private. When not in
+    //! private mode things that were marked private shouldn't be visible
+    bool IsInPrivateMode = false;
 
     // Startup code //
     //! Makes sure initialization is ran only once

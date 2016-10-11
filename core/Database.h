@@ -41,6 +41,7 @@ protected:
 
 class CurlWrapper;
 class Image;
+class Collection;
 
 //! \brief The version number of the database
 constexpr auto DATABASE_CURRENT_VERSION = 14;
@@ -89,7 +90,72 @@ public:
     //! \brief Selects the database version
     //! \returns True if succeeded, false if np version exists.
     bool SelectDatabaseVersion(Lock &guard, int &result);
-    
+
+
+
+    //
+    // Image functions
+    //
+
+    //! \brief Inserts a new image to the database
+    //!
+    //! Also sets the id in the image object
+    //! \exception InvalidSQL if the image violates unique constraints (same hash)
+    void InsertImage(Image &image);
+
+    //! \brief Updates an images properties in the database
+    //! \returns False if the update fails
+    bool UpdateImage(const Image &image);
+
+    //! \brief Deletes an image from the database
+    //!
+    //! The image object's id will be set to -1
+    //! \returns True if succeeded
+    bool DeleteImage(Image &image);
+
+    //! \brief Retrieves an Image based on the hash
+    std::shared_ptr<Image> SelectImageByHash(const std::string &hash);
+
+    //
+    // Collection functions
+    //
+
+    //! \brief Inserts a new collection to the database
+    //! \exception InvalidSQL if the collection violates unique constraints (same name)
+    std::shared_ptr<Collection> InsertCollection(const std::string &name, bool isprivate);
+
+    //! \brief Updates an images properties in the database
+    //! \returns False if the update fails
+    bool UpdateCollection(const Collection &collection);
+
+    //! \brief Deletes a collection from the database
+    //!
+    //! The collection object's id will be set to -1
+    //! \returns True if succeeded
+    bool DeleteCollection(Collection &collection);
+
+    //! \brief Retrieves an Image based on the name
+    std::shared_ptr<Collection> SelectCollectionByName(const std::string &name);
+
+    //! \brief Returns the largest value used for an image in the collection
+    //! If the collection is empty returns 0
+    int64_t SelectCollectionLargestShowOrder(const Collection &collection);
+
+
+    //
+    // Collection image 
+    //
+
+    //! \brief Adds image to collection
+    //! \returns True if succeeded. False if no rows where changed
+    //! \param showorder The order number of the image in the collection. If the same one is
+    //! already in use the order in which the two images that have the same show_order is
+    //! random
+    bool InsertImageToCollection(Collection &collection, Image &image, int64_t showorder);
+
+    //! \brief Removes an image from the collection
+    //! \returns True if removed. False if the image wasn't in the collection
+    bool DeleteImageFromCollection(Collection &collection, Image &image);
 
     // Statistics functions //
     size_t CountExistingTags();

@@ -3,6 +3,9 @@
 #include "Common.h"
 #include "Exceptions.h"
 
+#include "core/resources/Image.h"
+#include "core/resources/Collection.h"
+#include "core/resources/Tags.h"
 
 #include "generated/maintables.sql.h"
 #include "generated/defaulttablevalues.sql.h"
@@ -116,6 +119,14 @@ public:
         
         // Execution never reaches this, as the above function will always throw
         return STEP_RESULT::COMPLETED;
+    }
+
+    //! \brief Steps until statement is completed, ignores any rows that might be returned
+    void StepAll(const SetupStatementForUse &isprepared){
+
+        while(Step(isprepared) != STEP_RESULT::COMPLETED){
+
+        }
     }
 
     // Row functions
@@ -440,6 +451,106 @@ std::shared_ptr<Image> Database::SelectImageByHash(const std::string &hash) cons
     
     return nullptr;
 }
+// ------------------------------------ //
+// Image
+void Database::InsertImage(Image &image){
+
+    
+}
+
+bool Database::UpdateImage(const Image &image){
+
+
+}
+
+bool Database::DeleteImage(Image &image){
+
+
+}
+
+std::shared_ptr<Image> Database::SelectImageByHash(const std::string &hash){
+
+    
+}
+
+// ------------------------------------ //
+// Collection
+std::shared_ptr<Collection> Database::InsertCollection(const std::string &name,
+    bool isprivate)
+{
+    GUARD_LOCK();
+
+}
+
+bool Database::UpdateCollection(const Collection &collection){
+
+}
+
+bool Database::DeleteCollection(Collection &collection){
+
+}
+
+std::shared_ptr<Collection> Database::SelectCollectionByName(const std::string &name){
+
+    
+}
+
+int64_t Database::SelectCollectionLargestShowOrder(const Collection &collection){
+
+
+    return 0;
+}
+
+// ------------------------------------ //
+// Collection image 
+bool Database::InsertImageToCollection(Collection &collection, Image &image,
+    int64_t showorder)
+{
+    if(!collection.IsInDatabase() || !image.IsInDatabase())
+        return false;
+    
+    GUARD_LOCK();
+
+    const char str[] = "INSERT INTO collection_image (collection, image, show_order) VALUES "
+        "(?1, ?2, ?3);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = PreparedStatement::SetupStatementForUse(statementobj,
+        collection.GetID(), image.GetID(), showorder);
+
+    statementobj.StepAll(statementinuse);
+
+    const auto changes = sqlite3_changes(SQLiteDb);
+
+    LEVIATHAN_ASSERT(changes <= 1, "InsertImageToCollection changed more than one row");
+
+    return changes == 1;
+}
+
+bool Database::DeleteImageFromCollection(Collection &collection, Image &image){
+
+    if(!collection.IsInDatabase() || !image.IsInDatabase())
+        return false;
+    
+    GUARD_LOCK();
+
+    const char str[] = "DELETE FROM collection_image WHERE collection = ?1 AND image = ?2;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = PreparedStatement::SetupStatementForUse(statementobj,
+        collection.GetID(), image.GetID());
+
+    statementobj.StepAll(statementinuse);
+
+    const auto changes = sqlite3_changes(SQLiteDb);
+
+    LEVIATHAN_ASSERT(changes <= 1, "InsertImageToCollection changed more than one row");
+
+    return changes == 1;
+}
+    
 // ------------------------------------ //
 size_t Database::CountExistingTags(){
 

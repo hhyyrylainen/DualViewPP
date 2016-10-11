@@ -3,14 +3,23 @@
 
 #include "Common.h"
 
+#include "Database.h"
+#include "DualView.h"
+#include "Database.h"
+
 #include "Common/StringOperations.h"
 #include <boost/filesystem.hpp>
 
 using namespace DV;
 // ------------------------------------ //
-Collection::Collection(const std::string &name) : Name(name){
+// Non-database testing version
+Collection::Collection(const std::string &name) :
+    DatabaseResource(true), Name(name)
+{
 
 }
+
+
 
 // ------------------------------------ //
 std::string Collection::GetNameForFolder() const{
@@ -50,4 +59,54 @@ std::string Collection::GetNameForFolder() const{
 
     return sanitized;
 }
+// ------------------------------------ //
+bool Collection::AddTags(const TagCollection &tags){
 
+    if(!Tags)
+        return false;
+
+    Tags->AddTags(tags);
+    return true;
+}
+
+int64_t Collection::GetLastShowOrder(){
+
+    if(LastOrderSet)
+        return LastOrder;
+
+    LastOrderSet = true;
+
+    LastOrder = DualView::Get().GetDatabase().SelectCollectionLargestShowOrder(*this);
+    return LastOrder;
+}
+// ------------------------------------ //
+bool Collection::AddImage(std::shared_ptr<Image> image){
+
+    if(!image)
+        return false;
+    
+    return DualView::Get().GetDatabase().InsertImageToCollection(*this, *image,
+        GetLastShowOrder() + 1);
+}
+
+bool Collection::AddImage(std::shared_ptr<Image> image, int64_t order){
+
+    if(!image)
+        return false;
+    
+    return DualView::Get().GetDatabase().InsertImageToCollection(*this, *image, order);
+}
+
+bool Collection::RemoveImage(std::shared_ptr<Image> image){
+
+    if(!image)
+        return false;
+    
+    return DualView::Get().GetDatabase().DeleteImageFromCollection(*this, *image);
+}
+
+// ------------------------------------ //
+void Collection::_DoSave(Database &db){
+
+    db.UpdateCollection(*this);
+}

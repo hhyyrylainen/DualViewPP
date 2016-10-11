@@ -4,8 +4,24 @@
 
     \ref DV::DualView
 
+    \ref DV::VirtualPath
+
+    \ref DV::Image
+
+    \ref DV::CacheManager
+
+    \ref DV::Database
+
+    \ref DV::PluginManager
+
     \section watch_out Watch Out For
 
     Gtk::Builder get derived: destructor doesn't get called without deleting the windows
+
+    \section template_magic_tricks Dark Template Magic
+
+    \ref DV::PreparedStatement
+
+    \ref Leviathan::DataBlock
     
 */

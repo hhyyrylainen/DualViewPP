@@ -52,6 +52,7 @@ add_library(Core
   
   resources/Image.h resources/Image.cpp
   resources/Collection.h resources/Collection.cpp
+  resources/Tags.h resources/Tags.cpp
 
   # Generated headers
   ${GENERATED_SQL_FILES}
