@@ -92,7 +92,7 @@ public:
     //! collection folder)
     bool AddToCollection(std::vector<std::shared_ptr<Image>> resources, bool move,
         std::string collectionname, const TagCollection &addcollectiontags,
-        std::function<void(float)> progresscallback = nullptr);    
+        std::function<void(float)> progresscallback = nullptr);
 
     //! \brief Retrieves a Collection from the database by name
     std::shared_ptr<Collection> GetOrCreateCollection(const std::string &name, bool isprivate);
@@ -144,7 +144,7 @@ public:
 protected:
 
     //! \brief Constructor for test subclass to use
-    DualView(bool tests);
+    DualView(bool tests, const std::string &dbfile);
 
     //! \brief Constructor for test subclass to use
     DualView(std::string tests);

@@ -82,7 +82,7 @@ TEST_CASE("ImageMagick properly loads the test image", "[image]"){
 
 TEST_CASE("File hash calculation happens on a worker thread", "[image][hash]"){
     
-    TestDualView dualview;
+    TestDualView dualview("test_image.sqlite");
 
     auto img = Image::Create("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
 
@@ -102,7 +102,7 @@ TEST_CASE("File hash calculation happens on a worker thread", "[image][hash]"){
 
 TEST_CASE("Thumbnail generation does something", "[image]"){
 
-    TestDualView dualview;
+    TestDualView dualview("test_image.sqlite");
 
     // Recreate thumbnail folder //
     auto folder = boost::filesystem::path(dualview.GetThumbnailFolder());
@@ -146,7 +146,7 @@ TEST_CASE("Thumbnail generation does something", "[image]"){
 
 TEST_CASE("Thumbnail for gif has fewer frames", "[image][expensive]"){
 
-    TestDualView dualview;
+    TestDualView dualview("test_image.sqlite");
 
     // Recreate thumbnail folder //
     auto folder = boost::filesystem::path(dualview.GetThumbnailFolder());
@@ -192,7 +192,7 @@ TEST_CASE("Thumbnail for gif has fewer frames", "[image][expensive]"){
 
 TEST_CASE("Thumbnail is created in a different folder", "[image][expensive]"){
 
-    DV::TestDualView dualview;
+    DV::TestDualView dualview("test_image.sqlite");
 
     dualview.GetSettings().SetPrivateCollection("new-folder-thumbnails");
     boost::filesystem::remove_all("new-folder-thumbnails");
@@ -220,6 +220,7 @@ TEST_CASE("Thumbnail is created in a different folder", "[image][expensive]"){
     
     auto path = boost::filesystem::path(dualview.GetThumbnailFolder()) /
         boost::filesystem::path(img->GetHash() + ".jpg");
+    INFO("Path is: " << path);
     REQUIRE(boost::filesystem::exists(path));
 
 }

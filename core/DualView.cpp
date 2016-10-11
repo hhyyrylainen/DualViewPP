@@ -106,7 +106,7 @@ DualView::~DualView(){
     Staticinstance = nullptr;
 }
 
-DualView::DualView(bool tests){
+DualView::DualView(bool tests, const std::string &dbfile){
 
     _Logger = std::make_unique<Leviathan::Logger>("test_log.txt");
 
@@ -120,6 +120,9 @@ DualView::DualView(bool tests){
     _CacheManager = std::make_unique<CacheManager>();
 
     _Settings = std::make_unique<Settings>("test_settings.levof");
+
+    if(!dbfile.empty())
+        _Database = std::make_unique<Database>(dbfile);
 
     _StartWorkerThreads();
 }
@@ -758,7 +761,7 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
     bool canapplytags = true;
 
     // No collection specified, get Uncategorized //
-    if (collectionname.empty() < 1)
+    if (collectionname.empty())
     {
         addtocollection = UncategorizedCollection;
         canapplytags = false;
@@ -767,10 +770,12 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
     {
         addtocollection = GetOrCreateCollection(collectionname, IsInPrivateMode);
 
-        if (addtocollection)
+        if (!addtocollection)
             throw Leviathan::InvalidArgument("Invalid collection name");
     }
 
+    LEVIATHAN_ASSERT(addtocollection, "Failed to get collection object");
+    
     if (canapplytags)
         addtocollection->AddTags(addcollectiontags);
 

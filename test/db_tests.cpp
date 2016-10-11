@@ -5,6 +5,7 @@
 #include "Common.h"
 
 #include "core/Database.h"
+#include "core/resources/Collection.h"
 
 #include <sqlite3.h>
 #include <boost/filesystem.hpp>
@@ -118,6 +119,24 @@ TEST_CASE("Normal database setup works", "[db][expensive]"){
 
     // There should be stuff in it //
     CHECK(db.CountExistingTags() > 0);
+}
+
+TEST_CASE("Directly using database for collection and image inserts", "[db][expensive]"){
+
+    DummyDualView dv;
+    Database db(true);
+
+    REQUIRE_NOTHROW(db.Init());
+
+    SECTION("Collection creation"){
+
+        auto collection = db.InsertCollection("test collection", false);
+        REQUIRE(collection);
+        CHECK(collection->GetName() == "test collection");
+
+        // Same object returned
+        CHECK(collection.get() == db.SelectCollectionByName("test collection").get());
+    }
 }
 
 

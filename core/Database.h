@@ -1,6 +1,9 @@
 #pragma once
 
 #include "Common/ThreadSafe.h"
+#include "SQLHelpers.h"
+
+#include "SingleLoad.h"
 
 #include <string>
 #include <vector>
@@ -12,32 +15,7 @@ struct sqlite3;
 
 namespace DV{
 
-//! \brief An exception thrown when sql errors occur
-class InvalidSQL : public std::exception{
-public:
-
-    InvalidSQL(const std::string &message,
-        int32_t code, const std::string &codedescription) noexcept;
-    InvalidSQL(const InvalidSQL &e) = default;
-    
-    ~InvalidSQL() = default;
-    
-    InvalidSQL& operator=(const InvalidSQL &other) = default;
-    
-    const char* what() const noexcept override;
-    void PrintToLog() const noexcept;
-
-    inline operator bool() const noexcept{
-
-        return ErrorCode != 0;
-    }
-
-protected:
-    
-    std::string FinalMessage;
-    int32_t ErrorCode;
-
-};
+class PreparedStatement;
 
 class CurlWrapper;
 class Image;
@@ -84,14 +62,13 @@ public:
     //! \note Must be called on the thread that 
     void Init();
 
-    //! \brief Returns an Image matching the hash, or null
-    std::shared_ptr<Image> SelectImageByHash(const std::string &hash) const;
-    
     //! \brief Selects the database version
     //! \returns True if succeeded, false if np version exists.
     bool SelectDatabaseVersion(Lock &guard, int &result);
 
-
+    //! \brief Removes objects that no longer have external references from the database
+    //! \todo Call this periodically from the database thread in DualView
+    void PurgeInactiveCache();
 
     //
     // Image functions
@@ -165,12 +142,19 @@ public:
     static int SqliteExecGrabResult(void* user, int columns, char** columnsastext,
         char** columnname);
 
-    //! \brief Throws an InvalidSQL exceptions from sqlite current error
-    static void ThrowErrorFromDB(sqlite3* sqlite, int code = 0,
-        const std::string &extramessage = "");
-
 private:
 
+    //
+    // Row parsing functions
+    //
+    
+    //! \brief Loads a Collection object from the current row
+    std::shared_ptr<Collection> _LoadCollectionFromRow(PreparedStatement &statement);
+
+    //
+    // Utility stuff
+    //
+    
     //! \brief Throws an InvalidSQL exception, filling it with values from the database
     //! connection
     void ThrowCurrentSqlError(Lock &guard);
@@ -200,6 +184,9 @@ protected:
 
     //! Used for backups before potentially dangerous operations
     std::string DatabaseFile;
+
+    //! Makes sure each Collection is only loaded once
+    SingleLoad<Collection, int64_t> LoadedCollections;
 };
 
 }

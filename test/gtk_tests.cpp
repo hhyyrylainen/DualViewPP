@@ -7,6 +7,8 @@
 #include "core/Settings.h"
 #include "core/components/SuperContainer.h"
 #include "core/resources/Image.h"
+#include "core/resources/Collection.h"
+#include "core/resources/Tags.h"
 
 #include "Common.h"
 
@@ -18,6 +20,8 @@
 #include <boost/filesystem.hpp>
 
 #include <iostream>
+
+using namespace DV;
 
 //! \file All tests that require gtk to be initialized
 
@@ -159,19 +163,17 @@ TEST_CASE_METHOD(GtkTestsFixture, "Basic SuperContainer operations",
 TEST_CASE_METHOD(GtkTestsFixture, "Creating collections and importing image",
     "[full][integration][expensive][db][gtk]")
 {
-    DV::TestDualView dualview;
+    boost::filesystem::remove("image_import_test.sqlite");
+    DV::TestDualView dualview("image_import_test.sqlite");
 
     dualview.GetSettings().SetPrivateCollection("non-volatile-test-thumbnails");
     boost::filesystem::create_directories(dualview.GetThumbnailFolder());
-    
-    boost::filesystem::remove("image_import_test.sqlite");
-    DV::Database db("image_import_test.sqlite");
 
     auto img = DV::Image::Create("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
 
     REQUIRE(img);
 
-    REQUIRE_NOTHROW(db.Init());
+    REQUIRE_NOTHROW(dualview.GetDatabase().Init());
 
     while(!img->IsReady()){
 
@@ -182,7 +184,20 @@ TEST_CASE_METHOD(GtkTestsFixture, "Creating collections and importing image",
 
     SECTION("Import one image to one collection"){
 
+        std::vector<std::shared_ptr<Image>> resources = { img };
+
+        TagCollection tags;
         
+        SECTION("Collection that didn't exist before"){
+
+            REQUIRE(dualview.AddToCollection(resources, false,
+                    "First collection", tags));
+
+            // Make sure a file was copied //
+            CHECK(boost::filesystem::exists(
+                    boost::filesystem::path(dualview.GetPathToCollection(false)) /
+                    "collections/First collection/7c2c2141cf27cb90620f80400c6bc3c4.jpg"));
+        }
     }
 
 }

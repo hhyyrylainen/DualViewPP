@@ -8,7 +8,7 @@ namespace DV{
 class TestDualView : public DualView{
 public:
 
-    TestDualView() : DualView(true){
+    TestDualView(const std::string &dbFile = "") : DualView(true, dbFile){
 
 
         

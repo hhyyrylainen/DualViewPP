@@ -31,6 +31,9 @@ add_library(Core
   CurlWrapper.h CurlWrapper.cpp
 
   Database.h Database.cpp
+  SQLHelpers.h SQLHelpers.cpp
+  PreparedStatement.h PreparedStatement.cpp
+  SingleLoad.h
   CacheManager.h CacheManager.cpp
 
   VirtualPath.h VirtualPath.cpp

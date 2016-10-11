@@ -54,6 +54,11 @@ public:
 
         return IsPrivate;
     }
+
+    inline auto GetName() const{
+
+        return Name;
+    }
     
 
 protected:
