@@ -37,6 +37,7 @@ add_library(Core
   CacheManager.h CacheManager.cpp
 
   VirtualPath.h VirtualPath.cpp
+  TimeHelpers.h TimeHelpers.cpp
   
   # Window stuff
   windows/BaseWindow.h windows/BaseWindow.cpp

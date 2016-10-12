@@ -6,7 +6,10 @@
 #include "Tags.h"
 
 #include "DualView.h"
-#include "Database.h"
+
+#include "core/Database.h"
+#include "core/PreparedStatement.h"
+
 #include "CacheManager.h"
 #include "Exceptions.h"
 #include "FileSystem.h"
@@ -34,6 +37,45 @@ Image::Image(const std::string &file) :
 
     Tags = std::make_shared<TagCollection>();
 
+}
+
+Image::Image(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id) :
+    DatabaseResource(id, db)
+{
+    IsReadyToAdd = true;
+    IsHashValid = true;
+    
+    // Load properties //
+    CheckRowID(statement, 1, "relative_path");
+    CheckRowID(statement, 2, "width");
+    CheckRowID(statement, 3, "height");
+    CheckRowID(statement, 4, "name");
+    CheckRowID(statement, 5, "extension");
+    CheckRowID(statement, 6, "add_date");
+    CheckRowID(statement, 6, "last_view");
+    CheckRowID(statement, 6, "is_private");
+    CheckRowID(statement, 6, "from_file");
+    CheckRowID(statement, 6, "file_hash");
+
+    std::string ResourcePath;
+    std::string ResourceName;
+
+    std::string Extension;
+
+    bool IsPrivate = false;
+    std::chrono::system_clock::time_point AddDate = std::chrono::system_clock::now();
+
+    std::chrono::system_clock::time_point LastView = std::chrono::system_clock::now();
+
+    std::string ImportLocation;
+
+    //! True if Hash has been set to a valid value
+    bool IsHashValid = false;
+    std::string Hash;
+
+
+    int Height = 0;
+    int Width = 0;
 }
 
 void Image::Init(){

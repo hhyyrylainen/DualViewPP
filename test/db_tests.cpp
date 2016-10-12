@@ -4,7 +4,7 @@
 #include "DummyLog.h"
 #include "Common.h"
 
-#include "core/Database.h"
+#include "TestDatabase.h"
 #include "core/resources/Collection.h"
 
 #include <sqlite3.h>
@@ -106,7 +106,7 @@ TEST_CASE("Basic database retrieves don't throw", "[db]"){
 
     REQUIRE_NOTHROW(db.Init());
 
-    CHECK_NOTHROW(db.SelectImageByHash("ladlsafh"));
+    CHECK_NOTHROW(db.SelectImageByHashAG("ladlsafh"));
 }
 
 TEST_CASE("Normal database setup works", "[db][expensive]"){
@@ -124,7 +124,7 @@ TEST_CASE("Normal database setup works", "[db][expensive]"){
 TEST_CASE("Directly using database for collection and image inserts", "[db][expensive]"){
 
     DummyDualView dv;
-    Database db(true);
+    TestDatabase db;
 
     REQUIRE_NOTHROW(db.Init());
 
@@ -146,6 +146,43 @@ TEST_CASE("Directly using database for collection and image inserts", "[db][expe
         CHECK(collection2.get() == db.SelectCollectionByNameAG("cool stuff").get());
 
         CHECK(collection.get() != collection2.get());
+    }
+
+    SECTION("Image creation"){
+
+        auto image = db.InsertTestImage("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg",
+            "II+O7pSQgH8BG_gWrc+bAetVgxJNrJNX4zhA4oWV+V0=");
+
+        REQUIRE(image);
+
+        // Duplicate hash
+        CHECK_THROWS(db.InsertTestImage("second.jpg",
+                "II+O7pSQgH8BG_gWrc+bAetVgxJNrJNX4zhA4oWV+V0="));
+    }
+
+    SECTION("Adding image to collection"){
+
+        auto collection = db.InsertCollection("collection for image", false);
+        REQUIRE(collection);
+
+        auto image = db.InsertTestImage("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg",
+            "II+O7pSQgH8BG_gWrc+bAetVgxJNrJNX4zhA4oWV+V0=");
+
+        REQUIRE(image);
+
+        CHECK(db.InsertImageToCollection(*collection, *image, 1));
+
+        CHECK(collection->GetLastShowOrder() == 1);
+
+        auto image2 = db.InsertTestImage("img2.jpg",
+            "II+actualhashwouldbehere");
+
+        REQUIRE(image2);
+
+        CHECK(db.InsertImageToCollection(*collection, *image,
+                collection->GetLastShowOrder() + 1));
+
+        CHECK(collection->GetLastShowOrder() == 2);
     }
 }
 

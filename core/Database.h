@@ -31,7 +31,7 @@ constexpr auto DATABASE_CURRENT_VERSION = 14;
 //! There should be only one database object at a time. It is contained in DualView
 class Database : public Leviathan::ThreadSafe{
 
-    //! \brief Holds data in SqliteExecGrabResult
+    //! \brief Holds data in Database::SqliteExecGrabResult
     struct GrabResultHolder{
 
         struct Row{
@@ -93,8 +93,9 @@ public:
     bool DeleteImage(Image &image);
 
     //! \brief Retrieves an Image based on the hash
-    std::shared_ptr<Image> SelectImageByHash(const std::string &hash);
-
+    std::shared_ptr<Image> SelectImageByHash(Lock &guard, const std::string &hash);
+    CREATE_NON_LOCKING_WRAPPER(SelectImageByHash);
+    
     //
     // Collection functions
     //
@@ -115,7 +116,6 @@ public:
 
     //! \brief Retrieves a Collection based on the name
     std::shared_ptr<Collection> SelectCollectionByName(Lock &guard, const std::string &name);
-
     CREATE_NON_LOCKING_WRAPPER(SelectCollectionByName);
     
     //! \brief Retrieves a Collection based on the id
@@ -125,6 +125,8 @@ public:
     //! If the collection is empty returns 0
     int64_t SelectCollectionLargestShowOrder(const Collection &collection);
 
+    //! \brief Returns the number of images in a collection
+    int64_t SelectCollectionImageCount(const Collection &collection);
 
     //
     // Collection image 
@@ -157,6 +159,10 @@ private:
     
     //! \brief Loads a Collection object from the current row
     std::shared_ptr<Collection> _LoadCollectionFromRow(Lock &guard,
+        PreparedStatement &statement);
+
+    //! \brief Loads a Image object from the current row
+    std::shared_ptr<Image> _LoadImageFromRow(Lock &guard,
         PreparedStatement &statement);
 
     //
@@ -195,6 +201,9 @@ protected:
 
     //! Makes sure each Collection is only loaded once
     SingleLoad<Collection, int64_t> LoadedCollections;
+
+    //! Makes sure each Image is only loaded once
+    SingleLoad<Image, int64_t> LoadedImages;
 };
 
 }

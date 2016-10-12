@@ -200,25 +200,17 @@ bool Database::DeleteImage(Image &image){
     return false;
 }
 
-std::shared_ptr<Image> Database::SelectImageByHash(const std::string &hash){
+std::shared_ptr<Image> Database::SelectImageByHash(Lock &guard, const std::string &hash){
 
-    GUARD_LOCK();
-    
     const char str[] = "SELECT id FROM pictures WHERE file_hash = ?1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
     auto statementinuse = statementobj.Setup(hash);
     
-    while(statementobj.Step(statementinuse) != PreparedStatement::STEP_RESULT::COMPLETED){
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
 
-        DBID id;
-        if(statementobj.GetObjectIDFromColumn(id)){
-
-            // Got an object //
-            LOG_FATAL("TODO: load object");
-            //return;
-        }
+        return _LoadImageFromRow(guard, statementobj);
     }
     
     return nullptr;
@@ -300,7 +292,44 @@ std::shared_ptr<Collection> Database::SelectCollectionByName(Lock &guard,
 
 int64_t Database::SelectCollectionLargestShowOrder(const Collection &collection){
 
+    if(!collection.IsInDatabase())
+        return 0;
+    
+    GUARD_LOCK();
 
+    const char str[] = "SELECT show_order FROM collection_image WHERE collection = ?1 "
+        "ORDER BY show_order DESC LIMIT 1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID());
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return statementobj.GetColumnAsInt64(0);
+    }
+    
+    return 0;
+}
+
+int64_t Database::SelectCollectionImageCount(const Collection &collection){
+
+    if(!collection.IsInDatabase())
+        return 0;
+    
+    GUARD_LOCK();
+
+    const char str[] = "SELECT COUNT(*) FROM collection_image WHERE collection = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID());
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return statementobj.GetColumnAsInt64(0);
+    }
+    
     return 0;
 }
 
@@ -385,7 +414,13 @@ std::shared_ptr<Collection> Database::_LoadCollectionFromRow(Lock &guard,
 {
     CheckRowID(statement, 0, "id");
 
-    const auto id = statement.GetColumnAsInt64(0);
+    DBID id;
+    if(!statement.GetObjectIDFromColumn(id, 0)){
+
+        LOG_ERROR("Object id column is invalid");
+        return nullptr;
+    }
+    
     auto loaded = LoadedCollections.GetIfLoaded(id);
 
     if(loaded)
@@ -394,6 +429,29 @@ std::shared_ptr<Collection> Database::_LoadCollectionFromRow(Lock &guard,
     loaded = std::make_shared<Collection>(*this, guard, statement, id);
 
     LoadedCollections.OnLoad(loaded);
+    return loaded;
+}
+
+std::shared_ptr<Image> Database::_LoadImageFromRow(Lock &guard,
+    PreparedStatement &statement)
+{
+    CheckRowID(statement, 0, "id");
+
+    DBID id;
+    if(!statement.GetObjectIDFromColumn(id, 0)){
+
+        LOG_ERROR("Object id column is invalid");
+        return nullptr;
+    }
+    
+    auto loaded = LoadedImages.GetIfLoaded(id);
+
+    if(loaded)
+        return loaded;
+
+    loaded = Image::Create(*this, guard, statement, id);
+
+    LoadedImages.OnLoad(loaded);
     return loaded;
 }
 

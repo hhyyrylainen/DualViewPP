@@ -15,6 +15,8 @@ class ImageListItem;
 class DualView;
 class TagCollection;
 
+class PreparedStatement;
+
 //! \brief Main class for all image files that are handled by DualView
 //!
 //! This may or may not be in the database currently. The actual image
@@ -32,12 +34,25 @@ protected:
     //! \exception Leviathan::InvalidArgument if something is wrong with the file
     Image(const std::string &file);
 
+    //! \brief Constructor for database loading
+    Image(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id);
+
     //! \brief Init that must be called after a shared_ptr to this instance is created
     //!
     //! Called by Create functions
     void Init();
     
 public:
+
+    //! \brief Loads a database image
+    //! \exception InvalidSQL if data is missing in the statement
+    inline static std::shared_ptr<Image> Create(Database &db, Lock &dblock,
+        PreparedStatement &statement, int64_t id)
+    {
+        auto obj = std::shared_ptr<Image>(new Image(db, dblock, statement, id));
+        obj->Init();
+        return obj;
+    }
 
     //! \brief Creates a non-db version of an Image.
     //! \exception Leviathan::InvalidArgument if something is wrong with the file

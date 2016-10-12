@@ -6,6 +6,8 @@
 #include "core/Settings.h"
 #include "core/VirtualPath.h"
 
+#include "core/TimeHelpers.h"
+
 #include <thread>
 #include <memory>
 
@@ -163,5 +165,20 @@ TEST_CASE("VirtualPath operations", "[path]"){
 
             CHECK(--path.begin() == path.end());
         }
+    }
+}
+
+TEST_CASE("Datetime parsing", "[db][time]"){
+
+    REQUIRE_NOTHROW(TimeHelpers::parse8601("2016-09-18T20:07:49.7532581+03:00"));
+
+    SECTION("Checking parse correctness"){
+
+        auto time = TimeHelpers::parse8601("2016-09-18T20:07:49.7532581+03:00");
+
+        std::stringstream stream;
+        stream << time;
+
+        CHECK(stream.str() == "2016");
     }
 }

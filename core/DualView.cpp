@@ -509,7 +509,7 @@ void DualView::_RunHashCalculateThread(){
 
             // Replace with an existing image if the hash exists //
             try{
-                auto existing = _Database->SelectImageByHash(img->GetHash());
+                auto existing = _Database->SelectImageByHashAG(img->GetHash());
 
                 if(existing){
 
