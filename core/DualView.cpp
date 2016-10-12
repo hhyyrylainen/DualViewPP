@@ -650,10 +650,10 @@ bool DualView::MoveFileToCollectionFolder(std::shared_ptr<Image> img,
     else
     {
         targetfolder = (boost::filesystem::path(
-                GetPathToCollection(collection->GetIsPrivate())) /
+                GetPathToCollection(collection->GetIsPrivate())) / "collections" /
             collection->GetNameForFolder()).c_str();
         
-        boost::filesystem::create_directory(targetfolder);
+        boost::filesystem::create_directories(targetfolder);
     }
 
     // Skip if already there //
