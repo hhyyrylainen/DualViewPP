@@ -158,6 +158,13 @@ public:
         return sqlite3_column_int(Statement, column);
     }
 
+    auto GetColumnAsBool(int column){
+
+        int value = sqlite3_column_int(Statement, column);
+
+        return value != 0 ? true : false;
+    }
+
     auto GetColumnAsInt64(int column){
 
         return sqlite3_column_int64(Statement, column);
@@ -245,6 +252,9 @@ template<>
 
 template<>
     void PreparedStatement::SetBindWithType(int index, const std::nullptr_t &value);
+
+template<>
+    void PreparedStatement::SetBindWithType(int index, const bool &value);
 
 
 

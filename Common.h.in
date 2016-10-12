@@ -40,6 +40,10 @@ constexpr auto DUALVIEW_MAX_ALLOWED_PATH = 240;
 
 }
 
+//! Helper for creating non-locking version wrappers for methods
+#define CREATE_NON_LOCKING_WRAPPER(x) template<typename... TBindTypes> auto x ## AG (\
+const TBindTypes&... valuestobind) { GUARD_LOCK(); return x (guard, valuestobind...); }
+
 
 
 

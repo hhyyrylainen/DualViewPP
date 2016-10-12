@@ -56,5 +56,11 @@ template<>
     CheckBindSuccess(sqlite3_bind_null(Statement, index), index);
 }
 
+template<>
+    void PreparedStatement::SetBindWithType(int index, const bool &value)
+{
+    CheckBindSuccess(sqlite3_bind_int(Statement, index, value ? 1 : 0), index);
+}
+
 
 }

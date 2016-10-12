@@ -300,7 +300,7 @@ bool DualView::_DoInitThreadAction(){
     DatabaseThread = std::thread(&DualView::_RunDatabaseThread, this);
 
 
-    UncategorizedCollection = _Database->SelectCollectionByName("Uncategorized");
+    UncategorizedCollection = _Database->SelectCollectionByNameAG("Uncategorized");
 
     // Succeeded //
     return false;
@@ -882,7 +882,7 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
 std::shared_ptr<Collection> DualView::GetOrCreateCollection(const std::string &name,
     bool isprivate)
 {
-    auto existing = _Database->SelectCollectionByName(name);
+    auto existing = _Database->SelectCollectionByNameAG(name);
 
     if(existing)
         return existing;

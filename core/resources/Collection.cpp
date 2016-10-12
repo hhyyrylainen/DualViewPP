@@ -3,6 +3,9 @@
 
 #include "Common.h"
 
+#include "core/Database.h"
+#include "core/PreparedStatement.h"
+
 #include "Database.h"
 #include "DualView.h"
 #include "Database.h"
@@ -17,6 +20,20 @@ Collection::Collection(const std::string &name) :
     DatabaseResource(true), Name(name)
 {
 
+}
+
+Collection::Collection(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id) :
+    DatabaseResource(id, db)
+{
+    // Load properties //
+    CheckRowID(statement, 1, "name");
+    CheckRowID(statement, 2, "add_date");
+    CheckRowID(statement, 3, "modify_date");
+    CheckRowID(statement, 4, "last_view");
+    CheckRowID(statement, 5, "is_private");
+    CheckRowID(statement, 6, "preview_image");
+
+    Name = statement.GetColumnAsString(1);
 }
 
 

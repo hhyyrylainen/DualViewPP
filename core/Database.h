@@ -5,6 +5,8 @@
 
 #include "SingleLoad.h"
 
+#include "Common.h"
+
 #include <string>
 #include <vector>
 
@@ -111,8 +113,13 @@ public:
     //! \returns True if succeeded
     bool DeleteCollection(Collection &collection);
 
-    //! \brief Retrieves an Image based on the name
-    std::shared_ptr<Collection> SelectCollectionByName(const std::string &name);
+    //! \brief Retrieves a Collection based on the name
+    std::shared_ptr<Collection> SelectCollectionByName(Lock &guard, const std::string &name);
+
+    CREATE_NON_LOCKING_WRAPPER(SelectCollectionByName);
+    
+    //! \brief Retrieves a Collection based on the id
+    std::shared_ptr<Collection> SelectCollectionByID(DBID id);
 
     //! \brief Returns the largest value used for an image in the collection
     //! If the collection is empty returns 0
@@ -149,7 +156,8 @@ private:
     //
     
     //! \brief Loads a Collection object from the current row
-    std::shared_ptr<Collection> _LoadCollectionFromRow(PreparedStatement &statement);
+    std::shared_ptr<Collection> _LoadCollectionFromRow(Lock &guard,
+        PreparedStatement &statement);
 
     //
     // Utility stuff

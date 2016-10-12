@@ -231,10 +231,24 @@ std::shared_ptr<Collection> Database::InsertCollection(const std::string &name,
 {
     GUARD_LOCK();
 
-    
-    
-    return nullptr;
+    const char str[] = "INSERT INTO collections (name, is_private) VALUES (?1, ?2);";
 
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(name, isprivate);
+
+    try{
+
+        statementobj.StepAll(statementinuse);
+
+    } catch(const InvalidSQL &e){
+
+        LOG_WARNING("Failed to InsertCollection: ");
+        e.PrintToLog();
+        return nullptr;
+    }
+    
+    return SelectCollectionByName(guard, name);
 }
 
 bool Database::UpdateCollection(const Collection &collection){
@@ -247,11 +261,29 @@ bool Database::DeleteCollection(Collection &collection){
     return false;
 }
 
-std::shared_ptr<Collection> Database::SelectCollectionByName(const std::string &name){
+std::shared_ptr<Collection> Database::SelectCollectionByID(DBID id){
 
     GUARD_LOCK();
 
-    const char str[] = "SELECT * FROM collection WHERE name = ?1;";
+    const char str[] = "SELECT * FROM collections WHERE id = ?1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(id);
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        // Found a value //
+        return _LoadCollectionFromRow(guard, statementobj);
+    }
+    
+    return nullptr;
+}
+
+std::shared_ptr<Collection> Database::SelectCollectionByName(Lock &guard,
+    const std::string &name)
+{
+     const char str[] = "SELECT * FROM collections WHERE name = ?1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -260,7 +292,7 @@ std::shared_ptr<Collection> Database::SelectCollectionByName(const std::string &
     if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
 
         // Found a value //
-        return _LoadCollectionFromRow(statementobj);
+        return _LoadCollectionFromRow(guard, statementobj);
     }
     
     return nullptr;
@@ -348,8 +380,9 @@ size_t Database::CountExistingTags(){
 }
 // ------------------------------------ //
 // Row parsing functions
-std::shared_ptr<Collection> Database::_LoadCollectionFromRow(PreparedStatement &statement){
-
+std::shared_ptr<Collection> Database::_LoadCollectionFromRow(Lock &guard,
+    PreparedStatement &statement)
+{
     CheckRowID(statement, 0, "id");
 
     const auto id = statement.GetColumnAsInt64(0);
@@ -358,9 +391,7 @@ std::shared_ptr<Collection> Database::_LoadCollectionFromRow(PreparedStatement &
     if(loaded)
         return loaded;
 
-    CheckRowID(statement, 1, "name");
-    loaded = std::make_shared<Collection>(statement.GetColumnAsString(1));
-    
+    loaded = std::make_shared<Collection>(*this, guard, statement, id);
 
     LoadedCollections.OnLoad(loaded);
     return loaded;

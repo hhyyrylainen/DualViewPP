@@ -14,6 +14,9 @@ namespace DV{
 class Image;
 class DatabaseTagCollection;
 
+class Database;
+class PreparedStatement;
+
 class Collection : public DatabaseResource{
 public:
     //! \brief Creates a collection for database testing
@@ -22,7 +25,8 @@ public:
 
 public:
 
-
+    //! \brief Database load function
+    Collection(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id);
 
     //! \brief Return Name with illegal characters replaced with spaces
     std::string GetNameForFolder() const;

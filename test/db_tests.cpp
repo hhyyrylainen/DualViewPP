@@ -135,7 +135,17 @@ TEST_CASE("Directly using database for collection and image inserts", "[db][expe
         CHECK(collection->GetName() == "test collection");
 
         // Same object returned
-        CHECK(collection.get() == db.SelectCollectionByName("test collection").get());
+        CHECK(collection.get() == db.SelectCollectionByNameAG("test collection").get());
+
+        // A new collection
+        auto collection2 = db.InsertCollection("cool stuff", false);
+        REQUIRE(collection2);
+        CHECK(collection2->GetName() == "cool stuff");
+
+        // Same object returned
+        CHECK(collection2.get() == db.SelectCollectionByNameAG("cool stuff").get());
+
+        CHECK(collection.get() != collection2.get());
     }
 }
 
