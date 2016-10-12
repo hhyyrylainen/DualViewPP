@@ -51,6 +51,9 @@ public:
     //! \brief Creates a statement
     PreparedStatement(sqlite3* sqlite, const char* str, size_t length);
 
+    //! \brief Creates a statement
+    PreparedStatement(sqlite3* sqlite, const std::string &str);
+
     ~PreparedStatement(){
 
         sqlite3_finalize(Statement);

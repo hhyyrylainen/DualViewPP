@@ -29,7 +29,11 @@ PreparedStatement::PreparedStatement(sqlite3* sqlite, const char* str, size_t le
     }
 }
 
-
+PreparedStatement::PreparedStatement(sqlite3* sqlite, const std::string &str) :
+    PreparedStatement(sqlite, str.c_str(), str.size())
+{
+    
+}
 
 template<>
     void PreparedStatement::SetBindWithType(int index, const int &value)
