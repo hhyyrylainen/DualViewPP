@@ -170,15 +170,16 @@ TEST_CASE("VirtualPath operations", "[path]"){
 
 TEST_CASE("Datetime parsing", "[db][time]"){
 
-    REQUIRE_NOTHROW(TimeHelpers::parse8601("2016-09-18T20:07:49.7532581+03:00"));
+    DummyDualView dv;
+    //const std::string original = "2016-09-18T20:07:49.7532581+03:00";
+    const std::string original = "2016-09-18T20:07:49.753+03:00";
 
-    SECTION("Checking parse correctness"){
+    REQUIRE_NOTHROW(TimeHelpers::parse8601(original));
 
-        auto time = TimeHelpers::parse8601("2016-09-18T20:07:49.7532581+03:00");
+    SECTION("Formatting yields original string"){
 
-        std::stringstream stream;
-        stream << time;
+        auto time = TimeHelpers::parse8601(original);
 
-        CHECK(stream.str() == "2016");
+        CHECK(TimeHelpers::format8601(time) == original);
     }
 }

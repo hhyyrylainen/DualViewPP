@@ -33,7 +33,7 @@ public:
 
         } catch(...){
 
-            LOG_ERROR("Failed to initialize / download timezone database");
+            LOG_FATAL("Failed to initialize / download timezone database");
             throw;
         }
         
@@ -60,6 +60,12 @@ public:
 
         return date::make_zoned(date::current_zone(), tp);
         //return date::make_zoned(tp);
+    }
+
+    template<class TZonedTime>
+        static auto format8601(const TZonedTime &time)
+    {
+        return date::format("%FT%T%Ez", time);
     }
     
 private:
