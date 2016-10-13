@@ -3,9 +3,10 @@
 #include "ResourceWithPreview.h"
 #include "DatabaseResource.h"
 
+#include "core/TimeHelpers.h"
+
 #include <string>
 #include <memory>
-#include <chrono>
 #include <atomic>
 
 namespace DV{
@@ -112,6 +113,36 @@ public:
         return Extension;
     }
 
+    inline auto GetWidth() const{
+
+        return Width;
+    }
+
+    inline auto GetHeight() const{
+
+        return Height;
+    }
+
+    inline auto GetIsPrivate() const{
+
+        return IsPrivate;
+    }
+
+    inline auto GetFromFile() const{
+
+        return ImportLocation;
+    }
+
+    std::string GetAddDateStr() const{
+
+        return TimeHelpers::format8601(AddDate);
+    }
+
+    std::string GetLastViewStr() const{
+
+        return TimeHelpers::format8601(LastView);
+    }
+
     //! \brief Updates the resources location. Must be called after the file at ResourcePath
     //! is moved
     void SetResourcePath(const std::string &newpath);
@@ -171,9 +202,10 @@ private:
     std::string Extension;
 
     bool IsPrivate = false;
-    std::chrono::system_clock::time_point AddDate = std::chrono::system_clock::now();
+    
+    date::zoned_time<std::chrono::milliseconds> AddDate;
 
-    std::chrono::system_clock::time_point LastView = std::chrono::system_clock::now();
+    date::zoned_time<std::chrono::milliseconds> LastView;
 
     std::string ImportLocation;
 

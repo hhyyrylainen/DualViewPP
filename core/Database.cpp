@@ -187,7 +187,25 @@ bool Database::SelectDatabaseVersion(Lock &guard, int &result){
 // Image
 void Database::InsertImage(Image &image){
 
+    LEVIATHAN_ASSERT(image.IsReady(), "InsertImage: image not ready");
 
+    GUARD_LOCK();
+    
+    const char str[] = "INSERT INTO pictures (relative_path, width, height, name, extension, "
+        "add_date, last_view, is_private, from_file, file_hash) VALUES "
+        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(image.GetResourcePath(), image.GetWidth(),
+        image.GetHeight(), image.GetName(), image.GetExtension(), image.GetAddDateStr(),
+        image.GetLastViewStr(), image.GetIsPrivate(), image.GetFromFile(), image.GetHash());
+
+    statementobj.StepAll(statementinuse);
+
+    const DBID id = SelectImageIDByHash(guard, image.GetHash());
+    
+    image.OnAdopted(id, *this);
 }
 
 bool Database::UpdateImage(const Image &image){
@@ -200,9 +218,27 @@ bool Database::DeleteImage(Image &image){
     return false;
 }
 
-std::shared_ptr<Image> Database::SelectImageByHash(Lock &guard, const std::string &hash){
+DBID Database::SelectImageIDByHash(Lock &guard, const std::string &hash){
 
     const char str[] = "SELECT id FROM pictures WHERE file_hash = ?1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(hash);
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+        if(statementobj.GetObjectIDFromColumn(id, 0))
+            return id;
+    }
+    
+    return -1;
+}
+
+std::shared_ptr<Image> Database::SelectImageByHash(Lock &guard, const std::string &hash){
+
+    const char str[] = "SELECT * FROM pictures WHERE file_hash = ?1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 

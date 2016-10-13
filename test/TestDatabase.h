@@ -3,6 +3,8 @@
 #include "core/Database.h"
 #include "core/PreparedStatement.h"
 
+#include "core/TimeHelpers.h"
+
 #include <boost/filesystem.hpp>
 
 namespace DV{
@@ -21,14 +23,21 @@ public:
         GUARD_LOCK();
 
         const char str[] = "INSERT INTO pictures (relative_path, name, extension, file_hash, "
-            "width, height) VALUES (?, ?, ?, ?, ?, ?);";
+            "width, height, add_date, last_view) VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
 
         PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
         auto statementinuse = statementobj.Setup(file,
             boost::filesystem::path(file).filename().string(),
             boost::filesystem::path(file).extension().string(),
-            hash, 50, 50);
+            hash, 50, 50,
+            TimeHelpers::format8601(date::make_zoned(date::current_zone(),
+                    std::chrono::time_point_cast<std::chrono::milliseconds>(
+                        std::chrono::system_clock::now()))),
+            TimeHelpers::format8601(date::make_zoned(date::current_zone(),
+                    std::chrono::time_point_cast<std::chrono::milliseconds>(
+                        std::chrono::system_clock::now())))
+        );
 
         try{
 
@@ -36,9 +45,7 @@ public:
 
         } catch(const InvalidSQL &e){
 
-            LOG_WARNING("Failed to Test insert image: ");
-            e.PrintToLog();
-            return nullptr;
+            throw;
         }
     
         return SelectImageByHash(guard, hash);

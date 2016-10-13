@@ -13,17 +13,26 @@ DatabaseResource::DatabaseResource(bool notloadedfromdb){
 }
 
 //! \brief Database calls this constructor (indirectly) when loading
-DatabaseResource::DatabaseResource(int64_t id, Database &from) : ID(id), InDatabase(true)
+DatabaseResource::DatabaseResource(int64_t id, Database &from) : ID(id), InDatabase(&from)
 {
     LEVIATHAN_ASSERT(id != -1, "Loaded resource has ID of -1");
 }
-    
+
 DatabaseResource::~DatabaseResource(){
 
     // Stop listeners from receiving updates
     ReleaseChildHooks();
     
     Save();
+}
+// ------------------------------------ //
+void DatabaseResource::OnAdopted(int64_t id, Database &from){
+
+    LEVIATHAN_ASSERT(id != -1, "Adopted resource has ID of -1");
+
+    ID = id;
+    InDatabase = &from;
+    IsDirty = false;
 }
 // ------------------------------------ //
 void DatabaseResource::Save(){

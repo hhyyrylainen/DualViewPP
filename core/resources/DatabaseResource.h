@@ -53,6 +53,9 @@ public:
 
 protected:
 
+    //! When database has added this as a resource, this is called
+    void OnAdopted(int64_t id, Database &from);
+
     virtual void _DoSave(Database &db) = 0;
     
 protected:
@@ -60,9 +63,8 @@ protected:
     int64_t ID = -1;
     bool IsDirty = false;
 
-    //! True if loaded from the database. This could also be a pointer that would either be
-    //! null or a pointer to the Database instance
-    bool InDatabase = false;
+    //! Points to the database this was loaded from, or null
+    Database* InDatabase = nullptr;
 };
 
 

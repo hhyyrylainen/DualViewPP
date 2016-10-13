@@ -15,8 +15,8 @@ CREATE TABLE pictures (
     -- Friendly name, shown in image browser
     name TEXT, 
     extension TEXT, 
-    add_date TEXT DEFAULT ( datetime('now', 'localtime') ), 
-    last_view TEXT DEFAULT ( datetime('now', 'localtime') ),
+    add_date TEXT, 
+    last_view TEXT,
     -- If 1 only visible in private mode
     is_private INTEGER DEFAULT 0,
     
@@ -198,9 +198,9 @@ CREATE TABLE collections (
     -- Name showed in collection browser. Has to be unique
     name TEXT UNIQUE CHECK (name NOT LIKE "%/%"),
     
-    add_date TEXT DEFAULT ( datetime('now', 'localtime') ), 
-    modify_date TEXT DEFAULT ( datetime('now', 'localtime') ), 
-    last_view TEXT DEFAULT ( datetime('now', 'localtime') ),
+    add_date TEXT, 
+    modify_date TEXT, 
+    last_view TEXT,
     -- If 1 only visible in private mode
     is_private INTEGER DEFAULT 0,
     

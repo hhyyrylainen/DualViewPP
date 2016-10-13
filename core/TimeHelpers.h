@@ -44,6 +44,8 @@ public:
     static auto parse8601(const std::string &str)
     {
         TimeZoneDatabaseSetup();
+
+        LOG_INFO("Parsing time: " + str);
         
         std::istringstream in(str);
 
@@ -60,6 +62,27 @@ public:
 
         return date::make_zoned(date::current_zone(), tp);
         //return date::make_zoned(tp);
+    }
+
+    //! \todo Check does this need to call TimeZoneDatabaseSetup
+    static auto parse8601UTC(const std::string &str)
+    {
+        //TimeZoneDatabaseSetup();
+        
+        std::istringstream in(str);
+
+        date::sys_time<std::chrono::milliseconds> tp;
+        date::parse(in, "%FT%TZ", tp);
+    
+        if (in.fail())
+        {
+            in.clear();
+            in.exceptions(std::ios::failbit);
+            in.str(str);
+            date::parse(in, "%FT%T%Ez", tp);
+        }
+
+        return tp;
     }
 
     template<class TZonedTime>

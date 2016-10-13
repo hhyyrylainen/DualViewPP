@@ -95,6 +95,10 @@ public:
     //! \brief Retrieves an Image based on the hash
     std::shared_ptr<Image> SelectImageByHash(Lock &guard, const std::string &hash);
     CREATE_NON_LOCKING_WRAPPER(SelectImageByHash);
+
+    //! \brief Retrieves an Image's id based on the hash
+    DBID SelectImageIDByHash(Lock &guard, const std::string &hash);
+    CREATE_NON_LOCKING_WRAPPER(SelectImageIDByHash);
     
     //
     // Collection functions

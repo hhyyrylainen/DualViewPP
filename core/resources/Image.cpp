@@ -25,7 +25,16 @@ using namespace DV;
 // ------------------------------------ //
 
 Image::Image(const std::string &file) :
-    DatabaseResource(true), ResourcePath(file), ImportLocation(file)
+    DatabaseResource(true), ResourcePath(file),
+
+    AddDate(date::make_zoned(date::current_zone(),
+            std::chrono::time_point_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now()))),
+    LastView(date::make_zoned(date::current_zone(),
+            std::chrono::time_point_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now()))),
+    ImportLocation(file)
+    
 {
     if(!boost::filesystem::exists(file)){
 
@@ -36,11 +45,12 @@ Image::Image(const std::string &file) :
     Extension = boost::filesystem::path(ResourcePath).extension().string();
 
     Tags = std::make_shared<TagCollection>();
-
 }
 
 Image::Image(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id) :
-    DatabaseResource(id, db)
+    DatabaseResource(id, db),
+    AddDate(TimeHelpers::parse8601(statement.GetColumnAsString(6))), 
+    LastView(TimeHelpers::parse8601(statement.GetColumnAsString(7)))
 {
     IsReadyToAdd = true;
     IsHashValid = true;
@@ -52,30 +62,27 @@ Image::Image(Database &db, Lock &dblock, PreparedStatement &statement, int64_t i
     CheckRowID(statement, 4, "name");
     CheckRowID(statement, 5, "extension");
     CheckRowID(statement, 6, "add_date");
-    CheckRowID(statement, 6, "last_view");
-    CheckRowID(statement, 6, "is_private");
-    CheckRowID(statement, 6, "from_file");
-    CheckRowID(statement, 6, "file_hash");
+    CheckRowID(statement, 7, "last_view");
+    CheckRowID(statement, 8, "is_private");
+    CheckRowID(statement, 9, "from_file");
+    CheckRowID(statement, 10, "file_hash");
 
-    std::string ResourcePath;
-    std::string ResourceName;
+    ResourcePath = statement.GetColumnAsString(1);
+    ResourceName = statement.GetColumnAsString(4);;
 
-    std::string Extension;
+    Extension = statement.GetColumnAsString(5);
 
-    bool IsPrivate = false;
-    std::chrono::system_clock::time_point AddDate = std::chrono::system_clock::now();
+    IsPrivate = statement.GetColumnAsBool(8);
+    
 
-    std::chrono::system_clock::time_point LastView = std::chrono::system_clock::now();
-
-    std::string ImportLocation;
+    ImportLocation = statement.GetColumnAsString(9);
 
     //! True if Hash has been set to a valid value
-    bool IsHashValid = false;
-    std::string Hash;
+    Hash = statement.GetColumnAsString(10);
 
 
-    int Height = 0;
-    int Width = 0;
+    Height = statement.GetColumnAsInt(3);
+    Width = statement.GetColumnAsInt(2);
 }
 
 void Image::Init(){

@@ -108,10 +108,10 @@ bool Collection::AddImage(std::shared_ptr<Image> image){
 
 bool Collection::AddImage(std::shared_ptr<Image> image, int64_t order){
 
-    if(!image)
+    if(!image || !IsInDatabase())
         return false;
     
-    return DualView::Get().GetDatabase().InsertImageToCollection(*this, *image, order);
+    return InDatabase->InsertImageToCollection(*this, *image, order);
 }
 
 bool Collection::RemoveImage(std::shared_ptr<Image> image){
@@ -119,7 +119,7 @@ bool Collection::RemoveImage(std::shared_ptr<Image> image){
     if(!image)
         return false;
     
-    return DualView::Get().GetDatabase().DeleteImageFromCollection(*this, *image);
+    return InDatabase->DeleteImageFromCollection(*this, *image);
 }
 
 // ------------------------------------ //
