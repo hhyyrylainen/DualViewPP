@@ -101,6 +101,10 @@ DualView::~DualView(){
 
     _WaitForWorkerThreads();
 
+    // Let go of last database resources //
+    UncategorizedCollection.reset();
+    RootFolder.reset();
+    
     // Close database //
     _Database.reset();
 
@@ -309,6 +313,7 @@ bool DualView::_DoInitThreadAction(){
 
 
     UncategorizedCollection = _Database->SelectCollectionByNameAG("Uncategorized");
+    RootFolder = _Database->SelectRootFolderAG();
 
     // Succeeded //
     return false;

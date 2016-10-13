@@ -20,6 +20,7 @@ namespace DV{
 class Image;
 class TagCollection;
 class Collection;
+class Folder;
 
 class PluginManager;
 class CacheManager;
@@ -224,6 +225,7 @@ private:
 
 
     std::shared_ptr<Collection> UncategorizedCollection;
+    std::shared_ptr<Folder> RootFolder;
 
     //! \brief If true everything that is created should be marked private. When not in
     //! private mode things that were marked private shouldn't be visible
