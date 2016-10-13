@@ -104,7 +104,9 @@ public:
     //
     // Database object retrieve functions
     //
-    
+    std::shared_ptr<Folder> GetRootFolder();
+
+    std::shared_ptr<Collection> GetUncategorized();
 
     
     //! \brief Returns the thumbnail folder
@@ -223,8 +225,15 @@ private:
     Gtk::Window* MainMenu = nullptr;
     Gtk::Window* WelcomeWindow = nullptr;
 
-
+    //! The default collection for images
+    //! \note Do not access directly, use the Get method for this. This may not be initialized
+    //! if the Get method hasn't been called
     std::shared_ptr<Collection> UncategorizedCollection;
+    
+    //! The root folder. All collections must be in a folder that is a descendant of the root
+    //! folder. Otherwise the collection is invisible
+    //! \note Do not access directly, use the Get method for this. This may not be initialized
+    //! if the Get method hasn't been called
     std::shared_ptr<Folder> RootFolder;
 
     //! \brief If true everything that is created should be marked private. When not in
@@ -235,6 +244,9 @@ private:
     //! Makes sure initialization is ran only once
     bool IsInitialized = false;
     std::thread LoadThread;
+    //! Thread that loads the time zone database, this doesn't need to finish, because it locks
+    //! a mutex that will block all time parsing while this is still loading
+    std::thread DateInitThread;
     Glib::Dispatcher StartDispatcher;
 
     std::atomic<bool> LoadError = { false };

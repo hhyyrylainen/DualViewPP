@@ -311,10 +311,6 @@ bool DualView::_DoInitThreadAction(){
 
     DatabaseThread = std::thread(&DualView::_RunDatabaseThread, this);
 
-
-    UncategorizedCollection = _Database->SelectCollectionByNameAG("Uncategorized");
-    RootFolder = _Database->SelectRootFolderAG();
-
     // Succeeded //
     return false;
 }
@@ -323,6 +319,12 @@ void DualView::_RunInitThread(){
 
     LOG_INFO("Running Init thread");
     LoadError = false;
+
+    DateInitThread = std::thread([]() -> void {
+
+            // Load timezone database
+            TimeHelpers::TimeZoneDatabaseSetup();
+        });
 
     bool result = _DoInitThreadAction();
     
@@ -595,6 +597,9 @@ void DualView::_WaitForWorkerThreads(){
 
     if(DatabaseThread.joinable())
         DatabaseThread.join();
+
+    if(DateInitThread.joinable())
+        DateInitThread.join();
 }
 // ------------------------------------ //
 std::string DualView::GetPathToCollection(bool isprivate) const{
@@ -800,10 +805,12 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
 
     bool canapplytags = true;
 
+    auto uncategorized = GetUncategorized();
+
     // No collection specified, get Uncategorized //
     if (collectionname.empty())
     {
-        addtocollection = UncategorizedCollection;
+        addtocollection = uncategorized;
         canapplytags = false;
 
     } else
@@ -871,9 +878,9 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
             actualresource = resource;
 
             // Remove from uncategorized if not adding to that //
-            if(addtocollection != UncategorizedCollection)
+            if(addtocollection != uncategorized)
             {
-                UncategorizedCollection->RemoveImage(actualresource);
+                uncategorized->RemoveImage(actualresource);
             }
         }
 
@@ -930,7 +937,23 @@ std::shared_ptr<Collection> DualView::GetOrCreateCollection(const std::string &n
 
 // ------------------------------------ //
 // Database load functions
+std::shared_ptr<Folder> DualView::GetRootFolder(){
 
+    if(RootFolder)
+        return RootFolder;
+
+    RootFolder = _Database->SelectRootFolderAG();
+    return RootFolder;
+}
+
+std::shared_ptr<Collection> DualView::GetUncategorized(){
+
+    if(UncategorizedCollection)
+        return UncategorizedCollection;
+
+    UncategorizedCollection = _Database->SelectCollectionByNameAG("Uncategorized");
+    return UncategorizedCollection;
+}
 
 // ------------------------------------ //
 // Gtk callbacks
