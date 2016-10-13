@@ -6,6 +6,11 @@
 using namespace DV;
 // ------------------------------------ //
 
+void BaseWindow::Close(){
+
+    _OnClose();
+    _ReportClosed();
+}
 
 void BaseWindow::_ReportClosed(){
 

@@ -11,12 +11,15 @@ public:
 
     virtual ~BaseWindow() = default;
 
-    virtual void Close() = 0;
+    void Close();
 
 protected:
 
     //! \brief Reports to DualView that this window has been closed and should be deleted
     virtual void _ReportClosed();
+
+    //! \brief Do what Close does
+    virtual void _OnClose() = 0;
 
 protected:
 

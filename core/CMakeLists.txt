@@ -43,6 +43,7 @@ add_library(Core
   windows/BaseWindow.h windows/BaseWindow.cpp
   windows/SingleView.h windows/SingleView.cpp
   windows/CollectionView.h windows/CollectionView.cpp
+  windows/Importer.h windows/Importer.cpp
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp
@@ -56,6 +57,7 @@ add_library(Core
   
   resources/Image.h resources/Image.cpp
   resources/Collection.h resources/Collection.cpp
+  resources/Folder.h resources/Folder.cpp
   resources/Tags.h resources/Tags.cpp
 
   # Generated headers

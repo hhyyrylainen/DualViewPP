@@ -92,7 +92,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton">
+              <object class="GtkButton" id="OpenImporter">
                 <property name="label" translatable="yes">Open Importer</property>
                 <property name="height_request">50</property>
                 <property name="visible">True</property>

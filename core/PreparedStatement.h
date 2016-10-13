@@ -265,8 +265,12 @@ inline void CheckRowID(PreparedStatement &statement, int index, const char* name
 
     auto* columnName = statement.GetColumnNameDirect(index);
     LEVIATHAN_ASSERT(columnName, "Column name retrieval for verification failed");
-    LEVIATHAN_ASSERT(strcmp(name, columnName) == 0,
-        "SQL returned row columns are unexpected");
+
+    if(strcmp(name, columnName) == 0)
+        return;
+    
+    LEVIATHAN_ASSERT(false, "SQL returned row columns are unexpected, at " +
+        Convert::ToString(index) + ": " + std::string(columnName) + " != " +std::string(name));
 }
 
 

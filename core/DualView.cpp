@@ -5,6 +5,7 @@
 
 #include "windows/SingleView.h"
 #include "windows/CollectionView.h"
+#include "windows/Importer.h"
 
 #include "core/CacheManager.h"
 #include "core/Database.h"
@@ -226,6 +227,13 @@ void DualView::_OnInstanceLoaded(){
     OpenCollection->signal_clicked().connect(
         sigc::mem_fun(*this, &DualView::OpenCollection_OnClick));
 
+    Gtk::Button* OpenImporter = nullptr;
+    MainBuilder->get_widget("OpenImporter", OpenImporter);
+    LEVIATHAN_ASSERT(OpenImporter, "Invalid .glade file");
+
+    OpenImporter->signal_clicked().connect(
+        sigc::mem_fun(*this, &DualView::OpenImporter));
+    
 
     //_CollectionView
     CollectionView* tmpCollection = nullptr;
@@ -720,6 +728,27 @@ bool DualView::OpenImageViewer(const std::string &file){
     _AddOpenWindow(window);
     return true;
 }
+
+void DualView::OpenImporter(){
+
+    auto builder = Gtk::Builder::create_from_file(
+        "../gui/importer.glade");
+
+    Importer* window;
+    builder->get_widget_derived("ImageView", window);
+
+    if(!window){
+
+        LOG_ERROR("Importer window GUI layout is invalid");
+        return;
+    }
+
+    LOG_INFO("Opened Importer window");
+
+    std::shared_ptr<Importer> wrapped(window);
+    _AddOpenWindow(wrapped);
+    wrapped->show();
+}
 // ------------------------------------ //
 void DualView::RegisterWindow(Gtk::Window &window){
 
@@ -820,6 +849,8 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
             }
             catch (const InvalidSQL &e)
             {
+                // We have already moved the image so this is a problem
+                LOG_INFO("TODO: move file back after adding fails");
                 LOG_ERROR("Sql error adding image to collection: ");
                 e.PrintToLog();
                 return false;
@@ -887,7 +918,7 @@ std::shared_ptr<Collection> DualView::GetOrCreateCollection(const std::string &n
     if(existing)
         return existing;
 
-    return _Database->InsertCollection(name, isprivate);
+    return _Database->InsertCollectionAG(name, isprivate);
 }
 
 

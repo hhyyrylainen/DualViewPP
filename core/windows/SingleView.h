@@ -17,12 +17,11 @@ public:
     SingleView(const std::string &file);
     ~SingleView();
     
-    //! \brief Closes this window if not already closed
-    void Close() override;
-    
 private:
 
     bool _OnClosed(GdkEventAny* event);
+
+    void _OnClose() override;
     
 private:
 

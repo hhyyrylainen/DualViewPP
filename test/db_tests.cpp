@@ -121,7 +121,7 @@ TEST_CASE("Normal database setup works", "[db][expensive]"){
     CHECK(db.CountExistingTags() > 0);
 }
 
-TEST_CASE("Directly using database for collection and image inserts", "[db][expensive]"){
+TEST_CASE("Directly using database for collection and image inserts", "[db]"){
 
     DummyDualView dv;
     TestDatabase db;
@@ -130,7 +130,7 @@ TEST_CASE("Directly using database for collection and image inserts", "[db][expe
 
     SECTION("Collection creation"){
 
-        auto collection = db.InsertCollection("test collection", false);
+        auto collection = db.InsertCollectionAG("test collection", false);
         REQUIRE(collection);
         CHECK(collection->GetName() == "test collection");
 
@@ -138,7 +138,7 @@ TEST_CASE("Directly using database for collection and image inserts", "[db][expe
         CHECK(collection.get() == db.SelectCollectionByNameAG("test collection").get());
 
         // A new collection
-        auto collection2 = db.InsertCollection("cool stuff", false);
+        auto collection2 = db.InsertCollectionAG("cool stuff", false);
         REQUIRE(collection2);
         CHECK(collection2->GetName() == "cool stuff");
 
@@ -162,7 +162,7 @@ TEST_CASE("Directly using database for collection and image inserts", "[db][expe
 
     SECTION("Adding image to collection"){
 
-        auto collection = db.InsertCollection("collection for image", false);
+        auto collection = db.InsertCollectionAG("collection for image", false);
         REQUIRE(collection);
 
         auto image = db.InsertTestImage("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg",
@@ -188,6 +188,44 @@ TEST_CASE("Directly using database for collection and image inserts", "[db][expe
         CHECK(collection->GetLastShowOrder() == 2);
         CHECK(collection->GetImageShowOrder(image) == 1);
         CHECK(collection->GetImageShowOrder(image2) == 2);
+    }
+
+    SECTION("Trying to add multiples"){
+
+        auto collection = db.InsertCollectionAG("collection for image", false);
+        REQUIRE(collection);
+
+        auto image = db.InsertTestImage("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg",
+            "II+O7pSQgH8BG_gWrc+bAetVgxJNrJNX4zhA4oWV+V0=");
+        auto image2 = image;
+
+        REQUIRE(image);
+
+        CHECK(collection->AddImage(image));
+
+        CHECK(collection->GetImageCount() == 1);
+
+        CHECK(!collection->AddImage(image2));
+        CHECK(collection->GetImageCount() == 1);
+
+        auto image3 = db.InsertTestImage("img2.jpg",
+            "II++bAetVgxJNrJNX4zhA4oWV+V0=");
+
+        REQUIRE(image3);
+
+        CHECK(collection->AddImage(image3, 5));
+        CHECK(collection->GetImageCount() == 2);
+
+        auto image4 = db.InsertTestImage("randomstuff.jpg",
+            "randomstuff");
+
+        REQUIRE(image4);
+
+        CHECK(collection->GetLastShowOrder() == 5);
+        CHECK(collection->GetImageShowOrder(image) == 1);
+        CHECK(collection->GetImageShowOrder(image2) == 1);
+        CHECK(collection->GetImageShowOrder(image3) == 5);
+        CHECK(collection->GetImageShowOrder(image4) == -1);
     }
 }
 

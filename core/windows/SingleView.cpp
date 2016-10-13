@@ -47,11 +47,9 @@ SingleView::SingleView(const std::string &file){
 SingleView::~SingleView(){
 
     Close();
-
-
 }
 // ------------------------------------ //
-void SingleView::Close(){
+void SingleView::_OnClose(){
 
     // Do nothing if already closed //
     if(!OurWindow)

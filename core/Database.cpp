@@ -8,6 +8,7 @@
 #include "core/resources/Image.h"
 #include "core/resources/Collection.h"
 #include "core/resources/Tags.h"
+#include "core/resources/Folder.h"
 
 #include "core/TimeHelpers.h"
 
@@ -166,6 +167,8 @@ void Database::PurgeInactiveCache(){
     GUARD_LOCK();
 
     LoadedCollections.Purge();
+    LoadedImages.Purge();
+    LoadedCollections.Purge();
 }
 // ------------------------------------ //
 bool Database::SelectDatabaseVersion(Lock &guard, int &result){
@@ -256,11 +259,9 @@ std::shared_ptr<Image> Database::SelectImageByHash(Lock &guard, const std::strin
 
 // ------------------------------------ //
 // Collection
-std::shared_ptr<Collection> Database::InsertCollection(const std::string &name,
+std::shared_ptr<Collection> Database::InsertCollection(Lock &guard, const std::string &name,
     bool isprivate)
 {
-    GUARD_LOCK();
-
     const char str[] = "INSERT INTO collections (name, is_private, "
         "add_date, modify_date, last_view) VALUES (?, ?, ?, ?, ?);";
 
@@ -281,7 +282,15 @@ std::shared_ptr<Collection> Database::InsertCollection(const std::string &name,
         return nullptr;
     }
     
-    return SelectCollectionByName(guard, name);
+    auto created = SelectCollectionByName(guard, name);
+
+    // Add it to the root folder //
+    if(!InsertCollectionToFolder(guard, *SelectRootFolder(guard), *created)){
+
+        LOG_ERROR("Failed to add a new Collection to the root folder");
+    }
+    
+    return created;
 }
 
 bool Database::UpdateCollection(const Collection &collection){
@@ -455,21 +464,56 @@ size_t Database::CountExistingTags(){
 
     auto statementinuse = statementobj.Setup();
     
-    size_t count = 0;
-    
-    while(statementobj.Step(statementinuse) != PreparedStatement::STEP_RESULT::COMPLETED){
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
 
-        // Handle a row //
-        if(statementobj.GetColumnCount() < 1){
-
-            continue;
-        }
-
-        count = statementobj.GetColumnAsInt64(0);
+        return statementobj.GetColumnAsInt64(0);
     }
     
-    return count;
+    return 0;
 }
+// ------------------------------------ //
+// Folder
+std::shared_ptr<Folder> Database::SelectRootFolder(Lock &guard){
+
+    const char str[] = "SELECT * FROM virtual_folders WHERE id = 1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup();
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return _LoadFolderFromRow(guard, statementobj);
+    }
+
+    LEVIATHAN_ASSERT(false, "Root folder is missing from the database");
+    return nullptr;
+}
+
+bool Database::UpdateFolder(Folder &folder){
+
+    return false;
+}
+
+// ------------------------------------ //
+// Folder collection
+bool Database::InsertCollectionToFolder(Lock &guard, Folder &folder, Collection &collection){
+
+    if(!collection.IsInDatabase() || !folder.IsInDatabase())
+        return false;
+    
+    const char str[] = "INSERT INTO folder_collection (parent, child) VALUES(?, ?);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(folder.GetID(), collection.GetID());
+
+    statementobj.StepAll(statementinuse);
+    
+    const auto changes = sqlite3_changes(SQLiteDb);
+    return changes == 1;    
+}
+
 // ------------------------------------ //
 // Row parsing functions
 std::shared_ptr<Collection> Database::_LoadCollectionFromRow(Lock &guard,
@@ -515,6 +559,29 @@ std::shared_ptr<Image> Database::_LoadImageFromRow(Lock &guard,
     loaded = Image::Create(*this, guard, statement, id);
 
     LoadedImages.OnLoad(loaded);
+    return loaded;
+}
+
+std::shared_ptr<Folder> Database::_LoadFolderFromRow(Lock &guard,
+    PreparedStatement &statement)
+{
+    CheckRowID(statement, 0, "id");
+
+    DBID id;
+    if(!statement.GetObjectIDFromColumn(id, 0)){
+
+        LOG_ERROR("Object id column is invalid");
+        return nullptr;
+    }
+    
+    auto loaded = LoadedFolders.GetIfLoaded(id);
+
+    if(loaded)
+        return loaded;
+
+    loaded = std::make_shared<Folder>(*this, guard, statement, id);
+
+    LoadedFolders.OnLoad(loaded);
     return loaded;
 }
 
@@ -634,6 +701,11 @@ void Database::_InsertDefaultTags(Lock &guard){
     {
         ThrowCurrentSqlError(guard);
     }
+
+    // Default collections //
+    InsertCollection(guard, "Uncategorized", false);
+    InsertCollection(guard, "PrivateRandom", true);
+    InsertCollection(guard, "Backgrounds", false);
 }
 // ------------------------------------ //
 int Database::SqliteExecGrabResult(void* user, int columns, char** columnsastext,

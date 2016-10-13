@@ -44,6 +44,9 @@ public:
     //! \returns True if opened. False if the file isn't supported
     bool OpenImageViewer(const std::string &file);
 
+    //! \brief Opens an empty Importer
+    void OpenImporter();
+
     //! \brief Registers a gtk window with the gtk instance
     void RegisterWindow(Gtk::Window &window);
 

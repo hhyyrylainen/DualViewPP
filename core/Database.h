@@ -20,8 +20,10 @@ namespace DV{
 class PreparedStatement;
 
 class CurlWrapper;
+
 class Image;
 class Collection;
+class Folder;
 
 //! \brief The version number of the database
 constexpr auto DATABASE_CURRENT_VERSION = 14;
@@ -106,7 +108,9 @@ public:
 
     //! \brief Inserts a new collection to the database
     //! \exception InvalidSQL if the collection violates unique constraints (same name)
-    std::shared_ptr<Collection> InsertCollection(const std::string &name, bool isprivate);
+    std::shared_ptr<Collection> InsertCollection(Lock &guard,
+        const std::string &name, bool isprivate);
+    CREATE_NON_LOCKING_WRAPPER(InsertCollection);
 
     //! \brief Updates an images properties in the database
     //! \returns False if the update fails
@@ -158,6 +162,20 @@ public:
     static int SqliteExecGrabResult(void* user, int columns, char** columnsastext,
         char** columnname);
 
+    //
+    // Folder
+    //
+    std::shared_ptr<Folder> SelectRootFolder(Lock &guard);
+    CREATE_NON_LOCKING_WRAPPER(SelectRootFolder);
+
+    bool UpdateFolder(Folder &folder);
+
+    //
+    // Folder collection
+    //
+    bool InsertCollectionToFolder(Lock &guard, Folder &folder, Collection &collection);
+    
+    
 private:
 
     //
@@ -168,8 +186,12 @@ private:
     std::shared_ptr<Collection> _LoadCollectionFromRow(Lock &guard,
         PreparedStatement &statement);
 
-    //! \brief Loads a Image object from the current row
+    //! \brief Loads an Image object from the current row
     std::shared_ptr<Image> _LoadImageFromRow(Lock &guard,
+        PreparedStatement &statement);
+
+    //! \brief Loads a Folder object from the current row
+    std::shared_ptr<Folder> _LoadFolderFromRow(Lock &guard,
         PreparedStatement &statement);
 
     //
@@ -211,6 +233,9 @@ protected:
 
     //! Makes sure each Image is only loaded once
     SingleLoad<Image, int64_t> LoadedImages;
+
+    //! Makes sure each Folder is only loaded once
+    SingleLoad<Folder, int64_t> LoadedFolders;
 };
 
 }

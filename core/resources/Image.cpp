@@ -123,6 +123,8 @@ void Image::SetResourcePath(const std::string &newpath){
 
     ResourcePath = newpath;
     Extension = boost::filesystem::path(ResourcePath).extension().string();
+    
+    OnMarkDirty();
 }
 // ------------------------------------ //
 void Image::_DoSave(Database &db){
