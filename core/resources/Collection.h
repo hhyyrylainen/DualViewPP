@@ -3,10 +3,11 @@
 #include "DatabaseResource.h"
 #include "Tags.h"
 
+#include "core/TimeHelpers.h"
+
 #include "leviathan/Common/Types.h"
 
 #include <string>
-#include <chrono>
 #include <memory>
 
 namespace DV{
@@ -54,6 +55,12 @@ public:
     //! \brief Gets the largest show_order used in the collection
     int64_t GetLastShowOrder();
 
+    //! \brief Returns the image count
+    int64_t GetImageCount();
+
+    //! \brief Returns image's show_order in this collection. Or -1
+    int64_t GetImageShowOrder(std::shared_ptr<Image> image);
+
     inline auto GetIsPrivate() const{
 
         return IsPrivate;
@@ -74,17 +81,11 @@ protected:
 
     std::string Name;
 
-    std::chrono::system_clock::time_point AddDate = std::chrono::system_clock::now();
-    std::chrono::system_clock::time_point ModifyDate = std::chrono::system_clock::now();
-    std::chrono::system_clock::time_point LastView = std::chrono::system_clock::now();
+    date::zoned_time<std::chrono::milliseconds> AddDate;
+    date::zoned_time<std::chrono::milliseconds> ModifyDate;
+    date::zoned_time<std::chrono::milliseconds> LastView;
 
     bool IsPrivate = false;
-
-    //! If set has the highest show_order of any image in the collection
-    int64_t LastOrder;
-    //! If true LastOrder is valid
-    bool LastOrderSet = false;
-
 
     std::shared_ptr<DatabaseTagCollection> Tags;
 };

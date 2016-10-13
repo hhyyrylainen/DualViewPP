@@ -17,13 +17,29 @@ using namespace DV;
 // ------------------------------------ //
 // Non-database testing version
 Collection::Collection(const std::string &name) :
-    DatabaseResource(true), Name(name)
+    DatabaseResource(true), Name(name),
+
+    AddDate(date::make_zoned(date::current_zone(),
+            std::chrono::time_point_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now()))),
+
+    ModifyDate(date::make_zoned(date::current_zone(),
+            std::chrono::time_point_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now()))),
+
+    LastView(date::make_zoned(date::current_zone(),
+            std::chrono::time_point_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now())))
 {
 
 }
 
 Collection::Collection(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id) :
-    DatabaseResource(id, db)
+    DatabaseResource(id, db),
+
+    AddDate(TimeHelpers::parse8601(statement.GetColumnAsString(2))),
+    ModifyDate(TimeHelpers::parse8601(statement.GetColumnAsString(3))),
+    LastView(TimeHelpers::parse8601(statement.GetColumnAsString(4)))
 {
     // Load properties //
     CheckRowID(statement, 1, "name");
@@ -34,6 +50,7 @@ Collection::Collection(Database &db, Lock &dblock, PreparedStatement &statement,
     CheckRowID(statement, 6, "preview_image");
 
     Name = statement.GetColumnAsString(1);
+    IsPrivate = statement.GetColumnAsBool(5);
 }
 
 
@@ -88,21 +105,18 @@ bool Collection::AddTags(const TagCollection &tags){
 
 int64_t Collection::GetLastShowOrder(){
 
-    if(LastOrderSet)
-        return LastOrder;
-
-    LastOrderSet = true;
-
-    LastOrder = DualView::Get().GetDatabase().SelectCollectionLargestShowOrder(*this);
-    return LastOrder;
+    if(!IsInDatabase())
+        return 0;
+    
+    return InDatabase->SelectCollectionLargestShowOrder(*this);
 }
 // ------------------------------------ //
 bool Collection::AddImage(std::shared_ptr<Image> image){
 
-    if(!image)
+    if(!image || !IsInDatabase())
         return false;
     
-    return DualView::Get().GetDatabase().InsertImageToCollection(*this, *image,
+    return InDatabase->InsertImageToCollection(*this, *image,
         GetLastShowOrder() + 1);
 }
 
@@ -116,10 +130,26 @@ bool Collection::AddImage(std::shared_ptr<Image> image, int64_t order){
 
 bool Collection::RemoveImage(std::shared_ptr<Image> image){
 
-    if(!image)
+    if(!image || !IsInDatabase())
         return false;
     
     return InDatabase->DeleteImageFromCollection(*this, *image);
+}
+
+int64_t Collection::GetImageCount(){
+
+    if(!IsInDatabase())
+        return 0;
+
+    return InDatabase->SelectCollectionImageCount(*this);
+}
+
+int64_t Collection::GetImageShowOrder(std::shared_ptr<Image> image){
+
+    if(!image || !IsInDatabase())
+        return -1;
+
+    return InDatabase->SelectImageShowOrderInCollection(*this, *image);
 }
 
 // ------------------------------------ //

@@ -147,6 +147,9 @@ public:
     //! \returns True if removed. False if the image wasn't in the collection
     bool DeleteImageFromCollection(Collection &collection, Image &image);
 
+    //! \brief Returns the show_order image has in collection. Or -1
+    int64_t SelectImageShowOrderInCollection(Collection &collection, Image &image);
+
     // Statistics functions //
     size_t CountExistingTags();
 

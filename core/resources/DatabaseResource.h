@@ -40,7 +40,7 @@ public:
     }
 
     //! \brief Returns true if this is in the database
-    bool IsInDatabase() const{
+    inline bool IsInDatabase() const{
 
         return InDatabase && ID != -1;
     }

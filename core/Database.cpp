@@ -9,6 +9,8 @@
 #include "core/resources/Collection.h"
 #include "core/resources/Tags.h"
 
+#include "core/TimeHelpers.h"
+
 #include "generated/maintables.sql.h"
 #include "generated/defaulttablevalues.sql.h"
 #include "generated/defaulttags.sql.h"
@@ -259,11 +261,14 @@ std::shared_ptr<Collection> Database::InsertCollection(const std::string &name,
 {
     GUARD_LOCK();
 
-    const char str[] = "INSERT INTO collections (name, is_private) VALUES (?1, ?2);";
+    const char str[] = "INSERT INTO collections (name, is_private, "
+        "add_date, modify_date, last_view) VALUES (?, ?, ?, ?, ?);";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(name, isprivate);
+    const auto currentTime = TimeHelpers::FormatCurrentTimeAs8601();
+    auto statementinuse = statementobj.Setup(name, isprivate,
+        currentTime, currentTime, currentTime);
 
     try{
 
@@ -415,6 +420,28 @@ bool Database::DeleteImageFromCollection(Collection &collection, Image &image){
     LEVIATHAN_ASSERT(changes <= 1, "InsertImageToCollection changed more than one row");
 
     return changes == 1;
+}
+
+int64_t Database::SelectImageShowOrderInCollection(Collection &collection, Image &image){
+
+    if(!collection.IsInDatabase() || !image.IsInDatabase())
+        return -1;
+
+    GUARD_LOCK();
+
+    const char str[] = "SELECT show_order FROM collection_image WHERE collection = ? AND "
+        "image = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID(), image.GetID());
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return statementobj.GetColumnAsInt64(0);
+    }
+
+    return -1;
 }
     
 // ------------------------------------ //

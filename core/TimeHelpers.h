@@ -45,7 +45,7 @@ public:
     {
         TimeZoneDatabaseSetup();
 
-        LOG_INFO("Parsing time: " + str);
+        //LOG_INFO("Parsing time: " + str);
         
         std::istringstream in(str);
 
@@ -61,7 +61,6 @@ public:
         }
 
         return date::make_zoned(date::current_zone(), tp);
-        //return date::make_zoned(tp);
     }
 
     //! \todo Check does this need to call TimeZoneDatabaseSetup
@@ -89,6 +88,14 @@ public:
         static auto format8601(const TZonedTime &time)
     {
         return date::format("%FT%T%Ez", time);
+    }
+
+    //! \brief Formats current zoned time as a string
+    static auto FormatCurrentTimeAs8601(){
+
+        return format8601(date::make_zoned(date::current_zone(),
+                std::chrono::time_point_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now())));
     }
     
 private:

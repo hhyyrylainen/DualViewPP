@@ -172,17 +172,22 @@ TEST_CASE("Directly using database for collection and image inserts", "[db][expe
 
         CHECK(db.InsertImageToCollection(*collection, *image, 1));
 
+        CHECK(collection->GetImageCount() == 1);
         CHECK(collection->GetLastShowOrder() == 1);
+        CHECK(collection->GetImageShowOrder(image) == 1);
 
         auto image2 = db.InsertTestImage("img2.jpg",
             "II+actualhashwouldbehere");
 
         REQUIRE(image2);
 
-        CHECK(db.InsertImageToCollection(*collection, *image,
+        CHECK(db.InsertImageToCollection(*collection, *image2,
                 collection->GetLastShowOrder() + 1));
 
+        CHECK(collection->GetImageCount() == 2);
         CHECK(collection->GetLastShowOrder() == 2);
+        CHECK(collection->GetImageShowOrder(image) == 1);
+        CHECK(collection->GetImageShowOrder(image2) == 2);
     }
 }
 
