@@ -1,0 +1,65 @@
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:realloc
+   obj:/usr/lib64/libfontconfig.so.1.9.0
+   obj:/usr/lib64/libfontconfig.so.1.9.0
+   fun:FcFontRenderPrepare
+   fun:FcFontMatch
+   obj:/usr/lib64/libpangoft2-1.0.so.0.4000.3
+   obj:/usr/lib64/libpangoft2-1.0.so.0.4000.3
+   obj:/usr/lib64/gtk-3.0/modules/libpk-gtk-module.so
+   obj:/usr/lib64/libpango-1.0.so.0.4000.3
+   fun:pango_itemize_with_base_dir
+   obj:/usr/lib64/libpango-1.0.so.0.4000.3
+   fun:pango_layout_get_unknown_glyphs_count
+   obj:/usr/lib64/libgtk-3.so.0.2000.9
+   obj:/usr/lib64/libgtk-3.so.0.2000.9
+   obj:/usr/lib64/libgtk-3.so.0.2000.9
+   fun:g_type_create_instance
+   obj:/usr/lib64/libgobject-2.0.so.0.4800.2
+   fun:g_object_newv
+   obj:/usr/lib64/libgtk-3.so.0.2000.9
+   obj:/usr/lib64/libgtk-3.so.0.2000.9
+}
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:realloc
+   obj:/usr/lib64/libfontconfig.so.1.9.0
+   obj:/usr/lib64/libfontconfig.so.1.9.0
+   obj:/usr/lib64/libfontconfig.so.1.9.0
+   fun:FcDefaultSubstitute
+   obj:/usr/lib64/libpangoft2-1.0.so.0.4000.3
+   obj:/usr/lib64/gtk-3.0/modules/libpk-gtk-module.so
+   obj:/usr/lib64/libpango-1.0.so.0.4000.3
+   fun:pango_itemize_with_base_dir
+   obj:/usr/lib64/libpango-1.0.so.0.4000.3
+   fun:pango_layout_get_unknown_glyphs_count
+   obj:/usr/lib64/libgtk-3.so.0.2000.9
+   obj:/usr/lib64/libgtk-3.so.0.2000.9
+   obj:/usr/lib64/libgtk-3.so.0.2000.9
+   fun:g_type_create_instance
+   obj:/usr/lib64/libgobject-2.0.so.0.4800.2
+   fun:g_object_newv
+   obj:/usr/lib64/libgtk-3.so.0.2000.9
+   obj:/usr/lib64/libgtk-3.so.0.2000.9
+   obj:/usr/lib64/libgtk-3.so.0.2000.9
+}
+
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   fun:g_malloc
+   obj:/usr/lib64/libglib-2.0.so.0.4800.2
+   fun:call_init.part.0
+   fun:call_init
+   fun:_dl_init
+   obj:/usr/lib64/ld-2.23.so
+}
