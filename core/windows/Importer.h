@@ -23,10 +23,22 @@ protected:
 
     void _OnClose() override;
 
+    //! File drag received
+    void _OnFileDropped(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y,
+        const Gtk::SelectionData& selection_data, guint info, guint time);
+
+    bool _OnDragMotion(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y,
+        guint time);
+
+    bool _OnDrop(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y, guint time);
+    
+
 protected:
 
     SuperViewer* PreviewImage;
     SuperContainer* ImageList;
+
+    bool DoingImport = false;
 };
       
 
