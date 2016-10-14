@@ -2,24 +2,16 @@
 <!-- Generated with glade 3.20.0 -->
 <interface>
   <requires lib="gtk+" version="3.20"/>
-  <object class="GtkAdjustment" id="adjustment1">
-    <property name="lower">25</property>
-    <property name="upper">10000</property>
-    <property name="value">250</property>
-    <property name="step_increment">25</property>
-    <property name="page_increment">100</property>
-  </object>
   <object class="GtkWindow" id="FileImporter">
     <property name="can_focus">False</property>
     <property name="default_width">1400</property>
     <property name="default_height">600</property>
     <property name="has_resize_grip">True</property>
     <child>
-      <object class="GtkPaned">
+      <object class="GtkBox">
         <property name="visible">True</property>
-        <property name="can_focus">True</property>
+        <property name="can_focus">False</property>
         <property name="orientation">vertical</property>
-        <property name="wide_handle">True</property>
         <child>
           <object class="GtkPaned">
             <property name="visible">True</property>
@@ -30,7 +22,7 @@
                 <property name="height_request">128</property>
                 <property name="visible">True</property>
                 <property name="app_paintable">True</property>
-                <property name="can_focus">True</property>
+                <property name="can_focus">False</property>
                 <property name="hexpand">True</property>
                 <property name="vexpand">True</property>
               </object>
@@ -405,8 +397,9 @@
             </child>
           </object>
           <packing>
-            <property name="resize">False</property>
-            <property name="shrink">True</property>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
           </packing>
         </child>
         <child>
@@ -450,9 +443,11 @@
                             <property name="can_focus">True</property>
                             <property name="max_length">5</property>
                             <property name="width_chars">5</property>
+                            <property name="text" translatable="yes">250</property>
                             <property name="adjustment">adjustment1</property>
                             <property name="snap_to_ticks">True</property>
                             <property name="numeric">True</property>
+                            <property name="value">250</property>
                           </object>
                         </child>
                       </object>
@@ -506,7 +501,6 @@
                 <property name="height_request">400</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
-                <property name="hscrollbar_policy">never</property>
                 <property name="shadow_type">in</property>
                 <child>
                   <placeholder/>
@@ -520,12 +514,20 @@
             </child>
           </object>
           <packing>
-            <property name="resize">True</property>
-            <property name="shrink">True</property>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
           </packing>
         </child>
       </object>
     </child>
+  </object>
+  <object class="GtkAdjustment" id="adjustment1">
+    <property name="lower">25</property>
+    <property name="upper">10000</property>
+    <property name="value">250</property>
+    <property name="step_increment">25</property>
+    <property name="page_increment">100</property>
   </object>
   <object class="GtkListStore" id="liststore1"/>
 </interface>

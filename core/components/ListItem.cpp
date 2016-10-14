@@ -24,14 +24,22 @@ ListItem::ListItem(std::shared_ptr<Image> showImage, const std::string &name) :
 
     TextAreaOverlay.set_margin_bottom(3);
     TextAreaOverlay.show();
+
+    NameLabel.set_valign(Gtk::ALIGN_CENTER);
+    NameLabel.set_halign(Gtk::ALIGN_FILL);
+
+    //NameLabel.set_selectable(true);
+    NameLabel.set_margin_left(4);
+    NameLabel.set_ellipsize(Pango::ELLIPSIZE_END);
+    NameLabel.set_lines(4);
+    NameLabel.set_line_wrap(true);
+    NameLabel.set_line_wrap_mode(Pango::WRAP_WORD_CHAR);
+    
     NameLabel.show();
     
     _SetName(name);
 
-    TextAreaOverlay.set_valign(Gtk::ALIGN_CENTER);
-    
-    NameLabel.set_valign(Gtk::ALIGN_CENTER);
-    NameLabel.set_halign(Gtk::ALIGN_FILL);
+    //TextAreaOverlay.set_valign(Gtk::ALIGN_CENTER);
 }
 
 ListItem::~ListItem(){
