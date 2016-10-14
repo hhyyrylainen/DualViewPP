@@ -14,8 +14,17 @@ namespace DV{
 class ListItem : public Gtk::Frame{
 public:
 
-    ListItem(std::shared_ptr<Image> showImage, const std::string &name);
+    //! \param showimage The image to show
+    //! \param name The text to show under the display image
+    //! \param selectable If true allows this item to be selected/unselected by clicking
+    //! \param allowpopup If true allows this item to open a popup window when double clicked
+    ListItem(std::shared_ptr<Image> showimage, const std::string &name, bool selectable,
+        bool allowpopup);
+    
     ~ListItem();
+
+    //! \brief Sets selected status. Changes background colour
+    void SetSelected(bool selected);
 
 protected:
 
@@ -34,12 +43,19 @@ protected:
     // void get_preferred_width_for_height_vfunc(int height,
     //     int& minimum_width, int& natural_width) const override;
 
+    bool _OnMouseButtonPressed(GdkEventButton* event);
 
 
+    //! \brief Called when selection status has been updated
+    virtual void _OnSelectionUpdated();
+
+    //! \brief Called when the image part is double clicked. By default does nothing
+    virtual void _DoPopup();
     
     
-private:
+protected:
 
+    Gtk::EventBox Events;
     Gtk::Box Container;
     
     SuperViewer ImageIcon;
@@ -49,5 +65,18 @@ private:
 
     //! If true will always be the same size
     bool ConstantSize = false;
+
+    //! If this is selectable this indicates whether the user has selected this item or not
+    bool CurrentlySelected = false;
+
+    //! If false doesn't listen for mouse clicks
+    //! When true updates selected state when clicked
+    bool Selectable;
+
+    //! If true listens for double click events
+    bool AllowPopUpWIndow;
+
+    //! Called from default _OnSelectionUpdated
+    std::function<void (ListItem&)> OnSelected;
 };
 }

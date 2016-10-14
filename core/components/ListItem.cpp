@@ -5,11 +5,17 @@
 using namespace DV;
 // ------------------------------------ //
 
-ListItem::ListItem(std::shared_ptr<Image> showImage, const std::string &name) :
+ListItem::ListItem(std::shared_ptr<Image> showimage, const std::string &name,
+    bool selectable, bool allowpopup) :
     Container(Gtk::ORIENTATION_VERTICAL),
-    ImageIcon(showImage)
+    ImageIcon(showimage, allowpopup ? SuperViewer::ENABLED_EVENTS::POPUP :
+        SuperViewer::ENABLED_EVENTS::NONE),
+    Selectable(selectable),
+    AllowPopUpWIndow(allowpopup)
 {
-    add(Container);
+    add(Events);
+    Events.add(Container);
+    Events.show();
 
     Container.set_homogeneous(false);
     Container.set_spacing(2);
@@ -40,6 +46,18 @@ ListItem::ListItem(std::shared_ptr<Image> showImage, const std::string &name) :
     _SetName(name);
 
     //TextAreaOverlay.set_valign(Gtk::ALIGN_CENTER);
+
+    // Click events //
+    if(selectable || allowpopup){
+
+        LOG_INFO("Registered for events");
+        Events.add_events(Gdk::BUTTON_PRESS_MASK);
+
+        Events.signal_button_press_event().connect(
+            sigc::mem_fun(*this, &ListItem::_OnMouseButtonPressed));
+    }
+
+    // TODO: allow editing name
 }
 
 ListItem::~ListItem(){
@@ -70,7 +88,8 @@ Gtk::SizeRequestMode ListItem::get_request_mode_vfunc() const{
 void ListItem::get_preferred_width_vfunc(int& minimum_width, int& natural_width) const{
 
     int box_width_min, box_width_natural;
-    Container.get_preferred_width(box_width_min, box_width_natural);
+    //Container.get_preferred_width(box_width_min, box_width_natural);
+    Events.get_preferred_width(box_width_min, box_width_natural);
     
     if(ConstantSize){
 
@@ -85,7 +104,8 @@ void ListItem::get_preferred_width_vfunc(int& minimum_width, int& natural_width)
 void ListItem::get_preferred_height_vfunc(int& minimum_height, int& natural_height) const{
 
     int box_height_min, box_height_natural;
-    Container.get_preferred_height(box_height_min, box_height_natural);
+    //Container.get_preferred_height(box_height_min, box_height_natural);
+    Events.get_preferred_height(box_height_min, box_height_natural);
 
     if(ConstantSize){
 
@@ -105,4 +125,44 @@ void ListItem::get_preferred_height_for_width_vfunc(int width,
 
     natural_height = (int)((float)width / (3.f/4.f));
 }
+// ------------------------------------ //
+bool ListItem::_OnMouseButtonPressed(GdkEventButton* event){
 
+    LOG_INFO("Mouse pressed");
+    if(!Selectable && !AllowPopUpWIndow)
+        return false;
+
+    if(event->type == GDK_2BUTTON_PRESS){
+
+        if(AllowPopUpWIndow)
+            _DoPopup();
+        return true;
+    }
+
+    // Left mouse //
+    if(event->button == 1){
+
+        SetSelected(!CurrentlySelected);
+    }
+
+    return true;
+}
+
+void ListItem::SetSelected(bool selected){
+
+    LOG_INFO("Listitem selected");
+    CurrentlySelected = selected;
+    _OnSelectionUpdated();
+}
+
+// ------------------------------------ //
+void ListItem::_OnSelectionUpdated(){
+
+    if(OnSelected)
+        OnSelected(*this);
+}
+
+void ListItem::_DoPopup(){
+
+    LOG_INFO("Popup from listitem");
+}

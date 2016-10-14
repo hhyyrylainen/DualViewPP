@@ -6,7 +6,8 @@
 using namespace DV;
 // ------------------------------------ //
 ImageListItem::ImageListItem(std::shared_ptr<Image> shownImage /*= nullptr*/) :
-    ListItem(shownImage, shownImage ? shownImage->GetName() : ""), CurrentImage(shownImage)
+    ListItem(shownImage, shownImage ? shownImage->GetName() : "", true, true),
+    CurrentImage(shownImage)
 {
     
 }
