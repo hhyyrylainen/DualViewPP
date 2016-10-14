@@ -88,9 +88,6 @@ std::shared_ptr<LoadedImage> CacheManager::LoadThumbImage(const std::string &fil
     // Create new //
     auto created = std::make_shared<LoadedImage>(file);
 
-    // Add to cache //
-    ImageCache.push_back(created);
-
     // Add it to load queue //
     {
         std::lock_guard<std::mutex> lock(ThumbQueueMutex);
