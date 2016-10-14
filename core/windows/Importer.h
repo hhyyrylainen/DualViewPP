@@ -7,6 +7,9 @@
 
 namespace DV{
 
+class SuperContainer;
+class SuperViewer;
+
 class Importer : public BaseWindow, public Gtk::Window{
 public:
 
@@ -19,6 +22,11 @@ protected:
     bool _OnClosed(GdkEventAny* event);
 
     void _OnClose() override;
+
+protected:
+
+    SuperViewer* PreviewImage;
+    SuperContainer* ImageList;
 };
       
 

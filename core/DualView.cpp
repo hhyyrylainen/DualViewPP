@@ -745,7 +745,7 @@ void DualView::OpenImporter(){
         "../gui/importer.glade");
 
     Importer* window;
-    builder->get_widget_derived("ImageView", window);
+    builder->get_widget_derived("FileImporter", window);
 
     if(!window){
 
