@@ -86,6 +86,9 @@ public:
     //! \param move If true the file will be moved. If false the file will be copied instead
     bool MoveFileToCollectionFolder(std::shared_ptr<Image> img,
         std::shared_ptr<Collection> collection, bool move);
+
+    //! \brief Returns true if file extension is in SUPPORTED_EXTENSIONS
+    static bool IsFileContent(const std::string &file);
     
     //
     // Database insert and modify functions

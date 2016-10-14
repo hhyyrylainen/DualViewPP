@@ -126,6 +126,14 @@ public:
         UpdatePositioning();
     }
 
+    //! \brief Adds a new item at the end, doesn't sort the items
+    inline void AddItem(std::shared_ptr<ResourceWithPreview> item){
+
+        _AddWidgetToEnd(item);
+        LayoutDirty = true;
+        UpdatePositioning();
+    }
+
     //! \brief Empties this container completely
     void Clear();
 

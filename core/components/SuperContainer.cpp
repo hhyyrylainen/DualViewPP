@@ -41,7 +41,7 @@ void SuperContainer::Clear(){
     Positions.clear();
     LayoutDirty = false;
 }
-
+// ------------------------------------ //
 void SuperContainer::UpdatePositioning(){
 
     if(!LayoutDirty)

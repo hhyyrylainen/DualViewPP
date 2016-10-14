@@ -714,7 +714,19 @@ bool DualView::MoveFileToCollectionFolder(std::shared_ptr<Image> img,
     img->SetResourcePath(finalPath);
     return true;
 }
+// ------------------------------------ //
+bool DualView::IsFileContent(const std::string &file){
 
+    const auto extension = boost::filesystem::path(file).extension();
+    
+    for(const auto& type : SUPPORTED_EXTENSIONS){
+
+        if(std::get<0>(type) == extension)
+            return true;
+    }
+
+    return false;
+}
 // ------------------------------------ //
 bool DualView::OpenImageViewer(const std::string &file){
 

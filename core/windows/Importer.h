@@ -15,9 +15,18 @@ public:
 
     Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder);
     ~Importer();
+
+    //! \brief Adds content from a file or a folder
+    //!
+    //! If the path refers to a folder no subdirectories are searched, unless recursive is true
+    void FindContent(const std::string &path, bool recursive = false);
     
     
 protected:
+
+    //! Adds an image to the list
+    //! \return True if the file extension is a valid image, false if not
+    bool _AddImageToList(const std::string &file);
     
     bool _OnClosed(GdkEventAny* event);
 

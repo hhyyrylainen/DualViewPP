@@ -3,7 +3,13 @@
 
 #include "core/components/SuperViewer.h"
 #include "core/components/SuperContainer.h"
+
+#include "core/resources/Image.h"
+
+#include "core/DualView.h"
 #include "Common.h"
+
+#include <boost/filesystem.hpp>
 
 using namespace DV;
 // ------------------------------------ //
@@ -34,6 +40,71 @@ Importer::~Importer(){
 
     LOG_INFO("Importer properly closed");
     Close();
+}
+// ------------------------------------ //
+void Importer::FindContent(const std::string &path, bool recursive /*= false*/){
+
+    namespace bf = boost::filesystem;
+    
+    LOG_INFO("Importer finding content from: " + path);
+
+    if(!bf::is_directory(path)){
+
+        // A single file //
+        _AddImageToList(path);
+        return;
+    }
+
+    // Set the target collection //
+    LOG_INFO("TODO: set the target collection");
+
+    // Loop contents //
+    if(recursive){
+
+        for (bf::recursive_directory_iterator iter(path);
+             iter != bf::recursive_directory_iterator(); ++iter)
+        {
+            if(bf::is_directory(iter->status()))
+                continue;
+        
+            // Add image //
+            _AddImageToList(iter->path().string());
+        }
+
+        return;
+    }
+
+    for (bf::directory_iterator iter(path); iter != bf::directory_iterator(); ++iter)
+    {
+        if(bf::is_directory(iter->status()))
+            continue;
+        
+        // Add image //
+        _AddImageToList(iter->path().string());
+    }
+}
+
+bool Importer::_AddImageToList(const std::string &file){
+
+    if(!DualView::IsFileContent(file))
+        return false;
+
+    std::shared_ptr<Image> img;
+    
+    try{
+
+        img = Image::Create(file);
+
+    } catch(const Leviathan::InvalidArgument &e){
+
+        LOG_WARNING("Failed to add image to importer:");
+        e.PrintToLog();
+        return false;
+    }
+
+    ImageList->AddItem(img);
+    LOG_INFO("Importer added new image: " + file);
+    return true;
 }
 // ------------------------------------ //    
 bool Importer::_OnClosed(GdkEventAny* event){
@@ -89,7 +160,7 @@ void Importer::_OnFileDropped(const Glib::RefPtr<Gdk::DragContext>& context, int
 
             Glib::ustring path = Glib::filename_from_uri(uri);
 
-            LOG_INFO("Got file: " + path);
+            FindContent(path);
         }
  
         context->drag_finish(true, false, time);
