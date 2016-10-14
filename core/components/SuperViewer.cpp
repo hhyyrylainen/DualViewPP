@@ -3,6 +3,8 @@
 
 #include "Common.h"
 
+#include "core/DualView.h"
+
 using namespace DV;
 // ------------------------------------ //
 //#define PRINT_EXTRA_DEBUG
@@ -17,29 +19,35 @@ constexpr auto MAX_LOADING_LINES = 6;
 
 SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
     std::shared_ptr<Image> displayedResource) :
-    Gtk::DrawingArea(area), DisplayedResource(displayedResource)
+    Gtk::DrawingArea(area), DisplayedResource(displayedResource),
+    Events(ENABLED_EVENTS::ALL)
 {
     // Do setup stuff //
-    _CommonCtor(true, true);
+    _CommonCtor();
 }
 
-SuperViewer::SuperViewer(std::shared_ptr<Image> displayedResource, bool useEvents /*= false*/)
-    : DisplayedResource(displayedResource)
+SuperViewer::SuperViewer(std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events) :
+    DisplayedResource(displayedResource),
+    Events(events)
 {
     PRINT_INFO("constructed with a resource");
-    _CommonCtor(useEvents, useEvents);
+    _CommonCtor();
 }
 
-void SuperViewer::_CommonCtor(bool hookmouseevents, bool hookkeypressevents){
+void SuperViewer::_CommonCtor(){
 
     // Event registration //
-    if(hookmouseevents){
+    if((int)Events & (int)ENABLED_EVENTS::DRAG || (int)Events & (int)ENABLED_EVENTS::POPUP){
 
-        add_events(
-            Gdk::POINTER_MOTION_MASK |
-            Gdk::BUTTON_PRESS_MASK | Gdk::BUTTON_RELEASE_MASK |
-            Gdk::SCROLL_MASK
-        );
+        add_events(Gdk::BUTTON_PRESS_MASK);
+
+        signal_button_press_event().connect(
+            sigc::mem_fun(*this, &SuperViewer::_OnMouseButtonPressed));
+    }
+    
+    if((int)Events & (int)ENABLED_EVENTS::DRAG){
+
+        add_events(Gdk::POINTER_MOTION_MASK | Gdk::BUTTON_RELEASE_MASK);
 
         signal_motion_notify_event().connect(sigc::mem_fun(*this, &SuperViewer::_OnMouseMove));
 
@@ -47,12 +55,18 @@ void SuperViewer::_CommonCtor(bool hookmouseevents, bool hookkeypressevents){
             sigc::mem_fun(*this, &SuperViewer::_OnMouseButtonPressed));
         signal_button_release_event().connect(
             sigc::mem_fun(*this, &SuperViewer::_OnMouseButtonReleased));
-    
-        signal_scroll_event().connect(sigc::mem_fun(*this, &SuperViewer::_OnScroll));
 
+        
     }
 
-    if(hookkeypressevents){
+    if((int)Events & (int)ENABLED_EVENTS::SCROLL){
+
+        add_events(Gdk::SCROLL_MASK);
+
+        signal_scroll_event().connect(sigc::mem_fun(*this, &SuperViewer::_OnScroll));
+    }
+
+    if((int)Events & (int)ENABLED_EVENTS::MOVE_KEYS){
 
         add_events(Gdk::KEY_PRESS_MASK);
 
@@ -337,6 +351,14 @@ void SuperViewer::_SetLoadedImage(std::shared_ptr<LoadedImage> image){
     queue_draw();
 }
 // ------------------------------------ //
+void SuperViewer::OpenImageInNewWindow(){
+
+    if(!DisplayedResource)
+        return;
+
+    DualView::Get().OpenImageViewer(DisplayedResource);
+}
+// ------------------------------------ //
 bool SuperViewer::MoveInCollection(bool forwards, bool wrap /*= true*/){
 
     return false;
@@ -418,7 +440,7 @@ void SuperViewer::_OnUnMapped(){
 
 bool SuperViewer::_OnMouseMove(GdkEventMotion* motion_event){
 
-    if(DisableDragging || (!CanStartDrag && !DoingDrag))
+    if(!((int)Events & (int)ENABLED_EVENTS::DRAG) || (!CanStartDrag && !DoingDrag))
         return false;
 
     Point mousePos = Point(motion_event->x, motion_event->y);
@@ -449,12 +471,22 @@ bool SuperViewer::_OnMouseMove(GdkEventMotion* motion_event){
 
 bool SuperViewer::_OnMouseButtonPressed(GdkEventButton* event){
 
-    if(DisableDragging)
+    if(!((int)Events & (int)ENABLED_EVENTS::DRAG) &&
+        !((int)Events & (int)ENABLED_EVENTS::POPUP))
+    {
         return false;
+    }
 
     // Double click
-    if(event->type == GDK_2BUTTON_PRESS)
-        LOG_WRITE("Double click");
+    if(event->type == GDK_2BUTTON_PRESS){
+
+        if((int)Events & (int)ENABLED_EVENTS::POPUP){
+
+            LOG_WRITE("Double click");
+            OpenImageInNewWindow();
+            return true;
+        }
+    }
 
     // Left mouse //
     if(event->button == 1){
@@ -468,7 +500,7 @@ bool SuperViewer::_OnMouseButtonPressed(GdkEventButton* event){
 
 bool SuperViewer::_OnMouseButtonReleased(GdkEventButton* event){
 
-    if(DisableDragging)
+    if(!((int)Events & (int)ENABLED_EVENTS::DRAG))
         return false;
 
     // Left mouse //
@@ -489,7 +521,7 @@ bool SuperViewer::_OnMouseButtonReleased(GdkEventButton* event){
 
 bool SuperViewer::_OnKeyPressed(GdkEventKey* event){
 
-    if(DisableKeyPresses)
+    if(!((int)Events & (int)ENABLED_EVENTS::MOVE_KEYS))
         return false;
 
     switch(event->keyval){
@@ -514,7 +546,7 @@ bool SuperViewer::_OnKeyPressed(GdkEventKey* event){
 
 bool SuperViewer::_OnScroll(GdkEventScroll* event){
 
-    if(DisableMouseScroll)
+    if(!((int)Events & (int)ENABLED_EVENTS::SCROLL))
         return false;
 
     if(!IsImageReady)

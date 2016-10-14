@@ -28,11 +28,23 @@ class SuperViewer : public Gtk::DrawingArea{
 
     using ClockType = std::chrono::high_resolution_clock;
     using Point = Leviathan::Float2;
+
+public:
+
+    enum class ENABLED_EVENTS : uint8_t {
+
+        NONE = 0,
+        DRAG = 0x1,
+        SCROLL = 0x2,
+        POPUP = 0x4,
+        MOVE_KEYS = 0x8,
+        ALL = DRAG | SCROLL | POPUP | MOVE_KEYS
+    };
     
 public:
 
     //! \brief Non-glade constructor
-    SuperViewer(std::shared_ptr<Image> displayedResource, bool useEvents = false);
+    SuperViewer(std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events);
     
     //! \brief Constructor called by glade builder when loading a widget of this type
     SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
@@ -49,12 +61,15 @@ public:
 
     //! \brief Sets the image to show
     void SetImage(std::shared_ptr<Image> displayedResource);
+
+    //! \brief Opens the current image in a new window
+    void OpenImageInNewWindow();
     
     
 protected:
 
     //! \brief Common constructor code for all constructor overloads
-    void _CommonCtor(bool hookmouseevents, bool hookkeypressevents);
+    void _CommonCtor();
     
     //! \brief Main drawing function
     bool on_draw(const Cairo::RefPtr<Cairo::Context>& cr) override;
@@ -121,6 +136,8 @@ private:
     //! Holds a cached version of DisplayImage. Prevents conversion happening on each frame
     Glib::RefPtr<Gdk::Pixbuf> CachedDrawnImage;
 
+    ENABLED_EVENTS Events;
+
     //! Used to call _OnNewImageReady once
     bool IsImageReady = false;
 
@@ -151,16 +168,6 @@ private:
 
     //! Used to browse images in a collection
     //std::shared_ptr<Collection> ContainedInCollection = nullptr;
-
-    //! Disables zooming with the scroll wheel
-    bool DisableMouseScroll = false;
-
-    //! Disables dragging with the mouse. Required to be false if drag events shouldn't
-    //! be handled by this
-    bool DisableDragging = false;
-
-    //! Disables moving to next/previous image with keys
-    bool DisableKeyPresses = false;
 
     //! If true will only ever load a thumbnail of the image
     bool ForceOnlyThumbnail = false;

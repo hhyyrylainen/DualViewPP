@@ -758,6 +758,16 @@ bool DualView::OpenImageViewer(const std::string &file){
     return true;
 }
 
+void DualView::OpenImageViewer(std::shared_ptr<Image> image){
+
+    AssertIfNotMainThread();
+    
+    auto window = std::make_shared<SingleView>(image);
+        
+    // Opening succeeded //
+    _AddOpenWindow(window);
+}
+
 void DualView::OpenImporter(){
 
     auto builder = Gtk::Builder::create_from_file(

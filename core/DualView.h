@@ -45,6 +45,9 @@ public:
     //! \returns True if opened. False if the file isn't supported
     bool OpenImageViewer(const std::string &file);
 
+    //! \brief Opens an image viewer for a file
+    void OpenImageViewer(std::shared_ptr<Image> image);
+
     //! \brief Opens an empty Importer
     void OpenImporter();
 
