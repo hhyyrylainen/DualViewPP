@@ -15,9 +15,17 @@ SingleView::SingleView(const std::string &file){
     // Create resource //
     auto resource = Image::Create(file);
 
+    _CreateWindow(resource);
+}
+
+SingleView::SingleView(std::shared_ptr<Image> image){
+
+    _CreateWindow(image);
+}
+
+void SingleView::_CreateWindow(std::shared_ptr<Image> image){
 
     // Load gtk stuff //
-
     Builder = Gtk::Builder::create_from_file(
         "../gui/single_view.glade");
 
@@ -29,7 +37,7 @@ SingleView::SingleView(const std::string &file){
 
     try{
         
-        Builder->get_widget_derived("ImageView", ImageView, resource);
+        Builder->get_widget_derived("ImageView", ImageView, image);
         
     } catch(const Leviathan::InvalidArgument &e){
 
