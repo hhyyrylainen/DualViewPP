@@ -152,6 +152,17 @@ void ListItem::SetSelected(bool selected){
 
     LOG_INFO("Listitem selected");
     CurrentlySelected = selected;
+
+    if(!CurrentlySelected){
+
+        Container.unset_background_color();
+        
+    } else {
+        
+        // CadetBlue
+        Container.override_background_color(Gdk::RGBA("CadetBlue"));
+    }
+    
     _OnSelectionUpdated();
 }
 
