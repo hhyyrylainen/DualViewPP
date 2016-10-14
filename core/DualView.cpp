@@ -253,6 +253,11 @@ void DualView::_OnInstanceLoaded(){
     // MainBuilder->get_widget("OpenImageFromFile", OpenImageFromFile);
     // LEVIATHAN_ASSERT(OpenImageFromFile, "Invalid .glade file");
 
+    // TagManager
+    // Gtk::Window* TagManager = nullptr;
+    // MainBuilder->get_widget("TagManager", TagManager);
+    // LEVIATHAN_ASSERT(TagManager, "Invalid .glade file");
+
     // Start worker threads //
     _StartWorkerThreads();
 
@@ -433,6 +438,8 @@ int DualView::_HandleCmdLine(const Glib::RefPtr<Gio::ApplicationCommandLine>
 
         std::cout << "TODO: check if it is a file and open" << std::endl;
     }
+
+    g_strfreev(argv);
     
     Application->activate();
 
