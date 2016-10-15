@@ -26,6 +26,18 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     builder->get_widget("StatusLabel", StatusLabel);
     LEVIATHAN_ASSERT(StatusLabel, "Invalid .glade file");
+
+    Gtk::Button* DeselectAll;
+    builder->get_widget("DeselectAll", DeselectAll);
+    LEVIATHAN_ASSERT(DeselectAll, "Invalid .glade file");
+
+    DeselectAll->signal_clicked().connect(sigc::mem_fun(*this, &Importer::_OnDeselectAll));
+
+    Gtk::Button* SelectAll;
+    builder->get_widget("SelectAll", SelectAll);
+    LEVIATHAN_ASSERT(SelectAll, "Invalid .glade file");
+
+    SelectAll->signal_clicked().connect(sigc::mem_fun(*this, &Importer::_OnSelectAll));
     
     signal_delete_event().connect(sigc::mem_fun(*this, &Importer::_OnClosed));
 
@@ -141,15 +153,15 @@ void Importer::UpdateReadyStatus(){
     if(!get_sensitive())
         set_sensitive(true);
 
-    const auto selected = ImageList->GetSelectedItems();
+    const auto selected = ImageList->CountSelectedItems();
 
-    if(selected.empty()){
+    if(selected == 0){
 
         StatusLabel->set_text("No images selected");
 
     } else {
 
-        StatusLabel->set_text("Ready to import " + Convert::ToString(selected.size()) +
+        StatusLabel->set_text("Ready to import " + Convert::ToString(selected) +
             " images");
     }
 }
@@ -157,6 +169,16 @@ void Importer::UpdateReadyStatus(){
 void Importer::OnItemSelected(ListItem &item){
 
     UpdateReadyStatus();
+}
+// ------------------------------------ //
+void Importer::_OnDeselectAll(){
+
+    ImageList->DeselectAllItems();
+}
+
+void Importer::_OnSelectAll(){
+
+    ImageList->SelectAllItems();
 }
 // ------------------------------------ //
 bool Importer::_OnDragMotion(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y,

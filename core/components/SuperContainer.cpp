@@ -133,9 +133,9 @@ size_t SuperContainer::CountRows() const{
     return count;
 }
 
-std::vector<std::shared_ptr<ResourceWithPreview>> SuperContainer::GetSelectedItems() const{
+size_t SuperContainer::CountSelectedItems() const{
 
-    std::vector<std::shared_ptr<ResourceWithPreview>> selected;
+    size_t count = 0;
     
     for(auto& position : Positions){
 
@@ -144,10 +144,34 @@ std::vector<std::shared_ptr<ResourceWithPreview>> SuperContainer::GetSelectedIte
             break;
 
         if(position.WidgetToPosition->Widget->IsSelected())
-            selected.push_back(position.WidgetToPosition->CreatedFrom);
+            ++count;
     }
 
-    return selected;
+    return count;
+}
+
+void SuperContainer::DeselectAllItems(){
+
+    for(auto& position : Positions){
+
+        // Stop once empty position is reached //
+        if(!position.WidgetToPosition)
+            break;
+
+        position.WidgetToPosition->Widget->Deselect();
+    }
+}
+
+void SuperContainer::SelectAllItems(){
+
+    for(auto& position : Positions){
+
+        // Stop once empty position is reached //
+        if(!position.WidgetToPosition)
+            break;
+
+        position.WidgetToPosition->Widget->Select();
+    }
 }
 // ------------------------------------ //
 void SuperContainer::Reflow(size_t index){

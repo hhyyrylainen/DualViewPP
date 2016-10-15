@@ -26,6 +26,20 @@ public:
     //! \brief Sets selected status. Changes background colour
     void SetSelected(bool selected);
 
+    //! \brief Deselects this if currently selected and selecting is enabled
+    inline void Deselect(){
+
+        if(Selectable && CurrentlySelected)
+            SetSelected(false);
+    }
+
+    //! \brief Selects this isn't currently selected and selecting is enabled
+    inline void Select(){
+
+        if(Selectable && !CurrentlySelected)
+            SetSelected(true);
+    }
+
     //! \brief Returns true if this is selected
     inline bool IsSelected() const{
 

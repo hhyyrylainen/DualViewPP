@@ -45,6 +45,10 @@ protected:
 
     bool _OnDrop(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y, guint time);
 
+    // Button callbacks
+    void _OnDeselectAll();
+    void _OnSelectAll();
+    
     void OnItemSelected(ListItem &item);
 
 protected:

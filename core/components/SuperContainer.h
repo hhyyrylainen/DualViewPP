@@ -139,7 +139,32 @@ public:
     }
 
     //! \brief Returns the currently selected items
-    std::vector<std::shared_ptr<ResourceWithPreview>> GetSelectedItems() const;
+    //!
+    //! The items will be added to the inserter. Which can be an std::back_inserter or
+    //! some container
+    template<class TContainer>
+        void GetSelectedItems(TContainer inserter) const
+    {
+        for(auto& position : Positions){
+
+            // Stop once empty position is reached //
+            if(!position.WidgetToPosition)
+                break;
+
+            if(position.WidgetToPosition->Widget->IsSelected())
+                inserter.push_back(position.WidgetToPosition->CreatedFrom);
+        }
+    }
+
+    //! \brief Returns the number of items that are selected
+    size_t CountSelectedItems() const;
+
+    //! \brief Deselects all items
+    void DeselectAllItems();
+
+    //! \brief Selects all items
+    void SelectAllItems();
+
 
     //! \brief Empties this container completely
     void Clear();
