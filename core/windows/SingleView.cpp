@@ -37,7 +37,7 @@ void SingleView::_CreateWindow(std::shared_ptr<Image> image){
 
     try{
         
-        Builder->get_widget_derived("ImageView", ImageView, image);
+        Builder->get_widget_derived("ImageView", ImageView, image, false);
         
     } catch(const Leviathan::InvalidArgument &e){
 

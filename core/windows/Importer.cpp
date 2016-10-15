@@ -17,11 +17,15 @@ using namespace DV;
 Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     Gtk::Window(window)
 {
-    builder->get_widget_derived("PreviewImage", PreviewImage, nullptr);
+    builder->get_widget_derived("PreviewImage", PreviewImage, nullptr, false);
     LEVIATHAN_ASSERT(PreviewImage, "Invalid .glade file");
 
     builder->get_widget_derived("ImageList", ImageList);
     LEVIATHAN_ASSERT(ImageList, "Invalid .glade file");
+
+
+    builder->get_widget("StatusLabel", StatusLabel);
+    LEVIATHAN_ASSERT(StatusLabel, "Invalid .glade file");
     
     signal_delete_event().connect(sigc::mem_fun(*this, &Importer::_OnClosed));
 
@@ -102,7 +106,11 @@ bool Importer::_AddImageToList(const std::string &file){
         return false;
     }
 
-    ImageList->AddItem(img);
+    //ImagesToImport.clear();
+    ImagesToImport.push_back(img);
+    ImageList->SetShownItems(ImagesToImport.begin(), ImagesToImport.end(),
+        ItemSelectable(std::bind(&Importer::OnItemSelected, this, std::placeholders::_1)));
+    
     LOG_INFO("Importer added new image: " + file);
     return true;
 }
@@ -118,6 +126,37 @@ void Importer::_OnClose(){
     close();
 
     // Todo: release logic
+}
+// ------------------------------------ //
+void Importer::UpdateReadyStatus(){
+
+    if(DoingImport){
+
+        StatusLabel->set_text("Import in progress...");
+        // TODO: set things not sensitive, so they are read only
+        set_sensitive(false);
+        return;
+    }
+
+    if(!get_sensitive())
+        set_sensitive(true);
+
+    const auto selected = ImageList->GetSelectedItems();
+
+    if(selected.empty()){
+
+        StatusLabel->set_text("No images selected");
+
+    } else {
+
+        StatusLabel->set_text("Ready to import " + Convert::ToString(selected.size()) +
+            " images");
+    }
+}
+
+void Importer::OnItemSelected(ListItem &item){
+
+    UpdateReadyStatus();
 }
 // ------------------------------------ //
 bool Importer::_OnDragMotion(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y,

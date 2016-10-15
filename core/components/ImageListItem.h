@@ -13,7 +13,8 @@ class ImageListItem : public ListItem{
 public:
 
     
-    ImageListItem(std::shared_ptr<Image> shownImage = nullptr);
+    ImageListItem(const ItemSelectable &selectable,
+        std::shared_ptr<Image> shownImage = nullptr);
 
     //! \brief Sets the shown image
     void SetImage(std::shared_ptr<Image> image);

@@ -48,11 +48,10 @@ void SuperContainer::UpdatePositioning(){
         return;
 
     LayoutDirty = false;
-
+    WidestRow = 0;
+    
     if(Positions.empty())
         return;
-    
-    WidestRow = 0;
 
     int32_t CurrentRow = SUPERCONTAINER_MARGIN;
     int32_t CurrentY = Positions.front().Y;
@@ -71,9 +70,7 @@ void SuperContainer::UpdatePositioning(){
 
         CurrentRow += position.Width + SUPERCONTAINER_PADDING;
 
-        auto& element = position.WidgetToPosition;
-
-        Container.move(*element->Widget, position.X, position.Y);
+        _ApplyWidgetPosition(position);
     }
 
     // Last row needs to be included, too //
@@ -84,6 +81,36 @@ void SuperContainer::UpdatePositioning(){
     WidestRow += SUPERCONTAINER_MARGIN;
 }
 
+void SuperContainer::UpdateRowWidths(){
+
+    WidestRow = 0;
+
+    int32_t CurrentRow = SUPERCONTAINER_MARGIN;
+    int32_t CurrentY = Positions.front().Y;
+
+    for(auto& position : Positions){
+
+        if(position.Y != CurrentY){
+
+            // Row changed //
+            if(WidestRow < CurrentRow)
+                WidestRow = CurrentRow;
+
+            CurrentRow = position.X;
+            CurrentY = position.Y;
+        }
+
+        CurrentRow += position.Width + SUPERCONTAINER_PADDING;
+    }
+
+    // Last row needs to be included, too //
+    if(WidestRow < CurrentRow)
+        WidestRow = CurrentRow;
+
+    // Add margin
+    WidestRow += SUPERCONTAINER_MARGIN;
+}
+// ------------------------------------ //
 size_t SuperContainer::CountRows() const{
 
     size_t count = 0;
@@ -91,6 +118,10 @@ size_t SuperContainer::CountRows() const{
     int32_t CurrentY = -1;
 
     for(auto& position : Positions){
+
+        // Stop once empty position is reached //
+        if(!position.WidgetToPosition)
+            break;
 
         if(position.Y != CurrentY){
             
@@ -100,6 +131,23 @@ size_t SuperContainer::CountRows() const{
     }
     
     return count;
+}
+
+std::vector<std::shared_ptr<ResourceWithPreview>> SuperContainer::GetSelectedItems() const{
+
+    std::vector<std::shared_ptr<ResourceWithPreview>> selected;
+    
+    for(auto& position : Positions){
+
+        // Stop once empty position is reached //
+        if(!position.WidgetToPosition)
+            break;
+
+        if(position.WidgetToPosition->Widget->IsSelected())
+            selected.push_back(position.WidgetToPosition->CreatedFrom);
+    }
+
+    return selected;
 }
 // ------------------------------------ //
 void SuperContainer::Reflow(size_t index){
@@ -118,7 +166,8 @@ void SuperContainer::Reflow(size_t index){
         ++index;
     }
 
-    _CheckPositions();
+    // This is a check for debugging
+    //_CheckPositions();
     
     for(size_t i = index; i < Positions.size(); ++i){
 
@@ -335,6 +384,15 @@ void SuperContainer::_SetWidget(size_t index, std::shared_ptr<Element> widget,
 
         // Do a reflow //
         Reflow(index);
+        
+    } else {
+
+        // Apply positioning now //
+        if(!LayoutDirty){
+            
+            _ApplyWidgetPosition(Positions[index]);
+            UpdateRowWidths();
+        }
     }
 }
 // ------------------------------------ //
@@ -375,10 +433,11 @@ void SuperContainer::_PushBackWidgets(size_t index){
     }
 }
 
-void SuperContainer::_AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item){
-
+void SuperContainer::_AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item,
+    const ItemSelectable &selectable)
+{
     // Create the widget //
-    auto element = std::make_shared<Element>(item);
+    auto element = std::make_shared<Element>(item, selectable);
 
     // Initialize a size for the widget
     _SetWidgetSize(*element);
@@ -402,6 +461,12 @@ void SuperContainer::_AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item){
     GridPosition& pos = _AddNewGridPosition(element->Width, element->Height);
 
     pos.WidgetToPosition = element;
+
+    if(!LayoutDirty){
+        
+        _ApplyWidgetPosition(pos);
+        UpdateRowWidths();
+    }
 }
 // ------------------------------------ //
 void SuperContainer::_CheckPositions() const{

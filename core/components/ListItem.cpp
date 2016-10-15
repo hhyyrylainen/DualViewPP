@@ -6,12 +6,13 @@ using namespace DV;
 // ------------------------------------ //
 
 ListItem::ListItem(std::shared_ptr<Image> showimage, const std::string &name,
-    bool selectable, bool allowpopup) :
+    const ItemSelectable &selectable, bool allowpopup) :
     Container(Gtk::ORIENTATION_VERTICAL),
     ImageIcon(showimage, allowpopup ? SuperViewer::ENABLED_EVENTS::POPUP :
-        SuperViewer::ENABLED_EVENTS::NONE),
-    Selectable(selectable),
-    AllowPopUpWIndow(allowpopup)
+        SuperViewer::ENABLED_EVENTS::NONE, true),
+    Selectable(selectable.Selectable),
+    AllowPopUpWIndow(allowpopup),
+    OnSelected(selectable.UpdateCallback)
 {
     add(Events);
     Events.add(Container);
@@ -48,7 +49,7 @@ ListItem::ListItem(std::shared_ptr<Image> showimage, const std::string &name,
     //TextAreaOverlay.set_valign(Gtk::ALIGN_CENTER);
 
     // Click events //
-    if(selectable || allowpopup){
+    if(Selectable || allowpopup){
 
         LOG_INFO("Registered for events");
         Events.add_events(Gdk::BUTTON_PRESS_MASK);
@@ -128,7 +129,6 @@ void ListItem::get_preferred_height_for_width_vfunc(int width,
 // ------------------------------------ //
 bool ListItem::_OnMouseButtonPressed(GdkEventButton* event){
 
-    LOG_INFO("Mouse pressed");
     if(!Selectable && !AllowPopUpWIndow)
         return false;
 
@@ -150,7 +150,6 @@ bool ListItem::_OnMouseButtonPressed(GdkEventButton* event){
 
 void ListItem::SetSelected(bool selected){
 
-    LOG_INFO("Listitem selected");
     CurrentlySelected = selected;
 
     if(!CurrentlySelected){
@@ -165,7 +164,11 @@ void ListItem::SetSelected(bool selected){
     
     _OnSelectionUpdated();
 }
+// ------------------------------------ //
+std::shared_ptr<Image> ListItem::GetPrimaryImage() const{
 
+    return ImageIcon.GetImage();
+}
 // ------------------------------------ //
 void ListItem::_OnSelectionUpdated(){
 

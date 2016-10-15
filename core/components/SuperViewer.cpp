@@ -18,17 +18,20 @@ using namespace DV;
 constexpr auto MAX_LOADING_LINES = 6;
 
 SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
-    std::shared_ptr<Image> displayedResource) :
+    std::shared_ptr<Image> displayedResource, bool forcethumbnail) :
     Gtk::DrawingArea(area), DisplayedResource(displayedResource),
-    Events(ENABLED_EVENTS::ALL)
+    Events(ENABLED_EVENTS::ALL),
+    ForceOnlyThumbnail(forcethumbnail)
 {
     // Do setup stuff //
     _CommonCtor();
 }
 
-SuperViewer::SuperViewer(std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events) :
+SuperViewer::SuperViewer(std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events,
+    bool forcethumbnail) :
     DisplayedResource(displayedResource),
-    Events(events)
+    Events(events),
+    ForceOnlyThumbnail(forcethumbnail)
 {
     PRINT_INFO("constructed with a resource");
     _CommonCtor();
@@ -128,7 +131,7 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
     const bool shouldBeThumbnailMode = ForceOnlyThumbnail ||
         (width <= SUPER_THUMBNAIL_WIDTH_THRESHOLD &&
             height <= SUPER_THUMBNAIL_HEIGHT_THRESHOLD);
-    
+        
     if(shouldBeThumbnailMode != IsInThumbnailMode){
 
         IsInThumbnailMode = shouldBeThumbnailMode;

@@ -16,14 +16,17 @@ constexpr auto SUPERCONTAINER_PADDING = 2;
 //! \brief Holds ListItem derived widgets and arranges them in a scrollable box
 //! \todo Add tests for this class
 class SuperContainer : public Gtk::ScrolledWindow{
-
+protected:
+    
     //! \brief Holds a child widget and some data used for updating in SetShownItems
     struct Element{
 
         //! \brief Automatically creates the widget from create
-        Element(std::shared_ptr<ResourceWithPreview> create) : CreatedFrom(create){
+        Element(std::shared_ptr<ResourceWithPreview> create, const ItemSelectable &selectable)
+            : CreatedFrom(create)
+        {
 
-            Widget = CreatedFrom->CreateListItem();
+            Widget = CreatedFrom->CreateListItem(selectable);
 
             if(!Widget)
                 throw std::runtime_error("Created Widget is null in Element");
@@ -77,7 +80,8 @@ public:
     //!
     //! Will also sort existing items that should be kept
     template<class Iterator>
-        void SetShownItems(Iterator begin, Iterator end)
+        void SetShownItems(Iterator begin, Iterator end, const ItemSelectable &selectable =
+            ItemSelectable())
     {
         if(Positions.empty()){
 
@@ -102,7 +106,7 @@ public:
             // Need to replace this one //
 
             // First try to update if the widget is the same type as the new one //
-            if((**begin).UpdateWidgetWithValues(*Positions[i].WidgetToPosition->Widget)){
+            if((**newIndex).UpdateWidgetWithValues(*Positions[i].WidgetToPosition->Widget)){
 
                 Positions[i].WidgetToPosition->Keep = true;
                 continue;
@@ -110,16 +114,15 @@ public:
 
             // Insert a new widget here //
             _PushBackWidgets(i);
-            _SetWidget(i, std::make_shared<Element>(*begin));
+            _SetWidget(i, std::make_shared<Element>(*begin, selectable));
         }
-        
         
         _RemoveElementsNotMarkedKeep();
         
         // Push new items until all are added //
         while(newIndex != end){
 
-            _AddWidgetToEnd(*begin);
+            _AddWidgetToEnd(*newIndex, selectable);
             ++newIndex;
         }
 
@@ -127,18 +130,26 @@ public:
     }
 
     //! \brief Adds a new item at the end, doesn't sort the items
-    inline void AddItem(std::shared_ptr<ResourceWithPreview> item){
-
-        _AddWidgetToEnd(item);
+    inline void AddItem(std::shared_ptr<ResourceWithPreview> item,
+        const ItemSelectable &selectable = ItemSelectable())
+    {
+        _AddWidgetToEnd(item, selectable);
         LayoutDirty = true;
         UpdatePositioning();
     }
+
+    //! \brief Returns the currently selected items
+    std::vector<std::shared_ptr<ResourceWithPreview>> GetSelectedItems() const;
 
     //! \brief Empties this container completely
     void Clear();
 
     //! \brief Applies the positioning, will be called whenever Positions is changed
     void UpdatePositioning();
+
+    //! \brief If full positioning update is not needed, this can be called to just update
+    //! row widths
+    void UpdateRowWidths();
 
     //! \brief Calculates positions for GridPositions starting at index
     void Reflow(size_t index);
@@ -160,6 +171,13 @@ private:
     void _CommonCtor();
     
 protected:
+
+    //! \brief Applies the position of a widget
+    inline void _ApplyWidgetPosition(const GridPosition &position){
+
+        auto& element = position.WidgetToPosition;
+        Container.move(*element->Widget, position.X, position.Y);
+    }
 
     //! \brief Sets the position of a grid position according to the previous position
     //!
@@ -196,7 +214,8 @@ protected:
     void _PushBackWidgets(size_t index);
 
     //! \brief Adds a new widget to the end
-    void _AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item);
+    void _AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item,
+        const ItemSelectable &selectable);
 
 
     //! \brief A debug helper, errors if there are duplicates in Positions

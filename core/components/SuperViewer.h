@@ -12,9 +12,9 @@
 namespace DV{
 
 //! If the widget size is below this value the viewer will go into thumbnail mode
-constexpr auto SUPER_THUMBNAIL_WIDTH_THRESHOLD = 150;
+constexpr auto SUPER_THUMBNAIL_WIDTH_THRESHOLD = 250;
 //! If the widget size is below this value the viewer will go into thumbnail mode
-constexpr auto SUPER_THUMBNAIL_HEIGHT_THRESHOLD = 150;
+constexpr auto SUPER_THUMBNAIL_HEIGHT_THRESHOLD = 225;
 
 //! The amount of time in milliseconds that has elapsed since last draw after
 //! the cached image is released
@@ -44,11 +44,12 @@ public:
 public:
 
     //! \brief Non-glade constructor
-    SuperViewer(std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events);
+    SuperViewer(std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events,
+        bool forcethumbnail);
     
     //! \brief Constructor called by glade builder when loading a widget of this type
     SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
-        std::shared_ptr<Image> displayedResource);
+        std::shared_ptr<Image> displayedResource, bool forcethumbnail);
 
     ~SuperViewer();
 
@@ -61,6 +62,12 @@ public:
 
     //! \brief Sets the image to show
     void SetImage(std::shared_ptr<Image> displayedResource);
+
+    //! \brief Gets the shown image
+    inline auto GetImage() const{
+
+        return DisplayedResource;
+    }
 
     //! \brief Opens the current image in a new window
     void OpenImageInNewWindow();

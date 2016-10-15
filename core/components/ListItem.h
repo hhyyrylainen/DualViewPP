@@ -18,13 +18,22 @@ public:
     //! \param name The text to show under the display image
     //! \param selectable If true allows this item to be selected/unselected by clicking
     //! \param allowpopup If true allows this item to open a popup window when double clicked
-    ListItem(std::shared_ptr<Image> showimage, const std::string &name, bool selectable,
-        bool allowpopup);
+    ListItem(std::shared_ptr<Image> showimage, const std::string &name,
+        const ItemSelectable &selectable, bool allowpopup);
     
     ~ListItem();
 
     //! \brief Sets selected status. Changes background colour
     void SetSelected(bool selected);
+
+    //! \brief Returns true if this is selected
+    inline bool IsSelected() const{
+
+        return CurrentlySelected;
+    }
+
+    //! \brief Returns the image shown in ImageIcon
+    std::shared_ptr<Image> GetPrimaryImage() const;
 
 protected:
 
