@@ -11,6 +11,7 @@ class SuperContainer;
 class SuperViewer;
 class Image;
 class ListItem;
+class TagEditor;
 
 class Importer : public BaseWindow, public Gtk::Window{
 public:
@@ -55,6 +56,8 @@ protected:
 
     SuperViewer* PreviewImage;
     SuperContainer* ImageList;
+
+    TagEditor* SelectedImageTags;
 
     Gtk::Label* StatusLabel;
     Gtk::CheckButton* SelectOnlyOneImage;

@@ -50,6 +50,8 @@ add_library(Core
   components/SuperContainer.h components/SuperContainer.cpp
   components/ListItem.h components/ListItem.cpp
   components/ImageListItem.h components/ImageListItem.cpp
+
+  components/TagEditor.h components/TagEditor.cpp
   
   # Resources
   resources/DatabaseResource.h resources/DatabaseResource.cpp

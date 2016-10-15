@@ -59,6 +59,7 @@ public:
     Database(bool tests);
     
     //! \brief Closes the database safely
+    //! \todo Forcefully orphan every active object in the SingleLoad holders
     ~Database();
 
     //! \brief Must be called before using the database. Setups all the tables

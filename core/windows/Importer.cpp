@@ -3,6 +3,7 @@
 
 #include "core/components/SuperViewer.h"
 #include "core/components/SuperContainer.h"
+#include "core/components/TagEditor.h"
 
 #include "core/resources/Image.h"
 
@@ -22,6 +23,9 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     builder->get_widget_derived("ImageList", ImageList);
     LEVIATHAN_ASSERT(ImageList, "Invalid .glade file");
+
+    builder->get_widget_derived("SelectedImageTags", SelectedImageTags);
+    LEVIATHAN_ASSERT(SelectedImageTags, "Invalid .glade file");
 
 
     builder->get_widget("StatusLabel", StatusLabel);
