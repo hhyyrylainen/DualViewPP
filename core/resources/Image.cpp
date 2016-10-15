@@ -102,7 +102,7 @@ std::shared_ptr<LoadedImage> Image::GetThumbnail() const{
 
     if(!IsHashValid)
         return nullptr;
-
+    
     return DualView::Get().GetCacheManager().LoadThumbImage(ResourcePath, Hash);
 }
 

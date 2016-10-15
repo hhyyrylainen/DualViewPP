@@ -96,7 +96,7 @@ public:
         for(size_t i = 0; i < Positions.size() && newIndex != end; ++i, ++newIndex)
         {
             // Make sure that the order is correct //
-            if(Positions[i].WidgetToPosition->CreatedFrom->IsSame(**begin)){
+            if(Positions[i].WidgetToPosition->CreatedFrom->IsSame(**newIndex)){
 
                 // all is fine //
                 Positions[i].WidgetToPosition->Keep = true;
