@@ -114,7 +114,7 @@ public:
 
             // Insert a new widget here //
             _PushBackWidgets(i);
-            _SetWidget(i, std::make_shared<Element>(*begin, selectable));
+            _SetWidget(i, std::make_shared<Element>(*newIndex, selectable));
         }
         
         _RemoveElementsNotMarkedKeep();
