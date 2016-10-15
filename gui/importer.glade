@@ -527,7 +527,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkCheckButton">
+                  <object class="GtkCheckButton" id="SelectOnlyOneImage">
                     <property name="label" translatable="yes">Select Only One Image</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>

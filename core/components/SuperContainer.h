@@ -165,6 +165,9 @@ public:
     //! \brief Selects all items
     void SelectAllItems();
 
+    //! \brief Deselects all items except the specified one
+    void DeselectAllExcept(const ListItem* item);
+
 
     //! \brief Empties this container completely
     void Clear();

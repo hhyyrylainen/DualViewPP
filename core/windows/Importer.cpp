@@ -27,6 +27,9 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     builder->get_widget("StatusLabel", StatusLabel);
     LEVIATHAN_ASSERT(StatusLabel, "Invalid .glade file");
 
+    builder->get_widget("SelectOnlyOneImage", SelectOnlyOneImage);
+    LEVIATHAN_ASSERT(SelectOnlyOneImage, "Invalid .glade file");
+
     Gtk::Button* DeselectAll;
     builder->get_widget("DeselectAll", DeselectAll);
     LEVIATHAN_ASSERT(DeselectAll, "Invalid .glade file");
@@ -168,6 +171,13 @@ void Importer::UpdateReadyStatus(){
 
 void Importer::OnItemSelected(ListItem &item){
 
+    // Deselect others if only one is wanted //
+    if(SelectOnlyOneImage->get_active() && item.IsSelected()){
+
+        // Deselect all others //
+        ImageList->DeselectAllExcept(&item);
+    }
+    
     UpdateReadyStatus();
 }
 // ------------------------------------ //
@@ -178,7 +188,19 @@ void Importer::_OnDeselectAll(){
 
 void Importer::_OnSelectAll(){
 
-    ImageList->SelectAllItems();
+    // If the "select only one" checkbox is checked this doesn't work properly
+    if(SelectOnlyOneImage->get_active()){
+
+        SelectOnlyOneImage->set_active(false);
+        
+        ImageList->SelectAllItems();
+
+        SelectOnlyOneImage->set_active(true);
+        
+    } else {
+
+        ImageList->SelectAllItems();
+    }
 }
 // ------------------------------------ //
 bool Importer::_OnDragMotion(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y,

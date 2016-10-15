@@ -57,6 +57,7 @@ protected:
     SuperContainer* ImageList;
 
     Gtk::Label* StatusLabel;
+    Gtk::CheckButton* SelectOnlyOneImage;
 
     bool DoingImport = false;
 

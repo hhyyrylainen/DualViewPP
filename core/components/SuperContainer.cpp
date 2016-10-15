@@ -173,6 +173,21 @@ void SuperContainer::SelectAllItems(){
         position.WidgetToPosition->Widget->Select();
     }
 }
+
+void SuperContainer::DeselectAllExcept(const ListItem* item){
+
+    for(auto& position : Positions){
+
+        // Stop once empty position is reached //
+        if(!position.WidgetToPosition)
+            break;
+
+        if(position.WidgetToPosition->Widget.get() == item)
+            continue;
+        
+        position.WidgetToPosition->Widget->Deselect();
+    }
+}
 // ------------------------------------ //
 void SuperContainer::Reflow(size_t index){
 
