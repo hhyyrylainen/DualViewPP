@@ -4,6 +4,9 @@
 
 #include <gtkmm.h>
 
+#include <thread>
+#include <atomic>
+
 
 namespace DV{
 
@@ -27,8 +30,15 @@ public:
 
     //! \brief Updates the status label based on selected images
     void UpdateReadyStatus();
-    
+
+    //! \brief Starts importing the selected images
+    //! \returns True if import started, false if another import is already in progress
+    bool StartImporting();
+
 protected:
+
+    //! Ran in the importer thread
+    void _RunImportThread();
 
     //! Adds an image to the list
     //! \return True if the file extension is a valid image, false if not
@@ -50,6 +60,7 @@ protected:
     // Button callbacks
     void _OnDeselectAll();
     void _OnSelectAll();
+    void _OnCopyToCollection();
     
     void OnItemSelected(ListItem &item);
 
@@ -60,10 +71,13 @@ protected:
 
     TagEditor* SelectedImageTags;
 
+    Gtk::Entry* CollectionName;
+    
     Gtk::Label* StatusLabel;
     Gtk::CheckButton* SelectOnlyOneImage;
 
-    bool DoingImport = false;
+    std::atomic<bool> DoingImport = { false };
+    std::thread ImportThread;
 
     //! List of images that might be marked as selected
     std::vector<std::shared_ptr<Image>> ImagesToImport;

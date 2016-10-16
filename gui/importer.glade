@@ -56,7 +56,7 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkEntry">
+                      <object class="GtkEntry" id="CollectionName">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="margin_bottom">5</property>
@@ -109,7 +109,7 @@
                           </packing>
                         </child>
                         <child>
-                          <object class="GtkButton">
+                          <object class="GtkButton" id="CopyToCollection">
                             <property name="label" translatable="yes">Copy To Collection</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>

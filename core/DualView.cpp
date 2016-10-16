@@ -18,6 +18,8 @@
 #include "PluginManager.h"
 #include "Exceptions.h"
 
+#include "Common/StringOperations.h"
+
 #include <iostream>
 #include <chrono>
 #include <boost/filesystem.hpp>
@@ -850,6 +852,9 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
         if(!img->IsReady())
             return false;
     }
+
+    // Trim whitespace //
+    Leviathan::StringOperations::RemovePreceedingTrailingSpaces(collectionname);
 
     std::shared_ptr<Collection> addtocollection;
 

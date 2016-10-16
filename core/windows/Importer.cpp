@@ -57,6 +57,17 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     ImageList->signal_drag_data_received().connect(sigc::mem_fun(*this, &Importer::_OnFileDropped));
     ImageList->signal_drag_motion().connect(sigc::mem_fun(*this, &Importer::_OnDragMotion));
     ImageList->signal_drag_drop().connect(sigc::mem_fun(*this, &Importer::_OnDrop));
+
+    
+    builder->get_widget("CollectionName", CollectionName);
+    LEVIATHAN_ASSERT(CollectionName, "Invalid .glade file");
+
+    Gtk::Button* CopyToCollection;
+    builder->get_widget("CopyToCollection", CopyToCollection);
+    LEVIATHAN_ASSERT(CopyToCollection, "Invalid .glade file");
+
+    CopyToCollection->signal_clicked().connect(sigc::mem_fun(*this,
+            &Importer::_OnCopyToCollection));
 }
 
 Importer::~Importer(){
@@ -142,6 +153,16 @@ bool Importer::_OnClosed(GdkEventAny* event){
 
 void Importer::_OnClose(){
 
+    if(DoingImport){
+
+        // Ask user to interrupt importing //
+        LOG_WARNING("Importer closing while doing import");
+    }
+
+    if(ImportThread.joinable())
+        ImportThread.join();
+    
+
     close();
 
     // Todo: release logic
@@ -209,6 +230,35 @@ void Importer::OnItemSelected(ListItem &item){
     }
     
     UpdateReadyStatus();
+}
+// ------------------------------------ //
+bool Importer::StartImporting(){
+
+    bool expected = false;
+    if(!DoingImport.compare_exchange_weak(expected, true,
+            std::memory_order_release, std::memory_order_relaxed))
+    {
+        return false;
+    }
+
+    // Value was changed to true //
+    ImportThread = std::thread(&Importer::_RunImportThread, this);
+
+    // Update selected //
+    UpdateReadyStatus();
+    // Because DoingImport is true the above function only sets this to be not-sensitive
+    
+    return true;
+}
+
+void Importer::_RunImportThread(){
+
+    
+}
+
+void Importer::_OnCopyToCollection(){
+
+    StartImporting();
 }
 // ------------------------------------ //
 void Importer::_OnDeselectAll(){
