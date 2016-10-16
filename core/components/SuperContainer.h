@@ -143,7 +143,7 @@ public:
     //! The items will be added to the inserter. Which can be an std::back_inserter or
     //! some container
     template<class TContainer>
-        void GetSelectedItems(TContainer inserter) const
+        void GetSelectedItems(TContainer &inserter) const
     {
         for(auto& position : Positions){
 

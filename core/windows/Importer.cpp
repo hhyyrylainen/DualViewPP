@@ -160,17 +160,43 @@ void Importer::UpdateReadyStatus(){
     if(!get_sensitive())
         set_sensitive(true);
 
-    const auto selected = ImageList->CountSelectedItems();
+    SelectedImages.clear();
+    SelectedItems.clear();
+    
+    ImageList->GetSelectedItems(SelectedItems);
 
-    if(selected == 0){
+    for(const auto& preview : SelectedItems){
+
+        auto asImage = std::dynamic_pointer_cast<Image>(preview);
+
+        if(!asImage){
+
+            LOG_WARNING("Importer: SuperContainer has non-image items in it");
+            continue;
+        }
+        
+        SelectedImages.push_back(asImage);
+    }
+
+    if(SelectedImages.empty()){
 
         StatusLabel->set_text("No images selected");
 
     } else {
 
-        StatusLabel->set_text("Ready to import " + Convert::ToString(selected) +
+        StatusLabel->set_text("Ready to import " + Convert::ToString(SelectedImages.size()) +
             " images");
     }
+
+    // Tag editing //
+    std::vector<std::shared_ptr<TagCollection>> tagstoedit;
+    
+    for(const auto& image : SelectedImages){
+
+        tagstoedit.push_back(image->GetTags());
+    }
+
+    SelectedImageTags->SetEditedTags(tagstoedit);
 }
 
 void Importer::OnItemSelected(ListItem &item){

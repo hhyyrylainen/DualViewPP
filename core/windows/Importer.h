@@ -12,6 +12,7 @@ class SuperViewer;
 class Image;
 class ListItem;
 class TagEditor;
+class ResourceWithPreview;
 
 class Importer : public BaseWindow, public Gtk::Window{
 public:
@@ -66,6 +67,12 @@ protected:
 
     //! List of images that might be marked as selected
     std::vector<std::shared_ptr<Image>> ImagesToImport;
+
+    //! List of images that are selected currently, updated in UpdateReadyStatus
+    std::vector<std::shared_ptr<Image>> SelectedImages;
+
+    //! Keeps selected image memory loaded
+    std::vector<std::shared_ptr<ResourceWithPreview>> SelectedItems;
 };
       
 

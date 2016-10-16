@@ -69,6 +69,12 @@ pkg_check_modules(GTKMM REQUIRED gtkmm-3.0)
 include_directories(${GTKMM_INCLUDE_DIRS})
 link_directories(${GTKMM_LIBRARY_DIRS})
 
+# Gtk canberra
+pkg_check_modules(GTKCANBERRA REQUIRED libcanberra-gtk3)
+
+include_directories(${GTKCANBERRA_INCLUDE_DIRS})
+link_directories(${GTKCANBERRA_LIBRARY_DIRS})
+
 # This is not in the default ImageMagick-devel package.
 # it is in: ImageMagick-c++-devel
 pkg_check_modules(MAGICK REQUIRED Magick++)
