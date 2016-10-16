@@ -44,6 +44,7 @@ add_library(Core
   windows/SingleView.h windows/SingleView.cpp
   windows/CollectionView.h windows/CollectionView.cpp
   windows/Importer.h windows/Importer.cpp
+  windows/TagManager.h windows/TagManager.cpp
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp

@@ -2,6 +2,7 @@
 #include "TagEditor.h"
 
 #include "Common.h"
+#include "DualView.h"
 
 #include <canberra-gtk.h>
 
@@ -190,5 +191,5 @@ void TagEditor::_OnInsertTag(){
 
 void TagEditor::_OnCreateNew(){
 
-    
+    DualView::Get().OpenTagCreator(TagEntry.get_text());
 }

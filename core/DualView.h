@@ -30,6 +30,7 @@ class Database;
 class Settings;
 
 class CollectionView;
+class TagManager;
 
 //! \brief Main class that contains all the windows and systems
 class DualView {
@@ -47,6 +48,12 @@ public:
 
     //! \brief Opens an image viewer for a file
     void OpenImageViewer(std::shared_ptr<Image> image);
+
+    //! \brief Opens the tag creation window with the text already filled in
+    void OpenTagCreator(const std::string &settext);
+
+    //! \brief Opens the tag creation window
+    void OpenTagCreator();
 
     //! \brief Opens an empty Importer
     void OpenImporter();
@@ -289,6 +296,9 @@ private:
 
     //! Collection window
     std::shared_ptr<CollectionView> _CollectionView;
+
+    //! Tag editing window
+    std::shared_ptr<TagManager> _TagManager;
 
     //! Plugin manager. For loading extra functionality
     std::unique_ptr<PluginManager> _PluginManager;

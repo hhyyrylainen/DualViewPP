@@ -77,7 +77,7 @@
             <property name="spacing">2</property>
             <property name="homogeneous">True</property>
             <child>
-              <object class="GtkButton">
+              <object class="GtkButton" id="OpenTags">
                 <property name="label" translatable="yes">Open Tags</property>
                 <property name="height_request">50</property>
                 <property name="visible">True</property>

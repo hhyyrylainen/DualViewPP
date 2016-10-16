@@ -6,6 +6,7 @@
 #include "windows/SingleView.h"
 #include "windows/CollectionView.h"
 #include "windows/Importer.h"
+#include "windows/TagManager.h"
 
 #include "core/CacheManager.h"
 #include "core/Database.h"
@@ -81,6 +82,7 @@ DualView::~DualView(){
     OpenWindows.clear();
 
     _CollectionView.reset();
+    _TagManager.reset();
 
     // Unload plugins //
     _PluginManager.reset();
@@ -237,6 +239,13 @@ void DualView::_OnInstanceLoaded(){
 
     OpenImporter->signal_clicked().connect(
         sigc::mem_fun(*this, &DualView::OpenImporter));
+
+    Gtk::Button* OpenTags = nullptr;
+    MainBuilder->get_widget("OpenTags", OpenTags);
+    LEVIATHAN_ASSERT(OpenTags, "Invalid .glade file");
+
+    OpenTags->signal_clicked().connect(
+        sigc::mem_fun<void>(*this, &DualView::OpenTagCreator));
     
 
     //_CollectionView
@@ -246,17 +255,14 @@ void DualView::_OnInstanceLoaded(){
 
     // Store the window //
     _CollectionView = std::shared_ptr<CollectionView>(tmpCollection);
-    //Application->add_window(*_CollectionView);
-    //_CollectionView->show();
-    //_CollectionView->hide();
     
-    // MainBuilder->get_widget("OpenImageFromFile", OpenImageFromFile);
-    // LEVIATHAN_ASSERT(OpenImageFromFile, "Invalid .glade file");
-
     // TagManager
-    // Gtk::Window* TagManager = nullptr;
-    // MainBuilder->get_widget("TagManager", TagManager);
-    // LEVIATHAN_ASSERT(TagManager, "Invalid .glade file");
+    TagManager* tmpTagManager = nullptr;
+    MainBuilder->get_widget_derived("TagManager", tmpTagManager);
+    LEVIATHAN_ASSERT(tmpTagManager, "Invalid .glade file");
+
+    // Store the window //
+    _TagManager = std::shared_ptr<TagManager>(tmpTagManager);
 
     // Start worker threads //
     _StartWorkerThreads();
@@ -788,6 +794,21 @@ void DualView::OpenImporter(){
     _AddOpenWindow(wrapped);
     wrapped->show();
 }
+
+void DualView::OpenTagCreator(const std::string &settext){
+
+    OpenTagCreator();
+
+    _TagManager->SetCreateTag(settext);
+}
+
+void DualView::OpenTagCreator(){
+
+    // Show it //
+    Application->add_window(*_TagManager);
+    _TagManager->show();
+    _TagManager->present();
+}
 // ------------------------------------ //
 void DualView::RegisterWindow(Gtk::Window &window){
 
@@ -1041,5 +1062,6 @@ void DualView::OpenCollection_OnClick(){
     // Show it //
     Application->add_window(*_CollectionView);
     _CollectionView->show();
+    _CollectionView->present();
 }
 
