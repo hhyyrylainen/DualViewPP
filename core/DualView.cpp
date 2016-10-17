@@ -200,6 +200,7 @@ void DualView::_OnInstanceLoaded(){
     // Connect dispatcher //
     StartDispatcher.connect(sigc::mem_fun(*this, &DualView::_OnLoadingFinished));
     MessageDispatcher.connect(sigc::mem_fun(*this, &DualView::_HandleMessages));
+    InvokeDispatcher.connect(sigc::mem_fun(*this, &DualView::_ProcessInvokeQueue));
     
 
     MainBuilder = Gtk::Builder::create_from_file(
@@ -589,6 +590,34 @@ void DualView::_RunDatabaseThread(){
         }
 
         DatabaseThreadNotify.wait(lock);
+    }
+}
+// ------------------------------------ //
+void DualView::InvokeFunction(std::function<void()> func){
+
+    std::unique_lock<std::mutex> lock(InvokeQueueMutex);
+
+    InvokeQueue.push_back(func);
+
+    // Notify main thread
+    InvokeDispatcher.emit();
+}
+
+void DualView::_ProcessInvokeQueue(){
+
+    std::unique_lock<std::mutex> lock(InvokeQueueMutex);
+
+    while(!InvokeQueue.empty()){
+
+        const auto func = InvokeQueue.front();
+
+        InvokeQueue.pop_front();
+
+        lock.unlock();
+
+        func();
+
+        lock.lock();
     }
 }
 // ------------------------------------ //

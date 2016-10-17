@@ -83,6 +83,9 @@ public:
     //! \brief Queues a function to be ran on the database thread
     void QueueDBThreadFunction(std::function<void()> func);
 
+    //! \brief Queues a function to be ran on the main thread
+    void InvokeFunction(std::function<void()> func);
+
     //! \brief Returns a path to the collection root folder, where imported images are
     //! copied or moved to
     std::string GetPathToCollection(bool isprivate) const;
@@ -220,6 +223,9 @@ private:
     void _OnSignalOpen(const std::vector<Glib::RefPtr<Gio::File>> &files,
         const Glib::ustring &stuff);
 
+    //! \brief Processes InvokeQueue
+    void _ProcessInvokeQueue();
+
     //! \brief Starts the background worker threads
     virtual void _StartWorkerThreads();
 
@@ -278,6 +284,13 @@ private:
     //! an event here through DualView::WindowClosed
     //! MessageQueueMutex must be locked when changing this
     std::list<std::shared_ptr<WindowClosedEvent>> CloseEvents;
+
+    //! Emitted on when a worker thread wants to run something on the main thread
+    Glib::Dispatcher InvokeDispatcher;
+
+    //! Queued functions to run on the main thread
+    std::list<std::function<void ()>> InvokeQueue;
+    std::mutex InvokeQueueMutex;
 
     //! Command line commands are stored here while the application
     //! is loading

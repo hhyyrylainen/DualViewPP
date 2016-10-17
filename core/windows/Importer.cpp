@@ -6,6 +6,7 @@
 #include "core/components/TagEditor.h"
 
 #include "core/resources/Image.h"
+#include "core/resources/Tags.h"
 
 #include "core/DualView.h"
 #include "Common.h"
@@ -33,6 +34,9 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     builder->get_widget("SelectOnlyOneImage", SelectOnlyOneImage);
     LEVIATHAN_ASSERT(SelectOnlyOneImage, "Invalid .glade file");
+
+    builder->get_widget("ProgressBar", ProgressBar);
+    LEVIATHAN_ASSERT(ProgressBar, "Invalid .glade file");
 
     Gtk::Button* DeselectAll;
     builder->get_widget("DeselectAll", DeselectAll);
@@ -68,6 +72,12 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     CopyToCollection->signal_clicked().connect(sigc::mem_fun(*this,
             &Importer::_OnCopyToCollection));
+
+    // Progress dispatcher
+    ProgressDispatcher.connect(sigc::mem_fun(*this, &Importer::_OnImportProgress));
+
+    // Create the collection tag holder
+    CollectionTags = std::make_shared<TagCollection>();
 }
 
 Importer::~Importer(){
@@ -232,7 +242,7 @@ void Importer::OnItemSelected(ListItem &item){
     UpdateReadyStatus();
 }
 // ------------------------------------ //
-bool Importer::StartImporting(){
+bool Importer::StartImporting(bool move){
 
     bool expected = false;
     if(!DoingImport.compare_exchange_weak(expected, true,
@@ -242,7 +252,14 @@ bool Importer::StartImporting(){
     }
 
     // Value was changed to true //
-    ImportThread = std::thread(&Importer::_RunImportThread, this);
+
+    // Set progress //
+    ReportedProgress = 0.01f;
+    _OnImportProgress();
+    
+    // Run import in a new thread //
+    ImportThread = std::thread(&Importer::_RunImportThread, this, CollectionName->get_text(),
+        move);
 
     // Update selected //
     UpdateReadyStatus();
@@ -251,14 +268,55 @@ bool Importer::StartImporting(){
     return true;
 }
 
-void Importer::_RunImportThread(){
+void Importer::_RunImportThread(const std::string &collection, bool move){
 
+    bool result = DualView::Get().AddToCollection(SelectedImages, move, collection,
+        *CollectionTags, [this](float progress){
+
+            ReportedProgress = progress;
+            ProgressDispatcher.emit();
+        });
+
+    // Invoke onfinish on the main thread //
+    auto isalive = GetAliveMarker();
     
+    DualView::Get().InvokeFunction([this, result, isalive](){
+
+            INVOKE_CHECK_ALIVE_MARKER(isalive);
+            
+            _OnImportFinished(result);
+        });
+}
+
+void Importer::_OnImportFinished(bool success){
+
+    LEVIATHAN_ASSERT(DualView::IsOnMainThread(),
+        "_OnImportFinished called on the wrong thread");
+
+    ReportedProgress = 1.f;
+    _OnImportProgress();
+
+    // Remove images if succeeded //
+    if(success){
+
+        LOG_INFO("Import was successfull");
+        
+    }
+    
+    
+    // Reset variables //
+
+    DoingImport = false;
+}
+
+void Importer::_OnImportProgress(){
+
+    ProgressBar->set_value(100 * ReportedProgress);
 }
 
 void Importer::_OnCopyToCollection(){
 
-    StartImporting();
+    StartImporting(false);
 }
 // ------------------------------------ //
 void Importer::_OnDeselectAll(){

@@ -33,8 +33,10 @@ add_library(Core
   Database.h Database.cpp
   SQLHelpers.h SQLHelpers.cpp
   PreparedStatement.h PreparedStatement.cpp
-  SingleLoad.h
+  SingleLoad.h 
   CacheManager.h CacheManager.cpp
+
+  IsAlive.h
 
   VirtualPath.h VirtualPath.cpp
   TimeHelpers.h TimeHelpers.cpp

@@ -2,6 +2,8 @@
 
 #include "BaseWindow.h"
 
+#include "core/IsAlive.h"
+
 #include <gtkmm.h>
 
 #include <thread>
@@ -16,8 +18,9 @@ class Image;
 class ListItem;
 class TagEditor;
 class ResourceWithPreview;
+class TagCollection;
 
-class Importer : public BaseWindow, public Gtk::Window{
+class Importer : public BaseWindow, public Gtk::Window, public IsAlive{
 public:
 
     Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder);
@@ -33,12 +36,15 @@ public:
 
     //! \brief Starts importing the selected images
     //! \returns True if import started, false if another import is already in progress
-    bool StartImporting();
+    bool StartImporting(bool move);
 
 protected:
 
     //! Ran in the importer thread
-    void _RunImportThread();
+    void _RunImportThread(const std::string &collection, bool move);
+
+    //! Ran in the main thread after importing finishes
+    void _OnImportFinished(bool success);
 
     //! Adds an image to the list
     //! \return True if the file extension is a valid image, false if not
@@ -61,6 +67,8 @@ protected:
     void _OnDeselectAll();
     void _OnSelectAll();
     void _OnCopyToCollection();
+
+    void _OnImportProgress();
     
     void OnItemSelected(ListItem &item);
 
@@ -76,8 +84,17 @@ protected:
     Gtk::Label* StatusLabel;
     Gtk::CheckButton* SelectOnlyOneImage;
 
+    Gtk::LevelBar* ProgressBar;
+
     std::atomic<bool> DoingImport = { false };
     std::thread ImportThread;
+
+    //! Tags to set on the target collection
+    std::shared_ptr<TagCollection> CollectionTags;
+
+    //! Import progress is reported through this
+    Glib::Dispatcher ProgressDispatcher;
+    std::atomic<float> ReportedProgress;
 
     //! List of images that might be marked as selected
     std::vector<std::shared_ptr<Image>> ImagesToImport;
