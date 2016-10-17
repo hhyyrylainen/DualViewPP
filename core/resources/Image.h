@@ -57,6 +57,7 @@ public:
 
     //! \brief Creates a non-db version of an Image.
     //! \exception Leviathan::InvalidArgument if something is wrong with the file
+    //! \todo If the file path is in the database load that instead
     inline static std::shared_ptr<Image> Create(const std::string &file){
 
         auto obj = std::shared_ptr<Image>(new Image(file));
@@ -171,6 +172,10 @@ protected:
 
     //! \brief Once hash is calculated this is called if this is a duplicate of an
     //! existing image
+    //! \warning Update events won't be shared between the two instances. It is still safe
+    //! to import such an image but to edit the tags from multiple places at once
+    //! will lead to the other not seeing the changes instantly, but is shouldn't actually
+    //! break anything
     void BecomeDuplicateOf(const Image &other);
 
     //! \brief Queues DualView to calculate this hash
@@ -213,10 +218,8 @@ private:
     bool IsHashValid = false;
     std::string Hash;
 
-
     int Height = 0;
     int Width = 0;
-
 
     std::shared_ptr<TagCollection> Tags;
 };

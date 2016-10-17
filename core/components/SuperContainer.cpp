@@ -317,7 +317,8 @@ void SuperContainer::_SetKeepFalse(){
 
     for(auto& position : Positions){
 
-        position.WidgetToPosition->Keep = false;
+        if(position.WidgetToPosition)
+            position.WidgetToPosition->Keep = false;
     }
 }
 
@@ -405,14 +406,17 @@ void SuperContainer::_SetWidget(size_t index, std::shared_ptr<Element> widget,
     if(index >= Positions.size())
         throw Leviathan::InvalidArgument("index out of range");
 
-    if(Positions[index].WidgetToPosition && !autoreplace){
+    if(Positions[index].WidgetToPosition){
 
-        throw Leviathan::InvalidState("index is not empty and no autoreplace specified");
+        if(!autoreplace){
+
+            throw Leviathan::InvalidState("index is not empty and no autoreplace specified");
         
-    } else {
+        } else {
 
-        // Remove the current one
-        Container.remove(*Positions[index].WidgetToPosition->Widget);
+            // Remove the current one
+            Container.remove(*Positions[index].WidgetToPosition->Widget);
+        }
     }
 
     // Initialize a size for the widget

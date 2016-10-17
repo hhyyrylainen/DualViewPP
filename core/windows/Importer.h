@@ -54,6 +54,9 @@ protected:
 
     void _OnClose() override;
 
+    //! \brief Call when ImagesToImport is updated to update the list of items
+    void _UpdateImageList();
+
     //! File drag received
     void _OnFileDropped(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y,
         const Gtk::SelectionData& selection_data, guint info, guint time);
@@ -67,6 +70,7 @@ protected:
     void _OnDeselectAll();
     void _OnSelectAll();
     void _OnCopyToCollection();
+    void _OnMoveToCollection();
 
     void _OnImportProgress();
     
@@ -83,9 +87,10 @@ protected:
     
     Gtk::Label* StatusLabel;
     Gtk::CheckButton* SelectOnlyOneImage;
+    Gtk::CheckButton* RemoveAfterAdding;
 
     Gtk::LevelBar* ProgressBar;
-
+    
     std::atomic<bool> DoingImport = { false };
     std::thread ImportThread;
 

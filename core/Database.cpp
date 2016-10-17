@@ -257,6 +257,18 @@ std::shared_ptr<Image> Database::SelectImageByHash(Lock &guard, const std::strin
     return nullptr;
 }
 
+std::shared_ptr<TagCollection> Database::LoadImageTags(const Image &image){
+
+    if(!image.IsInDatabase())
+        return nullptr;
+
+    auto tags = std::make_shared<DatabaseTagCollection>();
+    
+    
+
+    return tags;
+}
+
 // ------------------------------------ //
 // Collection
 std::shared_ptr<Collection> Database::InsertCollection(Lock &guard, const std::string &name,

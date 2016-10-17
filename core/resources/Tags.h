@@ -51,7 +51,7 @@ protected:
     std::vector<std::shared_ptr<AppliedTag>> Tags;
 };
 
-class DatabaseTagCollection : public DatabaseResource, public TagCollection{
+class DatabaseTagCollection : public TagCollection{
 public:
 
     

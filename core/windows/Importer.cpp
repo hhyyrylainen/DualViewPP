@@ -35,6 +35,9 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     builder->get_widget("SelectOnlyOneImage", SelectOnlyOneImage);
     LEVIATHAN_ASSERT(SelectOnlyOneImage, "Invalid .glade file");
 
+    builder->get_widget("RemoveAfterAdding", RemoveAfterAdding);
+    LEVIATHAN_ASSERT(RemoveAfterAdding, "Invalid .glade file");
+
     builder->get_widget("ProgressBar", ProgressBar);
     LEVIATHAN_ASSERT(ProgressBar, "Invalid .glade file");
 
@@ -72,6 +75,13 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     CopyToCollection->signal_clicked().connect(sigc::mem_fun(*this,
             &Importer::_OnCopyToCollection));
+
+    Gtk::Button* MoveToCollection;
+    builder->get_widget("MoveToCollection", MoveToCollection);
+    LEVIATHAN_ASSERT(MoveToCollection, "Invalid .glade file");
+
+    MoveToCollection->signal_clicked().connect(sigc::mem_fun(*this,
+            &Importer::_OnMoveToCollection));
 
     // Progress dispatcher
     ProgressDispatcher.connect(sigc::mem_fun(*this, &Importer::_OnImportProgress));
@@ -146,13 +156,17 @@ bool Importer::_AddImageToList(const std::string &file){
         return false;
     }
 
-    //ImagesToImport.clear();
     ImagesToImport.push_back(img);
-    ImageList->SetShownItems(ImagesToImport.begin(), ImagesToImport.end(),
-        ItemSelectable(std::bind(&Importer::OnItemSelected, this, std::placeholders::_1)));
+    _UpdateImageList();
     
     LOG_INFO("Importer added new image: " + file);
     return true;
+}
+
+void Importer::_UpdateImageList(){
+
+    ImageList->SetShownItems(ImagesToImport.begin(), ImagesToImport.end(),
+        ItemSelectable(std::bind(&Importer::OnItemSelected, this, std::placeholders::_1)));
 }
 // ------------------------------------ //    
 bool Importer::_OnClosed(GdkEventAny* event){
@@ -300,13 +314,31 @@ void Importer::_OnImportFinished(bool success){
     if(success){
 
         LOG_INFO("Import was successfull");
-        
+
+        if(RemoveAfterAdding->get_active()){
+
+            // Remove SelectedImages from ImagesToImport
+            ImagesToImport.erase(std::remove_if(ImagesToImport.begin(), ImagesToImport.end(),
+                    [this](auto &x)
+                    {
+                        return std::find(SelectedImages.begin(), SelectedImages.end(), x) !=
+                            SelectedImages.end();
+                    }),
+                ImagesToImport.end());
+            
+            _UpdateImageList();
+        }
     }
     
-    
     // Reset variables //
-
+    SelectedImages.clear();
+    
+    // Wait for the thread, to avoid asserting
+    ImportThread.join();
+    
+    // Unlock
     DoingImport = false;
+    UpdateReadyStatus();
 }
 
 void Importer::_OnImportProgress(){
@@ -317,6 +349,11 @@ void Importer::_OnImportProgress(){
 void Importer::_OnCopyToCollection(){
 
     StartImporting(false);
+}
+
+void Importer::_OnMoveToCollection(){
+
+    StartImporting(true);
 }
 // ------------------------------------ //
 void Importer::_OnDeselectAll(){

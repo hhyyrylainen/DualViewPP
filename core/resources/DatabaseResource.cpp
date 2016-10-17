@@ -34,6 +34,16 @@ void DatabaseResource::OnAdopted(int64_t id, Database &from){
     InDatabase = &from;
     IsDirty = false;
 }
+
+void DatabaseResource::_BecomeDuplicateOf(const DatabaseResource &other){
+
+    LEVIATHAN_ASSERT(other.ID != -1, "To be duplicated resource has ID of -1");
+
+    ID = other.ID;
+    InDatabase = other.InDatabase;
+    
+    IsDirty = false;
+}
 // ------------------------------------ //
 void DatabaseResource::Save(){
 

@@ -85,6 +85,7 @@
                   <object class="GtkLabel" id="StatusLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="margin_bottom">15</property>
                     <property name="label" translatable="yes">Not Ready To Add</property>
                   </object>
                   <packing>
@@ -102,8 +103,9 @@
                       <object class="GtkBox">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
+                        <property name="homogeneous">True</property>
                         <child>
-                          <object class="GtkButton">
+                          <object class="GtkButton" id="MoveToCollection">
                             <property name="label" translatable="yes">Move To Collection</property>
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
@@ -136,7 +138,7 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkCheckButton">
+                      <object class="GtkCheckButton" id="RemoveAfterAdding">
                         <property name="label" translatable="yes">Remove After Adding</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
@@ -177,6 +179,7 @@
                   <object class="GtkBox">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="margin_top">10</property>
                     <property name="orientation">vertical</property>
                     <child>
                       <object class="GtkButton">
@@ -512,6 +515,7 @@
                           <object class="GtkSpinButton">
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
+                            <property name="margin_right">15</property>
                             <property name="max_length">5</property>
                             <property name="width_chars">5</property>
                             <property name="text" translatable="yes">250</property>

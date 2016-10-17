@@ -348,6 +348,24 @@ std::string CacheManager::CreateResizeSizeForImage(const Magick::Image &image, i
     stream << width << "x" << height;
     return stream.str();
 }
+
+bool CacheManager::GetImageSize(const std::string &image, int &width, int &height){
+
+    try{
+
+        Magick::Image img(image);
+
+        width = img.columns();
+        height = img.rows();
+        
+        return true;
+
+    } catch(const std::exception &e){
+
+        LOG_ERROR("CacheManager: GetImageSize: exception: " + std::string(e.what()));
+        return false;
+    }
+}
 // ------------------------------------ //
 // LoadedImage
 LoadedImage::LoadedImage(const std::string &path) : FromPath(path){

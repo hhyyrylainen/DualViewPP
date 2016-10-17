@@ -77,12 +77,13 @@ Image::Image(Database &db, Lock &dblock, PreparedStatement &statement, int64_t i
 
     ImportLocation = statement.GetColumnAsString(9);
 
-    //! True if Hash has been set to a valid value
     Hash = statement.GetColumnAsString(10);
-
-
+    
     Height = statement.GetColumnAsInt(3);
     Width = statement.GetColumnAsInt(2);
+
+    // Load tags //
+    Tags = db.LoadImageTags(*this);
 }
 
 void Image::Init(){
@@ -161,9 +162,16 @@ std::string Image::CalculateFileHash() const{
 void Image::_DoHashCalculation(){
 
     Hash = CalculateFileHash();
-    IsHashValid = true;
 
     LEVIATHAN_ASSERT(!Hash.empty(), "Image created an empty hash");
+
+    // Load the image size //
+    if(!CacheManager::GetImageSize(ResourcePath, Width, Height)){
+
+        LOG_ERROR("Failed to get image size from: " + ResourcePath);
+    }
+    
+    IsHashValid = true;
 
     // IsReadyToAdd will be set by DualView once it is confirmed that
     // this isn't a duplicate
@@ -181,7 +189,27 @@ void Image::_QueueHashCalculation(){
 // ------------------------------------ //
 void Image::BecomeDuplicateOf(const Image &other){
 
-    DEBUG_BREAK;
+    LEVIATHAN_ASSERT(other.IsHashValid, "Image becoming duplicate of invalid hash");
+
+    // Copy database ID //
+    _BecomeDuplicateOf(other);
+
+    ResourcePath = other.ResourcePath;
+    ResourceName = other.ResourceName;
+    Extension = other.Extension;
+    IsPrivate = other.IsPrivate;
+    AddDate = other.AddDate;
+    LastView = other.LastView;
+    ImportLocation = other.ImportLocation;
+    
+    IsHashValid = true;
+    Hash = other.Hash;
+    
+    Height = other.Height;
+    Width = other.Width;
+    Tags = other.Tags;
+    
+    IsReadyToAdd = true;
 }
 
 bool Image::operator ==(const Image& other){
@@ -230,5 +258,6 @@ bool Image::UpdateWidgetWithValues(ListItem &control){
 void Image::_FillWidget(ImageListItem &widget){
 
     widget.SetImage(shared_from_this());
+    widget.Deselect();
 }
 

@@ -223,6 +223,10 @@ public:
     static std::string CreateResizeSizeForImage(const Magick::Image &image, int width,
         int height);
 
+    //! \brief Loads an image and looks up the size then unloads it
+    //! \returns False if the image cannot be opened
+    static bool GetImageSize(const std::string &image, int &width, int &height);
+
 protected:
 
     std::shared_ptr<LoadedImage> GetCachedImage(const std::lock_guard<std::mutex> &lock,

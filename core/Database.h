@@ -24,6 +24,7 @@ class CurlWrapper;
 class Image;
 class Collection;
 class Folder;
+class TagCollection;
 
 //! \brief The version number of the database
 constexpr auto DATABASE_CURRENT_VERSION = 14;
@@ -102,6 +103,10 @@ public:
     //! \brief Retrieves an Image's id based on the hash
     DBID SelectImageIDByHash(Lock &guard, const std::string &hash);
     CREATE_NON_LOCKING_WRAPPER(SelectImageIDByHash);
+
+    //! \brief Loads a TagCollection for the specified image.
+    //! \returns Null if the image is not in the database
+    std::shared_ptr<TagCollection> LoadImageTags(const Image &image);
     
     //
     // Collection functions

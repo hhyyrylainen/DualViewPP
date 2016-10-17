@@ -53,6 +53,9 @@ public:
 
 protected:
 
+    //! When a resource becomes a duplicate of another
+    void _BecomeDuplicateOf(const DatabaseResource &other);
+
     //! When database has added this as a resource, this is called
     void OnAdopted(int64_t id, Database &from);
 

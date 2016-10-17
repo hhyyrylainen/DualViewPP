@@ -95,6 +95,13 @@ public:
         
         for(size_t i = 0; i < Positions.size() && newIndex != end; ++i, ++newIndex)
         {
+            // Empty positions can be just filled //
+            if(!Positions[i].WidgetToPosition){
+
+                _SetWidget(i, std::make_shared<Element>(*newIndex, selectable));
+                continue;
+            }
+            
             // Make sure that the order is correct //
             if(Positions[i].WidgetToPosition->CreatedFrom->IsSame(**newIndex)){
 
@@ -109,6 +116,9 @@ public:
             if((**newIndex).UpdateWidgetWithValues(*Positions[i].WidgetToPosition->Widget)){
 
                 Positions[i].WidgetToPosition->Keep = true;
+
+                // Important to set the resource //
+                Positions[i].WidgetToPosition->CreatedFrom = *newIndex;
                 continue;
             }
 
@@ -204,6 +214,13 @@ protected:
     inline void _ApplyWidgetPosition(const GridPosition &position){
 
         auto& element = position.WidgetToPosition;
+
+        if(!element || !element->Widget){
+            
+            // An empty position //
+            return;
+        }
+        
         Container.move(*element->Widget, position.X, position.Y);
     }
 
