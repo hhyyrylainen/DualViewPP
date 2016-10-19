@@ -174,6 +174,16 @@ public:
     std::shared_ptr<Folder> SelectRootFolder(Lock &guard);
     CREATE_NON_LOCKING_WRAPPER(SelectRootFolder);
 
+    //! \brief Returns a folder by id
+    std::shared_ptr<Folder> SelectFolderByID(Lock &guard, DBID id);
+
+    //! \brief Returns the first no
+
+    //! \brief Creates a new folder, must have a parent folder
+    //! \returns The created folder or null if the name conflicts
+    std::shared_ptr<Folder> InsertFolder(const std::string &name, bool isprivate,
+        const Folder &parent);
+
     bool UpdateFolder(Folder &folder);
     
     //
@@ -189,11 +199,22 @@ public:
     //
     // Folder folder
     //
+
+    //! \brief Adds a folder to folder
+    //! \exception InvalidSQL If fails
+    //! \note This doesn't check for name conflicts
+    void InsertFolderToFolder(Lock &guard, Folder &folder, const Folder &parent);
     
     //! \brief Returns Folders that are directly in folder. And their name contains
     //! matching pattern
     std::vector<std::shared_ptr<Folder>> SelectFoldersInFolder(const Folder &folder,
         const std::string &matchingpattern = "");
+
+    //! \brief Selects a folder based on parent folder and name
+    std::shared_ptr<Folder> SelectFolderByNameAndParent(Lock &guard, const std::string &name,
+        const Folder &parent);
+    CREATE_NON_LOCKING_WRAPPER(SelectFolderByNameAndParent);
+
 
     
 private:

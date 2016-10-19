@@ -230,3 +230,29 @@ TEST_CASE("Directly using database for collection and image inserts", "[db]"){
 }
 
 
+TEST_CASE("Directly using database for folder contents", "[db]"){
+
+    DummyDualView dv;
+    TestDatabase db;
+
+    REQUIRE_NOTHROW(db.Init());
+
+    SECTION("Default collections are in root folder"){
+
+        CHECK(db.SelectCollectionsInFolder(*db.SelectRootFolderAG(), "").size() >= 2);
+
+        SECTION("Filtering by name works"){
+            CHECK(db.SelectCollectionsInFolder(*db.SelectRootFolderAG(), "no match").empty());
+        }
+    }
+
+    SECTION("Create folder and add a collection to it"){
+
+        auto folder = db.InsertFolder("folder1", false, *db.SelectRootFolderAG());
+
+        REQUIRE(folder);
+        
+    }
+
+}
+

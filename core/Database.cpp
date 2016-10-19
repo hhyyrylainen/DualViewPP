@@ -168,7 +168,7 @@ void Database::PurgeInactiveCache(){
 
     LoadedCollections.Purge();
     LoadedImages.Purge();
-    LoadedCollections.Purge();
+    LoadedFolders.Purge();
 }
 // ------------------------------------ //
 bool Database::SelectDatabaseVersion(Lock &guard, int &result){
@@ -502,11 +502,54 @@ std::shared_ptr<Folder> Database::SelectRootFolder(Lock &guard){
     return nullptr;
 }
 
+std::shared_ptr<Folder> Database::SelectFolderByID(Lock &guard, DBID id){
+
+    const char str[] = "SELECT * FROM virtual_folders WHERE id = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(id);
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return _LoadFolderFromRow(guard, statementobj);
+    }
+
+    return nullptr;
+}
+
+std::shared_ptr<Folder> Database::InsertFolder(const std::string &name, bool isprivate,
+    const Folder &parent)
+{
+    GUARD_LOCK();
+
+    // Make sure it isn't there already //
+    if(SelectFolderByNameAndParent(guard, name, parent))
+        return nullptr;
+
+    const char str[] = "INSERT INTO virtual_folders (name, is_private) VALUES "
+        "(?1, ?2);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(name, isprivate);
+
+    statementobj.StepAll(statementinuse);
+
+    const auto id = sqlite3_last_insert_rowid(SQLiteDb);
+
+    auto created = SelectFolderByID(guard, id);
+
+    LEVIATHAN_ASSERT(created, "InsertFolder failed to retrive folder after inserting");
+    
+    InsertFolderToFolder(guard, *created, parent);
+    return created;
+}
+
 bool Database::UpdateFolder(Folder &folder){
 
     return false;
 }
-
 // ------------------------------------ //
 // Folder collection
 bool Database::InsertCollectionToFolder(Lock &guard, Folder &folder, Collection &collection){
@@ -523,22 +566,72 @@ bool Database::InsertCollectionToFolder(Lock &guard, Folder &folder, Collection 
     statementobj.StepAll(statementinuse);
     
     const auto changes = sqlite3_changes(SQLiteDb);
-    return changes == 1;    
+    return changes == 1; 
 }
 
 std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsInFolder(
     const Folder &folder, const std::string &matchingpattern /*= ""*/)
 {
+    GUARD_LOCK();
+
+    const auto usePattern = !matchingpattern.empty();
+    
     std::vector<std::shared_ptr<Collection>> result;
 
+    const char str[] = "SELECT collections.* FROM folder_collection "
+        "LEFT JOIN collections ON id = child "
+        "WHERE parent = ?1 AND name LIKE ?2 ORDER BY (CASE WHEN name = ?3 THEN 1 "
+        "WHEN name LIKE ?4 THEN 2 ELSE name END);";
+
+    const char strNoMatch[] = "SELECT collections.* FROM folder_collection "
+        "LEFT JOIN collections ON id = child WHERE parent = ?1 ORDER BY name;";
+
+    PreparedStatement statementobj(SQLiteDb, usePattern ? str : strNoMatch,
+        usePattern ? sizeof(str) : sizeof(strNoMatch));
+
+    auto statementinuse = usePattern ? statementobj.Setup(folder.GetID(),
+        "%" + matchingpattern + "%", matchingpattern, matchingpattern) :
+        statementobj.Setup(folder.GetID()); 
     
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        result.push_back(_LoadCollectionFromRow(guard, statementobj));
+    }
     
     return result;
 }
 
 // ------------------------------------ //
 // Folder folder
+void Database::InsertFolderToFolder(Lock &guard, Folder &folder, const Folder &parent){
+
+    const char str[] = "INSERT INTO folder_folder (parent, child) VALUES(?, ?);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(parent.GetID(), folder.GetID());
+
+    statementobj.StepAll(statementinuse);
+}
+
+std::shared_ptr<Folder> Database::SelectFolderByNameAndParent(Lock &guard,
+    const std::string &name, const Folder &parent)
+{
+    const char str[] = "SELECT virtual_folders.* FROM folder_folder "
+        "LEFT JOIN virtual_folders ON id = child WHERE parent = ?1 AND name = ?2;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(parent.GetID(), name); 
     
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return _LoadFolderFromRow(guard, statementobj);
+    }
+    
+    return nullptr;
+}
+
 std::vector<std::shared_ptr<Folder>> Database::SelectFoldersInFolder(const Folder &folder,
     const std::string &matchingpattern /*= ""*/)
 {
