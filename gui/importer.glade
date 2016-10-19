@@ -29,6 +29,7 @@
               <object class="GtkBox">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <property name="margin_right">4</property>
                 <property name="orientation">vertical</property>
                 <child>
                   <object class="GtkCheckButton">
@@ -204,6 +205,7 @@
                         <property name="receives_default">True</property>
                         <property name="halign">center</property>
                         <property name="valign">center</property>
+                        <property name="margin_bottom">3</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -215,6 +217,7 @@
                       <object class="GtkBox">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
+                        <property name="homogeneous">True</property>
                         <child>
                           <object class="GtkButton">
                             <property name="label" translatable="yes">Remove Selected</property>
@@ -236,7 +239,6 @@
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">True</property>
-                            <property name="halign">center</property>
                             <property name="valign">center</property>
                           </object>
                           <packing>
@@ -251,7 +253,6 @@
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="receives_default">True</property>
-                            <property name="halign">center</property>
                             <property name="valign">center</property>
                           </object>
                           <packing>
@@ -546,6 +547,7 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
+                    <property name="pack_type">end</property>
                     <property name="position">1</property>
                   </packing>
                 </child>

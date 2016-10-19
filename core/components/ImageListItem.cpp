@@ -6,9 +6,9 @@
 using namespace DV;
 // ------------------------------------ //
 ImageListItem::ImageListItem(const ItemSelectable &selectable,
-    std::shared_ptr<Image> shownImage /*= nullptr*/) :
-    ListItem(shownImage, shownImage ? shownImage->GetName() : "", selectable, true),
-    CurrentImage(shownImage)
+    std::shared_ptr<Image> shownimage /*= nullptr*/) :
+    ListItem(shownimage, shownimage ? shownimage->GetName() : "", selectable, true),
+    CurrentImage(shownimage)
 {
     
 }

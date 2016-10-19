@@ -333,6 +333,7 @@ void Importer::_OnImportFinished(bool success){
     // Reset variables //
     SelectedImages.clear();
     
+    
     // Wait for the thread, to avoid asserting
     ImportThread.join();
     

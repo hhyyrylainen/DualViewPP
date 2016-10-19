@@ -3,6 +3,7 @@
 
 #include "core/Database.h"
 #include "core/PreparedStatement.h"
+#include "core/components/FolderListItem.h"
 
 using namespace DV;
 // ------------------------------------ //
@@ -23,3 +24,53 @@ void Folder::_DoSave(Database &db){
 
     db.UpdateFolder(*this);
 }
+bool Folder::operator ==(const Folder &other) const{
+
+    if(static_cast<const DatabaseResource&>(*this) ==
+        static_cast<const DatabaseResource&>(other))
+    {
+        return true;
+    }
+    
+    return Name == other.Name;
+}
+// ------------------------------------ //
+// Implementation of ResourceWithPreview
+std::shared_ptr<ListItem> Folder::CreateListItem(const ItemSelectable &selectable){
+ 
+    auto widget = std::make_shared<FolderListItem>(selectable);
+    
+    _FillWidget(*widget);
+
+    return widget;    
+}
+
+bool Folder::IsSame(const ResourceWithPreview &other){
+
+    auto* asThis = dynamic_cast<const Folder*>(&other);
+
+    if(!asThis)
+        return false;
+
+    // Check is the folder same //
+    return *this == *asThis;    
+}
+
+bool Folder::UpdateWidgetWithValues(ListItem &control){
+
+    auto* asOurType = dynamic_cast<FolderListItem*>(&control);
+
+    if(!asOurType)
+        return false;
+
+    // Update the properties //
+    _FillWidget(*asOurType);
+    return true;    
+}
+
+void Folder::_FillWidget(FolderListItem &widget){
+
+    widget.SetFolder(shared_from_this());
+    widget.Deselect();    
+}
+

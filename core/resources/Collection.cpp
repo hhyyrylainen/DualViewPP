@@ -5,6 +5,7 @@
 
 #include "core/Database.h"
 #include "core/PreparedStatement.h"
+#include "core/components/CollectionListItem.h"
 
 #include "Database.h"
 #include "DualView.h"
@@ -156,4 +157,53 @@ int64_t Collection::GetImageShowOrder(std::shared_ptr<Image> image){
 void Collection::_DoSave(Database &db){
 
     db.UpdateCollection(*this);
+}
+bool Collection::operator ==(const Collection &other) const{
+
+    if(static_cast<const DatabaseResource&>(*this) ==
+        static_cast<const DatabaseResource&>(other))
+    {
+        return true;
+    }
+    
+    return Name == other.Name;
+}
+// ------------------------------------ //
+// Implementation of ResourceWithPreview
+std::shared_ptr<ListItem> Collection::CreateListItem(const ItemSelectable &selectable){
+ 
+    auto widget = std::make_shared<CollectionListItem>(selectable);
+    
+    _FillWidget(*widget);
+
+    return widget;    
+}
+
+bool Collection::IsSame(const ResourceWithPreview &other){
+
+    auto* asThis = dynamic_cast<const Collection*>(&other);
+
+    if(!asThis)
+        return false;
+
+    // Check is the folder same //
+    return *this == *asThis;    
+}
+
+bool Collection::UpdateWidgetWithValues(ListItem &control){
+
+    auto* asOurType = dynamic_cast<CollectionListItem*>(&control);
+
+    if(!asOurType)
+        return false;
+
+    // Update the properties //
+    _FillWidget(*asOurType);
+    return true;    
+}
+
+void Collection::_FillWidget(CollectionListItem &widget){
+
+    widget.SetCollection(shared_from_this());
+    widget.Deselect();    
 }

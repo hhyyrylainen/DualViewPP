@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ResourceWithPreview.h"
 #include "DatabaseResource.h"
 #include "Tags.h"
 
@@ -14,11 +15,14 @@ namespace DV{
 
 class Image;
 class DatabaseTagCollection;
+class CollectionListItem;
 
 class Database;
 class PreparedStatement;
 
-class Collection : public DatabaseResource{
+class Collection : public DatabaseResource, public ResourceWithPreview,
+                     public std::enable_shared_from_this<Collection>
+{
 public:
     //! \brief Creates a collection for database testing
     //! \protected
@@ -70,12 +74,22 @@ public:
 
         return Name;
     }
-    
+
+    //! \brief Returns true if both Collections represent the same database collection
+    bool operator ==(const Collection &other) const;
+
+    // Implementation of ResourceWithPreview
+    std::shared_ptr<ListItem> CreateListItem(const ItemSelectable &selectable) override;
+    bool IsSame(const ResourceWithPreview &other) override;
+    bool UpdateWidgetWithValues(ListItem &control) override;
 
 protected:
 
     // DatabaseResource implementation
     void _DoSave(Database &db) override;
+
+    //! \brief Fills a widget with this resource
+    void _FillWidget(CollectionListItem &widget);
 
 protected:
 

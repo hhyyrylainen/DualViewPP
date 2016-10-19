@@ -212,9 +212,9 @@ void Image::BecomeDuplicateOf(const Image &other){
     IsReadyToAdd = true;
 }
 
-bool Image::operator ==(const Image& other){
+bool Image::operator ==(const Image& other) const{
 
-    if(static_cast<DatabaseResource&>(*this) ==
+    if(static_cast<const DatabaseResource&>(*this) ==
         static_cast<const DatabaseResource&>(other))
     {
         return true;

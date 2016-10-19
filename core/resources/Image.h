@@ -157,7 +157,7 @@ public:
 
     //! \brief Returns true if the images represent the same image
     //! \todo Fix this
-    bool operator ==(const Image& other);
+    bool operator ==(const Image& other) const;
 
 
     // Implementation of ResourceWithPreview

@@ -1,7 +1,12 @@
 // ------------------------------------ //
 #include "CollectionView.h"
 
+#include "DualView.h"
+#include "Database.h"
+
 #include "core/components/SuperContainer.h"
+#include "core/resources/Folder.h"
+#include "core/resources/Collection.h"
 
 #include "Common.h"
 
@@ -18,6 +23,8 @@ CollectionView::CollectionView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> bu
     
     builder->get_widget_derived("ImageContainer", Container);
     LEVIATHAN_ASSERT(Container, "Invalid .glade file");
+
+    CurrentFolder = DualView::Get().GetRootFolder();
 }
 
 CollectionView::~CollectionView(){
@@ -38,13 +45,34 @@ bool CollectionView::_OnClose(GdkEventAny* event){
 void CollectionView::_OnShown(){
 
     // Load items //
-    std::vector<std::shared_ptr<Image>> images;
+    auto isalive = GetAliveMarker();
+    std::string matchingpattern = "";
 
-    LOG_INFO("TODO: load collections and folders for CollectionView_OnShown");
-    
-    DEBUG_BREAK;
-    
-    Container->SetShownItems(images.begin(), images.end());
+    DualView::Get().QueueDBThreadFunction([this, isalive, matchingpattern](){
+
+            const auto collections = DualView::Get().GetDatabase().SelectCollectionsInFolder(
+                *CurrentFolder, matchingpattern);
+
+            const auto folders = DualView::Get().GetDatabase().SelectFoldersInFolder(
+                *CurrentFolder, matchingpattern);
+            
+            
+            auto loadedresources =
+                std::make_shared<std::vector<std::shared_ptr<ResourceWithPreview>>>();
+
+            loadedresources->insert(std::end(*loadedresources), std::begin(folders),
+                std::end(folders));
+            
+            loadedresources->insert(std::end(*loadedresources), std::begin(collections),
+                std::end(collections));
+
+            DualView::Get().InvokeFunction([this, isalive, loadedresources](){
+
+                    INVOKE_CHECK_ALIVE_MARKER(isalive);
+
+                    Container->SetShownItems(loadedresources->begin(), loadedresources->end());
+                });
+        });
 }
 
 void CollectionView::_OnHidden(){

@@ -53,6 +53,8 @@ add_library(Core
   components/SuperContainer.h components/SuperContainer.cpp
   components/ListItem.h components/ListItem.cpp
   components/ImageListItem.h components/ImageListItem.cpp
+  components/CollectionListItem.h components/CollectionListItem.cpp
+  components/FolderListItem.h components/FolderListItem.cpp
 
   components/TagEditor.h components/TagEditor.cpp
   

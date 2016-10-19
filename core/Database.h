@@ -175,12 +175,26 @@ public:
     CREATE_NON_LOCKING_WRAPPER(SelectRootFolder);
 
     bool UpdateFolder(Folder &folder);
-
+    
     //
     // Folder collection
     //
     bool InsertCollectionToFolder(Lock &guard, Folder &folder, Collection &collection);
+
+    //! \brief Returns Collections that are directly in folder. And their name contains
+    //! matching pattern
+    std::vector<std::shared_ptr<Collection>> SelectCollectionsInFolder(const Folder &folder,
+        const std::string &matchingpattern = "");
+
+    //
+    // Folder folder
+    //
     
+    //! \brief Returns Folders that are directly in folder. And their name contains
+    //! matching pattern
+    std::vector<std::shared_ptr<Folder>> SelectFoldersInFolder(const Folder &folder,
+        const std::string &matchingpattern = "");
+
     
 private:
 

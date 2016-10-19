@@ -526,6 +526,31 @@ bool Database::InsertCollectionToFolder(Lock &guard, Folder &folder, Collection 
     return changes == 1;    
 }
 
+std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsInFolder(
+    const Folder &folder, const std::string &matchingpattern /*= ""*/)
+{
+    std::vector<std::shared_ptr<Collection>> result;
+
+    
+    
+    return result;
+}
+
+// ------------------------------------ //
+// Folder folder
+    
+std::vector<std::shared_ptr<Folder>> Database::SelectFoldersInFolder(const Folder &folder,
+    const std::string &matchingpattern /*= ""*/)
+{
+    std::vector<std::shared_ptr<Folder>> result;
+
+    
+    return result;
+}
+
+
+
+
 // ------------------------------------ //
 // Row parsing functions
 std::shared_ptr<Collection> Database::_LoadCollectionFromRow(Lock &guard,
