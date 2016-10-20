@@ -24,13 +24,8 @@ Collection::Collection(const std::string &name) :
             std::chrono::time_point_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now()))),
 
-    ModifyDate(date::make_zoned(date::current_zone(),
-            std::chrono::time_point_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now()))),
-
-    LastView(date::make_zoned(date::current_zone(),
-            std::chrono::time_point_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now())))
+    ModifyDate(AddDate),
+    LastView(AddDate)
 {
 
 }
@@ -38,9 +33,9 @@ Collection::Collection(const std::string &name) :
 Collection::Collection(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id) :
     DatabaseResource(id, db),
 
-    AddDate(TimeHelpers::parse8601(statement.GetColumnAsString(2))),
-    ModifyDate(TimeHelpers::parse8601(statement.GetColumnAsString(3))),
-    LastView(TimeHelpers::parse8601(statement.GetColumnAsString(4)))
+    AddDate(TimeHelpers::GetStaleZonedTime()),
+    ModifyDate(AddDate),
+    LastView(AddDate)
 {
     // Load properties //
     CheckRowID(statement, 1, "name");
@@ -52,6 +47,10 @@ Collection::Collection(Database &db, Lock &dblock, PreparedStatement &statement,
 
     Name = statement.GetColumnAsString(1);
     IsPrivate = statement.GetColumnAsBool(5);
+
+    AddDate = TimeHelpers::ParseTime(statement.GetColumnAsString(2));
+    ModifyDate = TimeHelpers::ParseTime(statement.GetColumnAsString(3));
+    LastView = TimeHelpers::ParseTime(statement.GetColumnAsString(4));
 }
 
 

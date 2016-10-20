@@ -30,9 +30,7 @@ Image::Image(const std::string &file) :
     AddDate(date::make_zoned(date::current_zone(),
             std::chrono::time_point_cast<std::chrono::milliseconds>(
                 std::chrono::system_clock::now()))),
-    LastView(date::make_zoned(date::current_zone(),
-            std::chrono::time_point_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now()))),
+    LastView(AddDate),
     ImportLocation(file)
     
 {
@@ -49,8 +47,8 @@ Image::Image(const std::string &file) :
 
 Image::Image(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id) :
     DatabaseResource(id, db),
-    AddDate(TimeHelpers::parse8601(statement.GetColumnAsString(6))), 
-    LastView(TimeHelpers::parse8601(statement.GetColumnAsString(7)))
+    AddDate(TimeHelpers::GetStaleZonedTime()),
+    LastView(AddDate)
 {
     IsReadyToAdd = true;
     IsHashValid = true;
@@ -81,6 +79,9 @@ Image::Image(Database &db, Lock &dblock, PreparedStatement &statement, int64_t i
     
     Height = statement.GetColumnAsInt(3);
     Width = statement.GetColumnAsInt(2);
+
+    AddDate = TimeHelpers::ParseTime(statement.GetColumnAsString(6));
+    LastView = TimeHelpers::ParseTime(statement.GetColumnAsString(7));
 
     // Load tags //
     Tags = db.LoadImageTags(*this);

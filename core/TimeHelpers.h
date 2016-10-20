@@ -36,9 +36,22 @@ public:
             LOG_FATAL("Failed to initialize / download timezone database");
             throw;
         }
-        
 
+        StartTime = std::make_shared<date::zoned_time<std::chrono::milliseconds>>(
+            date::make_zoned(date::current_zone(),
+                std::chrono::time_point_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now())));
+        
         IsInitialized = true;
+    }
+
+    //! Returns a timestamp when TimeZoneDatabaseSetup was called, use for initializing
+    //! zoned times
+    static auto GetStaleZonedTime(){
+
+        TimeZoneDatabaseSetup();
+
+        return *StartTime;
     }
 
     static auto parse8601(const std::string &str)
@@ -84,6 +97,33 @@ public:
         return tp;
     }
 
+    
+    //! Parses any time thing known to man
+    static auto ParseTime(const std::string &str){
+
+        try{
+
+            return parse8601(str);
+
+        } catch(const std::exception&){
+
+            // Wasn't according to the iso standard...
+        }
+
+        // Try a simple time parsing
+        std::istringstream in(str);
+
+        date::sys_time<std::chrono::milliseconds> tp;
+        date::parse(in, "%F %T", tp);
+
+        if (in.fail()){
+            
+            throw std::runtime_error("ParseTime unknown format: " + str);
+        }
+
+        return date::make_zoned(date::current_zone(), tp);
+    }
+
     template<class TZonedTime>
         static auto format8601(const TZonedTime &time)
     {
@@ -102,6 +142,8 @@ private:
     
     static std::atomic<bool> IsInitialized;
     static std::mutex InitializeMutex;
+
+    static std::shared_ptr<date::zoned_time<std::chrono::milliseconds>> StartTime;
 };
 
 
