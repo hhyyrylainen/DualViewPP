@@ -268,6 +268,8 @@ protected:
     
     // Callbacks //
     //! \brief Repositions GridPositions if size has changed enough
+    //! \note For some reason this doesn't get always called so horizontal scrollbars try
+    //! to appear from time to time
     //! \todo Check if `Container.check_resize();` is a performance problem and is there a
     //! alternative fix to forcing position updates when maximizing
     void _OnResize(Gtk::Allocation &allocation);

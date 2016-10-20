@@ -28,6 +28,10 @@ void SuperContainer::_CommonCtor(){
     Container.show();
 
     signal_size_allocate().connect(sigc::mem_fun(*this, &SuperContainer::_OnResize));
+
+    // Both scrollbars need to be able to apprear, otherwise the width cannot be reduced
+    // so that wrapping occurs
+    set_policy(Gtk::POLICY_AUTOMATIC, Gtk::POLICY_AUTOMATIC);
 }
 
 SuperContainer::~SuperContainer(){
@@ -48,7 +52,7 @@ void SuperContainer::UpdatePositioning(){
         return;
 
     LayoutDirty = false;
-    WidestRow = 0;
+    WidestRow = SUPERCONTAINER_MARGIN;
     
     if(Positions.empty())
         return;
@@ -83,7 +87,7 @@ void SuperContainer::UpdatePositioning(){
 
 void SuperContainer::UpdateRowWidths(){
 
-    WidestRow = 0;
+    WidestRow = SUPERCONTAINER_MARGIN;
 
     int32_t CurrentRow = SUPERCONTAINER_MARGIN;
     int32_t CurrentY = Positions.front().Y;
