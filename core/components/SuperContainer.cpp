@@ -29,7 +29,7 @@ void SuperContainer::_CommonCtor(){
 
     signal_size_allocate().connect(sigc::mem_fun(*this, &SuperContainer::_OnResize));
 
-    // Both scrollbars need to be able to apprear, otherwise the width cannot be reduced
+    // Both scrollbars need to be able to appear, otherwise the width cannot be reduced
     // so that wrapping occurs
     set_policy(Gtk::POLICY_AUTOMATIC, Gtk::POLICY_AUTOMATIC);
 }
