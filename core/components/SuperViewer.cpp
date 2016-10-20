@@ -385,6 +385,14 @@ void SuperViewer::_OnNewImageReady(){
 
     IsImageReady = true;
 
+    // Check error //
+    if(!DisplayImage->IsValid()){
+
+        // Set error //
+
+        return;
+    }
+
     // Reset variables //
     IsMultiFrame = DisplayImage->GetFrameCount() > 1;
 
