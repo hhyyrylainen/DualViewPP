@@ -322,7 +322,7 @@ void SuperViewer::_DrawBackground(const Cairo::RefPtr<Cairo::Context>& cr) const
     cr->translate(centerpoint.X - (twidth / 2), centerpoint.X - (twidth / 2));
     
     // Scale the whole drawing area //
-    cr->scale(ImageZoom, ImageZoom);
+    cr->scale(scale, scale);
 
     // Draw to a rectangle normally //
     Gdk::Cairo::set_source_pixbuf(cr, Background, 0, 0);
