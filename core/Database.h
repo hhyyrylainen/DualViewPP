@@ -177,8 +177,6 @@ public:
     //! \brief Returns a folder by id
     std::shared_ptr<Folder> SelectFolderByID(Lock &guard, DBID id);
 
-    //! \brief Returns the first no
-
     //! \brief Creates a new folder, must have a parent folder
     //! \returns The created folder or null if the name conflicts
     std::shared_ptr<Folder> InsertFolder(const std::string &name, bool isprivate,
@@ -190,6 +188,7 @@ public:
     // Folder collection
     //
     bool InsertCollectionToFolder(Lock &guard, Folder &folder, Collection &collection);
+    CREATE_NON_LOCKING_WRAPPER(InsertCollectionToFolder);
 
     //! \brief Returns Collections that are directly in folder. And their name contains
     //! matching pattern
