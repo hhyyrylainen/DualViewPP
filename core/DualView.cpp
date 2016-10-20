@@ -1026,6 +1026,8 @@ std::shared_ptr<Folder> DualView::GetRootFolder(){
     if(RootFolder)
         return RootFolder;
 
+    LEVIATHAN_ASSERT(_Database, "Trying to GetRootFolder before database is opened");
+
     RootFolder = _Database->SelectRootFolderAG();
     return RootFolder;
 }

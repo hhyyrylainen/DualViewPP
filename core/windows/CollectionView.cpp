@@ -23,8 +23,6 @@ CollectionView::CollectionView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> bu
     
     builder->get_widget_derived("ImageContainer", Container);
     LEVIATHAN_ASSERT(Container, "Invalid .glade file");
-
-    CurrentFolder = DualView::Get().GetRootFolder();
 }
 
 CollectionView::~CollectionView(){
@@ -43,6 +41,8 @@ bool CollectionView::_OnClose(GdkEventAny* event){
 }
 // ------------------------------------ //
 void CollectionView::_OnShown(){
+
+    CurrentFolder = DualView::Get().GetRootFolder();
 
     // Load items //
     auto isalive = GetAliveMarker();
