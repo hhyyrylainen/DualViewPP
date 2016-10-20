@@ -171,6 +171,7 @@ public:
     //
     // Folder
     //
+    //! \todo Make this cache the result after the first call to improve performance
     std::shared_ptr<Folder> SelectRootFolder(Lock &guard);
     CREATE_NON_LOCKING_WRAPPER(SelectRootFolder);
 
@@ -194,6 +195,14 @@ public:
     //! matching pattern
     std::vector<std::shared_ptr<Collection>> SelectCollectionsInFolder(const Folder &folder,
         const std::string &matchingpattern = "");
+
+    //! \brief Returns true if Collection is in another folder than folder
+    bool SelectCollectionIsInAnotherFolder(Lock &guard, const Folder &folder,
+        const Collection &collection);
+
+    //! \brief Deletes a Collection from the root folder if the collection is in another
+    //! folder.
+    void DeleteCollectionFromRootIfInAnotherFolder(const Collection &collection);
 
     //
     // Folder folder

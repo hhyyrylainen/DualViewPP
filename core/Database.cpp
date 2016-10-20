@@ -601,6 +601,45 @@ std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsInFolder(
     return result;
 }
 
+bool Database::SelectCollectionIsInAnotherFolder(Lock &guard, const Folder &folder,
+    const Collection &collection)
+{
+    const char str[] = "SELECT 1 FROM folder_collection WHERE child = ? AND parent != ? "
+        "LIMIT 1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID(), folder.GetID());
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        // There is
+        return true;
+    }
+
+    return false;
+}
+
+void Database::DeleteCollectionFromRootIfInAnotherFolder(const Collection &collection){
+
+    GUARD_LOCK();
+
+    auto& root = *SelectRootFolder(guard);
+
+    if(!SelectCollectionIsInAnotherFolder(guard, root, collection)){
+
+        return;
+    }
+
+    const char str[] = "DELETE FROM folder_collection WHERE child = ? AND parent = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID(), root.GetID());
+
+    statementobj.StepAll(statementinuse);
+}
+
 // ------------------------------------ //
 // Folder folder
 void Database::InsertFolderToFolder(Lock &guard, Folder &folder, const Folder &parent){
@@ -635,8 +674,31 @@ std::shared_ptr<Folder> Database::SelectFolderByNameAndParent(Lock &guard,
 std::vector<std::shared_ptr<Folder>> Database::SelectFoldersInFolder(const Folder &folder,
     const std::string &matchingpattern /*= ""*/)
 {
+    GUARD_LOCK();
+    
     std::vector<std::shared_ptr<Folder>> result;
 
+    const auto usePattern = !matchingpattern.empty();
+    
+    const char str[] = "SELECT virtual_folders.* FROM folder_folder "
+        "LEFT JOIN virtual_folders ON id = child "
+        "WHERE parent = ?1 AND name LIKE ?2 ORDER BY (CASE WHEN name = ?3 THEN 1 "
+        "WHEN name LIKE ?4 THEN 2 ELSE name END);";
+
+    const char strNoMatch[] = "SELECT virtual_folders.* FROM folder_folder "
+        "LEFT JOIN virtual_folders ON id = child WHERE parent = ?1 ORDER BY name;";
+
+    PreparedStatement statementobj(SQLiteDb, usePattern ? str : strNoMatch,
+        usePattern ? sizeof(str) : sizeof(strNoMatch));
+
+    auto statementinuse = usePattern ? statementobj.Setup(folder.GetID(),
+        "%" + matchingpattern + "%", matchingpattern, matchingpattern) :
+        statementobj.Setup(folder.GetID()); 
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        result.push_back(_LoadFolderFromRow(guard, statementobj));
+    }
     
     return result;
 }
