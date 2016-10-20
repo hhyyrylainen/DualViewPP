@@ -8,6 +8,7 @@
 #include "Exceptions.h"
 
 #include "DualView.h"
+#include "Settings.h"
 
 #include <boost/filesystem.hpp>
 
@@ -28,6 +29,8 @@ CacheManager::CacheManager(){
 }
 
 CacheManager::~CacheManager(){
+
+    FolderIconAsImage.reset();
 
     // Stop loading threads //
     // This might already have been set to true
@@ -123,6 +126,61 @@ void CacheManager::NotifyMovedFile(const std::string &oldfile, const std::string
             cachedImage->OnMoved(newfile);
     }
 }
+
+// ------------------------------------ //
+// Resource loading
+Glib::RefPtr<Gdk::Pixbuf> CacheManager::GetFolderIcon(){
+
+    std::lock_guard<std::mutex> lock(ResourceLoadMutex);
+
+    if(FolderIcon)
+        return FolderIcon;
+
+    // Load it //
+    FolderIcon = Gdk::Pixbuf::create_from_file(
+        DualView::Get().GetSettings().GetPathToFolderIcon());
+
+    LEVIATHAN_ASSERT(FolderIcon, "Failed to load resource: FolderIcon");
+    return FolderIcon;
+}
+
+Glib::RefPtr<Gdk::Pixbuf> CacheManager::GetCollectionIcon(){
+
+    std::lock_guard<std::mutex> lock(ResourceLoadMutex);
+
+    if(CollectionIcon)
+        return CollectionIcon;
+
+    // Load it //
+    CollectionIcon = Gdk::Pixbuf::create_from_file(
+        DualView::Get().GetSettings().GetPathToCollectionIcon());
+
+    LEVIATHAN_ASSERT(CollectionIcon, "Failed to load resource: CollectionIcon");
+    return CollectionIcon;
+}
+
+std::shared_ptr<LoadedImage> CacheManager::GetFolderAsImage(){
+
+    std::lock_guard<std::mutex> lock(ResourceLoadMutex);
+
+    if(FolderIconAsImage)
+        return FolderIconAsImage;
+
+    // Load it //
+    FolderIconAsImage = std::make_shared<LoadedImage>(
+        DualView::Get().GetSettings().GetPathToFolderIcon());
+    
+    {
+        std::lock_guard<std::mutex> lock2(LoadQueueMutex);
+        LoadQueue.push_back(FolderIconAsImage);
+    }
+
+    // Notify loader thread //
+    NotifyFullLoaderThread.notify_all();
+    
+    return FolderIconAsImage;
+}
+
 // ------------------------------------ //
 void CacheManager::QuitProcessingThreads(){
 

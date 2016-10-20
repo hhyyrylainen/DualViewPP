@@ -9,6 +9,7 @@ namespace DV{
 class Collection;
 
 //! \brief Widget type for CollectionPreview
+//! \todo Switch preview icon loading to database thread if it risks hanging the main thread
 class CollectionListItem : public ListItem{
 public:
 

@@ -56,7 +56,6 @@ void CollectionView::_OnShown(){
             const auto folders = DualView::Get().GetDatabase().SelectFoldersInFolder(
                 *CurrentFolder, matchingpattern);
             
-            
             auto loadedresources =
                 std::make_shared<std::vector<std::shared_ptr<ResourceWithPreview>>>();
 

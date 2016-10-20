@@ -58,6 +58,18 @@ public:
             Save();
     }
 
+    //! \brief Returns executable relative path to Folder icon
+    std::string GetPathToFolderIcon() const{
+
+        return "../gui/icons/file-folder.png";
+    }
+
+    //! \brief Returns executable relative path to Collection icon
+    std::string GetPathToCollectionIcon() const{
+
+        return "../gui/icons/folders.png";
+    }
+
     //! \brief Returns true if loadversion is compatible with SETTINGS_VERSION
     static bool IsVersionCompatible(int loadversion);
 

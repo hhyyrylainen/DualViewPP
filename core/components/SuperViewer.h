@@ -63,6 +63,12 @@ public:
     //! \brief Sets the image to show
     void SetImage(std::shared_ptr<Image> displayedResource);
 
+    //! \brief Sets an already loaded image to show
+    void SetImage(std::shared_ptr<LoadedImage> alreadyloaded);
+
+    //! \brief Sets an background image that is always adjusted to fit the widget
+    void SetBackground(Glib::RefPtr<Gdk::Pixbuf> background);
+
     //! \brief Gets the shown image
     inline auto GetImage() const{
 
@@ -92,6 +98,9 @@ protected:
 
     //! \brief Draws the CachedDrawnImage with all the current settings
     void _DrawCurrentImage(const Cairo::RefPtr<Cairo::Context>& cr) const;
+
+    //! \brief Draws a background image (if one is set)
+    void _DrawBackground(const Cairo::RefPtr<Cairo::Context>& cr) const;
 
     //! \brief Returns the top left of the image at zoomlevel
     Point CalculateImageRenderTopLeft(size_t width, size_t height,
@@ -142,6 +151,9 @@ private:
 
     //! Holds a cached version of DisplayImage. Prevents conversion happening on each frame
     Glib::RefPtr<Gdk::Pixbuf> CachedDrawnImage;
+
+    //! If not empty this is drawn before the image
+    Glib::RefPtr<Gdk::Pixbuf> Background;
 
     ENABLED_EVENTS Events;
 

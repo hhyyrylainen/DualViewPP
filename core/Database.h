@@ -100,6 +100,10 @@ public:
     std::shared_ptr<Image> SelectImageByHash(Lock &guard, const std::string &hash);
     CREATE_NON_LOCKING_WRAPPER(SelectImageByHash);
 
+    //! \brief Retrieves an Image based on the id
+    std::shared_ptr<Image> SelectImageByID(Lock &guard, DBID id);
+    CREATE_NON_LOCKING_WRAPPER(SelectImageByID);
+
     //! \brief Retrieves an Image's id based on the hash
     DBID SelectImageIDByHash(Lock &guard, const std::string &hash);
     CREATE_NON_LOCKING_WRAPPER(SelectImageIDByHash);
@@ -159,6 +163,14 @@ public:
 
     //! \brief Returns the show_order image has in collection. Or -1
     int64_t SelectImageShowOrderInCollection(Collection &collection, Image &image);
+
+    //! \brief Returns the preview image for a collection
+    std::shared_ptr<Image> SelectCollectionPreviewImage(const Collection &collection);
+
+    //! \brief Returns the first image in a collection, or null if empty
+    std::shared_ptr<Image> SelectFirstImageInCollection(Lock &guard,
+        const Collection &collection);
+    CREATE_NON_LOCKING_WRAPPER(SelectFirstImageInCollection);
 
     // Statistics functions //
     size_t CountExistingTags();

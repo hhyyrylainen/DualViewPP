@@ -185,7 +185,6 @@ protected:
     
 };
 
-
 //! \brief Manages loading images
 //! \note This class will perform ImageMagick initialization automatically
 class CacheManager{
@@ -216,6 +215,17 @@ public:
     //! \brief Called when a file is moved, updates cache references to that file
     void NotifyMovedFile(const std::string &oldfile, const std::string &newfile);
 
+
+    // Resource loading
+
+    //! Icon for folders
+    Glib::RefPtr<Gdk::Pixbuf> GetFolderIcon();
+
+    Glib::RefPtr<Gdk::Pixbuf> GetCollectionIcon();
+
+    //! Folder as a foreground image
+    std::shared_ptr<LoadedImage> GetFolderAsImage();
+    
     //! \brief Marks the processing threads as quitting
     void QuitProcessingThreads();
 
@@ -278,6 +288,21 @@ protected:
     //! List of thumbnails that need to be loaded. The string in the tuple is the
     //! file hash
     std::list<std::tuple<std::shared_ptr<LoadedImage>, std::string>> ThumbQueue;
+
+
+    // Resource managing //
+
+    // For simplicity resources are loaded the first time they are requested
+
+    //! Locked when getting resources to make sure there's no issues updating the pointers
+    std::mutex ResourceLoadMutex;
+    
+    Glib::RefPtr<Gdk::Pixbuf> FolderIcon;
+    Glib::RefPtr<Gdk::Pixbuf> CollectionIcon;
+
+
+    //! The folder icon as an image
+    std::shared_ptr<LoadedImage> FolderIconAsImage;
 };
 
 

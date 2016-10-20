@@ -153,6 +153,14 @@ int64_t Collection::GetImageShowOrder(std::shared_ptr<Image> image){
     return InDatabase->SelectImageShowOrderInCollection(*this, *image);
 }
 
+std::shared_ptr<Image> Collection::GetPreviewIcon(){
+
+    if(!IsInDatabase())
+        return nullptr;
+
+    return InDatabase->SelectCollectionPreviewImage(*this);
+}
+
 // ------------------------------------ //
 void Collection::_DoSave(Database &db){
 

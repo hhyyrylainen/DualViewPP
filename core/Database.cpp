@@ -257,6 +257,22 @@ std::shared_ptr<Image> Database::SelectImageByHash(Lock &guard, const std::strin
     return nullptr;
 }
 
+std::shared_ptr<Image> Database::SelectImageByID(Lock &guard, DBID id){
+
+    const char str[] = "SELECT * FROM pictures WHERE id = ?1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(id);
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return _LoadImageFromRow(guard, statementobj);
+    }
+    
+    return nullptr;
+}
+
 std::shared_ptr<TagCollection> Database::LoadImageTags(const Image &image){
 
     if(!image.IsInDatabase())
@@ -463,6 +479,52 @@ int64_t Database::SelectImageShowOrderInCollection(Collection &collection, Image
     }
 
     return -1;
+}
+
+std::shared_ptr<Image> Database::SelectCollectionPreviewImage(const Collection &collection){
+
+    GUARD_LOCK();
+
+    const char str[] = "SELECT preview_image FROM collections WHERE id = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID());
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID preview;
+        
+        if(statementobj.GetObjectIDFromColumn(preview, 0)){
+
+            // It was set //
+            return SelectImageByID(guard, preview); 
+        }
+    }
+
+    // There wasn't a specifically set preview image
+    return SelectFirstImageInCollection(guard, collection);
+}
+
+std::shared_ptr<Image> Database::SelectFirstImageInCollection(Lock &guard,
+    const Collection &collection)
+{
+    const char str[] = "SELECT image FROM collection_image WHERE collection = ? "
+        "ORDER BY show_order ASC LIMIT 1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID());
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+
+        if(statementobj.GetObjectIDFromColumn(id, 0))
+            return SelectImageByID(guard, id);
+    }
+
+    return nullptr;
 }
     
 // ------------------------------------ //

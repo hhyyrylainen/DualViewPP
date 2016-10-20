@@ -100,6 +100,29 @@ void SuperViewer::SetImage(std::shared_ptr<Image> displayedResource){
     
     queue_draw();    
 }
+
+void SuperViewer::SetBackground(Glib::RefPtr<Gdk::Pixbuf> background){
+
+    Background = background;
+
+    queue_draw();
+}
+
+void SuperViewer::SetImage(std::shared_ptr<LoadedImage> alreadyloaded){
+
+    DisplayedResource = nullptr;
+    
+    DisplayImage = alreadyloaded;
+    IsInThumbnailMode = true;
+    ForceOnlyThumbnail = true;
+    CachedDrawnImage.reset();
+
+    IsImageReady = false;
+
+    IsAutoFit = true;
+
+    queue_draw();
+}
 // ------------------------------------ //
 bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
 
@@ -110,7 +133,7 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
     HasBeenDrawn = true;
 
     // If no image, stop //
-    if(!DisplayedResource){
+    if(!DisplayedResource && !DisplayImage){
 
         // paint the background
         auto refStyleContext = get_style_context();
@@ -140,7 +163,7 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
 
     // If there is no image here, try to load the right image //
     if(!DisplayImage){
-        
+
         _SetLoadedImage(IsInThumbnailMode ? DisplayedResource->GetThumbnail() :
             DisplayedResource->GetImage());
     }
@@ -243,6 +266,10 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
                     _AddUnloadTimer();
             }
 
+            // Draw the background first so the other image is on top
+            if(Background)
+                _DrawBackground(cr);
+
             _DrawCurrentImage(cr);
         }
     }
@@ -270,6 +297,40 @@ void SuperViewer::_DrawCurrentImage(const Cairo::RefPtr<Cairo::Context>& cr) con
     cr->rectangle(0, 0,
         CachedDrawnImage->get_width(), CachedDrawnImage->get_height());
     cr->fill();
+}
+
+void SuperViewer::_DrawBackground(const Cairo::RefPtr<Cairo::Context>& cr) const{
+
+    if(!Background)
+        return;
+
+    float xdifference = get_width() / (float)Background->get_width();
+    float ydifference = get_height() / (float)Background->get_height();
+
+    float scale = std::min(xdifference, ydifference);
+
+    const Point centerpoint(
+        (get_width() / 2),
+        (get_height() / 2));
+
+    auto theight = static_cast<size_t>(Background->get_height() * scale);
+    auto twidth = static_cast<size_t>(Background->get_width() * scale);
+
+    // Save the cairo state otherwise we would mess up the normal drawing
+    cr->save();
+
+    cr->translate(centerpoint.X - (twidth / 2), centerpoint.X - (twidth / 2));
+    
+    // Scale the whole drawing area //
+    cr->scale(ImageZoom, ImageZoom);
+
+    // Draw to a rectangle normally //
+    Gdk::Cairo::set_source_pixbuf(cr, Background, 0, 0);
+    cr->rectangle(0, 0,
+        Background->get_width(), Background->get_height());
+    cr->fill();
+
+    cr->restore();
 }
 // ------------------------------------ //
 SuperViewer::Point SuperViewer::CalculateImageRenderTopLeft(size_t width, size_t height,
@@ -304,11 +365,7 @@ void SuperViewer::DoAutoFit(){
 
     if(scale < 1.0f || IsInThumbnailMode)
         ImageZoom = scale;
-    
-    get_width();
-    get_height();
 }
-
 // ------------------------------------ //
 bool SuperViewer::IsImageReadyToShow() const{
 

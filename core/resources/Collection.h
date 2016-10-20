@@ -65,6 +65,11 @@ public:
     //! \brief Returns image's show_order in this collection. Or -1
     int64_t GetImageShowOrder(std::shared_ptr<Image> image);
 
+    //! \brief Returns the preview icon for this Collection
+    //!
+    //! It is either the first image or a specifically set image
+    std::shared_ptr<Image> GetPreviewIcon();
+
     inline auto GetIsPrivate() const{
 
         return IsPrivate;
