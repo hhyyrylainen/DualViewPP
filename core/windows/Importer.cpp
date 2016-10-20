@@ -35,6 +35,9 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     builder->get_widget("SelectOnlyOneImage", SelectOnlyOneImage);
     LEVIATHAN_ASSERT(SelectOnlyOneImage, "Invalid .glade file");
 
+    builder->get_widget("DeleteImportFoldersIfEmpty", DeleteImportFoldersIfEmpty);
+    LEVIATHAN_ASSERT(DeleteImportFoldersIfEmpty, "Invalid .glade file");
+
     builder->get_widget("RemoveAfterAdding", RemoveAfterAdding);
     LEVIATHAN_ASSERT(RemoveAfterAdding, "Invalid .glade file");
 
@@ -52,6 +55,20 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     LEVIATHAN_ASSERT(SelectAll, "Invalid .glade file");
 
     SelectAll->signal_clicked().connect(sigc::mem_fun(*this, &Importer::_OnSelectAll));
+    
+    Gtk::Button* BrowseForImages;
+    builder->get_widget("BrowseForImages", BrowseForImages);
+    LEVIATHAN_ASSERT(BrowseForImages, "Invalid .glade file");
+
+    BrowseForImages->signal_clicked().connect(sigc::mem_fun(*this,
+            &Importer::_OnBrowseForImages));
+
+    Gtk::Button* AddImagesFromFolder;
+    builder->get_widget("AddImagesFromFolder", AddImagesFromFolder);
+    LEVIATHAN_ASSERT(AddImagesFromFolder, "Invalid .glade file");
+
+    AddImagesFromFolder->signal_clicked().connect(sigc::mem_fun(*this,
+            &Importer::_OnAddImagesFromFolder));
     
     signal_delete_event().connect(sigc::mem_fun(*this, &Importer::_OnClosed));
 
@@ -355,6 +372,98 @@ void Importer::_OnCopyToCollection(){
 void Importer::_OnMoveToCollection(){
 
     StartImporting(true);
+}
+
+void Importer::_OnAddImagesFromFolder(){
+
+    Gtk::FileChooserDialog dialog("Choose a folder to scan for images",
+        Gtk::FILE_CHOOSER_ACTION_SELECT_FOLDER);
+    
+    dialog.set_transient_for(*this);
+    dialog.set_select_multiple(false);
+
+    //Add response buttons the the dialog:
+    dialog.add_button("_Cancel", Gtk::RESPONSE_CANCEL);
+    dialog.add_button("_Open", Gtk::RESPONSE_OK);
+
+    // Wait for a selection
+    int result = dialog.run();
+
+    //Handle the response:
+    switch(result)
+    {
+    case(Gtk::RESPONSE_OK):
+    {
+        std::string filename = dialog.get_filename();
+
+        if(filename.empty())
+            return;
+
+        FindContent(filename);
+        
+        if(DeleteImportFoldersIfEmpty->get_active())
+            FoldersToDelete.push_back(filename);
+        
+        return;
+    }
+    case(Gtk::RESPONSE_CANCEL):
+    default:
+    {
+        // Canceled / nothing selected //
+        return;
+    }
+    }
+}
+
+void Importer::_OnBrowseForImages(){
+
+    Gtk::FileChooserDialog dialog("Choose an image to open",
+        Gtk::FILE_CHOOSER_ACTION_OPEN);
+    
+    dialog.set_transient_for(*this);
+    dialog.set_select_multiple();
+
+    //Add response buttons the the dialog:
+    dialog.add_button("_Cancel", Gtk::RESPONSE_CANCEL);
+    dialog.add_button("_Open", Gtk::RESPONSE_OK);
+
+    //Add filters, so that only certain file types can be selected:
+    auto filter_image = Gtk::FileFilter::create();
+    filter_image->set_name("Image Files");
+
+    for(const auto& type : SUPPORTED_EXTENSIONS){
+
+        filter_image->add_mime_type(std::get<1>(type));
+    }
+    dialog.add_filter(filter_image);
+
+    auto filter_any = Gtk::FileFilter::create();
+    filter_any->set_name("Any files");
+    filter_any->add_pattern("*");
+    dialog.add_filter(filter_any);
+
+    // Wait for a selection
+    int result = dialog.run();
+
+    //Handle the response:
+    switch(result)
+    {
+    case(Gtk::RESPONSE_OK):
+    {
+        std::vector<std::string> files = dialog.get_filenames();
+
+        for(const std::string &file : files)
+            FindContent(file);
+        
+        return;
+    }
+    case(Gtk::RESPONSE_CANCEL):
+    default:
+    {
+        // Canceled / nothing selected //
+        return;
+    }
+    }
 }
 // ------------------------------------ //
 void Importer::_OnDeselectAll(){

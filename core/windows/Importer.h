@@ -71,6 +71,8 @@ protected:
     void _OnSelectAll();
     void _OnCopyToCollection();
     void _OnMoveToCollection();
+    void _OnBrowseForImages();
+    void _OnAddImagesFromFolder();
 
     void _OnImportProgress();
     
@@ -88,11 +90,15 @@ protected:
     Gtk::Label* StatusLabel;
     Gtk::CheckButton* SelectOnlyOneImage;
     Gtk::CheckButton* RemoveAfterAdding;
+    Gtk::CheckButton* DeleteImportFoldersIfEmpty;
 
     Gtk::LevelBar* ProgressBar;
     
     std::atomic<bool> DoingImport = { false };
     std::thread ImportThread;
+
+    //! After importing these folders should be deleted if empty
+    std::vector<std::string> FoldersToDelete;
 
     //! Tags to set on the target collection
     std::shared_ptr<TagCollection> CollectionTags;

@@ -183,7 +183,7 @@
                     <property name="margin_top">10</property>
                     <property name="orientation">vertical</property>
                     <child>
-                      <object class="GtkButton">
+                      <object class="GtkButton" id="AddImagesFromFolder">
                         <property name="label" translatable="yes">Add Images From Folder</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
@@ -198,7 +198,7 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkButton">
+                      <object class="GtkButton" id="BrowseForImages">
                         <property name="label" translatable="yes">Browse For Images</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
@@ -536,7 +536,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkCheckButton">
+                  <object class="GtkCheckButton" id="DeleteImportFoldersIfEmpty">
                     <property name="label" translatable="yes">Delete Import Folders if Empty</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>

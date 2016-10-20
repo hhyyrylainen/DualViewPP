@@ -1037,10 +1037,11 @@ std::shared_ptr<Collection> DualView::GetUncategorized(){
     if(UncategorizedCollection)
         return UncategorizedCollection;
 
+    LEVIATHAN_ASSERT(_Database, "Trying to GetUncategorized before database is opened");
+
     UncategorizedCollection = _Database->SelectCollectionByNameAG("Uncategorized");
     return UncategorizedCollection;
 }
-
 // ------------------------------------ //
 // Gtk callbacks
 void DualView::OpenImageFile_OnClick(){
