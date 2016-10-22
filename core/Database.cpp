@@ -18,6 +18,8 @@
 
 #include "core/CurlWrapper.h"
 
+#include "Common/StringOperations.h"
+
 #include <sqlite3.h>
 
 #include <boost/filesystem.hpp>
@@ -981,4 +983,13 @@ int Database::SqliteExecGrabResult(void* user, int columns, char** columnsastext
     grabber->Rows.push_back(row);
     return 0;
 }
+// ------------------------------------ //
+std::string Database::EscapeSql(std::string str){
 
+    str = Leviathan::StringOperations::ReplaceString(str, "\n", " ");
+    str = Leviathan::StringOperations::ReplaceString(str, "\r\n", " ");
+    str = Leviathan::StringOperations::ReplaceString(str, "\"\"", "\"");
+    str = Leviathan::StringOperations::ReplaceString(str, "\"", "\"\"");
+
+    return str;
+}

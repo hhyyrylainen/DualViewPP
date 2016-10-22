@@ -235,7 +235,9 @@ public:
         const Folder &parent);
     CREATE_NON_LOCKING_WRAPPER(SelectFolderByNameAndParent);
 
-
+    //! \brief Tries to escape quotes in a string for insertion to sql statements
+    static std::string EscapeSql(std::string str);
+    
     
 private:
 

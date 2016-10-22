@@ -51,6 +51,12 @@ public:
         return (ID == other.ID && ID != -1 && InDatabase);
     }
 
+    //! \brief Not ==
+    bool operator !=(const DatabaseResource &other) const{
+
+        return !(*this == other);
+    }
+
 protected:
 
     //! When a resource becomes a duplicate of another
