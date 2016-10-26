@@ -3,11 +3,14 @@
 
 #include "core/Database.h"
 #include "core/PreparedStatement.h"
+#include "DualView.h"
 
 #include "Common.h"
 #include "Exceptions.h"
 
 #include "Common/StringOperations.h"
+
+#include <boost/algorithm/string.hpp>
 
 using namespace DV;
 // ------------------------------------ //
@@ -37,6 +40,11 @@ void TagModifier::UpdateProperties(std::string name, std::string category, bool 
     OnMarkDirty();
 
     Save();
+}
+
+void TagModifier::_DoSave(Database &db){
+
+    db.UpdateTagModifier(*this);
 }
 
 // ------------------------------------ //
@@ -116,7 +124,7 @@ void Tag::AddAlias(const std::string alias){
         
     if(!IsInDatabase())
         throw Leviathan::InvalidState("Tag not loaded from database");
-        
+    
     InDatabase->InsertTagAlias(*this, alias);
 }
 
@@ -132,10 +140,25 @@ std::vector<std::shared_ptr<Tag>> Tag::GetImpliedTags() const{
 
     if(!IsInDatabase())
         throw Leviathan::InvalidState("Tag not loaded from database");
-
-    return InDatabase->SelectTagImpliesAsTag();
+    
+    return InDatabase->SelectTagImpliesAsTag(*this);
 }
 
+bool Tag::operator ==(const Tag &other) const{
+
+    if(static_cast<const DatabaseResource&>(*this) ==
+        static_cast<const DatabaseResource&>(other))
+    {
+        return true;
+    }
+
+    return Name == other.Name;
+}
+
+void Tag::_DoSave(Database &db){
+
+    db.UpdateTag(*this);
+}
 // ------------------------------------ //
 // AppliedTag
 AppliedTag::AppliedTag(std::shared_ptr<Tag> tagonly) :
@@ -180,8 +203,8 @@ AppliedTag::AppliedTag(Database &db, Lock &dblock, PreparedStatement &statement,
         throw InvalidSQL("AppliedTag has no tag", 0, "");
     }
     
-    Modifiers = db.SelectAppliedTagModifiers(dblock, ID);
-    CombinedWith = db.SelectAppliedTagCombines(dblock, ID);
+    Modifiers = db.SelectAppliedTagModifiers(dblock, *this);
+    CombinedWith = db.SelectAppliedTagCombine(dblock, *this);
 }
 
 std::string AppliedTag::ToAccurateString() const {
@@ -204,13 +227,16 @@ std::string AppliedTag::ToAccurateString() const {
     return result;
 }
 
+void AppliedTag::_DoSave(Database &db){
+
+    LEVIATHAN_ASSERT(false, "_Dosave Called on AppliedTag");
+}
+
 bool AppliedTag::IsSame(const AppliedTag &other) const {
 
-    if(static_cast<const DatabaseResource&>(*this) !=
-        static_cast<const DatabaseResource&>(other))
-    {
+    // Check tag id
+    if(*MainTag != *other.MainTag)
         return false;
-    }
 
     // Check for different modifiers //
     // Possibly different modifiers //
@@ -261,108 +287,115 @@ TagBreakRule::TagBreakRule(Database &db, Lock &dblock, PreparedStatement &statem
         ActualTag = db.SelectTagByID(dblock, tagid);
     }
 
-    Modifiers = db.SelectModifiersForBreakRule(*this);
+    Modifiers = db.SelectModifiersForBreakRule(dblock, *this);
 }
 
 std::vector<std::shared_ptr<TagModifier>> TagBreakRule::DoBreak(std::string str,
     std::string &tagname, std::shared_ptr<Tag> &returnedtag)
 {
-    if (!Pattern.Contains('*'))
-    {
+    Leviathan::StringOperations::RemovePreceedingTrailingSpaces(str);
+    
+    if(Pattern.find_first_of('*') == std::string::npos){
+
         // Must be a direct match //
-        if(CultureInfo.InvariantCulture.CompareInfo.Compare(str, Pattern, CompareOptions.IgnoreCase) != 0)
-        {
+        if(!boost::iequals(Pattern, str)){
+            
             // Not a match //
             tagname = str;
-            returnedtag = null;
-            return null;
+            returnedtag = nullptr;
+            return {};
         }
 
         // Was a match //
-        if(ActualTag == null)
-        {
-            throw new InvalidOperationException("full matching composite break rule must have a tag!");
+        if(!ActualTag){
+            
+            throw Leviathan::InvalidState("full matching composite break rule must "
+                "have a tag!");
         }
 
-        tagname = ActualTag.Name;
+        tagname = ActualTag->GetName();
         returnedtag = ActualTag;
         return Modifiers;
     }
 
     // A wildcard match //
-    string[] wildcardparts = Pattern.Split('*');
+    std::vector<boost::iterator_range<std::string::iterator>> wildcardparts;
+    
+    boost::split(wildcardparts, Pattern, boost::is_any_of("*"));
 
-    if(wildcardparts.Length != 2)
-        throw new InvalidOperationException("composite break rule wildcard must have a single *");
+    if(wildcardparts.size() != 1)
+        throw Leviathan::InvalidState("composite break rule wildcard must have a single *");
+    
 
-    if (CultureInfo.InvariantCulture.CompareInfo.IndexOf(str, wildcardparts[0], CompareOptions.IgnoreCase) != 0)
-    {
+    if(!boost::iequals(wildcardparts[0], str)){
+
         // Not a match //
         // Despite best efforts this string doesn't match the rule //
         tagname = str;
-        returnedtag = null;
-        return null;
+        returnedtag = nullptr;
+        return {};
     }
 
-    tagname = str.Substring(wildcardparts[0].Length).Trim();
+    tagname = std::string(wildcardparts[0].begin(), wildcardparts[0].end());
+    // It matched, but just in case there was whitespace trim it //
+    Leviathan::StringOperations::RemovePreceedingTrailingSpaces(tagname);
 
-    if(ActualTag != null)
-    {
-        if(CultureInfo.InvariantCulture.CompareInfo.Compare(
-                tagname, ActualTag.Name, CompareOptions.IgnoreCase) != 0)
-        {
-            throw new InvalidOperationException("composite break rule wildcard matched a name that isn't " +
-                "its own tag");
+    // A sanity check //
+    if(ActualTag){
+        
+        if(boost::iequals(tagname, ActualTag->GetName())){
+            
+            throw Leviathan::InvalidState("composite break rule wildcard matched a name "
+                "that isn't its own tag");
         }
 
         returnedtag = ActualTag;
         return Modifiers;
     }
-
+    
     // Matched any tag pattern //
-    returnedtag = null;
+    returnedtag = nullptr;
     return Modifiers;
 }
 
-
-void UpdateProperties(std::string newpattern, std::string newmaintag,
+void TagBreakRule::UpdateProperties(std::string newpattern, std::string newmaintag,
     std::vector<std::string> newmodifiers)
 {
-
     if(!IsInDatabase())
         throw Leviathan::InvalidState("TagBreakRule not loaded from database");
 
-    if (newpattern.Length < 1)
+    if (newpattern.empty())
         throw Leviathan::InvalidArgument("Pattern cannot be empty");
 
-    if (newmodifiers.Length < 1)
+    if (newmodifiers.empty())
         throw Leviathan::InvalidArgument("BreakRule cannot be without modifiers, "
             "use an alias for that");
 
-    Tag newtag = null;
+    std::shared_ptr<Tag> newtag = nullptr;
 
-    if(newmaintag.Length > 0)
-    {
-        newtag = FromDatabase.RetrieveTagByName(newmaintag);
+    if(!newmaintag.empty()){
+        
+        newtag = InDatabase->SelectTagByNameAG(newmaintag);
 
-        if(newtag == null)
-        {
+        if(!newtag){
+            
             throw Leviathan::InvalidArgument("New main tag doesn't exist");
         }
     }
 
-    List<TagModifier> newmods = new List<TagModifier>();
+    std::vector<std::shared_ptr<TagModifier>> newmods;
+    newmods.reserve(newmodifiers.size());
+    
+    for(auto& mod : newmodifiers){
+        
+        auto applymod = InDatabase->SelectTagModifierByNameAG(mod);
 
-    foreach(string mod in newmodifiers)
-    {
-        TagModifier applymod = FromDatabase.RetrieveTagModifierByName(mod);
-
-        if (applymod == null)
-        {
+        if(!applymod){
+            
             throw Leviathan::InvalidArgument("New modifier '" + mod + "' doesn't exist");
         }
 
-        newmods.Add(applymod);
+        newmods.push_back(applymod);
     }
 
     ActualTag = newtag;
@@ -373,6 +406,152 @@ void UpdateProperties(std::string newpattern, std::string newmaintag,
     Save();
 }
 
+// ------------------------------------ //
+// TagCollection
+TagCollection::TagCollection(std::vector<std::shared_ptr<AppliedTag>> tags) :
+    Tags(tags)
+{
+    for(auto& tag : Tags){
+        if (!tag)
+            throw Leviathan::InvalidArgument("Constructing TagCollection that "
+                "has a null tag");
+    }
+}
 
+TagCollection::TagCollection(){
 
+}
+// ------------------------------------ //
+bool TagCollection::HasTag(const AppliedTag &tagtocheck){
+    
+    CheckIsLoaded();
+    
+    for(const auto& tag : Tags){
+
+        if(tag->IsSame(tagtocheck))
+            return true;
+    }
+
+    return false;
+}
+
+void TagCollection::Clear(){
+    CheckIsLoaded();
+    
+    for(const auto& tag : Tags){
+
+        _TagRemoved(*tag);
+    }
+
+    Tags.clear();
+}
+// ------------------------------------ //
+bool TagCollection::RemoveTag(const AppliedTag &exacttag){
+
+    CheckIsLoaded();
+    
+    for(auto iter = Tags.begin(); iter != Tags.end(); ++iter){
+
+        if((*iter)->IsSame(exacttag)){
+                
+            _TagRemoved(**iter);
+            Tags.erase(iter);
+            return true;
+        }
+    }
+        
+    return false;
+}
+
+bool TagCollection::RemoveText(const std::string &str){
+
+    CheckIsLoaded();
+    
+    for(auto iter = Tags.begin(); iter != Tags.end(); ++iter){
+
+        if((*iter)->ToAccurateString() == str){
+                
+            _TagRemoved(**iter);
+            Tags.erase(iter);
+            return true;
+        }
+    }
+        
+    return false;
+}
+
+bool TagCollection::Add(std::shared_ptr<Tag> tag){
+        
+    auto toadd = std::make_shared<AppliedTag>(tag);
+
+    if(HasTag(*toadd))
+        return false;
+
+    Tags.push_back(toadd);
+    _TagAdded(*toadd);
+    return true;
+}
+
+bool TagCollection::Add(std::shared_ptr<AppliedTag> tag)
+{
+    if(!tag || HasTag(*tag))
+        return false;
+
+    Tags.push_back(tag);
+    _TagAdded(*tag);
+    return true;
+}
+
+void TagCollection::Add(const TagCollection &other){
+        
+    for(const auto& tag : other){
+            
+        Add(tag);
+    }
+}
+
+void TagCollection::AddTags(const TagCollection &other){
+
+    CheckIsLoaded();
+
+    for(const auto& tag : other){
+            
+        Add(tag);
+    }        
+}
+// ------------------------------------ //
+void TagCollection::ReplaceWithText(std::string text){
+
+    CheckIsLoaded();
+
+    std::vector<std::string> lines;
+    Leviathan::StringOperations::CutLines<std::string>(text, lines);
+    
+    Clear();
+
+    for(auto& line : lines){
+
+        auto tag = DualView::Get().ParseTagFromString(line);
+
+        if(!tag)
+            continue;
+
+        Add(tag);
+    }
+}
+// ------------------------------------ //
+std::string TagCollection::TagsAsString(const std::string &separator){
+
+    CheckIsLoaded();
+    
+    std::vector<std::string> strs;
+    strs.reserve(Tags.size());
+    
+    for(const auto& tag : Tags){
+
+        strs.push_back(tag->ToAccurateString());
+    }
+
+    return Leviathan::StringOperations::StitchTogether(strs, separator);
+}
 

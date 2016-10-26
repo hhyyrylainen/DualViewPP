@@ -1042,6 +1042,14 @@ std::shared_ptr<Collection> DualView::GetUncategorized(){
     UncategorizedCollection = _Database->SelectCollectionByNameAG("Uncategorized");
     return UncategorizedCollection;
 }
+
+
+// ------------------------------------ //
+std::shared_ptr<AppliedTag> DualView::ParseTagFromString(const std::string &str) const{
+
+    DEBUG_BREAK;
+    return nullptr;
+}
 // ------------------------------------ //
 // Gtk callbacks
 void DualView::OpenImageFile_OnClick(){

@@ -122,20 +122,20 @@ void TagEditor::_UpdateEditable(){
 // ------------------------------------ //
 void TagEditor::ReadSetTags(){
 
-    std::vector<std::tuple<const AppliedTag&, int>> tags;
+    std::vector<std::tuple<AppliedTag* const, int>> tags;
 
     for(const auto& collection : EditedCollections){
 
         for(const auto& settag : *collection){
 
-            const AppliedTag& tag = *settag;
+            AppliedTag* const tag = settag.get();
 
             bool set = false;
             
             // Check is it already set //
             for(auto& alreadyset : tags){
 
-                if(&std::get<0>(alreadyset) == &tag){
+                if(std::get<0>(alreadyset)->IsSame(*tag)){
 
                     set = true;
                     ++std::get<1>(alreadyset);
@@ -158,7 +158,7 @@ void TagEditor::ReadSetTags(){
     for(const auto& tag : tags){
         
         Gtk::TreeModel::Row row = *(TagsModel->append());
-        row[TreeViewColumns.m_tag_as_text] = std::get<0>(tag).FormatAsString();
+        row[TreeViewColumns.m_tag_as_text] = std::get<0>(tag)->ToAccurateString();
         row[TreeViewColumns.m_in_how_many_containers] = std::get<1>(tag);
     }
 }

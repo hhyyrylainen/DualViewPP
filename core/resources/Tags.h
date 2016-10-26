@@ -48,8 +48,27 @@ public:
         return Name == other.Name;
     }
 
+    const auto GetName() const{
+
+        return Name;
+    }
+
+    const auto GetDescription() const{
+        
+        return Description;
+    }
+
+    const auto GetIsPrivate() const{
+        
+        return IsPrivate;
+    }
+
     void UpdateProperties(std::string name, std::string category, bool isprivate);
 
+protected:
+
+    void _DoSave(Database &db) override;
+    
 protected:
     
     std::string Name;
@@ -96,10 +115,17 @@ public:
     Tag(Database &db, Lock &dblock, PreparedStatement &statement,
         int64_t id);
 
-    bool operator <(const Tag &other){
+    bool operator <(const Tag &other) const{
 
         return Name < other.Name;
     }
+
+    bool operator !=(const Tag &other) const{
+
+        return !(*this == other);
+    }
+
+    bool operator ==(const Tag &other) const;
 
     void SetName(const std::string &name){
 
@@ -112,14 +138,35 @@ public:
         return Name;
     }
 
-    void AddAlias(const std::string alias);
 
+    const auto GetCategory() const{
+        
+        return Category;
+    }
+ 
+    const auto GetDescription() const{
+        
+        return Description;
+    }
+
+    const auto GetIsPrivate() const{
+        
+        return IsPrivate;
+    }
+
+    void AddAlias(const std::string alias);
+    
     void RemoveAlias(const std::string alias);
 
     std::vector<std::shared_ptr<Tag>> GetImpliedTags() const;
 
 
 protected:
+
+    void _DoSave(Database &db) override;
+    
+protected:
+    
 
     //! The text of the tag
     std::string Name;
@@ -234,6 +281,12 @@ public:
 
 protected:
 
+    //! \note This should never be called as AppliedTags will never be modified, only removed
+    //! or added
+    void _DoSave(Database &db) override;
+
+protected:
+
     //! Primary tag
     std::shared_ptr<Tag> MainTag;
     
@@ -249,204 +302,46 @@ protected:
 };
 
 
-//! \todo When loading from the database load the tags lazily
+//! \brief Represents a collection of tags that can be edited
 class TagCollection{
 public:
 
+    TagCollection(std::vector<std::shared_ptr<AppliedTag>> tags);
+
+    TagCollection();
+
+    bool HasTag(const AppliedTag &tagtocheck);
     
-        private List<AppliedTag> AllTags = new List<AppliedTag>();
+    void Clear();
 
+    //! \brief Removes a tag from this collection if it's id and name match
+    bool RemoveTag(const AppliedTag &exacttag);
 
-            public TagCollection(List<AppliedTag> fromtags)
-    {
-        AllTags = fromtags;
+    //! \brief Removes a tag based on the textual representation of the tag
+    bool RemoveText(const std::string &str);
 
-        foreach (var tag in AllTags)
-        {
-            if (tag == null)
-                throw new ArgumentException("fromtags had a null value");
-        }
-    }
+    //! \brief Adds a tag to this collection
+    bool Add(std::shared_ptr<Tag> tag);
 
-            public TagCollection()
-    {
+    //! \brief Adds a tag to this collection
+    bool Add(std::shared_ptr<AppliedTag> tag);
 
-    }
+    //! \brief Adds tags from other to this collection
+    void Add(const TagCollection &other);
 
-            public bool HasTag(AppliedTag tag)
-    {
-        foreach (var existing in AllTags)
-        {
-            if (existing.IsSame(tag))
-                return true;
-        }
+    //! \brief Adds all tags from other
+    void AddTags(const TagCollection &other);
 
-        return false;
-    }
+    //! \brief Replaces all tags with a multiline tag string
+    void ReplaceWithText(std::string text);
 
-            public void Clear()
-    {
-        foreach (var tag in AllTags)
-        {
-            _TagRemoved(tag);
-        }
+    //! \brief Converts all tags to text and adds the separator inbetween
+    std::string TagsAsString(const std::string &separator);
 
-        AllTags.Clear();
-    }
-
-    /// <summary>
-    /// Removes a tag from this collection if it matches the reference exactly.
-    /// </summary>
-    /// <param name="exactobject"></param>
-    /// <returns>True if removed false otherwise</returns>
-            public bool RemoveTag(AppliedTag exactobject)
-    {
-        bool removed = AllTags.Remove(exactobject);
-        if (removed)
-            _TagRemoved(exactobject);
-
-        return removed;
-    }
-
-    /// <summary>
-    /// Removes at index. Will throw if out of range
-    /// </summary>
-    /// <param name="index"></param>
-            public void RemoveAt(int index)
-    {
-        var tag = AllTags[index];
-
-        AllTags.RemoveAt(index);
-        _TagRemoved(tag);
-    }
-
-    /// <summary>
-    /// Adds a tag to this collection
-    /// </summary>
-    /// <param name="tag"></param>
-            public bool Add(Tag tag)
-    {
-        if (tag == null)
-            throw new ArgumentException("trying to add tag that is null");
-
-        var toadd = new AppliedTag(tag);
-
-        if (tag == null)
-            throw new ArgumentException("failed to create AppliedTag from tag");
-
-        if (HasTag(toadd))
-            return false;
-
-        AllTags.Add(toadd);
-        _TagAdded(toadd);
-        return true;
-    }
-
-    /// <summary>
-    /// Adds tags from other to this collection
-    /// </summary>
-    /// <param name="tag"></param>
-            public void Add(TagCollection other)
-    {
-        foreach (AppliedTag tag in other)
-        {
-            Add(tag);
-        }
-    }
-
-    /// <summary>
-    /// Adds a tag to this collection
-    /// </summary>
-    /// <param name="tag"></param>
-            public bool Add(AppliedTag tag)
-    {
-        if (tag == null)
-            throw new ArgumentException("trying to add tag that is null");
-
-        if (HasTag(tag))
-            return false;
-
-        AllTags.Add(tag);
-        _TagAdded(tag);
-        return true;
-    }
-
-    /// <summary>
-    /// Replaces all tags with a multiline tag string
-    /// </summary>
-    /// <param name="textbox"></param>
-    /// <param name="DualViewMain"></param>
-            public void ReplaceWithText(string textbox, Main DualViewMain)
-    {
-        string[] lines = textbox.Split(new string[] { Environment.NewLine }, StringSplitOptions.None);
-
-        Clear();
-
-        foreach (var line in lines)
-        {
-            var tag = DualViewMain.ParseTagFromString(line);
-            if (tag == null)
-                continue;
-
-            Add(tag);
-        }
-    }
-
-            public IEnumerator GetEnumerator()
-    {
-        return AllTags.GetEnumerator();
-    }
-
-    internal AppliedTag Get(int index)
-    {
-        return AllTags[index];
-    }
-
-            public bool RemoveText(string str)
-    {
-        foreach (var tag in AllTags)
-        {
-            if (tag.ToAccurateString().CompareTo(str) == 0)
-            {
-                AllTags.Remove(tag);
-                _TagRemoved(tag);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-            public string TagsAsString(string separator)
-    {
-        return String.Join(separator, AllTags.Select(i => i.ToAccurateString().Replace(separator, "\\"+separator)));
-    }
-
-    /// <summary>
-    /// Callback for easily making child classes
-    /// </summary>
-    /// <param name="tag"></param>
-            protected virtual void _TagRemoved(AppliedTag tag)
-    {
-
-    }
-
-    /// <summary>
-    /// Callback for child classes
-    /// </summary>
-    /// <param name="tag"></param>
-            protected virtual void _TagAdded(AppliedTag tag)
-    {
-
-    }
-
-    void AddTags(const TagCollection &tags){
-
-        
-    }
     
-    bool HasTags() const{
+    bool HasTags(){
 
+        CheckIsLoaded();
         return !Tags.empty();
     }
 
@@ -460,33 +355,86 @@ public:
         return Tags.end();
     }
 
+    //! Calls _OnCheckTagsLoaded if needed
+    inline void CheckIsLoaded(){
+
+        if(TagLoadCheckDone)
+            return;
+
+        TagLoadCheckDone = true;
+        _OnCheckTagsLoaded();
+    }
+
 protected:
 
+    //! Called when retrieving tags, or the tags need to be loaded for some other reason
+    virtual void _OnCheckTagsLoaded(){
+    }
+
+    //! Callback for easily making child classes
+    virtual void _TagRemoved(const AppliedTag &tag){
+
+    }
+
+    //! Callback for child classes
+    virtual void _TagAdded(const AppliedTag &tag){
+
+    }
+
+protected:
+    
     std::vector<std::shared_ptr<AppliedTag>> Tags;
+
+    bool TagLoadCheckDone = false;
 };
 
+//! Allows changing tags in the database with the same interface as TagCollection
 class DatabaseTagCollection : public TagCollection{
 public:
 
-    
-
-        public DBTagCollection(List<AppliedTag> fromtags, TagUpdateFunction addTag, TagUpdateFunction removeTag) :
-            base(fromtags)
+    DatabaseTagCollection(
+        std::function<void (std::vector<std::shared_ptr<AppliedTag>>&)> loadtags,
+        std::function<void (const AppliedTag &tag)> onadd,
+        std::function<void (const AppliedTag &tag)> onremove) :
+        OnAddTag(onadd),
+        OnRemoveTag(onremove),
+        LoadTags(loadtags)
     {
-        OnAddTag = addTag;
-        OnRemoveTag = removeTag;
     }
 
-            protected override void _TagRemoved(AppliedTag tag)
-    {
+protected:
+
+    //! Applies the change to the database
+    void _TagRemoved(const AppliedTag &tag) override{
+        
         OnRemoveTag(tag);
     }
 
-            protected override void _TagAdded(AppliedTag tag)
-    {
+    //! Applies the change to the database
+    void _TagAdded(const AppliedTag &tag) override{
+        
         OnAddTag(tag);
     }
 
+    //! Used to load tags from the database
+    void _OnCheckTagsLoaded() override{
+
+        if(TagsLoaded)
+            return;
+
+        TagsLoaded = true;
+
+        // Load tags from the database //
+        LoadTags(Tags);
+    }
+    
+protected:
+
+    std::function<void (const AppliedTag &tag)> OnAddTag;
+    std::function<void (const AppliedTag &tag)> OnRemoveTag;
+
+    std::function<void (std::vector<std::shared_ptr<AppliedTag>>&)> LoadTags;
+    bool TagsLoaded = false;
 };
 
 

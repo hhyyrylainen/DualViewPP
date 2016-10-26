@@ -26,6 +26,11 @@ class Collection;
 class Folder;
 class TagCollection;
 
+class Tag;
+class AppliedTag;
+class TagModifier;
+class TagBreakRule;
+
 //! \brief The version number of the database
 constexpr auto DATABASE_CURRENT_VERSION = 14;
 
@@ -235,6 +240,68 @@ public:
         const Folder &parent);
     CREATE_NON_LOCKING_WRAPPER(SelectFolderByNameAndParent);
 
+
+    //
+    // Tag
+    //
+    
+    //! \brief Returns tag based on id
+    std::shared_ptr<Tag> SelectTagByID(Lock &guard, DBID id);
+    CREATE_NON_LOCKING_WRAPPER(SelectTagByID);
+
+    std::shared_ptr<Tag> SelectTagByName(Lock &guard, const std::string &name);
+    CREATE_NON_LOCKING_WRAPPER(SelectTagByName);
+
+    //! \brief Updates Tag's properties
+    void UpdateTag(Tag &tag);
+
+    //! \brief Adds an alias to a tag
+    //! \returns True if added, false if the alias is already in use
+    bool InsertTagAlias(Tag &tag, const std::string &alias);
+
+    //! \brief Deletes a tag alias
+    void DeleteTagAlias(const std::string &alias);
+
+    //! \brief Deletes a tag alias if it is an alias for tag
+    void DeleteTagAlias(const Tag &tag, const std::string &alias);
+
+    //! \brief Returns the tags implied by tag
+    std::vector<std::shared_ptr<Tag>> SelectTagImpliesAsTag(const Tag &tag);
+
+    //! \brief Returns the ids of tags implied by tag
+    std::vector<DBID> SelectTagImplies(Lock &guard, const Tag &tag);
+
+    
+    //
+    // AppliedTag
+    //
+    std::shared_ptr<AppliedTag> SelectAppliedTagByID(Lock &guard, DBID id);
+
+    std::vector<std::shared_ptr<TagModifier>> SelectAppliedTagModifiers(Lock &guard,
+        const AppliedTag &appliedtag);
+
+    //! \brief Returns the right side of a tag combine, appliedtag is the left side
+    std::tuple<std::string, std::shared_ptr<AppliedTag>> SelectAppliedTagCombine(Lock &guard,
+        const AppliedTag &appliedtag);
+
+    //
+    // TagModifier
+    //
+    std::shared_ptr<TagModifier> SelectTagModifierByID(Lock &guard, DBID id);
+
+    std::shared_ptr<TagModifier> SelectTagModifierByName(Lock &guard, const std::string &name);
+    CREATE_NON_LOCKING_WRAPPER(SelectTagModifierByName);
+
+    
+    void UpdateTagModifier(const TagModifier &modifier);
+
+    //
+    // TagBreakRule
+    //
+    std::vector<std::shared_ptr<TagModifier>> SelectModifiersForBreakRule(Lock &guard,
+        const TagBreakRule &rule);
+    
+    
     //! \brief Tries to escape quotes in a string for insertion to sql statements
     static std::string EscapeSql(std::string str);
     
@@ -244,6 +311,17 @@ private:
     //
     // Row parsing functions
     //
+
+    //! \brief Loads a AppliedTag object from the current row
+    std::shared_ptr<AppliedTag> _LoadAppliedTagFromRow(Lock &guard,
+        PreparedStatement &statement);
+
+    //! \brief Loads a TagModifier object from the current row
+    std::shared_ptr<TagModifier> _LoadTagModifierFromRow(Lock &guard,
+        PreparedStatement &statement);
+
+    //! \brief Loads a Tag object from the current row
+    std::shared_ptr<Tag> _LoadTagFromRow(Lock &guard, PreparedStatement &statement);
     
     //! \brief Loads a Collection object from the current row
     std::shared_ptr<Collection> _LoadCollectionFromRow(Lock &guard,
@@ -299,6 +377,10 @@ protected:
 
     //! Makes sure each Folder is only loaded once
     SingleLoad<Folder, int64_t> LoadedFolders;
+
+    //! Makes sure each Tag is only loaded once
+    SingleLoad<Tag, int64_t> LoadedTags;
+
 };
 
 }

@@ -21,6 +21,7 @@ class Image;
 class TagCollection;
 class Collection;
 class Folder;
+class AppliedTag;
 
 class PluginManager;
 class CacheManager;
@@ -124,6 +125,8 @@ public:
 
     std::shared_ptr<Collection> GetUncategorized();
 
+    //! \brief Parses an AppliedTag from a string. Doesn't add it to the database automatically
+    std::shared_ptr<AppliedTag> ParseTagFromString(const std::string &str) const;
     
     //! \brief Returns the thumbnail folder
     std::string GetThumbnailFolder() const;

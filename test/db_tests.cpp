@@ -326,3 +326,23 @@ TEST_CASE("Directly using database for folder contents", "[db]"){
 
 }
 
+TEST_CASE("Directly using database for tag creating", "[db][tags]"){
+
+
+    
+}
+
+TEST_CASE("TagCollection works like it should", "[db][tags]"){
+
+    SECTION("Non-database use"){
+
+
+    }
+
+    SECTION("Manipulating image tags"){
+
+
+        
+    }
+}
+

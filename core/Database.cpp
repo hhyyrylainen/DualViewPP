@@ -171,6 +171,7 @@ void Database::PurgeInactiveCache(){
     LoadedCollections.Purge();
     LoadedImages.Purge();
     LoadedFolders.Purge();
+    LoadedTags.Purge();
 }
 // ------------------------------------ //
 bool Database::SelectDatabaseVersion(Lock &guard, int &result){
@@ -279,12 +280,13 @@ std::shared_ptr<TagCollection> Database::LoadImageTags(const Image &image){
 
     if(!image.IsInDatabase())
         return nullptr;
-
-    auto tags = std::make_shared<DatabaseTagCollection>();
+    
+    DEBUG_BREAK;
+    //auto tags = std::make_shared<DatabaseTagCollection>();
     
     
-
-    return tags;
+    return nullptr;
+    //return tags;
 }
 
 // ------------------------------------ //
@@ -767,11 +769,367 @@ std::vector<std::shared_ptr<Folder>> Database::SelectFoldersInFolder(const Folde
     return result;
 }
 
+// ------------------------------------ //
+// Tag
+std::shared_ptr<Tag> Database::SelectTagByID(Lock &guard, DBID id){
 
+    const char str[] = "SELECT * FROM tags WHERE id = ?;";
 
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(id); 
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return _LoadTagFromRow(guard, statementobj);
+    }
+    
+    return nullptr;
+}
+
+std::shared_ptr<Tag> Database::SelectTagByName(Lock &guard, const std::string &name){
+
+    const char str[] = "SELECT * FROM tags WHERE name = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(name); 
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return _LoadTagFromRow(guard, statementobj);
+    }
+    
+    return nullptr;
+}
+
+void Database::UpdateTag(Tag &tag){
+
+    if(!tag.IsInDatabase())
+        return;
+
+    GUARD_LOCK();
+
+    const char str[] = "UPDATE tags SET name = ?, category = ?, description = ?, "
+        "is_private = ? WHERE id = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(tag.GetName(),
+        static_cast<int64_t>(tag.GetCategory()), tag.GetDescription(), tag.GetIsPrivate(),
+        tag.GetID()); 
+    
+    statementobj.StepAll(statementinuse);
+}
+
+bool Database::InsertTagAlias(Tag &tag, const std::string &alias){
+
+    if(!tag.IsInDatabase())
+        return false;
+    
+    GUARD_LOCK();
+
+    {
+        const char str[] = "SELECT * FROM tag_aliases WHERE name = ?;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(alias); 
+    
+        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+            return false;
+        }
+    }
+
+    const char str[] = "INSERT INTO tag_aliases (name, meant_tag) VALUES (?, ?);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(alias, tag.GetID()); 
+    
+    statementobj.StepAll(statementinuse);
+    return true;
+}
+
+void Database::DeleteTagAlias(const std::string &alias){
+
+    GUARD_LOCK();
+
+    const char str[] = "DELETE FROM tag_aliases WHERE name = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(alias); 
+    
+    statementobj.StepAll(statementinuse);
+}
+
+void Database::DeleteTagAlias(const Tag &tag, const std::string &alias){
+
+    GUARD_LOCK();
+
+    const char str[] = "DELETE FROM tag_aliases WHERE name = ? AND meant_tag = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(alias, tag.GetID()); 
+    
+    statementobj.StepAll(statementinuse);
+}
+
+std::vector<std::shared_ptr<Tag>> Database::SelectTagImpliesAsTag(const Tag &tag){
+
+    GUARD_LOCK();
+
+    std::vector<std::shared_ptr<Tag>> result;
+    const auto tags = SelectTagImplies(guard, tag);
+
+    for(auto id : tags){
+
+        auto tag = SelectTagByID(guard, id);
+
+        if(!tag){
+
+            LOG_ERROR("Database: implied tag not found, id: " + Convert::ToString(id));
+            continue;
+        }
+
+        result.push_back(tag);
+    }
+
+    return result;
+}
+
+std::vector<DBID> Database::SelectTagImplies(Lock &guard, const Tag &tag){
+
+    std::vector<DBID> result;
+
+    const char str[] = "SELECT to_apply FROM tag_aliases WHERE primary_tag = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(tag.GetID()); 
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+
+        if(statementobj.GetObjectIDFromColumn(id, 0)){
+
+            result.push_back(id);
+        }
+    }
+
+    return result;
+}
+
+//
+// AppliedTag
+//
+std::shared_ptr<AppliedTag> Database::SelectAppliedTagByID(Lock &guard, DBID id){
+
+    const char str[] = "SELECT * FROM applied_tag WHERE id = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(id); 
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return _LoadAppliedTagFromRow(guard, statementobj);
+    }
+    
+    return nullptr;
+}
+
+std::vector<std::shared_ptr<TagModifier>> Database::SelectAppliedTagModifiers(Lock &guard,
+    const AppliedTag &appliedtag)
+{
+    std::vector<std::shared_ptr<TagModifier>> result;
+
+    const char str[] = "SELECT modifier FROM applied_tag_modifier WHERE to_tag = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(appliedtag.GetID()); 
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+
+        if(statementobj.GetObjectIDFromColumn(id, 0)){
+
+            result.push_back(SelectTagModifierByID(guard, id));
+        }
+    }
+
+    return result;
+}
+
+std::tuple<std::string, std::shared_ptr<AppliedTag>> Database::SelectAppliedTagCombine(
+    Lock &guard, const AppliedTag &appliedtag)
+{
+    const char str[] = "SELECT * FROM applied_tag_combine WHERE tag_left = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(appliedtag.GetID()); 
+    
+    if(statementobj.Step(statementinuse) != PreparedStatement::STEP_RESULT::ROW){
+
+        return std::make_tuple("", nullptr);
+    }
+
+    CheckRowID(statementobj, 1, "tag_right");
+
+    DBID id;
+    if(statementobj.GetObjectIDFromColumn(id, 1)){
+
+        LOG_ERROR("Database SelectAppliedTagModifier: missing tag_right id");
+        return std::make_tuple("", nullptr);
+    }
+
+    return std::make_tuple(statementobj.GetColumnAsString(3), SelectAppliedTagByID(guard, id));
+}
+
+//
+// TagModifier
+//
+std::shared_ptr<TagModifier> Database::SelectTagModifierByID(Lock &guard, DBID id){
+
+    const char str[] = "SELECT * FROM tag_modifiers WHERE id = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(id); 
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return _LoadTagModifierFromRow(guard, statementobj);
+    }
+    
+    return nullptr;
+}
+
+std::shared_ptr<TagModifier> Database::SelectTagModifierByName(Lock &guard,
+    const std::string &name)
+{
+    const char str[] = "SELECT * FROM tag_modifiers WHERE name = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(name); 
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return _LoadTagModifierFromRow(guard, statementobj);
+    }
+    
+    return nullptr;
+}
+
+void Database::UpdateTagModifier(const TagModifier &modifier){
+    
+    if(!modifier.IsInDatabase())
+        return;
+
+    GUARD_LOCK();
+
+    const char str[] = "UPDATE tag_modifiers SET name = ?, description = ?, "
+        "is_private = ? WHERE id = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(modifier.GetName(),
+        modifier.GetDescription(), modifier.GetIsPrivate(),
+        modifier.GetID()); 
+    
+    statementobj.StepAll(statementinuse);
+}
+
+//
+// TagBreakRule
+//
+std::vector<std::shared_ptr<TagModifier>> Database::SelectModifiersForBreakRule(Lock &guard,
+    const TagBreakRule &rule)
+{
+    std::vector<std::shared_ptr<TagModifier>> result;
+
+    const char str[] = "SELECT modifier FROM composite_tag_modifiers WHERE composite = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(rule.GetID()); 
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+
+        if(statementobj.GetObjectIDFromColumn(id, 0)){
+
+            result.push_back(SelectTagModifierByID(guard, id));
+        }
+    }
+
+    return result;
+}
+    
 
 // ------------------------------------ //
 // Row parsing functions
+std::shared_ptr<AppliedTag> Database::_LoadAppliedTagFromRow(Lock &guard, 
+    PreparedStatement &statement)
+{
+    CheckRowID(statement, 0, "id");
+
+    DBID id;
+    if(!statement.GetObjectIDFromColumn(id, 0)){
+
+        LOG_ERROR("Object id column is invalid");
+        return nullptr;
+    }
+    
+    return std::make_shared<AppliedTag>(*this, guard, statement, id);
+}
+
+std::shared_ptr<TagModifier> Database::_LoadTagModifierFromRow(Lock &guard, 
+    PreparedStatement &statement)
+{
+    CheckRowID(statement, 0, "id");
+
+    DBID id;
+    if(!statement.GetObjectIDFromColumn(id, 0)){
+
+        LOG_ERROR("Object id column is invalid");
+        return nullptr;
+    }
+    
+    return std::make_shared<TagModifier>(*this, guard, statement, id);
+}
+
+std::shared_ptr<Tag> Database::_LoadTagFromRow(Lock &guard, PreparedStatement &statement){
+
+    CheckRowID(statement, 0, "id");
+
+    DBID id;
+    if(!statement.GetObjectIDFromColumn(id, 0)){
+
+        LOG_ERROR("Object id column is invalid");
+        return nullptr;
+    }
+    
+    auto loaded = LoadedTags.GetIfLoaded(id);
+
+    if(loaded)
+        return loaded;
+
+    loaded = std::make_shared<Tag>(*this, guard, statement, id);
+
+    LoadedTags.OnLoad(loaded);
+    return loaded;
+}
+
 std::shared_ptr<Collection> Database::_LoadCollectionFromRow(Lock &guard,
     PreparedStatement &statement)
 {
@@ -986,10 +1344,10 @@ int Database::SqliteExecGrabResult(void* user, int columns, char** columnsastext
 // ------------------------------------ //
 std::string Database::EscapeSql(std::string str){
 
-    str = Leviathan::StringOperations::ReplaceString(str, "\n", " ");
-    str = Leviathan::StringOperations::ReplaceString(str, "\r\n", " ");
-    str = Leviathan::StringOperations::ReplaceString(str, "\"\"", "\"");
-    str = Leviathan::StringOperations::ReplaceString(str, "\"", "\"\"");
+    str = Leviathan::StringOperations::Replace<std::string>(str, "\n", " ");
+    str = Leviathan::StringOperations::Replace<std::string>(str, "\r\n", " ");
+    str = Leviathan::StringOperations::Replace<std::string>(str, "\"\"", "\"");
+    str = Leviathan::StringOperations::Replace<std::string>(str, "\"", "\"\"");
 
     return str;
 }
