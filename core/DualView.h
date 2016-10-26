@@ -22,6 +22,8 @@ class TagCollection;
 class Collection;
 class Folder;
 class AppliedTag;
+class Tag;
+class TagModifier;
 
 class PluginManager;
 class CacheManager;
@@ -125,8 +127,26 @@ public:
 
     std::shared_ptr<Collection> GetUncategorized();
 
+    //! \brief Helper for ParseTagFromString
+    //!
+    //! Parses tag that matches a break rule
+    std::shared_ptr<AppliedTag> ParseTagWithBreakRule(const std::string &str) const;
+
+    //! \brief Helper for ParseTagFromString
+    //!
+    //! Parses tag of the form: "tag word tag"
+    //! \note The first AppliedTag will have the CombinedWith member set
+    std::tuple<std::shared_ptr<AppliedTag>, std::string, std::shared_ptr<AppliedTag>>
+        ParseTagWithComposite(const std::string &str) const;
+    
+    //! \brief Helper for ParseTagFromString
+    //!
+    //! Parses tag of the form: "modifier modifier tag"
+    std::tuple<std::vector<std::shared_ptr<TagModifier>>, std::shared_ptr<Tag>>
+        ParseTagWithOnlyModifiers(const std::string &str) const;
+    
     //! \brief Parses an AppliedTag from a string. Doesn't add it to the database automatically
-    std::shared_ptr<AppliedTag> ParseTagFromString(const std::string &str) const;
+    std::shared_ptr<AppliedTag> ParseTagFromString(std::string str) const;
     
     //! \brief Returns the thumbnail folder
     std::string GetThumbnailFolder() const;
@@ -172,7 +192,7 @@ protected:
     DualView(bool tests, const std::string &dbfile);
 
     //! \brief Constructor for test subclass to use
-    DualView(std::string tests);
+    DualView(std::string tests, std::unique_ptr<Database> &&db = nullptr);
 
     //! \brief Ran in the loader thread
     void _RunInitThread();

@@ -190,7 +190,7 @@ AppliedTag::AppliedTag(std::tuple<std::shared_ptr<Tag>, std::string,
     CombinedWith = std::make_tuple(std::get<1>(composite),
         std::get<2>(composite));
 }
-    
+
 AppliedTag::AppliedTag(Database &db, Lock &dblock, PreparedStatement &statement,
     int64_t id) :
     DatabaseResource(id, db)

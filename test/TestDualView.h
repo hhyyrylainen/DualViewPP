@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/DualView.h"
+#include "core/Database.h"
 
 namespace DV{
 
@@ -21,6 +22,13 @@ class DummyDualView : public DualView{
 public:
     
     DummyDualView() : DualView(std::string("empty")){
+
+        
+    }
+
+    DummyDualView(std::unique_ptr<Database> &&db) :
+        DualView(std::string("empty"), std::move(db))
+    {
 
         
     }

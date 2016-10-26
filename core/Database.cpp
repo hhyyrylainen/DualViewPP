@@ -771,6 +771,24 @@ std::vector<std::shared_ptr<Folder>> Database::SelectFoldersInFolder(const Folde
 
 // ------------------------------------ //
 // Tag
+std::shared_ptr<Tag> Database::InsertTag(std::string name, std::string description,
+    TAG_CATEGORY category, bool isprivate)
+{
+    GUARD_LOCK();
+    
+    const char str[] = "INSERT INTO tags (name, category, description, is_private) VALUES "
+        "(?, ?, ?, ?);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(name, static_cast<int64_t>(category),
+        description, isprivate); 
+    
+    statementobj.StepAll(statementinuse);
+
+    return SelectTagByID(guard, sqlite3_last_insert_rowid(SQLiteDb));
+}
+
 std::shared_ptr<Tag> Database::SelectTagByID(Lock &guard, DBID id){
 
     const char str[] = "SELECT * FROM tags WHERE id = ?;";
@@ -801,6 +819,35 @@ std::shared_ptr<Tag> Database::SelectTagByName(Lock &guard, const std::string &n
     }
     
     return nullptr;
+}
+
+std::shared_ptr<Tag> Database::SelectTagByAlias(Lock &guard, const std::string &alias){
+
+    const char str[] = "SELECT tags.* FROM tag_aliases "
+        "LEFT JOIN tags ON tags.id = tag_aliases.meant_tag WHERE tag_aliases.name = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(alias);
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return _LoadTagFromRow(guard, statementobj);
+    }
+
+    return nullptr;
+}
+
+std::shared_ptr<Tag> Database::SelectTagByNameOrAlias(const std::string &name){
+
+    GUARD_LOCK();
+
+    auto tag = SelectTagByName(guard, name);
+
+    if(tag)
+        return tag;
+
+    return SelectTagByAlias(guard, name);
 }
 
 void Database::UpdateTag(Tag &tag){

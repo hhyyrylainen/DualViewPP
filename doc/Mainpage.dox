@@ -14,6 +14,10 @@
 
     \ref DV::PluginManager
 
+    \section cool_func Cool Functions
+
+    \ref DV::DualView::ParseTagFromString
+
     \section watch_out Watch Out For
 
     Gtk::Builder get derived: destructor doesn't get called without deleting the windows

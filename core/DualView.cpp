@@ -136,9 +136,12 @@ DualView::DualView(bool tests, const std::string &dbfile){
     _StartWorkerThreads();
 }
 
-DualView::DualView(std::string tests){
+DualView::DualView(std::string tests, std::unique_ptr<Database> &&db /*= nullptr*/){
 
     _Logger = std::make_unique<Leviathan::Logger>("empty_dualview_log.txt");
+
+    if(db)
+        _Database = std::move(db);
 
     LEVIATHAN_ASSERT(tests == "empty", "DualView test constructor called with not empty");
 
@@ -1045,9 +1048,154 @@ std::shared_ptr<Collection> DualView::GetUncategorized(){
 
 
 // ------------------------------------ //
-std::shared_ptr<AppliedTag> DualView::ParseTagFromString(const std::string &str) const{
+std::shared_ptr<AppliedTag> DualView::ParseTagWithBreakRule(const std::string &str) const{
 
-    DEBUG_BREAK;
+    return nullptr;
+}
+
+std::tuple<std::shared_ptr<AppliedTag>, std::string, std::shared_ptr<AppliedTag>>
+    DualView::ParseTagWithComposite(const std::string &str) const
+{
+    return std::make_tuple(nullptr, "", nullptr);
+}
+
+std::tuple<std::vector<std::shared_ptr<TagModifier>>, std::shared_ptr<Tag>>
+    DualView::ParseTagWithOnlyModifiers(const std::string &str) const
+{
+    // First split it into words //
+    std::vector<std::string> words;
+    Leviathan::StringOperations::CutString<std::string>(str, " ", words);
+
+    // Must be more than 1 word
+    if(words.size() < 2)
+        return std::make_tuple(std::vector<std::shared_ptr<TagModifier>>(), nullptr);
+
+    // Then try to match all the stuff in front of the tag into modifiers and the
+    // last word(s) into a tag
+    std::vector<std::string*> back;
+    
+    for(size_t i = 0; i < words.size(); ++i){
+
+        // Build the back string with the first excluded word being at words[i]
+        size_t insertIndex = 0;
+        back.resize(words.size() - 1 - i);
+
+        for(size_t a = words.size() - 1; a > i; --a){
+
+            back[insertIndex++] = &words[a];
+        }
+        
+        // Create strings //
+        auto backStr = Leviathan::StringOperations::StitchTogether<std::string>(back, " ");
+
+        // Back needs to be a tag //
+        auto tag = _Database->SelectTagByNameOrAlias(backStr);
+
+        if(!tag)
+            continue;
+
+        // All the words in front need to be modifiers //
+        bool success = true;
+        std::vector<std::shared_ptr<TagModifier>> modifiers;
+        modifiers.reserve(i);
+
+        for(size_t a = 0; a <= i; ++a){
+
+            auto mod = _Database->SelectTagModifierByNameAG(words[a]);
+
+            if(!mod){
+
+                // This wasn't a modifier //
+                success = false;
+                break;
+            }
+
+            modifiers.push_back(mod);
+        }
+
+        if(!success)
+            continue;
+
+        // It succeeded //
+        return std::make_tuple(modifiers, tag);
+    }
+    
+    return std::make_tuple(std::vector<std::shared_ptr<TagModifier>>(), nullptr);
+}
+
+std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const{
+
+    // Strip whitespace //
+    Leviathan::StringOperations::RemovePreceedingTrailingSpaces(str);
+
+    if(str.empty())
+        return nullptr;
+
+    // Exact match a tag //
+    auto existingtag = _Database->SelectTagByNameOrAlias(str);
+
+    if(existingtag)
+        return std::make_shared<AppliedTag>(existingtag);
+
+    // Wasn't exactly a single tag //
+    
+    // Check does removing whitespace create some existing tag
+    auto nowhitespace = Leviathan::StringOperations::RemoveCharacters<std::string>(str, " ");
+
+    if(nowhitespace.size() != str.size()){
+        
+        existingtag = _Database->SelectTagByNameOrAlias(nowhitespace);
+
+        if(existingtag)
+            return std::make_shared<AppliedTag>(existingtag);
+    }
+
+    // Modifier before tag //
+    auto modifiedtag = ParseTagWithOnlyModifiers(str);
+
+    if(std::get<1>(modifiedtag)){
+        
+        // Make sure the tag exists //
+        if(!std::get<1>(modifiedtag)->IsInDatabase()){
+            
+            throw Leviathan::InvalidArgument("modifier + tag has unknown tag '" +
+                std::get<1>(modifiedtag)->GetName() + "'\n from '" + str + "'");
+        }
+
+        return std::make_shared<AppliedTag>(modifiedtag);
+    }
+
+    // Detect a composite //
+    std::vector<std::string> words;
+    Leviathan::StringOperations::CutString<std::string>(str, " ", words);
+
+    if(!words.empty()){
+        
+        // Try to break composite //
+        auto composite = ParseTagWithComposite(str);
+
+        if(std::get<0>(composite)){
+            
+            return std::get<0>(composite);
+        }
+    }
+
+    // Detect a break rule //
+    auto brokentag = ParseTagWithBreakRule(str);
+
+    if(brokentag){
+
+        // Finally got the string parsed //
+        return brokentag;
+    }
+
+    // Check does removing ending 's' create an existing tag
+    if(str.back() == 's'){
+        
+        return ParseTagFromString(str.substr(0, str.size() - 1));
+    }
+
+    throw Leviathan::InvalidArgument("unknown tag '" + str + "'");
     return nullptr;
 }
 // ------------------------------------ //

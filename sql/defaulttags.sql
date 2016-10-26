@@ -134,6 +134,9 @@ INSERT INTO tag_modifiers (name, description) VALUES ("grabbing", "Action");
 INSERT INTO tag_modifiers (name, description) VALUES ("long", "Measurement");
 INSERT INTO tag_modifiers (name, description) VALUES ("tall", "Measurement");
 INSERT INTO tag_modifiers (name, description) VALUES ("short", "Measurement");
+INSERT INTO tag_modifiers (name, description) VALUES ("large", "Measurement");
+-- TODO: alias for big to large
+INSERT INTO tag_modifiers (name, description) VALUES ("small", "Measurement");
 
 
 

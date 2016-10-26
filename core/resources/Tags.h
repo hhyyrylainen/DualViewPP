@@ -8,30 +8,6 @@ namespace DV{
 
 class PreparedStatement;
 
-//! see the maintables.sql for more accurate definitions of these
-enum class TAG_CATEGORY {
-    
-    //-- 0 - describes an object or a character in the image
-    DESCRIBE_CHARACTER_OBJECT = 0,
-
-    //-- 1 - Tags a character or an person in the image
-    CHARACTER = 1,
-
-    //-- 2 - Tags something that's not immediately visible from the image 
-    // or relates to something meta, like captions
-    META = 2,
-
-    //-- 3 - Tags the series or universe this image belongs to, 
-    // for example star wars. Or another loosely defined series
-    COPYRIGHT = 3,
-
-    //-- 4 - Tags an action that is being performed
-    ACTION = 4,
-        
-    //-- 5 - The level of quality
-    QUALITY_HELPFULL_LEVEL = 5
-};
-
 //! Represents a word that is placed before tag, like "red flower"
 class TagModifier : public DatabaseResource {
 public:
@@ -264,7 +240,7 @@ public:
     //! Creates a composite with an existing right hand side of the composite already created
     AppliedTag(std::tuple<std::shared_ptr<Tag>, std::string, std::shared_ptr<AppliedTag>>
         composite);
-    
+
     AppliedTag(Database &db, Lock &dblock, PreparedStatement &statement,
         int64_t id);
 

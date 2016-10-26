@@ -244,6 +244,10 @@ public:
     //
     // Tag
     //
+
+    //! \brief Creates a new tag
+    std::shared_ptr<Tag> InsertTag(std::string name, std::string description,
+        TAG_CATEGORY category, bool isprivate);
     
     //! \brief Returns tag based on id
     std::shared_ptr<Tag> SelectTagByID(Lock &guard, DBID id);
@@ -251,6 +255,13 @@ public:
 
     std::shared_ptr<Tag> SelectTagByName(Lock &guard, const std::string &name);
     CREATE_NON_LOCKING_WRAPPER(SelectTagByName);
+
+    //! \brief Selects a tag based on an alias name
+    std::shared_ptr<Tag> SelectTagByAlias(Lock &guard, const std::string &alias);
+    CREATE_NON_LOCKING_WRAPPER(SelectTagByAlias);
+
+    //! \brief Selects a tag matching the name or has an alias for the name
+    std::shared_ptr<Tag> SelectTagByNameOrAlias(const std::string &name);
 
     //! \brief Updates Tag's properties
     void UpdateTag(Tag &tag);

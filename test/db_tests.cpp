@@ -327,13 +327,132 @@ TEST_CASE("Directly using database for folder contents", "[db]"){
 }
 
 TEST_CASE("Directly using database for tag creating", "[db][tags]"){
+    
+    DummyDualView dv;
+    TestDatabase db;
 
+    REQUIRE_NOTHROW(db.Init());
 
+    SECTION("Creating a simple tag"){
+
+        auto tag = db.InsertTag("test tag", "tag for testing", TAG_CATEGORY::META, false);
+
+        REQUIRE(tag);
+
+        SECTION("Selected by name tag equals the created tag"){
+
+            auto tag2 = db.SelectTagByNameAG("test tag");
+
+            CHECK(tag2.get() == tag.get());
+            CHECK(*tag == *tag2);
+        }
+
+        SECTION("Inserting duplicate causes an exception"){
+
+            CHECK_THROWS(db.InsertTag("test tag", "some cool tag",
+                    TAG_CATEGORY::DESCRIBE_CHARACTER_OBJECT, false));
+        }
+    }
+
+    SECTION("Inserting multiple tags in a row"){
+
+        auto tag1 = db.InsertTag("tag1", "tag for testing", TAG_CATEGORY::META, false);
+        auto tag2 = db.InsertTag("other tag", "tag for testing", TAG_CATEGORY::META, false);
+        auto tag3 = db.InsertTag("more tag", "tag for testing", TAG_CATEGORY::META, false);
+        auto tag4 = db.InsertTag("tag4", "tag for testing", TAG_CATEGORY::META, true);
+        auto tag5 = db.InsertTag("tag5", "tag for testing", TAG_CATEGORY::CHARACTER, false);
+
+        REQUIRE(tag1);
+        REQUIRE(tag2);
+        REQUIRE(tag3);
+        REQUIRE(tag4);
+        REQUIRE(tag5);
+    }
+
+    SECTION("Tag with alias"){
+
+        CHECK(!db.SelectTagByAliasAG("test"));
+
+        auto tag = db.InsertTag("test tag", "tag for testing", TAG_CATEGORY::META, false);
+
+        REQUIRE(tag);
+
+        tag->AddAlias("test");
+
+        auto tag2 = db.SelectTagByAliasAG("test");
+
+        CHECK(tag2);
+
+        CHECK(tag == tag2);
+
+        tag->RemoveAlias("test");
+
+        CHECK(!db.SelectTagByAliasAG("test"));
+    }
+    
+}
+
+TEST_CASE("Tag parsing", "[db][tags]"){
+
+    std::unique_ptr<Database> dbptr(new TestDatabase());
+    DummyDualView dv(std::move(dbptr));
+    auto& db = dv.GetDatabase();
+
+    REQUIRE_NOTHROW(db.Init());
+
+    SECTION("Basic tag"){
+        
+        auto tag = dv.ParseTagFromString("watermark");
+        
+        CHECK(tag);
+    }
+
+    SECTION("Ending 's' is ignored correctly"){
+
+        auto tag = dv.ParseTagFromString("watermarks");
+        
+        CHECK(tag);
+    }
+
+    SECTION("Spaces are removed from a single tag"){
+
+        auto tag = dv.ParseTagFromString("water mark");
+        
+        CHECK(tag);
+    }
+
+    SECTION("Basic modifiers"){
+
+        REQUIRE(db.SelectTagModifierByNameAG("large"));
+
+        SECTION("Calling modifiers directly"){
+
+            auto tagmods = dv.ParseTagWithOnlyModifiers("large watermark");
+
+            REQUIRE(std::get<1>(tagmods));
+            
+            CHECK(std::get<0>(tagmods).size() == 1);
+
+            CHECK(std::get<1>(tagmods)->GetName() == "watermark");
+        }
+
+        SECTION("Letting ParseTag call it for us"){
+            
+            auto tag = dv.ParseTagFromString("large watermark");
+
+            CHECK(tag);
+        }
+    }
     
 }
 
 TEST_CASE("TagCollection works like it should", "[db][tags]"){
 
+    DummyDualView dv;
+    TestDatabase db;
+
+    REQUIRE_NOTHROW(db.Init());
+    
     SECTION("Non-database use"){
 
 
