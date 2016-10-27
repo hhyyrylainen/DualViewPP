@@ -443,6 +443,33 @@ TEST_CASE("Tag parsing", "[db][tags]"){
             CHECK(tag);
         }
     }
+
+    SECTION("A bunch of modifiers"){
+
+        auto tagmods = dv.ParseTagWithOnlyModifiers("large tall cyan watermark");
+
+        REQUIRE(std::get<1>(tagmods));
+            
+        CHECK(std::get<0>(tagmods).size() == 3);
+
+        CHECK(std::get<1>(tagmods)->GetName() == "watermark");
+
+        CHECK(std::get<0>(tagmods)[0]->GetName() == "large");
+        CHECK(std::get<0>(tagmods)[1]->GetName() == "tall");
+        CHECK(std::get<0>(tagmods)[2]->GetName() == "cyan");
+
+        SECTION("Modifiers in different order is the same tag"){
+
+            auto tagmods2 = dv.ParseTagWithOnlyModifiers("large cyan tall watermark");
+
+            REQUIRE(std::get<1>(tagmods2));
+
+            auto tag1 = std::make_shared<AppliedTag>(tagmods);
+            auto tag2 = std::make_shared<AppliedTag>(tagmods2);
+
+            CHECK(tag1->IsSame(*tag2));
+        }
+    }
     
 }
 
