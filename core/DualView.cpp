@@ -23,6 +23,7 @@
 #include <iostream>
 #include <chrono>
 #include <boost/filesystem.hpp>
+#include <boost/locale.hpp>
 
 using namespace DV;
 // ------------------------------------ //
@@ -1055,7 +1056,7 @@ std::shared_ptr<AppliedTag> DualView::ParseTagWithBreakRule(const std::string &s
 
 std::string DualView::GetExpandedTagFromSuperAlias(const std::string &str) const{
 
-    return "";
+    return _Database->SelectTagSuperAlias(str);
 }
 
 std::shared_ptr<AppliedTag> DualView::ParseTagName(const std::string &str) const{
@@ -1237,8 +1238,11 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const{
     if(str.empty())
         return nullptr;
 
-    // Exact match a tag //
+    // Convert to lower //
+    boost::locale::generator gen;
+    str = boost::locale::to_lower(str, gen(""));
 
+    // Exact match a tag //
     auto existingtag = ParseTagName(str);
 
     if(existingtag)

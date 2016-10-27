@@ -852,6 +852,22 @@ std::shared_ptr<Tag> Database::SelectTagByNameOrAlias(const std::string &name){
     return SelectTagByAlias(guard, name);
 }
 
+std::string Database::SelectTagSuperAlias(const std::string &name){
+
+    const char str[] = "SELECT expanded FROM tag_super_aliases WHERE alias = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(name);
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+        
+        return statementobj.GetColumnAsString(0);
+    }
+
+    return "";
+}
+
 void Database::UpdateTag(Tag &tag){
 
     if(!tag.IsInDatabase())
@@ -1130,6 +1146,47 @@ void Database::UpdateTagModifier(const TagModifier &modifier){
 //
 // TagBreakRule
 //
+std::shared_ptr<TagBreakRule> Database::SelectTagBreakRuleByExactPattern(Lock &guard,
+    const std::string &pattern)
+{
+    const char str[] = "SELECT * FROM common_composite_tags WHERE tag_string = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(pattern); 
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return _LoadTagBreakRuleFromRow(guard, statementobj);
+    }
+    
+    return nullptr;
+}
+
+std::shared_ptr<TagBreakRule> Database::SelectTagBreakRuleByStr(const std::string &searchstr){
+
+    GUARD_LOCK();
+
+    auto exact = SelectTagBreakRuleByExactPattern(guard, searchstr);
+
+    if(exact)
+        return exact;
+
+    const char str[] = "SELECT * FROM common_composite_tags WHERE "
+        "REPLACE(tag_string, '*', '') = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(searchstr); 
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return _LoadTagBreakRuleFromRow(guard, statementobj);
+    }
+    
+    return nullptr;
+}
+
 std::vector<std::shared_ptr<TagModifier>> Database::SelectModifiersForBreakRule(Lock &guard,
     const TagBreakRule &rule)
 {
@@ -1153,10 +1210,30 @@ std::vector<std::shared_ptr<TagModifier>> Database::SelectModifiersForBreakRule(
 
     return result;
 }
+
+void Database::UpdateTagBreakRule(const TagBreakRule &rule){
+
+    
+}
     
 
 // ------------------------------------ //
 // Row parsing functions
+std::shared_ptr<TagBreakRule> Database::_LoadTagBreakRuleFromRow(Lock &guard,
+    PreparedStatement &statement)
+{
+    CheckRowID(statement, 0, "id");
+
+    DBID id;
+    if(!statement.GetObjectIDFromColumn(id, 0)){
+
+        LOG_ERROR("Object id column is invalid");
+        return nullptr;
+    }
+    
+    return std::make_shared<TagBreakRule>(*this, guard, statement, id);
+}
+
 std::shared_ptr<AppliedTag> Database::_LoadAppliedTagFromRow(Lock &guard, 
     PreparedStatement &statement)
 {

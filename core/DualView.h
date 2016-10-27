@@ -157,6 +157,7 @@ public:
         ParseTagWithOnlyModifiers(const std::string &str) const;
     
     //! \brief Parses an AppliedTag from a string. Doesn't add it to the database automatically
+    //! \todo Cache the boost::locale::generator
     std::shared_ptr<AppliedTag> ParseTagFromString(std::string str) const;
     
     //! \brief Returns the thumbnail folder

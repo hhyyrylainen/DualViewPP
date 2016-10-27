@@ -263,6 +263,9 @@ public:
     //! \brief Selects a tag matching the name or has an alias for the name
     std::shared_ptr<Tag> SelectTagByNameOrAlias(const std::string &name);
 
+    //! \brief Returns the text of a super alias
+    std::string SelectTagSuperAlias(const std::string &name);
+
     //! \brief Updates Tag's properties
     void UpdateTag(Tag &tag);
 
@@ -317,8 +320,19 @@ public:
     //
     // TagBreakRule
     //
+    //! \brief Returns a break rule that can handle str (or might be able to)
+    std::shared_ptr<TagBreakRule> SelectTagBreakRuleByStr(const std::string &str);
+
+    std::shared_ptr<TagBreakRule> SelectTagBreakRuleByExactPattern(Lock &guard,
+        const std::string &pattern);
+    
     std::vector<std::shared_ptr<TagModifier>> SelectModifiersForBreakRule(Lock &guard,
         const TagBreakRule &rule);
+
+    //! \todo Implement
+    void UpdateTagBreakRule(const TagBreakRule &rule);
+
+    
     
     
     //! \brief Tries to escape quotes in a string for insertion to sql statements
@@ -331,7 +345,11 @@ private:
     // Row parsing functions
     //
 
-    //! \brief Loads a AppliedTag object from the current row
+    //! \brief Loads a TagBreakRule object from the current row
+    std::shared_ptr<TagBreakRule> _LoadTagBreakRuleFromRow(Lock &guard,
+        PreparedStatement &statement);
+
+    //! \brief Loads an AppliedTag object from the current row
     std::shared_ptr<AppliedTag> _LoadAppliedTagFromRow(Lock &guard,
         PreparedStatement &statement);
 

@@ -360,6 +360,11 @@ std::vector<std::shared_ptr<TagModifier>> TagBreakRule::DoBreak(std::string str,
     return Modifiers;
 }
 
+void TagBreakRule::_DoSave(Database &db){
+
+    db.UpdateTagBreakRule(*this);
+}
+
 void TagBreakRule::UpdateProperties(std::string newpattern, std::string newmaintag,
     std::vector<std::string> newmodifiers)
 {

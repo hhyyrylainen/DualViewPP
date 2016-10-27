@@ -212,6 +212,10 @@ public:
 
     void UpdateProperties(std::string newpattern, std::string newmaintag,
         std::vector<std::string> newmodifiers);
+
+protected:
+
+    void _DoSave(Database &db) override;
     
 protected:
 

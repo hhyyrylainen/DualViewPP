@@ -34,7 +34,7 @@ else(WIN32)
 endif(WIN32)
 
 # Find boost
-find_package(Boost REQUIRED COMPONENTS filesystem)
+find_package(Boost REQUIRED COMPONENTS filesystem locale)
 
 if(NOT Boost_FOUND)
   message(SEND_ERROR "boost libraries not found")
