@@ -134,6 +134,17 @@ public:
 
     //! \brief Helper for ParseTagFromString
     //!
+    //! \returns replacement text for str if it matches a super alias
+    std::string GetExpandedTagFromSuperAlias(const std::string &str) const;
+
+    //! \brief Helper for ParseTagFromString
+    //!
+    //! Parses a tag that is only a name, by either it being a tag, an alias, there being a
+    //! matching break rule OR with a super alias (will throw if the super alias is invalid)
+    std::shared_ptr<AppliedTag> ParseTagName(const std::string &str) const;
+
+    //! \brief Helper for ParseTagFromString
+    //!
     //! Parses tag of the form: "tag word tag"
     //! \note The first AppliedTag will have the CombinedWith member set
     std::tuple<std::shared_ptr<AppliedTag>, std::string, std::shared_ptr<AppliedTag>>
@@ -142,7 +153,7 @@ public:
     //! \brief Helper for ParseTagFromString
     //!
     //! Parses tag of the form: "modifier modifier tag"
-    std::tuple<std::vector<std::shared_ptr<TagModifier>>, std::shared_ptr<Tag>>
+    std::shared_ptr<AppliedTag>
         ParseTagWithOnlyModifiers(const std::string &str) const;
     
     //! \brief Parses an AppliedTag from a string. Doesn't add it to the database automatically

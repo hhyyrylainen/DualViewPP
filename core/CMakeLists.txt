@@ -21,6 +21,7 @@ endmacro(add_sql_generated)
 add_sql_generated("maintables.sql")
 add_sql_generated("defaulttablevalues.sql")
 add_sql_generated("defaulttags.sql")
+add_sql_generated("migration_14_15.sql")
 
 add_library(Core
 

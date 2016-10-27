@@ -32,7 +32,7 @@ class TagModifier;
 class TagBreakRule;
 
 //! \brief The version number of the database
-constexpr auto DATABASE_CURRENT_VERSION = 14;
+constexpr auto DATABASE_CURRENT_VERSION = 15;
 
 //! \brief All database manipulation happens through this class
 //!
@@ -303,6 +303,14 @@ public:
     std::shared_ptr<TagModifier> SelectTagModifierByName(Lock &guard, const std::string &name);
     CREATE_NON_LOCKING_WRAPPER(SelectTagModifierByName);
 
+    std::shared_ptr<TagModifier> SelectTagModifierByAlias(Lock &guard,
+        const std::string &alias);
+    CREATE_NON_LOCKING_WRAPPER(SelectTagModifierByAlias);
+
+    std::shared_ptr<TagModifier> SelectTagModifierByNameOrAlias(Lock &guard,
+        const std::string &name);
+    CREATE_NON_LOCKING_WRAPPER(SelectTagModifierByNameOrAlias);
+
     
     void UpdateTagModifier(const TagModifier &modifier);
 
@@ -371,6 +379,10 @@ private:
 
     //! \brief Sets the database version. Should only be called from _UpdateDatabase
     void _SetCurrentDatabaseVersion(Lock &guard, int newversion);
+
+    //! \brief Runs a raw sql query.
+    //! \note Don't use unless absolutely necessary
+    void _RunSQL(Lock &guard, const std::string &sql);
     
 protected:
 

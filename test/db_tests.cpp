@@ -429,11 +429,11 @@ TEST_CASE("Tag parsing", "[db][tags]"){
 
             auto tagmods = dv.ParseTagWithOnlyModifiers("large watermark");
 
-            REQUIRE(std::get<1>(tagmods));
+            REQUIRE(tagmods);
             
-            CHECK(std::get<0>(tagmods).size() == 1);
+            CHECK(tagmods->GetModifiers().size() == 1);
 
-            CHECK(std::get<1>(tagmods)->GetName() == "watermark");
+            CHECK(tagmods->GetTagName() == "watermark");
         }
 
         SECTION("Letting ParseTag call it for us"){
@@ -448,26 +448,23 @@ TEST_CASE("Tag parsing", "[db][tags]"){
 
         auto tagmods = dv.ParseTagWithOnlyModifiers("large tall cyan watermark");
 
-        REQUIRE(std::get<1>(tagmods));
+        REQUIRE(tagmods);
             
-        CHECK(std::get<0>(tagmods).size() == 3);
+        CHECK(tagmods->GetModifiers().size() == 3);
 
-        CHECK(std::get<1>(tagmods)->GetName() == "watermark");
+        CHECK(tagmods->GetTagName() == "watermark");
 
-        CHECK(std::get<0>(tagmods)[0]->GetName() == "large");
-        CHECK(std::get<0>(tagmods)[1]->GetName() == "tall");
-        CHECK(std::get<0>(tagmods)[2]->GetName() == "cyan");
+        CHECK(tagmods->GetModifiers()[0]->GetName() == "large");
+        CHECK(tagmods->GetModifiers()[1]->GetName() == "tall");
+        CHECK(tagmods->GetModifiers()[2]->GetName() == "cyan");
 
         SECTION("Modifiers in different order is the same tag"){
 
             auto tagmods2 = dv.ParseTagWithOnlyModifiers("large cyan tall watermark");
 
-            REQUIRE(std::get<1>(tagmods2));
+            REQUIRE(tagmods2);
 
-            auto tag1 = std::make_shared<AppliedTag>(tagmods);
-            auto tag2 = std::make_shared<AppliedTag>(tagmods2);
-
-            CHECK(tag1->IsSame(*tag2));
+            CHECK(tagmods->IsSame(*tagmods2));
         }
     }
 
@@ -535,6 +532,39 @@ TEST_CASE("Tag parsing", "[db][tags]"){
             REQUIRE(combined);
             CHECK(combined->GetTagName() == "star wars");
             CHECK(tag->GetTagName() == "eve online");
+        }
+    }
+
+    SECTION("Break rules"){
+
+        SECTION("Rule without wildcard"){
+
+            auto tag = dv.ParseTagFromString("blonde");
+
+            REQUIRE(tag);
+
+            CHECK(tag->GetModifiers().size() == 1);
+            CHECK(tag->GetModifiers()[0]->GetName() == "blonde");
+            CHECK(tag->GetTagName() == "hair");
+        }
+
+        SECTION("Wildcard rule"){
+
+            SECTION("normal wildcard"){
+
+                //auto tag = dv.ParseTagFromString("multicolored watermark");
+            }
+
+            SECTION("wildcard first"){
+
+                //auto tag = dv.ParseTagFromString("hair grab");
+            }
+        }
+
+        SECTION("Rename/alias rule"){
+
+            // there's a break rule for big -> large
+            //auto tag = dv.ParseTagFromString("big watermark");
         }
     }
     

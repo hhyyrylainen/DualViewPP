@@ -96,6 +96,15 @@ CREATE TABLE tag_modifiers (
     description TEXT
 );
 
+-- Tag Modifier alias. Allows multiple names for a modifier
+CREATE TABLE tag_modifier_aliases (
+    
+    -- Name of the alias
+    name TEXT UNIQUE COLLATE NOCASE,
+    -- The Modifier this name means
+    meant_modifier INTEGER REFERENCES tag_modifiers(id) ON DELETE CASCADE
+);
+
 -- A tag that can be applied
 CREATE TABLE applied_tag (
     
@@ -173,6 +182,16 @@ CREATE TABLE tag_implies (
     
     -- The pair must be unique
     UNIQUE (primary_tag, to_apply)
+);
+
+-- Super aliases. These allow a matching tag string to expand to the expanded form
+CREATE TABLE tag_super_aliases (
+
+       -- The input the text must match
+       alias TEXT UNIQUE COLLATE NOCASE,
+       
+       -- The text the match must expand to
+       expanded TEXT
 );
 
 

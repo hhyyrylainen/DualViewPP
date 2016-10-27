@@ -16,6 +16,8 @@
 #include "generated/defaulttablevalues.sql.h"
 #include "generated/defaulttags.sql.h"
 
+#include "generated/migration_14_15.sql.h"
+
 #include "core/CurlWrapper.h"
 
 #include "Common/StringOperations.h"
@@ -1076,6 +1078,36 @@ std::shared_ptr<TagModifier> Database::SelectTagModifierByName(Lock &guard,
     return nullptr;
 }
 
+std::shared_ptr<TagModifier> Database::SelectTagModifierByAlias(Lock &guard,
+    const std::string &alias)
+{
+    const char str[] = "SELECT tag_modifiers.* FROM tag_modifier_aliases "
+        "LEFT JOIN tag_modifiers ON tag_modifiers.id = tag_modifier_aliases.meant_modifier "
+        "WHERE tag_modifier_aliases.name = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(alias);
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return _LoadTagModifierFromRow(guard, statementobj);
+    }
+
+    return nullptr;
+}
+
+std::shared_ptr<TagModifier> Database::SelectTagModifierByNameOrAlias(Lock &guard,
+    const std::string &name)
+{
+    auto tag = SelectTagModifierByName(guard, name);
+
+    if(tag)
+        return tag;
+
+    return SelectTagModifierByAlias(guard, name);
+}
+
 void Database::UpdateTagModifier(const TagModifier &modifier){
     
     if(!modifier.IsInDatabase())
@@ -1306,7 +1338,11 @@ bool Database::_UpdateDatabase(Lock &guard, int &oldversion){
     boost::filesystem::copy(DatabaseFile, targetfile);
     
     switch(oldversion){
-        
+    case 14:
+    {
+        _RunSQL(guard, STR_MIGRATION_14_15_SQL);
+        return true;
+    }
 
     default:
     {
@@ -1367,6 +1403,14 @@ void Database::_InsertDefaultTags(Lock &guard){
     InsertCollection(guard, "Uncategorized", false);
     InsertCollection(guard, "PrivateRandom", true);
     InsertCollection(guard, "Backgrounds", false);
+}
+void Database::_RunSQL(Lock &guard, const std::string &sql){
+    
+    if(SQLITE_OK != sqlite3_exec(SQLiteDb, sql.c_str(),
+        nullptr, nullptr, nullptr))
+    {
+        ThrowCurrentSqlError(guard);
+    }
 }
 // ------------------------------------ //
 int Database::SqliteExecGrabResult(void* user, int columns, char** columnsastext,

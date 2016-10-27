@@ -224,6 +224,8 @@ protected:
 
 
 //! A full tag that is applied to something
+//! \note Changes to this object will not be saved to the database. If you want to change
+//! an AppliedTag in the database: first remove it and then add the new one
 class AppliedTag{
 public:
 
@@ -271,6 +273,12 @@ public:
     void SetCombineWith(const std::string &middle, std::shared_ptr<AppliedTag> right){
 
         CombinedWith = std::make_tuple(middle, right);
+    }
+
+    //! \brief Sets the modifiers on this tag
+    void SetModifiers(std::vector<std::shared_ptr<TagModifier>> modifiers){
+
+        Modifiers = modifiers;
     }
 
     inline auto GetID() const{

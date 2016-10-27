@@ -1053,6 +1053,35 @@ std::shared_ptr<AppliedTag> DualView::ParseTagWithBreakRule(const std::string &s
     return nullptr;
 }
 
+std::string DualView::GetExpandedTagFromSuperAlias(const std::string &str) const{
+
+    return "";
+}
+
+std::shared_ptr<AppliedTag> DualView::ParseTagName(const std::string &str) const{
+
+    auto byname = _Database->SelectTagByNameOrAlias(str);
+
+    if(byname)
+        return std::make_shared<AppliedTag>(byname);
+
+    auto bybreaking = ParseTagWithBreakRule(str);
+
+    if(bybreaking)
+        return bybreaking;
+
+    // Try to get expanded form //
+    const auto expanded = GetExpandedTagFromSuperAlias(str);
+
+    if(!expanded.empty()){
+
+        // Parse the replacement tag //
+        return ParseTagFromString(expanded);
+    }
+
+    return nullptr;
+}
+
 std::tuple<std::shared_ptr<AppliedTag>, std::string, std::shared_ptr<AppliedTag>>
     DualView::ParseTagWithComposite(const std::string &str) const
 {
@@ -1135,16 +1164,15 @@ std::tuple<std::shared_ptr<AppliedTag>, std::string, std::shared_ptr<AppliedTag>
     return std::make_tuple(nullptr, "", nullptr);
 }
 
-std::tuple<std::vector<std::shared_ptr<TagModifier>>, std::shared_ptr<Tag>>
-    DualView::ParseTagWithOnlyModifiers(const std::string &str) const
-{
+std::shared_ptr<AppliedTag> DualView::ParseTagWithOnlyModifiers(const std::string &str) const{
+    
     // First split it into words //
     std::vector<std::string> words;
     Leviathan::StringOperations::CutString<std::string>(str, " ", words);
 
     // Must be more than 1 word
     if(words.size() < 2)
-        return std::make_tuple(std::vector<std::shared_ptr<TagModifier>>(), nullptr);
+        return nullptr;
 
     // Then try to match all the stuff in front of the tag into modifiers and the
     // last word(s) into a tag
@@ -1165,7 +1193,7 @@ std::tuple<std::vector<std::shared_ptr<TagModifier>>, std::shared_ptr<Tag>>
         auto backStr = Leviathan::StringOperations::StitchTogether<std::string>(back, " ");
 
         // Back needs to be a tag //
-        auto tag = _Database->SelectTagByNameOrAlias(backStr);
+        auto tag = ParseTagName(backStr);
 
         if(!tag)
             continue;
@@ -1177,7 +1205,7 @@ std::tuple<std::vector<std::shared_ptr<TagModifier>>, std::shared_ptr<Tag>>
 
         for(size_t a = 0; a <= i; ++a){
 
-            auto mod = _Database->SelectTagModifierByNameAG(words[a]);
+            auto mod = _Database->SelectTagModifierByNameOrAliasAG(words[a]);
 
             if(!mod){
 
@@ -1192,11 +1220,13 @@ std::tuple<std::vector<std::shared_ptr<TagModifier>>, std::shared_ptr<Tag>>
         if(!success)
             continue;
 
+        tag->SetModifiers(modifiers);
+
         // It succeeded //
-        return std::make_tuple(modifiers, tag);
+        return tag;
     }
     
-    return std::make_tuple(std::vector<std::shared_ptr<TagModifier>>(), nullptr);
+    return nullptr;
 }
 
 std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const{
@@ -1208,10 +1238,11 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const{
         return nullptr;
 
     // Exact match a tag //
-    auto existingtag = _Database->SelectTagByNameOrAlias(str);
+
+    auto existingtag = ParseTagName(str);
 
     if(existingtag)
-        return std::make_shared<AppliedTag>(existingtag);
+        return existingtag;
 
     // Wasn't exactly a single tag //
     
@@ -1220,26 +1251,17 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const{
 
     if(nowhitespace.size() != str.size()){
         
-        existingtag = _Database->SelectTagByNameOrAlias(nowhitespace);
+        existingtag = ParseTagName(nowhitespace);
 
         if(existingtag)
-            return std::make_shared<AppliedTag>(existingtag);
+            return existingtag;
     }
 
     // Modifier before tag //
     auto modifiedtag = ParseTagWithOnlyModifiers(str);
 
-    if(std::get<1>(modifiedtag)){
-        
-        // Make sure the tag exists //
-        if(!std::get<1>(modifiedtag)->IsInDatabase()){
-            
-            throw Leviathan::InvalidArgument("modifier + tag has unknown tag '" +
-                std::get<1>(modifiedtag)->GetName() + "'\n from '" + str + "'");
-        }
-
-        return std::make_shared<AppliedTag>(modifiedtag);
-    }
+    if(modifiedtag)
+        return modifiedtag;
 
     // Detect a composite //
     std::vector<std::string> words;
@@ -1256,15 +1278,8 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const{
         }
     }
 
-    // Detect a break rule //
-    auto brokentag = ParseTagWithBreakRule(str);
-
-    if(brokentag){
-
-        // Finally got the string parsed //
-        return brokentag;
-    }
-
+    // Break rules are detected by ParseTagName
+    
     // Check does removing ending 's' create an existing tag
     if(str.back() == 's'){
         
@@ -1272,7 +1287,6 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const{
     }
 
     throw Leviathan::InvalidArgument("unknown tag '" + str + "'");
-    return nullptr;
 }
 // ------------------------------------ //
 // Gtk callbacks

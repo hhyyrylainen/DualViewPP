@@ -15,12 +15,12 @@ INSERT INTO tag_aliases (name, meant_tag) VALUES ("clothes", (SELECT id FROM tag
 INSERT INTO tag_aliases (name, meant_tag) VALUES ("cloths", (SELECT id FROM tags WHERE name = "clothing"));
 
 INSERT INTO tags (name, description, category, is_private) VALUES ("uniform", "A uniform is a set of standard clothing worn by members of an organization while participating in that organization's activities. Modern uniforms are worn by armed forces  and paramilitary organizations such as police, emergency services, security guards, in some workplaces and schools, and by inmates in prisons. In some countries, some other officials also wear uniforms in their duties; such is the case of the Commissioned Corps of the United States Public Health Service or the French prefects. For some public groups, such as police, it is illegal for non members to wear the uniform. Other uniforms are trade dressed (such as the brown uniforms of UPS).", 0, 0);
--- Implied tag 'uniform' => 'clothing' 
+-- Implied tag 'uniform => clothing
 INSERT INTO tag_implies (primary_tag, to_apply) VALUES ((SELECT id FROM tags WHERE name = "uniform"), (SELECT id FROM tags WHERE name = "clothing"));
 
--- Tag 'baseball uniform' 
+-- Tag baseball uniform 
 INSERT INTO tags (name, description, category, is_private) VALUES ("baseball uniform", "A uniform worn by those who are playing baseball. ", 0, 0);
--- Implied tag 'baseball uniform' => 'uniform' 
+-- Implied tag baseball uniform => uniform 
 INSERT INTO tag_implies (primary_tag, to_apply) VALUES ((SELECT id FROM tags WHERE name = "baseball uniform"), (SELECT id FROM tags WHERE name = "uniform"));
 
 
@@ -135,22 +135,17 @@ INSERT INTO tag_modifiers (name, description) VALUES ("long", "Measurement");
 INSERT INTO tag_modifiers (name, description) VALUES ("tall", "Measurement");
 INSERT INTO tag_modifiers (name, description) VALUES ("short", "Measurement");
 INSERT INTO tag_modifiers (name, description) VALUES ("large", "Measurement");
--- TODO: alias for big to large
-INSERT INTO tag_modifiers (name, description) VALUES ("small", "Measurement");
 
-
+-- Aliases for modifiers --
+INSERT INTO tag_modifier_aliases (name, meant_modifier) VALUES ("big", (SELECT id FROM tag_modifiers WHERE NAME="large"));
+INSERT INTO tag_modifier_aliases (name, meant_modifier) VALUES ("multicolored", (SELECT id FROM tag_modifiers WHERE NAME="multicoloured"));
+   
 
 ----------- Hair Tags -----------
 
 -- Tag 'hair' with 1 alias(es)
 INSERT INTO tags (name, description, category, is_private) VALUES ("hair", "Threadlike strands on the heads humans and many animals, not to be confused with fur. ", 0, 0);
 INSERT INTO tag_aliases (name, meant_tag) VALUES ("dyed hair", (SELECT id FROM tags WHERE name = "hair"));
--- Implied tag 'flaming hair' => 'hair' 
--- Implied tag 'hair bun' => 'hair' 
--- Implied tag 'braided hair' => 'hair' 
--- Implied tag 'straight hair' => 'hair' 
--- Implied tag 'hair over eye' => 'hair' 
--- Implied tag 'hair grab' => 'hair' 
 
 -- Tag 'flaming hair' with 1 alias(es)
 INSERT INTO tags (name, description, category, is_private) VALUES ("flaming hair", "When a character has hair or a mane that is made of fire.", 0, 0);
@@ -165,7 +160,7 @@ INSERT INTO tag_aliases (name, meant_tag) VALUES ("hairbun", (SELECT id FROM tag
 INSERT INTO tag_implies (primary_tag, to_apply) VALUES ((SELECT id FROM tags WHERE name = "hair bun"), (SELECT id FROM tags WHERE name = "hair"));
 
 -- Tag 'braided hair' with 3 alias(es)
-INSERT INTO tags (name, description, category, is_private) VALUES ("braided hair", "This tag is used when all or part of a character's hair is woven into plaits.", 0, 0);
+INSERT INTO tags (name, description, category, is_private) VALUES ("braided hair", "This tag is used when all or part of a characters hair is woven into plaits.", 0, 0);
 INSERT INTO tag_aliases (name, meant_tag) VALUES ("plait", (SELECT id FROM tags WHERE name = "braided hair"));
 INSERT INTO tag_aliases (name, meant_tag) VALUES ("braids", (SELECT id FROM tags WHERE name = "braided hair"));
 INSERT INTO tag_aliases (name, meant_tag) VALUES ("braid", (SELECT id FROM tags WHERE name = "braided hair"));
@@ -187,7 +182,7 @@ INSERT INTO tags (name, description, category, is_private) VALUES ("side braid",
 INSERT INTO tag_implies (primary_tag, to_apply) VALUES ((SELECT id FROM tags WHERE name = "side braid"), (SELECT id FROM tags WHERE name = "braided hair"));
 
 -- Tag 'single braid' 
-INSERT INTO tags (name, description, category, is_private) VALUES ("single braid", "This tag is used when a character's hair is woven into one single plait.", 0, 0);
+INSERT INTO tags (name, description, category, is_private) VALUES ("single braid", "This tag is used when a characters hair is woven into one single plait.", 0, 0);
 -- Implied tag 'single braid' => 'braided hair' 
 INSERT INTO tag_implies (primary_tag, to_apply) VALUES ((SELECT id FROM tags WHERE name = "single braid"), (SELECT id FROM tags WHERE name = "braided hair"));
 
@@ -208,40 +203,21 @@ INSERT INTO tag_aliases (name, meant_tag) VALUES ("long rainbow hair", (SELECT i
 
 
 -- Composite tag breaking
--- Wet something
-INSERT INTO common_composite_tags (id, tag_string, actual_tag) VALUES (1, "wet*", 0);
-INSERT INTO composite_tag_modifiers (composite, modifier) VALUES (1, (SELECT id FROM tag_modifiers WHERE name="wet"));
--- Short
-INSERT INTO common_composite_tags (id, tag_string, actual_tag) VALUES (2, "short*", 0);
-INSERT INTO composite_tag_modifiers (composite, modifier) VALUES (2, (SELECT id FROM tag_modifiers WHERE name="short"));
--- Long
-INSERT INTO common_composite_tags (id, tag_string, actual_tag) VALUES (3, "long*", 0);
-INSERT INTO composite_tag_modifiers (composite, modifier) VALUES (3, (SELECT id FROM tag_modifiers WHERE name="long"));
-
--- multicolored to multicoloured something
-INSERT INTO common_composite_tags (id, tag_string, actual_tag) VALUES (4, "multicolored*", 0);
-INSERT INTO composite_tag_modifiers (composite, modifier) VALUES (4, (SELECT id FROM tag_modifiers WHERE name="multicoloured"));
-
--- Holding
-INSERT INTO common_composite_tags (id, tag_string, actual_tag) VALUES (5, "holding*", 0);
-INSERT INTO composite_tag_modifiers (composite, modifier) VALUES (5, (SELECT id FROM tag_modifiers WHERE name="holding"));
-
--- Specific composites
--- Redhead
-INSERT INTO common_composite_tags (id, tag_string, actual_tag) VALUES (6, "redhead", (SELECT id FROM tags WHERE name="hair"));
-INSERT INTO composite_tag_modifiers (composite, modifier) VALUES (6, (SELECT id FROM tag_modifiers WHERE name="red"));
-
--- Brunette
-INSERT INTO common_composite_tags (id, tag_string, actual_tag) VALUES (7, "brunette", (SELECT id FROM tags WHERE name="hair"));
-INSERT INTO composite_tag_modifiers (composite, modifier) VALUES (7, (SELECT id FROM tag_modifiers WHERE name="brown"));
-
--- Blonde
-INSERT INTO common_composite_tags (id, tag_string, actual_tag) VALUES (8, "blonde", (SELECT id FROM tags WHERE name="hair"));
-INSERT INTO composite_tag_modifiers (composite, modifier) VALUES (8, (SELECT id FROM tag_modifiers WHERE name="blonde"));
 
 -- Grabbing
-INSERT INTO common_composite_tags (id, tag_string, actual_tag) VALUES (9, "*grab", 0);
-INSERT INTO composite_tag_modifiers (composite, modifier) VALUES (9, (SELECT id FROM tag_modifiers WHERE name="grabbing"));
+INSERT INTO common_composite_tags (tag_string, actual_tag) VALUES ("*grab", 0);
+INSERT INTO composite_tag_modifiers (composite, modifier) VALUES ((SELECT last_insert_rowid()), (SELECT id FROM tag_modifiers WHERE name="grabbing"));
+
+
+-- Tag breaking by parsing alternate string (this is like super aliases)
+-- Redhead
+INSERT INTO tag_super_aliases (alias, expanded) VALUES ("redhead", "red hair");
+
+-- Brunette
+INSERT INTO tag_super_aliases (alias, expanded) VALUES ("brunette", "brown hair");
+
+-- Blonde
+INSERT INTO tag_super_aliases (alias, expanded) VALUES ("blonde", "blonde hair");
 
 
 END TRANSACTION;
