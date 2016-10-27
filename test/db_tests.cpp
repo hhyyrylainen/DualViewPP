@@ -470,6 +470,73 @@ TEST_CASE("Tag parsing", "[db][tags]"){
             CHECK(tag1->IsSame(*tag2));
         }
     }
+
+    SECTION("Combines"){
+
+        SECTION("Direct, Easy test"){
+
+            auto parsed = dv.ParseTagWithComposite("captions in watermark");
+
+            REQUIRE(std::get<0>(parsed));
+            REQUIRE(std::get<1>(parsed) == "in");
+            REQUIRE(std::get<2>(parsed));
+        }
+
+        SECTION("With just tags"){
+
+            auto tag = dv.ParseTagFromString("captions in watermark");
+
+            REQUIRE(tag);
+
+            std::string combinestr;
+            std::shared_ptr<AppliedTag> combined;
+
+            CHECK(tag->GetCombinedWith(combinestr, combined));
+
+            CHECK(combinestr == "in");
+            REQUIRE(combined);
+            CHECK(combined->GetTagName() == "watermark");
+        }
+
+        SECTION("Tags with modifiers"){
+
+            auto tag = dv.ParseTagFromString("long captions in tall watermark");
+
+            REQUIRE(tag);
+
+            std::string combinestr;
+            std::shared_ptr<AppliedTag> combined;
+
+            CHECK(tag->GetCombinedWith(combinestr, combined));
+
+            CHECK(combinestr == "in");
+            REQUIRE(combined);
+            CHECK(combined->GetTagName() == "watermark");
+
+            REQUIRE(tag->GetModifiers().size() == 1);
+            REQUIRE(tag->GetModifiers()[0]->GetName() == "long");
+
+            REQUIRE(combined->GetModifiers().size() == 1);
+            REQUIRE(combined->GetModifiers()[0]->GetName() == "tall");
+        }
+
+        SECTION("Multi word tags"){
+
+            auto tag = dv.ParseTagFromString("eve online vs star wars");
+
+            REQUIRE(tag);
+
+            std::string combinestr;
+            std::shared_ptr<AppliedTag> combined;
+
+            CHECK(tag->GetCombinedWith(combinestr, combined));
+            
+            CHECK(combinestr == "vs");
+            REQUIRE(combined);
+            CHECK(combined->GetTagName() == "star wars");
+            CHECK(tag->GetTagName() == "eve online");
+        }
+    }
     
 }
 

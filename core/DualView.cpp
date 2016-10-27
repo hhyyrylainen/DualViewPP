@@ -1056,6 +1056,82 @@ std::shared_ptr<AppliedTag> DualView::ParseTagWithBreakRule(const std::string &s
 std::tuple<std::shared_ptr<AppliedTag>, std::string, std::shared_ptr<AppliedTag>>
     DualView::ParseTagWithComposite(const std::string &str) const
 {
+    // First split it into words //
+    std::vector<std::string> words;
+    Leviathan::StringOperations::CutString<std::string>(str, " ", words);
+
+    // Must be 3 words or more
+    if(words.size() < 3)
+        return std::make_tuple(nullptr, "", nullptr);
+
+    // Find a middle word for which the following works
+    // left side can be parsed with ParseTagWithOnlyModifiers middle word is a word like
+    // "on", "with", or anything really and the right side can also be parsed with
+    // ParseTagWithOnlyModifiers
+
+    std::vector<std::string*> left;
+    std::vector<std::string*> right;
+
+    for(size_t i = 1; i < words.size() - 1; ++i){
+
+        // Build the words //
+        size_t insertIndex = 0;
+        left.resize(i);
+
+        for(size_t a = 0; a < i; ++a){
+
+            left[insertIndex++] = &words[a];
+        }
+
+        std::shared_ptr<AppliedTag> parsedleft;
+        std::shared_ptr<AppliedTag> parsedright;
+        
+        try{
+            
+            parsedleft = ParseTagFromString(
+                Leviathan::StringOperations::StitchTogether<std::string>(left, " "));
+            
+        } catch(const Leviathan::InvalidArgument){
+
+            // No such tag //
+            continue;
+        }
+
+        if(!parsedleft)
+            continue;
+
+        insertIndex = 0;
+        right.resize(words.size() - 1 - i);
+
+        for(size_t a = i + 1; a < words.size(); ++a){
+
+            right[insertIndex++] = &words[a];
+        }
+
+        try{
+            parsedright = ParseTagFromString(
+                Leviathan::StringOperations::StitchTogether<std::string>(right, " "));
+            
+        } catch(const Leviathan::InvalidArgument){
+
+            // No such tag //
+            continue;
+        }
+
+        if(!parsedright)
+            continue;
+        
+        auto middle = words[i];
+
+        // It worked //
+
+        // We need to add the right tag to the left one, otherwise things break
+        parsedleft->SetCombineWith(middle, parsedright);
+        
+        return std::make_tuple(parsedleft, middle, parsedright);
+    }
+
+    // No matches found //
     return std::make_tuple(nullptr, "", nullptr);
 }
 
@@ -1080,7 +1156,7 @@ std::tuple<std::vector<std::shared_ptr<TagModifier>>, std::shared_ptr<Tag>>
         size_t insertIndex = 0;
         back.resize(words.size() - 1 - i);
 
-        for(size_t a = words.size() - 1; a > i; --a){
+        for(size_t a = i + 1; a < words.size(); ++a){
 
             back[insertIndex++] = &words[a];
         }

@@ -1030,7 +1030,7 @@ std::tuple<std::string, std::shared_ptr<AppliedTag>> Database::SelectAppliedTagC
 
     CheckRowID(statementobj, 1, "tag_right");
 
-    DBID id;
+    DBID id = -1;
     if(statementobj.GetObjectIDFromColumn(id, 1)){
 
         LOG_ERROR("Database SelectAppliedTagModifier: missing tag_right id");

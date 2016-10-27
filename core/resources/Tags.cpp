@@ -162,7 +162,6 @@ void Tag::_DoSave(Database &db){
 // ------------------------------------ //
 // AppliedTag
 AppliedTag::AppliedTag(std::shared_ptr<Tag> tagonly) :
-    DatabaseResource(true),
     MainTag(tagonly)
 {
         
@@ -193,7 +192,7 @@ AppliedTag::AppliedTag(std::tuple<std::shared_ptr<Tag>, std::string,
 
 AppliedTag::AppliedTag(Database &db, Lock &dblock, PreparedStatement &statement,
     int64_t id) :
-    DatabaseResource(id, db)
+    ID(id)
 {
     CheckRowID(statement, 1, "tag");
     
@@ -227,9 +226,12 @@ std::string AppliedTag::ToAccurateString() const {
     return result;
 }
 
-void AppliedTag::_DoSave(Database &db){
+std::string AppliedTag::GetTagName() const{
 
-    LEVIATHAN_ASSERT(false, "_Dosave Called on AppliedTag");
+    if(!MainTag)
+        throw Leviathan::InvalidState("AppliedTag has no Tag to get name from");
+        
+    return MainTag->GetName();
 }
 
 bool AppliedTag::IsSame(const AppliedTag &other) const {

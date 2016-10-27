@@ -224,7 +224,7 @@ protected:
 
 
 //! A full tag that is applied to something
-class AppliedTag : public DatabaseResource{
+class AppliedTag{
 public:
 
     //! Creates an applied tag for a tag
@@ -255,14 +255,42 @@ public:
     //! Creates a string representation that can be parsed with DualView::ParseTagFromString
     std::string ToAccurateString() const;
 
+    //! \brief Returns true if CombinedWith is set. And returns the values in the parameters
+    bool GetCombinedWith(std::string &combinestr, std::shared_ptr<AppliedTag> &combined) const{
+
+        if(!std::get<1>(CombinedWith))
+            return false;
+        
+        combined = std::get<1>(CombinedWith);
+        combinestr = std::get<0>(CombinedWith);
+        return true;
+    }
+
+    //! \brief Sets the combine with
+    //! \todo Assert if called on one loaded from database
+    void SetCombineWith(const std::string &middle, std::shared_ptr<AppliedTag> right){
+
+        CombinedWith = std::make_tuple(middle, right);
+    }
+
+    inline auto GetID() const{
+
+        return ID;
+    }
+
+    inline const auto& GetModifiers() const{
+
+        return Modifiers;
+    }
+
+    //! \brief Gets the name of the tag used by this AppliedTag
+    //! \exception Leviathan::InvalidState if there is no tag
+    std::string GetTagName() const;
+
 protected:
 
-    //! \note This should never be called as AppliedTags will never be modified, only removed
-    //! or added
-    void _DoSave(Database &db) override;
-
-protected:
-
+    int64_t ID = -1;
+    
     //! Primary tag
     std::shared_ptr<Tag> MainTag;
     
