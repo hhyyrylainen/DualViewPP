@@ -1051,7 +1051,22 @@ std::shared_ptr<Collection> DualView::GetUncategorized(){
 // ------------------------------------ //
 std::shared_ptr<AppliedTag> DualView::ParseTagWithBreakRule(const std::string &str) const{
 
-    return nullptr;
+    auto rule = _Database->SelectTagBreakRuleByStr(str);
+
+    if(!rule)
+        return nullptr;
+
+    std::string tagname;
+    std::shared_ptr<Tag> tag;
+    auto modifiers = rule->DoBreak(str, tagname, tag);
+
+    if(!tag && modifiers.empty()){
+
+        // Rule didn't match //
+        return nullptr;
+    }
+
+    return std::make_shared<AppliedTag>(tag, modifiers);
 }
 
 std::string DualView::GetExpandedTagFromSuperAlias(const std::string &str) const{
@@ -1065,11 +1080,6 @@ std::shared_ptr<AppliedTag> DualView::ParseTagName(const std::string &str) const
 
     if(byname)
         return std::make_shared<AppliedTag>(byname);
-
-    auto bybreaking = ParseTagWithBreakRule(str);
-
-    if(bybreaking)
-        return bybreaking;
 
     // Try to get expanded form //
     const auto expanded = GetExpandedTagFromSuperAlias(str);
@@ -1165,6 +1175,51 @@ std::tuple<std::shared_ptr<AppliedTag>, std::string, std::shared_ptr<AppliedTag>
     return std::make_tuple(nullptr, "", nullptr);
 }
 
+
+std::shared_ptr<AppliedTag> DualView::ParseHelperCheckModifiersAndBreakRules(
+    const std::shared_ptr<AppliedTag> &maintag, const std::vector<std::string*> &words,
+    bool taglast) const
+{
+    // All the words need to be modifiers or a break rule must accept them //
+    bool success = true;
+    std::vector<std::shared_ptr<TagModifier>> modifiers;
+    modifiers.reserve(words.size());
+
+    for(size_t a = 0; a < words.size(); ++a){
+
+        auto mod = _Database->SelectTagModifierByNameOrAliasAG(*words[a]);
+
+        if(mod){
+
+            modifiers.push_back(mod);
+            continue;
+        }
+
+        // This wasn't a modifier //
+        auto broken = ParseTagWithBreakRule(*words[a]);
+
+        // Must have parsed a tag that has only modifiers
+        if(!broken || broken->GetTag() || broken->GetModifiers().empty()){
+
+            // unknown modifier and no break rule //
+            return nullptr;
+        }
+
+        // Modifiers from break rule //
+        for(const auto& alreadyset : broken->GetModifiers()){
+    
+            modifiers.push_back(alreadyset);
+        }
+    }
+
+    for(const auto& alreadyset : maintag->GetModifiers()){
+    
+        modifiers.push_back(alreadyset);
+    }
+
+    return std::make_shared<AppliedTag>(maintag->GetTag(), modifiers);
+}
+
 std::shared_ptr<AppliedTag> DualView::ParseTagWithOnlyModifiers(const std::string &str) const{
     
     // First split it into words //
@@ -1178,6 +1233,7 @@ std::shared_ptr<AppliedTag> DualView::ParseTagWithOnlyModifiers(const std::strin
     // Then try to match all the stuff in front of the tag into modifiers and the
     // last word(s) into a tag
     std::vector<std::string*> back;
+    std::vector<std::string*> front;
     
     for(size_t i = 0; i < words.size(); ++i){
 
@@ -1189,6 +1245,15 @@ std::shared_ptr<AppliedTag> DualView::ParseTagWithOnlyModifiers(const std::strin
 
             back[insertIndex++] = &words[a];
         }
+
+        front.resize(i + 1);
+        insertIndex = 0;
+        
+        for(size_t a = 0; a <= i; ++a){
+
+            front[insertIndex++] = &words[a];
+        }
+        
         
         // Create strings //
         auto backStr = Leviathan::StringOperations::StitchTogether<std::string>(back, " ");
@@ -1196,37 +1261,35 @@ std::shared_ptr<AppliedTag> DualView::ParseTagWithOnlyModifiers(const std::strin
         // Back needs to be a tag //
         auto tag = ParseTagName(backStr);
 
-        if(!tag)
+        if(!tag){
+
+            // Maybe tag is first //
+            auto frontStr = Leviathan::StringOperations::StitchTogether<std::string>(
+                front, " ");
+
+            tag = ParseTagName(frontStr);
+
+            if(!tag)
+                continue;
+
+            // Try parsing it //
+            auto finished = ParseHelperCheckModifiersAndBreakRules(tag, back, false);
+
+            if(finished)
+                return finished;
+            
             continue;
-
-        // All the words in front need to be modifiers //
-        bool success = true;
-        std::vector<std::shared_ptr<TagModifier>> modifiers;
-        modifiers.reserve(i);
-
-        for(size_t a = 0; a <= i; ++a){
-
-            auto mod = _Database->SelectTagModifierByNameOrAliasAG(words[a]);
-
-            if(!mod){
-
-                // This wasn't a modifier //
-                success = false;
-                break;
-            }
-
-            modifiers.push_back(mod);
         }
 
-        if(!success)
-            continue;
+        auto finished = ParseHelperCheckModifiersAndBreakRules(tag, front, false);
 
-        tag->SetModifiers(modifiers);
+        if(finished){
 
-        // It succeeded //
-        return tag;
+            // It succeeded //
+            return finished;
+        }
     }
-    
+
     return nullptr;
 }
 

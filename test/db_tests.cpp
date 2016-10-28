@@ -535,6 +535,17 @@ TEST_CASE("Tag parsing", "[db][tags]"){
         }
     }
 
+    SECTION("Modifier alias"){
+
+        auto tag1 = dv.ParseTagFromString("multicolored watermark");
+
+        REQUIRE(tag1);
+
+        auto tag2 = dv.ParseTagFromString("big watermark");
+
+        REQUIRE(tag2);
+    }
+
     SECTION("Break rules"){
 
         SECTION("Rule without wildcard"){
@@ -552,19 +563,13 @@ TEST_CASE("Tag parsing", "[db][tags]"){
 
             SECTION("normal wildcard"){
 
-                //auto tag = dv.ParseTagFromString("multicolored watermark");
+                // There actually aren't any of these, so maybe insert one here and test
             }
 
             SECTION("wildcard first"){
 
-                //auto tag = dv.ParseTagFromString("hair grab");
+                auto tag = dv.ParseTagFromString("hair grab");
             }
-        }
-
-        SECTION("Rename/alias rule"){
-
-            // there's a break rule for big -> large
-            //auto tag = dv.ParseTagFromString("big watermark");
         }
     }
     

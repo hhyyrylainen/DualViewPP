@@ -164,7 +164,14 @@ void Tag::_DoSave(Database &db){
 AppliedTag::AppliedTag(std::shared_ptr<Tag> tagonly) :
     MainTag(tagonly)
 {
-        
+    
+}
+
+AppliedTag::AppliedTag(std::shared_ptr<Tag> tag,
+    std::vector<std::shared_ptr<TagModifier>> modifiers) :
+    MainTag(tag), Modifiers(modifiers)
+{
+    
 }
 
 AppliedTag::AppliedTag(std::tuple<std::vector<std::shared_ptr<TagModifier>>,
@@ -296,6 +303,14 @@ std::vector<std::shared_ptr<TagModifier>> TagBreakRule::DoBreak(std::string str,
     std::string &tagname, std::shared_ptr<Tag> &returnedtag)
 {
     Leviathan::StringOperations::RemovePreceedingTrailingSpaces(str);
+
+    if(str.empty()){
+
+        // Doesn't match //
+        tagname = str;
+        returnedtag = nullptr;
+        return {};
+    }
     
     if(Pattern.find_first_of('*') == std::string::npos){
 
@@ -325,11 +340,18 @@ std::vector<std::shared_ptr<TagModifier>> TagBreakRule::DoBreak(std::string str,
     
     boost::split(wildcardparts, Pattern, boost::is_any_of("*"));
 
-    if(wildcardparts.size() != 1)
+    if(wildcardparts.size() != 2)
         throw Leviathan::InvalidState("composite break rule wildcard must have a single *");
-    
 
-    if(!boost::iequals(wildcardparts[0], str)){
+    tagname = std::string(wildcardparts[0].begin(), wildcardparts[0].end());
+
+    if(tagname.empty()){
+
+        // Try the second part //
+        tagname = std::string(wildcardparts[1].begin(), wildcardparts[1].end());
+    }
+    
+    if(!boost::iequals(tagname, str)){
 
         // Not a match //
         // Despite best efforts this string doesn't match the rule //
@@ -338,7 +360,6 @@ std::vector<std::shared_ptr<TagModifier>> TagBreakRule::DoBreak(std::string str,
         return {};
     }
 
-    tagname = std::string(wildcardparts[0].begin(), wildcardparts[0].end());
     // It matched, but just in case there was whitespace trim it //
     Leviathan::StringOperations::RemovePreceedingTrailingSpaces(tagname);
 

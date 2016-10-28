@@ -207,6 +207,7 @@ public:
     //! \returns The modifiers that were before the tag
     //! \param tagname If break succeeds this contains the name of the tag
     //! \param returnedtag If break succeeds this contains the tag
+    //! \todo This needs to be worked entirely
     std::vector<std::shared_ptr<TagModifier>> DoBreak(std::string str, std::string &tagname,
         std::shared_ptr<Tag> &returnedtag);
 
@@ -236,6 +237,8 @@ public:
     //! Creates an applied tag for a tag
     AppliedTag(std::shared_ptr<Tag> tagonly);
 
+    AppliedTag(std::shared_ptr<Tag> tag, std::vector<std::shared_ptr<TagModifier>> modifiers);
+    
     AppliedTag(std::tuple<std::vector<std::shared_ptr<TagModifier>>,
         std::shared_ptr<Tag>> modifiersandtag);
 
@@ -293,6 +296,11 @@ public:
     inline const auto& GetModifiers() const{
 
         return Modifiers;
+    }
+
+    inline const auto GetTag() const{
+
+        return MainTag;
     }
 
     //! \brief Gets the name of the tag used by this AppliedTag

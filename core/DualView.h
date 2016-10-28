@@ -130,6 +130,7 @@ public:
     //! \brief Helper for ParseTagFromString
     //!
     //! Parses tag that matches a break rule
+    //! \todo Select all possibly working rules from the database (currently selects only one)
     std::shared_ptr<AppliedTag> ParseTagWithBreakRule(const std::string &str) const;
 
     //! \brief Helper for ParseTagFromString
@@ -199,6 +200,11 @@ public:
     static DualView& Get();
 
 protected:
+
+    //! Helper for DualView::ParseTagWithOnlyModifiers
+    std::shared_ptr<AppliedTag> ParseHelperCheckModifiersAndBreakRules(
+        const std::shared_ptr<AppliedTag> &maintag, const std::vector<std::string*> &words,
+        bool taglast) const;
 
     //! \brief Constructor for test subclass to use
     DualView(bool tests, const std::string &dbfile);
