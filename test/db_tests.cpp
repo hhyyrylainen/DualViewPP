@@ -6,6 +6,7 @@
 
 #include "TestDatabase.h"
 #include "core/resources/Collection.h"
+#include "core/resources/Image.h"
 
 #include <sqlite3.h>
 #include <boost/filesystem.hpp>
@@ -572,6 +573,14 @@ TEST_CASE("Tag parsing", "[db][tags]"){
             }
         }
     }
+
+    SECTION("To accurate string"){
+
+        CHECK(dv.ParseTagFromString("watermark")->ToAccurateString() == "watermark");
+
+        CHECK(dv.ParseTagFromString("large watermark")->ToAccurateString() ==
+            "large watermark");
+    }
     
 }
 
@@ -579,7 +588,7 @@ TEST_CASE("TagCollection works like it should", "[db][tags]"){
 
     std::unique_ptr<Database> dbptr(new TestDatabase());
     DummyDualView dv(std::move(dbptr));
-    auto& db = dv.GetDatabase();
+    auto& db = static_cast<TestDatabase&>(dv.GetDatabase());
 
     REQUIRE_NOTHROW(db.Init());
     
@@ -600,14 +609,169 @@ TEST_CASE("TagCollection works like it should", "[db][tags]"){
         CHECK(!tags.Add(dv.ParseTagFromString("watermark")));
 
         CHECK(tags.GetTagCount() == 1);
+
+        CHECK(tags.Add(dv.ParseTagFromString("drawn")));
+
+        CHECK(tags.GetTagCount() == 2);
+
+        TagCollection tags2;
+
+        tags2.Add(tags);
+
+        CHECK(tags2.GetTagCount() == 2);
+
+        CHECK(tags.RemoveTag(*dv.ParseTagFromString("watermark")));
+
+        CHECK(tags.GetTagCount() == 1);
+
+        CHECK(!tags.RemoveText("watermark"));
+
+        CHECK(tags.RemoveText("drawn"));
+
+        CHECK(tags.GetTagCount() == 0);
+
+
+        CHECK(tags2.GetTagCount() == 2);
+
+        TagCollection tags3;
+
+        tags3.Add(tags2);
+        CHECK(tags3.GetTagCount() == 2);
+        tags3.Add(tags2);
+        CHECK(tags3.GetTagCount() == 2);
+
+        tags.Add(dv.ParseTagFromString("watermark"));
+        CHECK(tags.GetTagCount() == 1);
+
+        tags3.Add(tags);
+        CHECK(tags3.GetTagCount() == 2);
+
+        CHECK(tags.HasTag(*dv.ParseTagFromString("watermark")));
+        CHECK(tags.HasTags());
+        tags.Clear();
+        CHECK(!tags.HasTags());
+    }
+
+    SECTION("To string and parsing back"){
+
+        TagCollection tags;
+
+        CHECK(tags.Add(dv.ParseTagFromString("watermark")));
+        CHECK(tags.Add(dv.ParseTagFromString("drawn")));
         
+        CHECK(tags.GetTagCount() == 2);
+
+        std::string str = tags.TagsAsString("\n");
+
+        CHECK(str == "watermark\ndrawn");
+
+        TagCollection tags2;
+
+        CHECK(tags2.Add(dv.ParseTagFromString("hair")));
+        CHECK(tags2.HasTag(*dv.ParseTagFromString("hair")));
+
+        tags2.ReplaceWithText(str);
+
+        CHECK(!tags2.HasTag(*dv.ParseTagFromString("hair")));
+        CHECK(tags2.HasTag(*dv.ParseTagFromString("drawn")));
+
+        CHECK(tags2.GetTagCount() == 2);
+    }
+
+    SECTION("With modifiers and other stuff"){
+
+        TagCollection tags;
+
+        CHECK(tags.Add(dv.ParseTagFromString("large watermark")));
+        CHECK(tags.Add(dv.ParseTagFromString("silver drawn")));
         
+        CHECK(tags.GetTagCount() == 2);
+
+        CHECK(tags.Add(dv.ParseTagFromString("watermark")));
+        CHECK(tags.GetTagCount() == 3);
+
+        CHECK(!tags.Add(dv.ParseTagFromString("large watermark")));
+        CHECK(tags.GetTagCount() == 3);
+
+        CHECK(tags.Add(dv.ParseTagFromString("watermark in hair")));
+        CHECK(tags.GetTagCount() == 4);
+
+        CHECK(!tags.Add(dv.ParseTagFromString("watermark in hair")));
+        CHECK(tags.GetTagCount() == 4);
+        
+        CHECK(tags.TagsAsString(" - ") ==
+            "large watermark - silver drawn - watermark - watermark in hair");
+
+        CHECK(tags.RemoveText("large watermark"));
+        CHECK(tags.GetTagCount() == 3);
+
+        CHECK(tags.RemoveTag(*dv.ParseTagFromString("silver drawn")));
+        CHECK(tags.GetTagCount() == 2);
+
+        CHECK(tags.Add(dv.ParseTagFromString("watermark on hair")));
+        CHECK(tags.GetTagCount() == 3);
+
+        CHECK(tags.Add(dv.ParseTagFromString("watermark in captions")));
+        CHECK(tags.GetTagCount() == 4);
+
+        CHECK(!tags.Add(dv.ParseTagFromString("watermark in captions")));
+        CHECK(tags.GetTagCount() == 4);
     }
 
     SECTION("Manipulating image tags"){
 
-
+        // Insert image //
+        auto img = db.InsertTestImage("our image", "coolhashgoeshere");
         
+        REQUIRE(img);
+        CHECK(img.use_count() == 1);
+
+        auto tags = img->GetTags();
+
+        REQUIRE(tags);
+
+        CHECK(!tags->HasTags());
+        CHECK(tags->Add(dv.ParseTagFromString("watermark on hair")));
+        CHECK(tags->HasTags());
+        CHECK(tags->HasTag(*dv.ParseTagFromString("watermark on hair")));
+        CHECK(tags->GetTagCount() == 1);
+
+        CHECK(tags->Add(dv.ParseTagFromString("drawn")));
+        CHECK(tags->GetTagCount() == 2);
+        CHECK(tags->RemoveText("drawn"));
+        CHECK(tags->GetTagCount() == 1);
+
+        // Reloads the image from the database //
+        Image* oldptr = img.get();
+        TagCollection* oldtags = tags.get();
+        CHECK(img.use_count() == 1);
+        img.reset();
+        tags.reset();
+
+        img = db.SelectImageByHashAG("coolhashgoeshere");
+
+        REQUIRE(img);
+
+        tags = img->GetTags();
+
+        REQUIRE(tags);
+
+        // Looks like if nothing gets allocated before this the pointers are the same...
+        //if(oldptr == img.get() && (oldtags != tags.get()))
+        //CHECK(false);
+        
+        CHECK(tags->HasTags());
+        CHECK(tags->GetTagCount() == 1);
+
+        auto tag1 = *tags->begin();
+
+        REQUIRE(tag1);
+
+        REQUIRE(tag1->GetTag());
+        CHECK(tag1->GetTag()->GetName() == "watermark");
+        CHECK(tag1->ToAccurateString() == "watermark on hair");
+        
+        CHECK(tags->HasTag(*dv.ParseTagFromString("watermark on hair")));
     }
 }
 

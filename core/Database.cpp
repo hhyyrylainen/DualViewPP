@@ -283,11 +283,13 @@ std::shared_ptr<TagCollection> Database::LoadImageTags(const std::shared_ptr<Ima
 
     if(!image || !image->IsInDatabase())
         return nullptr;
+
+    std::weak_ptr<Image> weak = image;
     
     auto tags = std::make_shared<DatabaseTagCollection>(
-        std::bind(&Database::SelectImageTags, this, image, std::placeholders::_1),
-        std::bind(&Database::InsertImageTag, this, image, std::placeholders::_1),
-        std::bind(&Database::DeleteImageTag, this, image, std::placeholders::_1)
+        std::bind(&Database::SelectImageTags, this, weak, std::placeholders::_1),
+        std::bind(&Database::InsertImageTag, this, weak, std::placeholders::_1),
+        std::bind(&Database::DeleteImageTag, this, weak, std::placeholders::_1)
     );
     
     return tags;
@@ -1185,6 +1187,7 @@ std::tuple<std::string, std::shared_ptr<AppliedTag>> Database::SelectAppliedTagC
     }
 
     CheckRowID(statementobj, 1, "tag_right");
+    CheckRowID(statementobj, 2, "combined_with");
 
     DBID id;
     if(!statementobj.GetObjectIDFromColumn(id, 1)){
@@ -1193,7 +1196,7 @@ std::tuple<std::string, std::shared_ptr<AppliedTag>> Database::SelectAppliedTagC
         return std::make_tuple("", nullptr);
     }
 
-    return std::make_tuple(statementobj.GetColumnAsString(3), SelectAppliedTagByID(guard, id));
+    return std::make_tuple(statementobj.GetColumnAsString(2), SelectAppliedTagByID(guard, id));
 }
 
 bool Database::InsertAppliedTag(Lock &guard, AppliedTag &tag){
@@ -1215,6 +1218,8 @@ bool Database::InsertAppliedTag(Lock &guard, AppliedTag &tag){
     std::string combinestr;
     std::shared_ptr<AppliedTag> combined;
     if(tag.GetCombinedWith(combinestr, combined)){
+
+        LEVIATHAN_ASSERT(!combinestr.empty(), "Trying to insert tag with empty combine string");
         
         // Insert combine //
         DBID otherid = -1;

@@ -125,6 +125,13 @@ public:
         return sqlite3_column_count(Statement);
     }
 
+    //! \brief Asserts if accessing column out of range
+    inline void AssertIfColumnOutOfRange(int column) const{
+
+        LEVIATHAN_ASSERT(column < GetColumnCount(), "SQL statement accessing out "
+            "of range result row");
+    }
+
     //! This will return one of:
     //! SQLITE_INTEGER
     //! SQLITE_FLOAT 
@@ -133,22 +140,26 @@ public:
     //! SQLITE_TEXT
     auto GetColumnType(int column) const{
 
+        AssertIfColumnOutOfRange(column);
         return sqlite3_column_type(Statement, column);
     }
 
     bool IsColumnNull(int column) const{
 
+        AssertIfColumnOutOfRange(column);
         return GetColumnType(column) == SQLITE_NULL;
     }
 
     auto GetColumnName(int column){
-        
+
+        AssertIfColumnOutOfRange(column);
         const char* name = sqlite3_column_name(Statement, column);
         return name ? std::string(name) : std::string("unknown");
     }
 
     const char* GetColumnNameDirect(int column){
 
+        AssertIfColumnOutOfRange(column);
         return sqlite3_column_name(Statement, column);
     }
 
@@ -158,11 +169,13 @@ public:
     
     auto GetColumnAsInt(int column){
 
+        AssertIfColumnOutOfRange(column);
         return sqlite3_column_int(Statement, column);
     }
 
     auto GetColumnAsBool(int column){
 
+        AssertIfColumnOutOfRange(column);
         int value = sqlite3_column_int(Statement, column);
 
         return value != 0 ? true : false;
@@ -170,11 +183,13 @@ public:
 
     auto GetColumnAsInt64(int column){
 
+        AssertIfColumnOutOfRange(column);
         return sqlite3_column_int64(Statement, column);
     }
 
     auto GetColumnAsString(int column){
 
+        AssertIfColumnOutOfRange(column);
         auto* str = sqlite3_column_text(Statement, column);
         return str ? std::string(reinterpret_cast<const char*>(str)) : std::string();
     }

@@ -266,22 +266,11 @@ public:
     std::string ToAccurateString() const;
 
     //! \brief Returns true if CombinedWith is set. And returns the values in the parameters
-    bool GetCombinedWith(std::string &combinestr, std::shared_ptr<AppliedTag> &combined) const{
-
-        if(!std::get<1>(CombinedWith))
-            return false;
-        
-        combined = std::get<1>(CombinedWith);
-        combinestr = std::get<0>(CombinedWith);
-        return true;
-    }
+    bool GetCombinedWith(std::string &combinestr, std::shared_ptr<AppliedTag> &combined) const;
 
     //! \brief Sets the combine with
     //! \todo Assert if called on one loaded from database
-    void SetCombineWith(const std::string &middle, std::shared_ptr<AppliedTag> right){
-
-        CombinedWith = std::make_tuple(middle, right);
-    }
+    void SetCombineWith(const std::string &middle, std::shared_ptr<AppliedTag> right);
 
     //! \brief Sets the modifiers on this tag
     void SetModifiers(std::vector<std::shared_ptr<TagModifier>> modifiers){

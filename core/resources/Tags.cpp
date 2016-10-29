@@ -208,6 +208,12 @@ AppliedTag::AppliedTag(Database &db, Lock &dblock, PreparedStatement &statement,
 
         throw InvalidSQL("AppliedTag has no tag", 0, "");
     }
+
+    MainTag = db.SelectTagByID(dblock, tag);
+
+    if(!MainTag)
+        throw Leviathan::InvalidState("AppliedTag loaded from database failed to "
+            "find maintag: " + Convert::ToString(tag));
     
     Modifiers = db.SelectAppliedTagModifiers(dblock, *this);
     CombinedWith = db.SelectAppliedTagCombine(dblock, *this);
@@ -241,9 +247,37 @@ std::string AppliedTag::GetTagName() const{
     return MainTag->GetName();
 }
 
+void AppliedTag::SetCombineWith(const std::string &middle, std::shared_ptr<AppliedTag> right){
+
+    if(middle.empty())
+        throw Leviathan::InvalidArgument("AppliedTag: setting combined with empty string");
+    
+    CombinedWith = std::make_tuple(middle, right);
+}
+
+bool AppliedTag::GetCombinedWith(std::string &combinestr,
+    std::shared_ptr<AppliedTag> &combined) const
+{
+
+    if(!std::get<1>(CombinedWith))
+        return false;
+        
+    combined = std::get<1>(CombinedWith);
+    combinestr = std::get<0>(CombinedWith);
+
+    if(combinestr.empty())
+        throw Leviathan::InvalidState("AppliedTag: combined tag has empty combined with str");
+    
+    return true;
+}
+
+
 bool AppliedTag::IsSame(const AppliedTag &other) const {
 
     // Check tag id
+    if((MainTag.operator bool()) != (other.MainTag.operator bool()))
+        return false;
+    
     if(*MainTag != *other.MainTag)
         return false;
 
@@ -268,6 +302,29 @@ bool AppliedTag::IsSame(const AppliedTag &other) const {
 
         if(!found)
             return false;
+    }
+
+    // Check combine //
+    if((std::get<1>(CombinedWith).get() != nullptr) !=
+        (std::get<1>(other.CombinedWith).get() != nullptr))
+    {
+        // Combined with isn't the same
+        return false;
+    }
+
+    // Check combined //
+    if(std::get<1>(CombinedWith)){
+
+        // The other must also have a combined with as we checked above that both either
+        // have or don't have a combined with
+        if(std::get<0>(CombinedWith) != std::get<0>(other.CombinedWith)){
+
+            // Different combine word
+            return false;
+        }
+
+        // The combined with tags need to be same //
+        return std::get<1>(CombinedWith)->IsSame(*std::get<1>(other.CombinedWith));
     }
     
     // They are the same //
@@ -509,6 +566,9 @@ bool TagCollection::RemoveText(const std::string &str){
 }
 
 bool TagCollection::Add(std::shared_ptr<Tag> tag){
+
+    if(!tag)
+        return false;
         
     auto toadd = std::make_shared<AppliedTag>(tag);
 
@@ -523,6 +583,9 @@ bool TagCollection::Add(std::shared_ptr<Tag> tag){
 bool TagCollection::Add(std::shared_ptr<AppliedTag> tag)
 {
     if(!tag || HasTag(*tag))
+        return false;
+
+    if(!tag->GetTag())
         return false;
 
     Tags.push_back(tag);
@@ -565,6 +628,9 @@ void TagCollection::ReplaceWithText(std::string text){
     Clear();
 
     for(auto& line : lines){
+
+        if(line.empty())
+            continue;
 
         auto tag = DualView::Get().ParseTagFromString(line);
 
