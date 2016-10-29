@@ -377,6 +377,8 @@ public:
     //! \brief Converts all tags to text and adds the separator inbetween
     std::string TagsAsString(const std::string &separator);
 
+    //! \brief Returns the number of tags set
+    size_t GetTagCount();
     
     bool HasTags(){
 

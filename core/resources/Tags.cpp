@@ -547,6 +547,13 @@ void TagCollection::AddTags(const TagCollection &other){
         Add(tag);
     }        
 }
+
+size_t TagCollection::GetTagCount(){
+
+    CheckIsLoaded();
+
+    return Tags.size();
+}
 // ------------------------------------ //
 void TagCollection::ReplaceWithText(std::string text){
 

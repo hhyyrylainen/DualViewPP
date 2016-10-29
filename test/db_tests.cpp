@@ -577,8 +577,9 @@ TEST_CASE("Tag parsing", "[db][tags]"){
 
 TEST_CASE("TagCollection works like it should", "[db][tags]"){
 
-    DummyDualView dv;
-    TestDatabase db;
+    std::unique_ptr<Database> dbptr(new TestDatabase());
+    DummyDualView dv(std::move(dbptr));
+    auto& db = dv.GetDatabase();
 
     REQUIRE_NOTHROW(db.Init());
     
@@ -587,7 +588,19 @@ TEST_CASE("TagCollection works like it should", "[db][tags]"){
         TagCollection tags;
 
         CHECK(!tags.HasTags());
+        CHECK(!tags.HasTags());
 
+        CHECK(tags.Add(dv.ParseTagFromString("watermark")));
+
+        CHECK(tags.HasTags());
+
+        CHECK(tags.GetTagCount() == 1);
+
+        // Same tag twice is ignored //
+        CHECK(!tags.Add(dv.ParseTagFromString("watermark")));
+
+        CHECK(tags.GetTagCount() == 1);
+        
         
     }
 
