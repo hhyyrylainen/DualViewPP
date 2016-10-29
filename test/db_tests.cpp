@@ -584,7 +584,11 @@ TEST_CASE("TagCollection works like it should", "[db][tags]"){
     
     SECTION("Non-database use"){
 
+        TagCollection tags;
 
+        CHECK(!tags.HasTags());
+
+        
     }
 
     SECTION("Manipulating image tags"){

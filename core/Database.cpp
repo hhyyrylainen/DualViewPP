@@ -17,6 +17,7 @@
 #include "generated/defaulttags.sql.h"
 
 #include "generated/migration_14_15.sql.h"
+#include "generated/migration_15_16.sql.h"
 
 #include "core/CurlWrapper.h"
 
@@ -277,20 +278,117 @@ std::shared_ptr<Image> Database::SelectImageByID(Lock &guard, DBID id){
     
     return nullptr;
 }
+// ------------------------------------ //
+std::shared_ptr<TagCollection> Database::LoadImageTags(const std::shared_ptr<Image> &image){
 
-std::shared_ptr<TagCollection> Database::LoadImageTags(const Image &image){
-
-    if(!image.IsInDatabase())
+    if(!image || !image->IsInDatabase())
         return nullptr;
     
-    DEBUG_BREAK;
-    //auto tags = std::make_shared<DatabaseTagCollection>();
+    auto tags = std::make_shared<DatabaseTagCollection>(
+        std::bind(&Database::SelectImageTags, this, image, std::placeholders::_1),
+        std::bind(&Database::InsertImageTag, this, image, std::placeholders::_1),
+        std::bind(&Database::DeleteImageTag, this, image, std::placeholders::_1)
+    );
     
-    
-    return nullptr;
-    //return tags;
+    return tags;
 }
 
+void Database::SelectImageTags(std::weak_ptr<Image> image,
+    std::vector<std::shared_ptr<AppliedTag>> &tags)
+{
+    auto imageLock = image.lock();
+
+    if(!imageLock)
+        return;
+    
+    GUARD_LOCK();
+
+    const char str[] = "SELECT tag FROM image_tag WHERE image = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(imageLock->GetID()); 
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+
+        if(statementobj.GetObjectIDFromColumn(id, 0)){
+
+            // Load tag //
+            auto tag = SelectAppliedTagByID(guard, id);
+
+            if(!tag){
+
+                LOG_ERROR("Loading AppliedTag for image, no tag with id exists: " +
+                    Convert::ToString(id));
+                continue;
+            }
+            
+            tags.push_back(tag);
+        }
+    }
+}
+
+void Database::InsertImageTag(std::weak_ptr<Image> image,
+    AppliedTag &tag)
+{
+    auto imageLock = image.lock();
+
+    if(!imageLock)
+        return;
+    
+    GUARD_LOCK();
+
+    auto existing = SelectExistingAppliedTag(guard, tag);
+
+    if(existing){
+
+        InsertTagImage(*imageLock, existing->GetID());
+        return;
+    }
+
+    // Need to create a new tag //
+    if(!InsertAppliedTag(guard, tag)){
+
+        throw InvalidSQL("Failed to create AppliedTag for adding to resource", 0, "");
+    }
+
+    InsertTagImage(*imageLock, tag.GetID());
+}
+
+void Database::InsertTagImage(Image &image, DBID appliedtagid){
+
+    const char str[] = "INSERT INTO image_tag (image, tag) VALUES (?, ?);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(image.GetID(), appliedtagid);
+
+    statementobj.StepAll(statementinuse);
+}
+
+void Database::DeleteImageTag(std::weak_ptr<Image> image,
+    AppliedTag &tag)
+{
+    auto imageLock = image.lock();
+
+    if(!imageLock)
+        return;
+    
+    GUARD_LOCK();
+
+    const char str[] = "DELETE FROM image_tag WHERE image = ? AND tag = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(imageLock->GetID(), tag.GetID());
+
+    statementobj.StepAll(statementinuse);
+
+    // This calls orphan on the tag object
+    DeleteAppliedTagIfNotUsed(guard, tag);
+}
 // ------------------------------------ //
 // Collection
 std::shared_ptr<Collection> Database::InsertCollection(Lock &guard, const std::string &name,
@@ -1008,6 +1106,46 @@ std::shared_ptr<AppliedTag> Database::SelectAppliedTagByID(Lock &guard, DBID id)
     return nullptr;
 }
 
+std::shared_ptr<AppliedTag> Database::SelectExistingAppliedTag(Lock &guard,
+    const AppliedTag &tag)
+{
+    DBID id = SelectExistingAppliedTagID(guard, tag);
+
+    if(id == -1)
+        return nullptr;
+
+    return SelectAppliedTagByID(guard, id);
+}
+
+DBID Database::SelectExistingAppliedTagID(Lock &guard, const AppliedTag &tag){
+
+    const char str[] = "SELECT id FROM applied_tag WHERE tag = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(tag.GetTag()->GetID()); 
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+
+        if(!statementobj.GetObjectIDFromColumn(id, 0))
+            continue;
+
+        // Check are modifiers and combines the same //
+        if(!CheckDoesAppliedTagModifiersMatch(guard, id, tag))
+            continue;
+
+        if(!CheckDoesAppliedTagCombinesMatch(guard, id, tag))
+            continue;
+
+        // Everything matched //
+        return id;
+    }
+
+    return -1;
+}
+
 std::vector<std::shared_ptr<TagModifier>> Database::SelectAppliedTagModifiers(Lock &guard,
     const AppliedTag &appliedtag)
 {
@@ -1048,14 +1186,283 @@ std::tuple<std::string, std::shared_ptr<AppliedTag>> Database::SelectAppliedTagC
 
     CheckRowID(statementobj, 1, "tag_right");
 
-    DBID id = -1;
-    if(statementobj.GetObjectIDFromColumn(id, 1)){
+    DBID id;
+    if(!statementobj.GetObjectIDFromColumn(id, 1)){
 
         LOG_ERROR("Database SelectAppliedTagModifier: missing tag_right id");
         return std::make_tuple("", nullptr);
     }
 
     return std::make_tuple(statementobj.GetColumnAsString(3), SelectAppliedTagByID(guard, id));
+}
+
+bool Database::InsertAppliedTag(Lock &guard, AppliedTag &tag){
+
+    {
+        const char str[] = "INSERT INTO applied_tag (tag) VALUES (?);";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(tag.GetTag()->GetID()); 
+    
+        statementobj.StepAll(statementinuse);
+    }
+
+    const auto id = sqlite3_last_insert_rowid(SQLiteDb);
+
+    tag.Adopt(id);
+
+    std::string combinestr;
+    std::shared_ptr<AppliedTag> combined;
+    if(tag.GetCombinedWith(combinestr, combined)){
+        
+        // Insert combine //
+        DBID otherid = -1;
+
+        if(combined->GetID() != -1){
+
+            otherid = combined->GetID();
+            
+        } else {
+
+            auto existingother = SelectExistingAppliedTag(guard, *combined);
+
+            if(existingother){
+
+                otherid = existingother->GetID();
+                
+            } else {
+
+                // Need to create the other side //
+                if(!InsertAppliedTag(guard, *combined)){
+
+                    LOG_ERROR("Database: failed to create right side of combine_with tag");
+                
+                } else {
+
+                    otherid = combined->GetID();
+                }
+            }
+        }
+
+        if(otherid != -1 && otherid != id){
+
+            // Insert it //
+            const char str[] = "INSERT INTO applied_tag_combine (tag_left, tag_right, "
+                "combined_with) VALUES (?, ?, ?);";
+
+            PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+            auto statementinuse = statementobj.Setup(id, otherid, combinestr); 
+
+            try{
+                statementobj.StepAll(statementinuse);
+            } catch(const InvalidSQL &e){
+
+                LOG_ERROR("Database: failed to insert combined with, exception: ");
+                e.PrintToLog();
+            }
+        }
+    }
+
+    // Insert modifiers //
+    for(auto& modifier : tag.GetModifiers()){
+
+        if(!modifier->IsInDatabase())
+            continue;
+
+        const char str[] = "INSERT INTO applied_tag_modifier (to_tag, modifier) "
+            "VALUES (?, ?);";
+        
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(id, modifier->GetID()); 
+
+        try{
+            statementobj.StepAll(statementinuse);
+        } catch(const InvalidSQL &e){
+
+            LOG_ERROR("Database: failed to insert modifier to AppliedTag, exception: ");
+            e.PrintToLog();
+        }
+    }
+
+    return true;
+}
+
+void Database::DeleteAppliedTagIfNotUsed(Lock &guard, AppliedTag &tag){
+
+    // Check images
+    {
+        const char str[] = "SELECT 1 FROM image_tag WHERE tag = ? LIMIT 1;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(tag.GetID()); 
+    
+        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+            // In use //
+            return;
+        }
+    }
+
+    // Check collections
+    {
+        const char str[] = "SELECT 1 FROM collection_tag WHERE tag = ? LIMIT 1;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(tag.GetID()); 
+    
+        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+            // In use //
+            return;
+        }
+    }
+
+    // Check tag combines
+    {
+        const char str[] = "SELECT 1 FROM applied_tag_combine WHERE tag_left = ?1 OR "
+            "tag_right = ?1 LIMIT 1;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(tag.GetID()); 
+    
+        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+            // In use //
+            return;
+        }
+    }    
+
+    // Not used, delete //
+    const char str[] = "DELETE FROM applied_tag WHERE id = ?1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(tag.GetID()); 
+    
+    statementobj.StepAll(statementinuse);
+
+    tag.Orphaned();
+}
+
+bool Database::CheckDoesAppliedTagModifiersMatch(Lock &guard, DBID id, const AppliedTag &tag){
+
+    const char str[] = "SELECT modifier FROM applied_tag_modifier WHERE to_tag = ?;";
+    
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(id);
+
+    std::vector<DBID> modifierids;
+    const auto& tagmodifiers = tag.GetModifiers();
+    
+    modifierids.reserve(tagmodifiers.size());
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID modid;
+
+        if(!statementobj.GetObjectIDFromColumn(modid, 0))
+            continue;
+        
+        // Early fail if we loaded a tag that didn't match anything in tagmodifiers //
+        bool found = false;
+        
+        for(const auto& tagmod : tagmodifiers){
+
+            if(tagmod->GetID() == modid){
+
+                found = true;
+                break;
+            }
+        }
+
+        if(!found)
+            return false;
+    }
+
+    // Fail if modifierids and tagmodifiers don't contain the same things //
+    if(modifierids.size() != tagmodifiers.size())
+        return false;
+
+    for(const auto &tagmod : tagmodifiers){
+
+        DBID neededid = tagmod->GetID();
+
+        bool found = false;
+
+        for(const auto &dbmodifier : modifierids){
+
+            if(dbmodifier == neededid){
+
+                found = true;
+                break;
+            }
+        }
+
+        if(!found)
+            return false;
+    }
+
+    return true;
+}
+
+bool Database::CheckDoesAppliedTagCombinesMatch(Lock &guard, DBID id, const AppliedTag &tag){
+
+    // Determine id of the right side //
+    DBID rightside = -1;
+
+    std::string combinestr;
+    std::shared_ptr<AppliedTag> otherside;
+
+    if(tag.GetCombinedWith(combinestr, otherside)){
+
+        rightside = SelectExistingAppliedTagID(guard, *otherside);
+    }
+
+    const char str[] = "SELECT * FROM applied_tag_combine WHERE tag_left = ?;";
+    
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(id);
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        // No combine used //
+        if(rightside == -1){
+
+            // Which means that this failed //
+            return false;
+        }
+
+        std::string combined_with = statementobj.GetColumnAsString(2);
+
+        if(combined_with != combinestr){
+
+            // Combine doesn't match //
+            return false;
+        }
+
+        DBID dbright = 0;
+
+        statementobj.GetObjectIDFromColumn(dbright, 1);
+
+        if(dbright != rightside){
+
+            // Doesn't match //
+            return false;
+        }
+        
+        // Everything matched //
+        return true;
+    }
+
+    return false;
 }
 
 //
@@ -1214,6 +1621,14 @@ std::vector<std::shared_ptr<TagModifier>> Database::SelectModifiersForBreakRule(
 void Database::UpdateTagBreakRule(const TagBreakRule &rule){
 
     
+}
+
+// ------------------------------------ //
+// Database maintainance functions
+
+void Database::CombineAllPossibleAppliedTags(Lock &guard){
+
+    DEBUG_BREAK;
 }
     
 
@@ -1418,6 +1833,16 @@ bool Database::_UpdateDatabase(Lock &guard, int &oldversion){
     case 14:
     {
         _RunSQL(guard, STR_MIGRATION_14_15_SQL);
+        _SetCurrentDatabaseVersion(guard, 15);
+        return true;
+    }
+    case 15:
+    {
+        // This makes sure all appliedtags are unique, and combines are fine
+        // which is required for the new version
+        CombineAllPossibleAppliedTags(guard);
+        _RunSQL(guard, STR_MIGRATION_15_16_SQL);
+        _SetCurrentDatabaseVersion(guard, 16);
         return true;
     }
 

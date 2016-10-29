@@ -114,12 +114,16 @@ CREATE TABLE applied_tag (
 
 -- Combined tags of form {tag} {preposition / action} {tag}
 CREATE TABLE applied_tag_combine (
-    
-    tag_left INTEGER REFERENCES applied_tag(id) ON DELETE CASCADE,
+
+    -- Each tag can have only one combine
+    tag_left INTEGER UNIQUE REFERENCES applied_tag(id) ON DELETE CASCADE,
     tag_right INTEGER REFERENCES applied_tag(id) ON DELETE CASCADE,
     
     -- The word in between, like on, in, covering
-    combined_with TEXT NOT NULL    
+    combined_with TEXT NOT NULL,
+
+    -- Only one combine between 2 tags
+    UNIQUE (tag_left, tag_right)
 );
 
 -- A modifier applied to an applied tag

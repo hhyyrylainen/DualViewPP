@@ -32,7 +32,7 @@ class TagModifier;
 class TagBreakRule;
 
 //! \brief The version number of the database
-constexpr auto DATABASE_CURRENT_VERSION = 15;
+constexpr auto DATABASE_CURRENT_VERSION = 16;
 
 //! \brief All database manipulation happens through this class
 //!
@@ -115,7 +115,19 @@ public:
 
     //! \brief Loads a TagCollection for the specified image.
     //! \returns Null if the image is not in the database
-    std::shared_ptr<TagCollection> LoadImageTags(const Image &image);
+    std::shared_ptr<TagCollection> LoadImageTags(const std::shared_ptr<Image> &image);
+
+    //! \brief Retrieves all tags added to an image
+    void SelectImageTags(std::weak_ptr<Image> image,
+        std::vector<std::shared_ptr<AppliedTag>> &tags);
+
+    //! \brief Adds a tag to an image
+    void InsertImageTag(std::weak_ptr<Image> image,
+        AppliedTag &tag);
+
+    //! \brief Removes a tag from an image
+    void DeleteImageTag(std::weak_ptr<Image> image,
+        AppliedTag &tag);
     
     //
     // Collection functions
@@ -291,12 +303,38 @@ public:
     //
     std::shared_ptr<AppliedTag> SelectAppliedTagByID(Lock &guard, DBID id);
 
+    //! \brief If the tag is in the database (same main tag and other properties)
+    //! returns that
+    //!
+    //! Used when inserting to prefer using existing tags instead of creating a new AppliedTag
+    //! for every image and every tag combination
+    std::shared_ptr<AppliedTag> SelectExistingAppliedTag(Lock &guard, const AppliedTag &tag);
+
+    //! \brief Returns an existing tag with the same properties as tag
+    //! \returns -1 when tag doesn't exist, id on success
+    DBID SelectExistingAppliedTagID(Lock &guard, const AppliedTag &tag);
+
     std::vector<std::shared_ptr<TagModifier>> SelectAppliedTagModifiers(Lock &guard,
         const AppliedTag &appliedtag);
 
     //! \brief Returns the right side of a tag combine, appliedtag is the left side
     std::tuple<std::string, std::shared_ptr<AppliedTag>> SelectAppliedTagCombine(Lock &guard,
         const AppliedTag &appliedtag);
+
+    //! \brief Inserts a new AppliedTag to the database
+    //! \todo Break this into smaller functions
+    bool InsertAppliedTag(Lock &guard, AppliedTag &tag);
+
+    //! \brief Deletes an AppliedTag if it isn't used anymore
+    //! \todo Check should this only be called when cleaning up the databse
+    //! as there probably won't be infinitely many tags that aren't used
+    void DeleteAppliedTagIfNotUsed(Lock &guard, AppliedTag &tag);
+
+    //! \brief Checks that the TagModifiers set in the database to id, match the ones in tag
+    bool CheckDoesAppliedTagModifiersMatch(Lock &guard, DBID id, const AppliedTag &tag);
+
+    //! \brief Checks that the tag combines set in the database to id, match the ones in tag
+    bool CheckDoesAppliedTagCombinesMatch(Lock &guard, DBID id, const AppliedTag &tag);
 
     //
     // TagModifier
@@ -332,11 +370,16 @@ public:
     //! \todo Implement
     void UpdateTagBreakRule(const TagBreakRule &rule);
 
-    
+    //
+    // Database maintainance functions
+    //
+    //! \brief Finds all AppliedTags that have the same properties and combines them
+    void CombineAllPossibleAppliedTags(Lock &guard);
     
     
     //! \brief Tries to escape quotes in a string for insertion to sql statements
     static std::string EscapeSql(std::string str);
+
     
     
 private:
@@ -372,6 +415,11 @@ private:
     std::shared_ptr<Folder> _LoadFolderFromRow(Lock &guard,
         PreparedStatement &statement);
 
+    //
+    // Private insert stuff
+    //
+    void InsertTagImage(Image &image, DBID appliedtagid);
+    
     //
     // Utility stuff
     //

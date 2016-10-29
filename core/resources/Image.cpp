@@ -82,9 +82,6 @@ Image::Image(Database &db, Lock &dblock, PreparedStatement &statement, int64_t i
 
     AddDate = TimeHelpers::ParseTime(statement.GetColumnAsString(6));
     LastView = TimeHelpers::ParseTime(statement.GetColumnAsString(7));
-
-    // Load tags //
-    Tags = db.LoadImageTags(*this);
 }
 
 void Image::Init(){
@@ -92,6 +89,12 @@ void Image::Init(){
     if(!IsHashValid){
         // Register hash calculation //
         _QueueHashCalculation();
+    }
+
+    if(!Tags && IsInDatabase()){
+
+        // Load tags //
+        Tags = InDatabase->LoadImageTags(shared_from_this());
     }
 }
 // ------------------------------------ //

@@ -232,6 +232,7 @@ protected:
 //! \note Changes to this object will not be saved to the database. If you want to change
 //! an AppliedTag in the database: first remove it and then add the new one
 class AppliedTag{
+    friend Database;
 public:
 
     //! Creates an applied tag for a tag
@@ -309,6 +310,20 @@ public:
 
 protected:
 
+    //! Database has abandoned us
+    void Orphaned(){
+
+        ID = -1;
+    }
+
+    //! Whe have been added to the database
+    void Adopt(DBID id){
+
+        ID = id;
+    }
+
+protected:
+
     int64_t ID = -1;
     
     //! Primary tag
@@ -379,6 +394,12 @@ public:
         return Tags.end();
     }
 
+    //! \brief Reloads tags if this is loaded from the database
+    virtual void RefreshTags(){
+
+        
+    }
+
     //! Calls _OnCheckTagsLoaded if needed
     inline void CheckIsLoaded(){
 
@@ -396,12 +417,12 @@ protected:
     }
 
     //! Callback for easily making child classes
-    virtual void _TagRemoved(const AppliedTag &tag){
+    virtual void _TagRemoved(AppliedTag &tag){
 
     }
 
     //! Callback for child classes
-    virtual void _TagAdded(const AppliedTag &tag){
+    virtual void _TagAdded(AppliedTag &tag){
 
     }
 
@@ -418,24 +439,33 @@ public:
 
     DatabaseTagCollection(
         std::function<void (std::vector<std::shared_ptr<AppliedTag>>&)> loadtags,
-        std::function<void (const AppliedTag &tag)> onadd,
-        std::function<void (const AppliedTag &tag)> onremove) :
+        std::function<void (AppliedTag &tag)> onadd,
+        std::function<void ( AppliedTag &tag)> onremove) :
         OnAddTag(onadd),
         OnRemoveTag(onremove),
         LoadTags(loadtags)
     {
     }
 
+    //! \brief Reloads tags from the database
+    void RefreshTags() override{
+
+        TagsLoaded = true;
+
+        Tags.clear();
+        LoadTags(Tags);
+    }
+    
 protected:
 
     //! Applies the change to the database
-    void _TagRemoved(const AppliedTag &tag) override{
+    void _TagRemoved(AppliedTag &tag) override{
         
         OnRemoveTag(tag);
     }
 
     //! Applies the change to the database
-    void _TagAdded(const AppliedTag &tag) override{
+    void _TagAdded(AppliedTag &tag) override{
         
         OnAddTag(tag);
     }
@@ -451,11 +481,11 @@ protected:
         // Load tags from the database //
         LoadTags(Tags);
     }
-    
+
 protected:
 
-    std::function<void (const AppliedTag &tag)> OnAddTag;
-    std::function<void (const AppliedTag &tag)> OnRemoveTag;
+    std::function<void (AppliedTag &tag)> OnAddTag;
+    std::function<void (AppliedTag &tag)> OnRemoveTag;
 
     std::function<void (std::vector<std::shared_ptr<AppliedTag>>&)> LoadTags;
     bool TagsLoaded = false;

@@ -250,6 +250,10 @@ template<>
 template<>
     void PreparedStatement::SetBindWithType(int index, const int64_t &value);
 
+// Used by sqlite3_last_insert_rowid
+template<>
+    void PreparedStatement::SetBindWithType(int index, const long long int &value);
+
 template<>
     void PreparedStatement::SetBindWithType(int index, const std::string &value);
 
