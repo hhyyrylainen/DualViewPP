@@ -773,5 +773,10 @@ TEST_CASE("TagCollection works like it should", "[db][tags]"){
         
         CHECK(tags->HasTag(*dv.ParseTagFromString("watermark on hair")));
     }
+
+    SECTION("Image tags share the same ids when adding to multiple images"){
+
+        // TODO: implement this test, the feature *should* work
+    }
 }
 

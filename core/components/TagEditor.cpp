@@ -4,6 +4,8 @@
 #include "Common.h"
 #include "DualView.h"
 
+#include "Exceptions.h"
+
 #include <canberra-gtk.h>
 
 using namespace DV;
@@ -165,7 +167,30 @@ void TagEditor::ReadSetTags(){
 // ------------------------------------ //
 bool TagEditor::AddTag(const std::string tagstr){
 
-    return false;
+    // Parse tag //
+    std::shared_ptr<AppliedTag> tag;
+
+    try{
+
+        tag = DualView::Get().ParseTagFromString(tagstr);
+
+    } catch(const Leviathan::InvalidArgument &e){
+
+        LOG_INFO("TagEditor: unknown tag '" + tagstr + "': ");
+        e.PrintToLog();
+        return false;
+    }
+
+    if(!tag)
+        return false;
+
+    for(const auto& collection : EditedCollections){
+
+        collection->Add(tag);
+    }
+    
+    ReadSetTags();
+    return true;
 }
 // ------------------------------------ //
 void TagEditor::_OnInsertTag(){
