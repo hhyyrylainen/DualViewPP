@@ -38,6 +38,13 @@ void TagEditor::_CommonCtor(){
     TagsTreeView.append_column("Tag Full Name", TreeViewColumns.m_tag_as_text);
     TagsTreeView.append_column("Set Count", TreeViewColumns.m_in_how_many_containers);
 
+    TagsTreeView.add_events(Gdk::KEY_PRESS_MASK);
+
+    TagsTreeView.signal_key_press_event().connect(
+        sigc::mem_fun(*this, &TagEditor::_OnKeyPress));
+
+    TagsTreeView.get_selection()->set_mode(Gtk::SELECTION_MULTIPLE);
+
     add(TagsTreeView);
     // Expand set this way to stop this container from also expanding
     child_property_expand(TagsTreeView) = true;
@@ -192,6 +199,16 @@ bool TagEditor::AddTag(const std::string tagstr){
     ReadSetTags();
     return true;
 }
+
+void TagEditor::DeleteTag(const std::string tagstr){
+
+    for(const auto& collection : EditedCollections){
+
+        collection->RemoveText(tagstr);
+    }
+
+    ReadSetTags();
+}
 // ------------------------------------ //
 void TagEditor::_OnInsertTag(){
 
@@ -217,4 +234,35 @@ void TagEditor::_OnInsertTag(){
 void TagEditor::_OnCreateNew(){
 
     DualView::Get().OpenTagCreator(TagEntry.get_text());
+}
+
+bool TagEditor::_OnKeyPress(GdkEventKey* key_event){
+
+    if(key_event->type == GDK_KEY_PRESS){
+
+        switch(key_event->keyval){
+        case GDK_KEY_Delete:
+        {
+            std::vector<Glib::ustring> todelete;
+            auto selected = TagsTreeView.get_selection()->get_selected_rows();
+
+            for(const auto& path : selected){
+
+                Gtk::TreeModel::Row row = *(TagsModel->get_iter(path));
+                todelete.push_back(row[TreeViewColumns.m_tag_as_text]);
+            }
+
+            LOG_INFO("TagEditor: deleting " + Convert::ToString(todelete.size()) + " tags");
+
+            for(const auto& str : todelete){
+
+                DeleteTag(str);
+            }
+            
+            return true;
+        }
+        }
+    }
+
+    return false;
 }

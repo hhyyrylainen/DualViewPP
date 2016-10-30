@@ -51,6 +51,9 @@ public:
     //! \returns True if succeeded, false if the tag string wasn't valid
     bool AddTag(const std::string tagstr);
 
+    //! \brief Removes a tag
+    void DeleteTag(const std::string tagstr);
+
     //! \brief Sets this editable
     //!
     //! If there is nothing in EditedCollections this will always set this to not sensitive
@@ -70,6 +73,8 @@ protected:
     // Gtk callbacks //
     void _OnInsertTag();
     void _OnCreateNew();
+    //! Detects when delete is pressed
+    bool _OnKeyPress(GdkEventKey* key_event);
 
 protected:
 
