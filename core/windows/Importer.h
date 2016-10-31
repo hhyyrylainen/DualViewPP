@@ -84,6 +84,7 @@ protected:
     SuperContainer* ImageList;
 
     TagEditor* SelectedImageTags;
+    TagEditor* CollectionTagsEditor;
 
     Gtk::Entry* CollectionName;
     

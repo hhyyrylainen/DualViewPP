@@ -28,6 +28,8 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     builder->get_widget_derived("SelectedImageTags", SelectedImageTags);
     LEVIATHAN_ASSERT(SelectedImageTags, "Invalid .glade file");
 
+    builder->get_widget_derived("CollectionTags", CollectionTagsEditor);
+    LEVIATHAN_ASSERT(CollectionTagsEditor, "Invalid .glade file");
 
     builder->get_widget("StatusLabel", StatusLabel);
     LEVIATHAN_ASSERT(StatusLabel, "Invalid .glade file");
@@ -105,6 +107,7 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     // Create the collection tag holder
     CollectionTags = std::make_shared<TagCollection>();
+    CollectionTagsEditor->SetEditedTags({ CollectionTags });
 }
 
 Importer::~Importer(){
@@ -345,6 +348,16 @@ void Importer::_OnImportFinished(bool success){
             
             _UpdateImageList();
         }
+
+        // Reset collection tags //
+        CollectionTags->Clear();
+        CollectionTagsEditor->ReadSetTags();
+
+        // Reset target folder //
+        
+    } else {
+
+        LOG_INFO("TODO: popup error box");
     }
     
     // Reset variables //
