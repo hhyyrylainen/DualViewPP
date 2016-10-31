@@ -54,7 +54,6 @@ Collection::Collection(Database &db, Lock &dblock, PreparedStatement &statement,
 }
 
 
-
 // ------------------------------------ //
 std::string Collection::GetNameForFolder() const{
 
@@ -96,11 +95,22 @@ std::string Collection::GetNameForFolder() const{
 // ------------------------------------ //
 bool Collection::AddTags(const TagCollection &tags){
 
-    if(!Tags)
+    auto currenttags = GetTags();
+    
+    if(!currenttags)
         return false;
 
-    Tags->AddTags(tags);
+    currenttags->AddTags(tags);
     return true;
+}
+
+std::shared_ptr<TagCollection> Collection::GetTags(){
+
+    if(!Tags && IsInDatabase()){
+        Tags = InDatabase->LoadCollectionTags(shared_from_this());
+    }
+
+    return Tags;
 }
 
 int64_t Collection::GetLastShowOrder(){

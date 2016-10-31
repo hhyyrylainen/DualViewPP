@@ -36,6 +36,9 @@ public:
     //! \brief Return Name with illegal characters replaced with spaces
     std::string GetNameForFolder() const;
 
+    //! \brief Returns or loads a tag collection for this Collection
+    std::shared_ptr<TagCollection> GetTags();
+    
     //! \brief Adds tags to this collection
     //! \note Only works if this is in the database
     //! \return True if successfully added
@@ -106,7 +109,7 @@ protected:
 
     bool IsPrivate = false;
 
-    std::shared_ptr<DatabaseTagCollection> Tags;
+    std::shared_ptr<TagCollection> Tags;
 };
 
 }
