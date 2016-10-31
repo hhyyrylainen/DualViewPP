@@ -127,6 +127,12 @@ public:
 
     std::shared_ptr<Collection> GetUncategorized();
 
+
+    //! \brief Parses an AppliedTag from a string. Doesn't add it to the database automatically
+    //! \note This will lock the database, so if it already locked this causes a deadlock
+    //! \todo Cache the boost::locale::generator
+    std::shared_ptr<AppliedTag> ParseTagFromString(std::string str) const;
+
     //! \brief Helper for ParseTagFromString
     //!
     //! Parses tag that matches a break rule
@@ -156,11 +162,7 @@ public:
     //! Parses tag of the form: "modifier modifier tag"
     std::shared_ptr<AppliedTag>
         ParseTagWithOnlyModifiers(const std::string &str) const;
-    
-    //! \brief Parses an AppliedTag from a string. Doesn't add it to the database automatically
-    //! \todo Cache the boost::locale::generator
-    std::shared_ptr<AppliedTag> ParseTagFromString(std::string str) const;
-    
+        
     //! \brief Returns the thumbnail folder
     std::string GetThumbnailFolder() const;
 

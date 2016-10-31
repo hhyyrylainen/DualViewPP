@@ -128,7 +128,7 @@ public:
     //! \brief Removes a tag from an image
     void DeleteImageTag(std::weak_ptr<Image> image,
         AppliedTag &tag);
-    
+
     //
     // Collection functions
     //
@@ -162,6 +162,23 @@ public:
 
     //! \brief Returns the number of images in a collection
     int64_t SelectCollectionImageCount(const Collection &collection);
+
+    //! \brief Loads a TagCollection for the specified collection.
+    //! \returns Null if the collection is not in the database
+    std::shared_ptr<TagCollection> LoadCollectionTags(
+        const std::shared_ptr<Collection> &collection);
+
+    //! \brief Retrieves all tags added to an collection
+    void SelectCollectionTags(std::weak_ptr<Collection> collection,
+        std::vector<std::shared_ptr<AppliedTag>> &tags);
+
+    //! \brief Adds a tag to an collection
+    void InsertCollectionTag(std::weak_ptr<Collection> collection,
+        AppliedTag &tag);
+
+    //! \brief Removes a tag from an collection
+    void DeleteCollectionTag(std::weak_ptr<Collection> collection,
+        AppliedTag &tag);
 
     //
     // Collection image 
@@ -375,12 +392,17 @@ public:
     //
     //! \brief Finds all AppliedTags that have the same properties and combines them
     void CombineAllPossibleAppliedTags(Lock &guard);
-    
+
+    //! \brief Returns the number of rows in applied_tag
+    int64_t CountAppliedTags();
     
     //! \brief Tries to escape quotes in a string for insertion to sql statements
     static std::string EscapeSql(std::string str);
 
-    
+protected:
+
+    //! \brief Runs a command and prints all the result rows with column headers to log
+    void PrintResultingRows(Lock &guard, const std::string &str);
     
 private:
 
@@ -419,6 +441,8 @@ private:
     // Private insert stuff
     //
     void InsertTagImage(Image &image, DBID appliedtagid);
+
+    void InsertTagCollection(Collection &image, DBID appliedtagid);
     
     //
     // Utility stuff

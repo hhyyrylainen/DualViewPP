@@ -135,6 +135,10 @@ void TagEditor::ReadSetTags(){
 
     for(const auto& collection : EditedCollections){
 
+        // This should force tags to load
+        if(!collection->HasTags())
+            continue;
+
         for(const auto& settag : *collection){
 
             AppliedTag* const tag = settag.get();

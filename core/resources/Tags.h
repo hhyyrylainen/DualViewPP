@@ -425,13 +425,14 @@ protected:
 };
 
 //! Allows changing tags in the database with the same interface as TagCollection
+//! \todo Make the functions return a success value to catch bugs with dead weak_ptrs
 class DatabaseTagCollection : public TagCollection{
 public:
 
     DatabaseTagCollection(
         std::function<void (std::vector<std::shared_ptr<AppliedTag>>&)> loadtags,
         std::function<void (AppliedTag &tag)> onadd,
-        std::function<void ( AppliedTag &tag)> onremove) :
+        std::function<void (AppliedTag &tag)> onremove) :
         OnAddTag(onadd),
         OnRemoveTag(onremove),
         LoadTags(loadtags)

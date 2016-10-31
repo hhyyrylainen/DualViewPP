@@ -516,7 +516,119 @@ int64_t Database::SelectCollectionImageCount(const Collection &collection){
     
     return 0;
 }
+// ------------------------------------ //
+std::shared_ptr<TagCollection> Database::LoadCollectionTags(const std::shared_ptr<Collection> &collection){
 
+    if(!collection || !collection->IsInDatabase())
+        return nullptr;
+
+    std::weak_ptr<Collection> weak = collection;
+    
+    auto tags = std::make_shared<DatabaseTagCollection>(
+        std::bind(&Database::SelectCollectionTags, this, weak, std::placeholders::_1),
+        std::bind(&Database::InsertCollectionTag, this, weak, std::placeholders::_1),
+        std::bind(&Database::DeleteCollectionTag, this, weak, std::placeholders::_1)
+    );
+    
+    return tags;
+}
+
+void Database::SelectCollectionTags(std::weak_ptr<Collection> collection,
+    std::vector<std::shared_ptr<AppliedTag>> &tags)
+{
+    auto collectionLock = collection.lock();
+
+    if(!collectionLock)
+        return;
+    
+    GUARD_LOCK();
+
+    const char str[] = "SELECT tag FROM collection_tag WHERE collection = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collectionLock->GetID()); 
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+
+        if(statementobj.GetObjectIDFromColumn(id, 0)){
+
+            // Load tag //
+            auto tag = SelectAppliedTagByID(guard, id);
+
+            if(!tag){
+
+                LOG_ERROR("Loading AppliedTag for collection, no tag with id exists: " +
+                    Convert::ToString(id));
+                continue;
+            }
+            
+            tags.push_back(tag);
+        }
+    }
+}
+
+void Database::InsertCollectionTag(std::weak_ptr<Collection> collection,
+    AppliedTag &tag)
+{
+    auto collectionLock = collection.lock();
+
+    if(!collectionLock)
+        return;
+    
+    GUARD_LOCK();
+
+    auto existing = SelectExistingAppliedTag(guard, tag);
+
+    if(existing){
+
+        InsertTagCollection(*collectionLock, existing->GetID());
+        return;
+    }
+
+    // Need to create a new tag //
+    if(!InsertAppliedTag(guard, tag)){
+
+        throw InvalidSQL("Failed to create AppliedTag for adding to resource", 0, "");
+    }
+
+    InsertTagCollection(*collectionLock, tag.GetID());
+}
+
+void Database::InsertTagCollection(Collection &collection, DBID appliedtagid){
+
+    const char str[] = "INSERT INTO collection_tag (collection, tag) VALUES (?, ?);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID(), appliedtagid);
+
+    statementobj.StepAll(statementinuse);
+}
+
+void Database::DeleteCollectionTag(std::weak_ptr<Collection> collection,
+    AppliedTag &tag)
+{
+    auto collectionLock = collection.lock();
+
+    if(!collectionLock)
+        return;
+    
+    GUARD_LOCK();
+
+    const char str[] = "DELETE FROM collection_tag WHERE collection = ? AND tag = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collectionLock->GetID(), tag.GetID());
+
+    statementobj.StepAll(statementinuse);
+
+    // This calls orphan on the tag object
+    DeleteAppliedTagIfNotUsed(guard, tag);
+}
 // ------------------------------------ //
 // Collection image 
 bool Database::InsertImageToCollection(Collection &collection, Image &image,
@@ -1467,7 +1579,8 @@ bool Database::CheckDoesAppliedTagCombinesMatch(Lock &guard, DBID id, const Appl
         return true;
     }
 
-    return false;
+    // Succeeded if there wasn't supposed to be a combine
+    return rightside == -1;
 }
 
 //
@@ -1634,6 +1747,22 @@ void Database::UpdateTagBreakRule(const TagBreakRule &rule){
 void Database::CombineAllPossibleAppliedTags(Lock &guard){
 
     DEBUG_BREAK;
+}
+
+int64_t Database::CountAppliedTags(){
+
+    const char str[] = "SELECT COUNT(*) FROM applied_tag;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(); 
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return statementobj.GetColumnAsInt64(0);
+    }
+
+    return 0;
 }
     
 
@@ -1918,6 +2047,15 @@ void Database::_RunSQL(Lock &guard, const std::string &sql){
     {
         ThrowCurrentSqlError(guard);
     }
+}
+
+void Database::PrintResultingRows(Lock &guard, const std::string &str){
+
+    PreparedStatement statementobj(SQLiteDb, str);
+
+    auto statementinuse = statementobj.Setup(); 
+
+    statementobj.StepAndPrettyPrint(statementinuse);
 }
 // ------------------------------------ //
 int Database::SqliteExecGrabResult(void* user, int columns, char** columnsastext,

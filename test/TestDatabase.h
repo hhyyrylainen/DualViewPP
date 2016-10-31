@@ -50,6 +50,14 @@ public:
     
         return SelectImageByHash(guard, hash);
     }
+
+    //! Prints the applied tag table
+    void PrintAppliedTagTable(){
+
+        GUARD_LOCK();
+
+        PrintResultingRows(guard, "SELECT * FROM applied_tag");
+    }
     
 
 };

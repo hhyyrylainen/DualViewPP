@@ -896,13 +896,13 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
     auto uncategorized = GetUncategorized();
 
     // No collection specified, get Uncategorized //
-    if (collectionname.empty())
-    {
+    if(collectionname.empty()){
+        
         addtocollection = uncategorized;
         canapplytags = false;
 
-    } else
-    {
+    } else {
+        
         addtocollection = GetOrCreateCollection(collectionname, IsInPrivateMode);
 
         if (!addtocollection)
@@ -911,7 +911,7 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
 
     LEVIATHAN_ASSERT(addtocollection, "Failed to get collection object");
     
-    if (canapplytags)
+    if(canapplytags)
         addtocollection->AddTags(addcollectiontags);
 
     size_t currentitem = 0;
@@ -923,16 +923,16 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
 
     // Save resources to database if not loaded from the database //
 
-    for(auto& resource : resources)
-    {
+    for(auto& resource : resources){
+        
         std::shared_ptr<Image> actualresource;
 
-        if (!resource->IsInDatabase())
-        {
+        if(!resource->IsInDatabase()){
+            
             // If the image hash is in the collection then we shouldn't be here //
 
-            if (!MoveFileToCollectionFolder(resource, addtocollection, move))
-            {
+            if (!MoveFileToCollectionFolder(resource, addtocollection, move)){
+                
                 LOG_ERROR("Failed to move file to collection's folder");
                 return false;
             }
@@ -940,15 +940,14 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
             std::shared_ptr<TagCollection> tagstoapply;
 
             // Store tags for applying //
-            if (resource->GetTags()->HasTags())
+            if(resource->GetTags()->HasTags())
                 tagstoapply = resource->GetTags();
 
-            try
-            {
+            try{
                 _Database->InsertImage(*resource);
-            }
-            catch (const InvalidSQL &e)
-            {
+                
+            } catch (const InvalidSQL &e){
+                
                 // We have already moved the image so this is a problem
                 LOG_INFO("TODO: move file back after adding fails");
                 LOG_ERROR("Sql error adding image to collection: ");
@@ -957,17 +956,18 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
             }
 
             // Apply tags //
-            if (tagstoapply)
+            if(tagstoapply)
                 resource->GetTags()->AddTags(*tagstoapply);
 
             actualresource = resource;
-        } else
-        {
+            
+        } else {
+            
             actualresource = resource;
 
             // Remove from uncategorized if not adding to that //
-            if(addtocollection != uncategorized)
-            {
+            if(addtocollection != uncategorized){
+                
                 uncategorized->RemoveImage(actualresource);
             }
         }
@@ -984,14 +984,14 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
     // These are duplicate files of already existing ones
     bool exists = false;
 
-    do
-    {
+    do{
+        
         exists = false;
 
-        for(const std::string& file : filestodelete)
-        {
-            if (boost::filesystem::exists(file))
-            {
+        for(const std::string& file : filestodelete){
+            
+            if(boost::filesystem::exists(file)){
+                
                 exists = true;
 
                 try{
@@ -1004,11 +1004,10 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
 
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-    } while (exists);
+    } while(exists);
 
     return true;
 }
-
 
 std::shared_ptr<Collection> DualView::GetOrCreateCollection(const std::string &name,
     bool isprivate)

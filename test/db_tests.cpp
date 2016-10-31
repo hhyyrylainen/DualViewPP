@@ -774,9 +774,70 @@ TEST_CASE("TagCollection works like it should", "[db][tags]"){
         CHECK(tags->HasTag(*dv.ParseTagFromString("watermark on hair")));
     }
 
+    SECTION("Directly testing SelectExistingAppliedTagID"){
+
+        auto img = db.InsertTestImage("our image", "coolhashgoeshere");
+        REQUIRE(img);
+
+        auto tagtoinsert = dv.ParseTagFromString("watermark");
+
+        db.InsertImageTag(img, *tagtoinsert);
+        CHECK(db.CountAppliedTags() == 1);
+        {
+            GUARD_LOCK_OTHER(db);
+
+            // Here we assume that the first id is 1
+            {
+                auto tag = db.SelectAppliedTagByID(guard, 1);
+
+                REQUIRE(tag);
+            }
+        
+            // Test the parts first //
+            CHECK(db.CheckDoesAppliedTagModifiersMatch(guard, 1, *tagtoinsert));
+
+            CHECK(db.CheckDoesAppliedTagCombinesMatch(guard, 1, *tagtoinsert));
+
+            // Then the whole thing
+            CHECK(db.SelectExistingAppliedTagID(guard, *tagtoinsert));
+        }
+
+        tagtoinsert = dv.ParseTagFromString("watermark");
+        GUARD_LOCK_OTHER(db);
+        CHECK(db.SelectExistingAppliedTagID(guard, *tagtoinsert));
+    }
+
     SECTION("Image tags share the same ids when adding to multiple images"){
 
-        // TODO: implement this test, the feature *should* work
+        auto img = db.InsertTestImage("our image", "coolhashgoeshere");
+        REQUIRE(img);
+
+        auto img2 = db.InsertTestImage("second", "coolhashgoeshere2154");
+        REQUIRE(img2);
+
+        auto tags = img->GetTags();
+        REQUIRE(tags);
+
+        auto tags2 = img2->GetTags();
+        REQUIRE(tags2);
+
+
+        SECTION("One simple tag per image"){
+            
+            CHECK(tags->Add(dv.ParseTagFromString("watermark")));
+            CHECK(db.CountAppliedTags() == 1);
+            
+            CHECK(tags2->Add(dv.ParseTagFromString("watermark")));
+            CHECK(db.CountAppliedTags() == 1);
+
+            CHECK(tags2->Add(dv.ParseTagFromString("hair")));
+            CHECK(db.CountAppliedTags() == 2);
+        }
+
+        SECTION("Complex tags"){
+            
+            //db.PrintAppliedTagTable();
+        }
     }
 }
 
