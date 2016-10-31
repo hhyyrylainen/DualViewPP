@@ -66,6 +66,9 @@ protected:
     void OnAdopted(int64_t id, Database &from);
 
     virtual void _DoSave(Database &db) = 0;
+
+    //! \brief Callback for child classes to reload resources when added to the database
+    virtual void _OnAdopted();
     
 protected:
     

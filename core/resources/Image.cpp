@@ -136,6 +136,12 @@ void Image::_DoSave(Database &db){
 
     db.UpdateImage(*this);
 }
+
+void Image::_OnAdopted(){
+
+    // Reload tags //
+    Tags = InDatabase->LoadImageTags(shared_from_this());
+}
 // ------------------------------------ //
 std::string Image::CalculateFileHash() const{
 
@@ -211,7 +217,17 @@ void Image::BecomeDuplicateOf(const Image &other){
     
     Height = other.Height;
     Width = other.Width;
-    Tags = other.Tags;
+
+    // If the other is from the database we need to load a new TagCollection object
+    // because we need a pointer to us to make sure that the weak_ptr doesn't die in the bound
+    // parameters
+    if(IsInDatabase()){
+        
+        _OnAdopted();
+        
+    } else {
+        Tags = other.Tags;
+    }
     
     IsReadyToAdd = true;
 }

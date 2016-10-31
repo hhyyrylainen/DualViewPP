@@ -33,6 +33,11 @@ void DatabaseResource::OnAdopted(int64_t id, Database &from){
     ID = id;
     InDatabase = &from;
     IsDirty = false;
+
+    _OnAdopted();
+}
+
+void DatabaseResource::_OnAdopted(){
 }
 
 void DatabaseResource::_BecomeDuplicateOf(const DatabaseResource &other){

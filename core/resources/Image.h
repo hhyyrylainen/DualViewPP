@@ -169,6 +169,8 @@ protected:
 
     // DatabaseResource implementation
     void _DoSave(Database &db) override;
+    void _OnAdopted() override;
+    
 
     //! \brief Once hash is calculated this is called if this is a duplicate of an
     //! existing image
