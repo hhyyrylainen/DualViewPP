@@ -117,8 +117,17 @@ public:
         }
     }
 
+    //! \brief Does the same as StepAll but also prints all result rows
+    void StepAndPrettyPrint(const SetupStatementForUse &isprepared);
+
     // Row functions
     // \note These should only be called when Step has returned a row
+
+    //! \brief Pretty prints column names
+    void PrettyPrintColumnNames();
+
+    //! \brief Prints all values in a row
+    void PrintRowValues();
     
     auto GetColumnCount() const{
 

@@ -72,5 +72,70 @@ template<>
     CheckBindSuccess(sqlite3_bind_int(Statement, index, value ? 1 : 0), index);
 }
 
+// ------------------------------------ //
+void PreparedStatement::StepAndPrettyPrint(const SetupStatementForUse &isprepared){
+
+    int rowcount = 0;
+    bool headerprinted = false;
+    
+    while(Step(isprepared) != STEP_RESULT::COMPLETED){
+
+        if(!headerprinted){
+
+            PrettyPrintColumnNames();
+            headerprinted = true;
+        }
+
+        PrintRowValues();
+        ++rowcount;
+    }
+
+    if(!headerprinted){
+
+        // Empty result //
+        LOG_WRITE("SQL: RESULT HAS 0 ROWS");
+        
+    } else {
+
+        std::string str = "| TOTAL ROWS: " + Convert::ToString(rowcount);
+        str.resize(80, '*');
+        LOG_WRITE(str);
+    }
+}
+
+void PreparedStatement::PrettyPrintColumnNames(){
+
+    std::string str = "*SQL RESULT SET";
+    str.resize(80, '_');
+    LOG_WRITE(str);
+
+    str = "| ";
+
+    for(int i = 0; i < GetColumnCount(); ++i){
+
+        str += GetColumnName(i) + " | ";
+    }
+            
+    LOG_WRITE(str);
+    
+    str = "|";
+    str.resize(80, '-');
+    LOG_WRITE(str);
+}
+
+void PreparedStatement::PrintRowValues(){
+
+    std::string str = "| ";
+
+    for(int i = 0; i < GetColumnCount(); ++i){
+
+        str += GetColumnAsString(i) + " | ";
+    }
+            
+    LOG_WRITE(str);
+    str = "|";
+    str.resize(80, '-');
+    LOG_WRITE(str);
+}
 
 }
