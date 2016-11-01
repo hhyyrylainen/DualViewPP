@@ -805,7 +805,7 @@ void DualView::OpenImageViewer(std::shared_ptr<Image> image){
     }
 
     std::shared_ptr<SingleView> wrapped(window);
-    _AddOpenWindow(wrapped);
+    _AddOpenWindow(wrapped, *window);
     wrapped->show();
     
     wrapped->Open(image);
@@ -830,7 +830,7 @@ void DualView::OpenImporter(){
     LOG_INFO("Opened Importer window");
 
     std::shared_ptr<Importer> wrapped(window);
-    _AddOpenWindow(wrapped);
+    _AddOpenWindow(wrapped, *window);
     wrapped->show();
 }
 
@@ -867,11 +867,12 @@ void DualView::WindowClosed(std::shared_ptr<WindowClosedEvent> event){
     MessageDispatcher.emit();
 }
 
-void DualView::_AddOpenWindow(std::shared_ptr<BaseWindow> window){
+void DualView::_AddOpenWindow(std::shared_ptr<BaseWindow> window, Gtk::Window &gtk){
 
     AssertIfNotMainThread();
 
     OpenWindows.push_back(window);
+    RegisterWindow(gtk);
 }
 // ------------------------------------ //
 std::string DualView::GetThumbnailFolder() const{

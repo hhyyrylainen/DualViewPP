@@ -232,7 +232,9 @@ protected:
     //! \brief Adds a new window to the open list
     //!
     //! This is needed to make sure that they aren't deallocated immediately
-    void _AddOpenWindow(std::shared_ptr<BaseWindow> window);
+    //! also gtk parameter is needed to make sure that the program doesn't quit if there are
+    //! other windows open.
+    void _AddOpenWindow(std::shared_ptr<BaseWindow> window, Gtk::Window &gtk);
 
     //! \brief Handles all queued commandline arguments
     void _ProcessCmdQueue();
