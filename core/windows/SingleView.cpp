@@ -2,6 +2,8 @@
 #include "SingleView.h"
 
 #include "core/resources/Image.h"
+#include "core/resources/Tags.h"
+
 
 #include "Exceptions.h"
 #include "DualView.h"
@@ -9,35 +11,15 @@
 
 using namespace DV;
 // ------------------------------------ //
-
-SingleView::SingleView(const std::string &file){
-
-    // Create resource //
-    auto resource = Image::Create(file);
-
-    _CreateWindow(resource);
-}
-
-SingleView::SingleView(std::shared_ptr<Image> image){
-
-    _CreateWindow(image);
-}
-
-void SingleView::_CreateWindow(std::shared_ptr<Image> image){
-
-    // Load gtk stuff //
-    Builder = Gtk::Builder::create_from_file(
-        "../gui/single_view.glade");
-
-    // Get all the glade resources //
-    Builder->get_widget("SingleView", OurWindow);
-    LEVIATHAN_ASSERT(OurWindow, "Invalid SingleView .glade file");
-
-    OurWindow->signal_delete_event().connect(sigc::mem_fun(*this, &SingleView::_OnClosed));
+SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
+    Gtk::Window(window)
+{
+    signal_delete_event().connect(sigc::mem_fun(*this, &BaseWindow::_OnClosed));
 
     try{
         
-        Builder->get_widget_derived("ImageView", ImageView, image, false);
+        builder->get_widget_derived("ImageView", ImageView, nullptr,
+            SuperViewer::ENABLED_EVENTS::ALL, false);
         
     } catch(const Leviathan::InvalidArgument &e){
 
@@ -47,40 +29,59 @@ void SingleView::_CreateWindow(std::shared_ptr<Image> image){
     }
     
     LEVIATHAN_ASSERT(ImageView, "Invalid SingleView .glade file");
-    
-    DualView::Get().RegisterWindow(*OurWindow);
-    OurWindow->show();
+
+    builder->get_widget("Tags", TagsLabel);
+    LEVIATHAN_ASSERT(TagsLabel, "Invalid .glade file");
 }
 
 SingleView::~SingleView(){
 
     Close();
+
+    LOG_INFO("SingleView window destructed");
+}
+// ------------------------------------ //    
+void SingleView::Open(std::shared_ptr<Image> image){
+
+    ImageView->SetImage(image);
+    OnTagsUpdated();
+}
+
+void SingleView::OnTagsUpdated(){
+
+    auto img = ImageView->GetImage();
+
+    if(!img || !img->GetTags()){
+
+        // Reset tags and block editing //
+        TagsLabel->set_text("");
+        
+    } else {
+
+        // Set tags //
+        auto isalive = GetAliveMarker();
+        auto tags = img->GetTags();
+
+        // Set to editor //
+        TagsLabel->set_text("Tags loading...");
+
+        DualView::Get().QueueDBThreadFunction([this, isalive, tags](){
+
+                std::string tagstr = tags->TagsAsString("; ");
+    
+                DualView::Get().InvokeFunction([this, isalive, tagstr](){
+
+                        INVOKE_CHECK_ALIVE_MARKER(isalive);
+            
+                        TagsLabel->set_text(tagstr);
+                    });
+            });
+    }
 }
 // ------------------------------------ //
 void SingleView::_OnClose(){
 
-    // Do nothing if already closed //
-    if(!OurWindow)
-        return;
-
     LOG_INFO("SingleView window closed");
 
-    // Unref widget //
-    //ImageView->unreference();
-
-    OurWindow->close();
-    delete OurWindow;
-    //OurWindow->unreference();
-    OurWindow = nullptr;
-
-    // Destroy the widgets from the Builder //
-    Builder.reset();
 }
-// ------------------------------------ //
-bool SingleView::_OnClosed(GdkEventAny* event){
 
-    _ReportClosed();
-    
-    // Allow other handlers to see this //
-    return false;
-}

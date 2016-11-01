@@ -21,4 +21,12 @@ void BaseWindow::_ReportClosed(){
 
     DualView::Get().WindowClosed(std::make_shared<WindowClosedEvent>(this));
 }
+// ------------------------------------ //
+bool BaseWindow::_OnClosed(GdkEventAny* event){
+
+    _ReportClosed();
+    
+    // Allow other handlers to see this //
+    return false;
+}
 

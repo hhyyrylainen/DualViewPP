@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BaseWindow.h"
+#include "core/IsAlive.h"
 
 #include "core/components/SuperViewer.h"
 
@@ -10,32 +11,26 @@ namespace DV{
 
 //! \brief Window that shows a single image
 //! \todo Make this use similar constructor as Importer
-class SingleView : public BaseWindow{
+class SingleView : public BaseWindow, public Gtk::Window, public IsAlive{
 public:
 
-    //! \brief Opens this window with a file
-    //! \exception Leviathan::InvalidArgument if file is not a supported type
-    SingleView(const std::string &file);
-
-    //! \brief Opens a window with an existing resource
-    SingleView(std::shared_ptr<Image> image);
-    
+    SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder);
     ~SingleView();
     
-private:
+    //! \brief Opens a window with an existing resource
+    void Open(std::shared_ptr<Image> image);
 
-    void _CreateWindow(std::shared_ptr<Image> image);
-
-    bool _OnClosed(GdkEventAny* event);
+    //! \brief Updates the shown tags
+    void OnTagsUpdated();
+    
+protected:
 
     void _OnClose() override;
     
 private:
 
-    Glib::RefPtr<Gtk::Builder> Builder;
-
-    Gtk::Window* OurWindow = nullptr;
     SuperViewer* ImageView = nullptr;
+    Gtk::Label* TagsLabel = nullptr;
 };
 
 }

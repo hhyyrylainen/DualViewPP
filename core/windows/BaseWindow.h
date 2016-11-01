@@ -1,5 +1,6 @@
 #pragma once
 
+#include <gtkmm.h>
 
 namespace DV{
 
@@ -13,6 +14,11 @@ public:
 
     void Close();
 
+    //! Default callback for gtk close events
+    //! Use when closing doesn't need to be prevented
+    //! \protected
+    bool _OnClosed(GdkEventAny* event);
+
 protected:
 
     //! \brief Reports to DualView that this window has been closed and should be deleted
@@ -24,6 +30,7 @@ protected:
 protected:
 
     //! Makes sure _ReportClosed only sends one message
+    //! \todo Make this atomic
     bool HasSentCloseReport = false;
 };
 

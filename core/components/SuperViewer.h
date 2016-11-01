@@ -51,6 +51,12 @@ public:
     SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
         std::shared_ptr<Image> displayedResource, bool forcethumbnail);
 
+    SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
+        std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events,
+        bool forcethumbnail);
+
+
+
     ~SuperViewer();
 
     //! \brief Moves between collection images

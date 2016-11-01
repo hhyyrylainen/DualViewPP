@@ -782,34 +782,36 @@ bool DualView::OpenImageViewer(const std::string &file){
 
     LOG_INFO("Opening single image for viewing: " + file);
 
-    std::shared_ptr<SingleView> window;
-
-    try{
-
-        window = std::make_shared<SingleView>(file);
-        
-    } catch(const Leviathan::InvalidArgument &e){
-
-        LOG_WARNING("Image is not supported: " + file + " error: " + e.what());
-        return false;
-    }
-
-    // Opening succeeded //
-    _AddOpenWindow(window);
+    OpenImageViewer(Image::Create(file));
     return true;
 }
 
 void DualView::OpenImageViewer(std::shared_ptr<Image> image){
 
     AssertIfNotMainThread();
+
+    auto builder = Gtk::Builder::create_from_file(
+        "../gui/single_view.glade");
+
+    SingleView* window;
+    builder->get_widget_derived("SingleView", window);
+
+    if(!window){
+
+        LOG_ERROR("SingleView window GUI layout is invalid");
+        return;
+    }
+
+    std::shared_ptr<SingleView> wrapped(window);
+    _AddOpenWindow(wrapped);
+    wrapped->show();
     
-    auto window = std::make_shared<SingleView>(image);
-        
-    // Opening succeeded //
-    _AddOpenWindow(window);
+    wrapped->Open(image);
 }
 
 void DualView::OpenImporter(){
+
+    AssertIfNotMainThread();
 
     auto builder = Gtk::Builder::create_from_file(
         "../gui/importer.glade");
@@ -838,6 +840,8 @@ void DualView::OpenTagCreator(const std::string &settext){
 }
 
 void DualView::OpenTagCreator(){
+
+    AssertIfNotMainThread();
 
     // Show it //
     Application->add_window(*_TagManager);

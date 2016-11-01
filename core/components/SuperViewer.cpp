@@ -27,6 +27,17 @@ SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> build
     _CommonCtor();
 }
 
+SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
+    std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events,
+    bool forcethumbnail) :
+    Gtk::DrawingArea(area), DisplayedResource(displayedResource),
+    Events(events),
+    ForceOnlyThumbnail(forcethumbnail)
+{
+    // Do setup stuff //
+    _CommonCtor();
+}
+
 SuperViewer::SuperViewer(std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events,
     bool forcethumbnail) :
     DisplayedResource(displayedResource),
