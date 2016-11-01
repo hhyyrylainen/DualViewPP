@@ -86,6 +86,9 @@ protected:
     Gtk::Button CreateTag;
 
     // Container for the set tags view
+    // If this isn't used then adding a bunch of tags will expand the parent widget a lot
+    Gtk::ScrolledWindow ContainerForTags;
+    Gtk::Viewport ViewForTags;
     
 
     // List of active tags //

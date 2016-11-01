@@ -12,7 +12,9 @@ using namespace DV;
 // ------------------------------------ //
 
 TagEditor::TagEditor() : Gtk::Box(Gtk::ORIENTATION_VERTICAL),
-    CreateTag(Gtk::StockID("gtk-add"))
+    CreateTag(Gtk::StockID("gtk-add")),
+    ContainerForTags(),
+    ViewForTags(ContainerForTags.get_hadjustment(), ContainerForTags.get_vadjustment())
 {
 
     _CommonCtor();
@@ -20,7 +22,9 @@ TagEditor::TagEditor() : Gtk::Box(Gtk::ORIENTATION_VERTICAL),
     
 TagEditor::TagEditor(_GtkBox* widget, Glib::RefPtr<Gtk::Builder> builder) :
     Gtk::Box(widget),
-    CreateTag(Gtk::StockID("gtk-add"))
+    CreateTag(Gtk::StockID("gtk-add")),
+    ContainerForTags(),
+    ViewForTags(ContainerForTags.get_hadjustment(), ContainerForTags.get_vadjustment())
 {
     set_orientation(Gtk::ORIENTATION_VERTICAL);
 
@@ -30,9 +34,18 @@ TagEditor::TagEditor(_GtkBox* widget, Glib::RefPtr<Gtk::Builder> builder) :
 void TagEditor::_CommonCtor(){
 
     set_spacing(2);
+    // This doesn't seem to work if the container is not set as expand
+    // in the .glade layout...
+    set_hexpand(true);
 
     add(Title);
     Title.set_text("Tag Editor");
+
+    // Container for tree
+    add(ContainerForTags);
+    ContainerForTags.add(ViewForTags);
+
+    child_property_expand(ContainerForTags) = true;
     
     // Set the shown columns
     TagsTreeView.append_column("Tag Full Name", TreeViewColumns.m_tag_as_text);
@@ -45,10 +58,9 @@ void TagEditor::_CommonCtor(){
 
     TagsTreeView.get_selection()->set_mode(Gtk::SELECTION_MULTIPLE);
 
-    add(TagsTreeView);
+    ViewForTags.add(TagsTreeView);
     // Expand set this way to stop this container from also expanding
     child_property_expand(TagsTreeView) = true;
-
 
     //Add an EntryCompletion:
     TagCompletion = Gtk::EntryCompletion::create();
