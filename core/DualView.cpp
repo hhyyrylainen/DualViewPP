@@ -13,6 +13,8 @@
 #include "core/CurlWrapper.h"
 
 #include "resources/Collection.h"
+#include "resources/Image.h"
+#include "resources/Tags.h"
 
 #include "Settings.h"
 #include "PluginManager.h"

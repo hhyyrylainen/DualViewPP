@@ -17,13 +17,12 @@ Leviathan::BaseNotifiable<ParentType, ChildType>::~BaseNotifiable(){
 
 	// Last chance to unhook //
 	if(ConnectedToParents.size())
-		ReleaseParentHooks();
+		ReleaseParentHooks(guard);
 }
 // ------------------------------------ //
 template<class ParentType, class ChildType>
-void Leviathan::BaseNotifiable<ParentType, ChildType>::ReleaseParentHooks(){
+void Leviathan::BaseNotifiable<ParentType, ChildType>::ReleaseParentHooks(Lock &guard){
 	// This needs a bit of trickery since the lock order must be parent, child so we may not lock ourselves
-	GUARD_LOCK();
 
 	while(!ConnectedToParents.empty()){
 
@@ -231,6 +230,7 @@ template<class ParentType, class ChildType>
 void Leviathan::BaseNotifiable<ParentType, ChildType>::NotifyAll(Lock &guard){
 	// More trickery needed here to keep the locking order //
 	auto currentparent = *ConnectedToParents.begin();
+    auto actualptr = GetActualPointerToNotifiableObject();
 
 	while(currentparent){
 		
@@ -244,7 +244,7 @@ void Leviathan::BaseNotifiable<ParentType, ChildType>::NotifyAll(Lock &guard){
 
 			// Notify now //
             // TODO: add guard2 to this call
-			currentparent->OnNotified();
+			currentparent->OnNotified(guard2, actualptr, guard);
 
 		}
 		// The current parent doesn't need to be locked while we change to a different parent //
@@ -268,7 +268,9 @@ void Leviathan::BaseNotifiable<ParentType, ChildType>::NotifyAll(Lock &guard){
 }
 
 template<class ParentType, class ChildType>
-void Leviathan::BaseNotifiable<ParentType, ChildType>::OnNotified(){
+    void Leviathan::BaseNotifiable<ParentType, ChildType>::OnNotified(Lock &ownlock,
+        ParentType* parent, Lock &parentlock)
+{
 
 }
 

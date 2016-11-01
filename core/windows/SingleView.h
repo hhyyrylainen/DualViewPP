@@ -3,15 +3,20 @@
 #include "BaseWindow.h"
 #include "core/IsAlive.h"
 
-#include "core/components/SuperViewer.h"
+#include "leviathan/Common/BaseNotifiable.h"
 
 #include <gtkmm.h>
 
 namespace DV{
 
+class SuperViewer;
+class Image;
+
 //! \brief Window that shows a single image
-//! \todo Make this use similar constructor as Importer
-class SingleView : public BaseWindow, public Gtk::Window, public IsAlive{
+//! \note Whenever this receives an event OnTagsUpdated is called
+class SingleView : public BaseWindow, public Gtk::Window, public IsAlive,
+                     public Leviathan::BaseNotifiableAll
+{
 public:
 
     SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder);
@@ -21,7 +26,11 @@ public:
     void Open(std::shared_ptr<Image> image);
 
     //! \brief Updates the shown tags
-    void OnTagsUpdated();
+    void OnTagsUpdated(Lock &guard);
+
+    //! \brief Called when the shown image changes properties
+    void OnNotified(Lock &ownlock, Leviathan::BaseNotifierAll* parent, Lock &parentlock)
+        override;
     
 protected:
 
@@ -31,6 +40,7 @@ private:
 
     SuperViewer* ImageView = nullptr;
     Gtk::Label* TagsLabel = nullptr;
+    Gtk::Label* ImageSize = nullptr;
 };
 
 }

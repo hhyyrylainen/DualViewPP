@@ -4,6 +4,7 @@
 #include "core/resources/Image.h"
 #include "core/resources/Tags.h"
 
+#include "core/components/SuperViewer.h"
 
 #include "Exceptions.h"
 #include "DualView.h"
@@ -32,6 +33,9 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     builder->get_widget("Tags", TagsLabel);
     LEVIATHAN_ASSERT(TagsLabel, "Invalid .glade file");
+
+    builder->get_widget("ImageSize", ImageSize);
+    LEVIATHAN_ASSERT(ImageSize, "Invalid .glade file");
 }
 
 SingleView::~SingleView(){
@@ -43,28 +47,54 @@ SingleView::~SingleView(){
 // ------------------------------------ //    
 void SingleView::Open(std::shared_ptr<Image> image){
 
+    // Detach old image, if there is one //
+    GUARD_LOCK();
+    
+    ReleaseParentHooks(guard);
+
     ImageView->SetImage(image);
-    OnTagsUpdated();
+    OnTagsUpdated(guard);
+}
+// ------------------------------------ //
+void SingleView::OnNotified(Lock &ownlock, Leviathan::BaseNotifierAll* parent,
+    Lock &parentlock)
+{
+    OnTagsUpdated(ownlock);
 }
 
-void SingleView::OnTagsUpdated(){
+void SingleView::OnTagsUpdated(Lock &guard){
 
     auto img = ImageView->GetImage();
 
-    if(!img || !img->GetTags()){
+    if(!img){
+
+        ImageSize->set_text("No image");
+        return;
+        
+    } else {
+
+        ImageSize->set_text(Convert::ToString(img->GetWidth()) + "x" +
+            Convert::ToString(img->GetHeight()));
+    }
+
+    // Start listening for changes on the image //
+    if(!IsConnectedTo(img.get(), guard))
+        ConnectToNotifier(guard, img.get());
+
+    if(!img->GetTags()){
 
         // Reset tags and block editing //
         TagsLabel->set_text("");
         
     } else {
-
+        
         // Set tags //
         auto isalive = GetAliveMarker();
         auto tags = img->GetTags();
-
+        
         // Set to editor //
         TagsLabel->set_text("Tags loading...");
-
+        
         DualView::Get().QueueDBThreadFunction([this, isalive, tags](){
 
                 std::string tagstr = tags->TagsAsString("; ");

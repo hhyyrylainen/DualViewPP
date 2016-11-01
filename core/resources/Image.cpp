@@ -190,6 +190,9 @@ void Image::_DoHashCalculation(){
 void Image::_OnFinishHash(){
 
     IsReadyToAdd = true;
+
+    // Image size is now available
+    NotifyAll();
 }
 // ------------------------------------ //
 void Image::_QueueHashCalculation(){

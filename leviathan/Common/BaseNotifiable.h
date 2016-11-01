@@ -17,7 +17,7 @@ namespace Leviathan{
 		virtual ~BaseNotifiable();
 
 		//! \brief Release function which releases all hooks
-		void ReleaseParentHooks();
+		void ReleaseParentHooks(Lock &guard);
 
 		//! \brief The actual implementation of UnConnectFromNotifier
 		bool UnConnectFromNotifier(Lock &guard,
@@ -83,7 +83,7 @@ namespace Leviathan{
 		//! \brief Called when our parent notifies us about something
 		//! \note Both the parent and this object has been locked when this is called
 		//! \warning Do not directly call this if you don't know what you are doing!
-		virtual void OnNotified();
+		virtual void OnNotified(Lock &ownlock, ParentType* parent, Lock &parentlock);
 
 
 	protected:
