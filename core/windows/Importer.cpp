@@ -246,11 +246,14 @@ void Importer::UpdateReadyStatus(){
     if(SelectedImages.empty()){
 
         StatusLabel->set_text("No images selected");
+        PreviewImage->RemoveImage();
 
     } else {
 
         StatusLabel->set_text("Ready to import " + Convert::ToString(SelectedImages.size()) +
             " images");
+
+        PreviewImage->SetImage(SelectedImages.front());
     }
 
     // Tag editing //

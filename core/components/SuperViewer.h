@@ -72,6 +72,9 @@ public:
     //! \brief Sets an already loaded image to show
     void SetImage(std::shared_ptr<LoadedImage> alreadyloaded);
 
+    //! \brief Removes the shown image. Same as calling SetImage with null
+    void RemoveImage();
+
     //! \brief Sets an background image that is always adjusted to fit the widget
     void SetBackground(Glib::RefPtr<Gdk::Pixbuf> background);
 

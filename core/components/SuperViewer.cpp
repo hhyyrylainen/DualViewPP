@@ -109,7 +109,7 @@ void SuperViewer::SetImage(std::shared_ptr<Image> displayedResource){
     // And reset display settings //
     IsAutoFit = true;
     
-    queue_draw();    
+    queue_draw();
 }
 
 void SuperViewer::SetBackground(Glib::RefPtr<Gdk::Pixbuf> background){
@@ -131,6 +131,18 @@ void SuperViewer::SetImage(std::shared_ptr<LoadedImage> alreadyloaded){
     IsImageReady = false;
 
     IsAutoFit = true;
+
+    queue_draw();
+}
+
+void SuperViewer::RemoveImage(){
+
+    DisplayedResource = nullptr;
+
+    // Reset things //
+    DisplayImage.reset();
+    CachedDrawnImage.reset();
+    IsImageReady = false;
 
     queue_draw();
 }
