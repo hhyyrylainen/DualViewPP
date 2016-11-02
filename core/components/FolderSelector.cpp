@@ -68,16 +68,11 @@ void FolderSelector::GoToRoot(){
 
 void FolderSelector::GoToPath(const std::string &path){
 
-    try{
+    SelectedFolder = DualView::Get().GetFolderFromPath(path);
+    CurrentPath = path;
 
-        SelectedFolder = DualView::Get().GetFolderFromPath(path);
-        CurrentPath = "Root/";
-
-    } catch(const Leviathan::InvalidArgument&){
-
-        GoToPath("Root/");
-        return;
-    }
+    if(!SelectedFolder)
+        GoToRoot();
 
     OnFolderChanged();
 }

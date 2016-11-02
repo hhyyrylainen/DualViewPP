@@ -22,6 +22,7 @@
 #include "Exceptions.h"
 
 #include "Common/StringOperations.h"
+#include "Iterators/StringIterator.h"
 
 #include <iostream>
 #include <chrono>
@@ -1068,9 +1069,56 @@ std::shared_ptr<Collection> DualView::GetUncategorized(){
 }
 
 // ------------------------------------ //
-std::shared_ptr<Folder> DualView::GetFolderFromPath(const std::string &path) const{
+std::shared_ptr<Folder> DualView::GetFolderFromPath(const std::string &path){
 
-    return nullptr;
+    // Root folder //
+    if(path == "Root" || path == "Root/"){
+
+        return GetRootFolder();
+    }
+
+    // Loop through all the path components and verify that a folder exists
+    // This is actually overkill for what we are doing
+    Leviathan::StringIterator itr(path);
+
+    std::shared_ptr<Folder> currentfolder;
+
+    while(!itr.IsOutOfBounds()){
+
+        auto part = itr.GetUntilNextCharacterOrAll<std::string>('/');
+
+        if(!part){
+
+            // String ended //
+            return currentfolder;
+        }
+
+        if(!currentfolder && (*part == "Root")){
+
+            currentfolder = GetRootFolder();
+            continue;
+        }
+
+        if(!currentfolder){
+
+            // Didn't begin with root //
+            return nullptr;
+        }
+
+        // Find a folder with the current name inside currentfolder //
+        auto nextfolder = _Database->SelectFolderByNameAndParentAG(*part, *currentfolder);
+
+        if(!nextfolder){
+
+            // There's a nonexistant folder in the path
+            return nullptr;
+        }
+
+        // Moved to the next part
+        currentfolder = nextfolder;
+    }
+    
+    return currentfolder;
 }
 
 // ------------------------------------ //

@@ -135,8 +135,9 @@ public:
 
 
     //! \brief Retrieves a Folder from path
-    //! \exception Leviathan::InvalidArgument if the folder doesn't exist
-    std::shared_ptr<Folder> GetFolderFromPath(const std::string &path) const;
+    //! \returns Null if the folder doesn't exist
+    //! \todo Fix " and ' in the path
+    std::shared_ptr<Folder> GetFolderFromPath(const std::string &path);
 
     //! \brief Parses an AppliedTag from a string. Doesn't add it to the database automatically
     //! \note This will lock the database, so if it already locked this causes a deadlock

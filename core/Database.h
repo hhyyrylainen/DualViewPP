@@ -226,7 +226,8 @@ public:
 
     //! \brief Creates a new folder, must have a parent folder
     //! \returns The created folder or null if the name conflicts
-    std::shared_ptr<Folder> InsertFolder(const std::string &name, bool isprivate,
+    //! \todo Make sure that if there are any quotes they are balanced
+    std::shared_ptr<Folder> InsertFolder(std::string name, bool isprivate,
         const Folder &parent);
 
     bool UpdateFolder(Folder &folder);
