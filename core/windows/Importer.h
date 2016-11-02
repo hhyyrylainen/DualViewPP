@@ -16,9 +16,11 @@ class SuperContainer;
 class SuperViewer;
 class Image;
 class ListItem;
-class TagEditor;
 class ResourceWithPreview;
 class TagCollection;
+
+class TagEditor;
+class FolderSelector;
 
 class Importer : public BaseWindow, public Gtk::Window, public IsAlive{
 public:
@@ -85,6 +87,8 @@ protected:
 
     TagEditor* SelectedImageTags;
     TagEditor* CollectionTagsEditor;
+
+    FolderSelector* TargetFolder;
 
     Gtk::Entry* CollectionName;
     

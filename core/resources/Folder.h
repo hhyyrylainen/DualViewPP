@@ -18,11 +18,13 @@ public:
     //! \brief Database load function
     Folder(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id);
 
-    
     const auto GetName() const{
 
         return Name;
     }
+
+    //! \brief Returns true if this is the root folder
+    bool IsRoot() const;
 
     //! \brief Returns true if the folders are the same
     bool operator ==(const Folder &other) const;

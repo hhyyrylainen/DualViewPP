@@ -841,3 +841,18 @@ TEST_CASE("TagCollection works like it should", "[db][tags]"){
     }
 }
 
+TEST_CASE("Virtual folder Path parsing works", "[folder][path][db]"){
+
+    std::unique_ptr<Database> dbptr(new TestDatabase());
+    DummyDualView dv(std::move(dbptr));
+    auto& db = static_cast<TestDatabase&>(dv.GetDatabase());
+
+    REQUIRE_NOTHROW(db.Init());
+
+    SECTION("Root path"){
+        
+        auto folder = dv.GetFolderFromPath("Root/");
+    }
+
+}
+

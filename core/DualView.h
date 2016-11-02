@@ -119,6 +119,12 @@ public:
 
     //! \brief Retrieves a Collection from the database by name
     std::shared_ptr<Collection> GetOrCreateCollection(const std::string &name, bool isprivate);
+
+    //! \brief Adds a Collection to a Folder
+    //! \note If added to any other folder than root and removefromroot is true
+    //! the folder is removed from the root folder
+    void AddCollectionToFolder(std::shared_ptr<Folder> folder,
+        std::shared_ptr<Collection> collection, bool removefromroot = true);
     
     //
     // Database object retrieve functions
@@ -127,6 +133,10 @@ public:
 
     std::shared_ptr<Collection> GetUncategorized();
 
+
+    //! \brief Retrieves a Folder from path
+    //! \exception Leviathan::InvalidArgument if the folder doesn't exist
+    std::shared_ptr<Folder> GetFolderFromPath(const std::string &path) const;
 
     //! \brief Parses an AppliedTag from a string. Doesn't add it to the database automatically
     //! \note This will lock the database, so if it already locked this causes a deadlock

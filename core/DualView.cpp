@@ -15,6 +15,7 @@
 #include "resources/Collection.h"
 #include "resources/Image.h"
 #include "resources/Tags.h"
+#include "resources/Folder.h"
 
 #include "Settings.h"
 #include "PluginManager.h"
@@ -1027,7 +1028,20 @@ std::shared_ptr<Collection> DualView::GetOrCreateCollection(const std::string &n
     return _Database->InsertCollectionAG(name, isprivate);
 }
 
+void DualView::AddCollectionToFolder(std::shared_ptr<Folder> folder,
+    std::shared_ptr<Collection> collection, bool removefromroot /*= true*/)
+{
+    if(!folder || !collection)
+        return;
 
+    _Database->InsertCollectionToFolderAG(*folder, *collection);
+
+    if(!folder->IsRoot() && removefromroot){
+
+        _Database->DeleteCollectionFromRootIfInAnotherFolder(*collection);
+    }
+    
+}
 
 // ------------------------------------ //
 // Database load functions
@@ -1053,6 +1067,11 @@ std::shared_ptr<Collection> DualView::GetUncategorized(){
     return UncategorizedCollection;
 }
 
+// ------------------------------------ //
+std::shared_ptr<Folder> DualView::GetFolderFromPath(const std::string &path) const{
+
+    return nullptr;
+}
 
 // ------------------------------------ //
 std::shared_ptr<AppliedTag> DualView::ParseTagWithBreakRule(const std::string &str) const{

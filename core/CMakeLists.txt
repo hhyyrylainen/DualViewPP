@@ -59,6 +59,7 @@ add_library(Core
   components/FolderListItem.h components/FolderListItem.cpp
 
   components/TagEditor.h components/TagEditor.cpp
+  components/FolderSelector.h components/FolderSelector.cpp
   
   # Resources
   resources/DatabaseResource.h resources/DatabaseResource.cpp

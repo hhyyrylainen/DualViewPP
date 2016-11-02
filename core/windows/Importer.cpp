@@ -4,11 +4,15 @@
 #include "core/components/SuperViewer.h"
 #include "core/components/SuperContainer.h"
 #include "core/components/TagEditor.h"
+#include "core/components/FolderSelector.h"
+
 
 #include "core/resources/Image.h"
 #include "core/resources/Tags.h"
+#include "core/resources/Folder.h"
 
-#include "core/DualView.h"
+#include "DualView.h"
+#include "Database.h"
 #include "Common.h"
 
 #include <boost/filesystem.hpp>
@@ -30,6 +34,9 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     builder->get_widget_derived("CollectionTags", CollectionTagsEditor);
     LEVIATHAN_ASSERT(CollectionTagsEditor, "Invalid .glade file");
+
+    builder->get_widget_derived("TargetFolder", TargetFolder);
+    LEVIATHAN_ASSERT(TargetFolder, "Invalid .glade file");
 
     builder->get_widget("StatusLabel", StatusLabel);
     LEVIATHAN_ASSERT(StatusLabel, "Invalid .glade file");
@@ -336,6 +343,16 @@ void Importer::_OnImportFinished(bool success){
     // Remove images if succeeded //
     if(success){
 
+        // Add the collection to the target folder //
+        auto targetfolder = TargetFolder->GetFolder();
+
+        if(!targetfolder->IsRoot()){
+
+            DualView::Get().AddCollectionToFolder(targetfolder,
+                DualView::Get().GetDatabase().SelectCollectionByNameAG(
+                    CollectionName->get_text()));
+        }
+
         LOG_INFO("Import was successfull");
 
         if(RemoveAfterAdding->get_active()){
@@ -356,7 +373,10 @@ void Importer::_OnImportFinished(bool success){
         CollectionTags->Clear();
         CollectionTagsEditor->ReadSetTags();
 
+        CollectionName->set_text("");
+
         // Reset target folder //
+        TargetFolder->GoToRoot();
         
     } else {
 

@@ -34,6 +34,11 @@ bool Folder::operator ==(const Folder &other) const{
     
     return Name == other.Name;
 }
+
+bool Folder::IsRoot() const{
+        
+    return ID == DATABASE_ROOT_FOLDER_ID;
+}
 // ------------------------------------ //
 // Implementation of ResourceWithPreview
 std::shared_ptr<ListItem> Folder::CreateListItem(const ItemSelectable &selectable){
