@@ -7,6 +7,7 @@
 #include "windows/CollectionView.h"
 #include "windows/Importer.h"
 #include "windows/TagManager.h"
+#include "windows/FolderCreator.h"
 
 #include "core/CacheManager.h"
 #include "core/Database.h"
@@ -851,6 +852,23 @@ void DualView::OpenTagCreator(){
     Application->add_window(*_TagManager);
     _TagManager->show();
     _TagManager->present();
+}
+
+void DualView::RunFolderCreatorAsDialog(const std::string path,
+    const std::string &prefillnewname, Gtk::Window &parentwindow)
+{
+    AssertIfNotMainThread();
+
+    FolderCreator window(path, prefillnewname);
+
+    window.set_transient_for(parentwindow);
+    window.set_modal(true);
+
+    window.add_button("_Cancel", Gtk::RESPONSE_CANCEL);
+    window.add_button("_Open", Gtk::RESPONSE_OK);
+
+    auto result = window.run();
+    LOG_WRITE("It closed");
 }
 // ------------------------------------ //
 void DualView::RegisterWindow(Gtk::Window &window){

@@ -126,4 +126,18 @@ void FolderSelector::_OnUpFolder(){
 
 void FolderSelector::_CreateNewFolder(){
 
+    // If the user has typed something in the entry use that as the name for the new folder //
+    std::string userinput = PathEntry.get_text();
+
+    userinput.erase(0, CurrentPath.length());
+    // userinput is most likely empty here //
+
+    
+    Gtk::Window* parent = dynamic_cast<Gtk::Window*>(this->get_toplevel());
+    LEVIATHAN_ASSERT(parent, "FolderSelector has no Parent Gtk::Window");
+    
+    DualView::Get().RunFolderCreatorAsDialog(CurrentPath, userinput, *parent);
+
+    // Update folders
+    OnFolderChanged();
 }

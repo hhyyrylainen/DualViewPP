@@ -61,6 +61,10 @@ public:
     //! \brief Opens an empty Importer
     void OpenImporter();
 
+    //! \brief Runs folder creator as a modal window
+    void RunFolderCreatorAsDialog(const std::string path, const std::string &prefillnewname,
+        Gtk::Window &parentwindow);
+
     //! \brief Registers a gtk window with the gtk instance
     void RegisterWindow(Gtk::Window &window);
 

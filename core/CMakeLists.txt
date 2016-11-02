@@ -49,6 +49,7 @@ add_library(Core
   windows/CollectionView.h windows/CollectionView.cpp
   windows/Importer.h windows/Importer.cpp
   windows/TagManager.h windows/TagManager.cpp
+  windows/FolderCreator.h windows/FolderCreator.cpp
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp
