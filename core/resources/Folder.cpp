@@ -41,8 +41,9 @@ bool Folder::IsRoot() const{
 }
 // ------------------------------------ //
 // Implementation of ResourceWithPreview
-std::shared_ptr<ListItem> Folder::CreateListItem(const ItemSelectable &selectable){
- 
+std::shared_ptr<ListItem> Folder::CreateListItem(
+    const std::shared_ptr<ItemSelectable> &selectable)
+{
     auto widget = std::make_shared<FolderListItem>(selectable);
     
     _FillWidget(*widget);

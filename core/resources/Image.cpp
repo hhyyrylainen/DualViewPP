@@ -246,8 +246,9 @@ bool Image::operator ==(const Image& other) const{
     return ResourcePath == other.ResourcePath;
 }
 // ------------------------------------ //
-std::shared_ptr<ListItem> Image::CreateListItem(const ItemSelectable &selectable){
-
+std::shared_ptr<ListItem> Image::CreateListItem(
+    const std::shared_ptr<ItemSelectable> &selectable)
+{
     auto widget = std::make_shared<ImageListItem>(selectable);
     
     _FillWidget(*widget);

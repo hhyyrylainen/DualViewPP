@@ -8,7 +8,7 @@
 
 using namespace DV;
 // ------------------------------------ //
-CollectionListItem::CollectionListItem(const ItemSelectable &selectable,
+CollectionListItem::CollectionListItem(const std::shared_ptr<ItemSelectable> &selectable,
     std::shared_ptr<Collection> showncollection /*= nullptr*/) :
     ListItem(showncollection ? showncollection->GetPreviewIcon() : nullptr,
         showncollection ? showncollection->GetName() : "",

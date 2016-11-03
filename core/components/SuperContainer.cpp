@@ -481,7 +481,7 @@ void SuperContainer::_PushBackWidgets(size_t index){
 }
 
 void SuperContainer::_AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item,
-    const ItemSelectable &selectable)
+    const std::shared_ptr<ItemSelectable> &selectable)
 {
     // Create the widget //
     auto element = std::make_shared<Element>(item, selectable);

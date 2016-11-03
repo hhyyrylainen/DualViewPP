@@ -193,7 +193,8 @@ bool Importer::_AddImageToList(const std::string &file){
 void Importer::_UpdateImageList(){
 
     ImageList->SetShownItems(ImagesToImport.begin(), ImagesToImport.end(),
-        ItemSelectable(std::bind(&Importer::OnItemSelected, this, std::placeholders::_1)));
+        std::make_shared<ItemSelectable>(
+            std::bind(&Importer::OnItemSelected, this, std::placeholders::_1)));
 }
 // ------------------------------------ //    
 bool Importer::_OnClosed(GdkEventAny* event){

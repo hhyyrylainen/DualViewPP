@@ -18,8 +18,11 @@ public:
     //! \param name The text to show under the display image
     //! \param selectable If true allows this item to be selected/unselected by clicking
     //! \param allowpopup If true allows this item to open a popup window when double clicked
+    //! \note allowpopup Cannot be used at the same time with
+    //! DV::ItemSelectable::UsesCustomPopup because the default double click handler will
+    //! eat the event
     ListItem(std::shared_ptr<Image> showimage, const std::string &name,
-        const ItemSelectable &selectable, bool allowpopup);
+        const std::shared_ptr<ItemSelectable> &selectable, bool allowpopup);
     
     ~ListItem();
 
@@ -29,14 +32,14 @@ public:
     //! \brief Deselects this if currently selected and selecting is enabled
     inline void Deselect(){
 
-        if(Selectable && CurrentlySelected)
+        if(Selectable && Selectable->Selectable && CurrentlySelected)
             SetSelected(false);
     }
 
     //! \brief Selects this isn't currently selected and selecting is enabled
     inline void Select(){
 
-        if(Selectable && !CurrentlySelected)
+        if(Selectable && Selectable->Selectable  && !CurrentlySelected)
             SetSelected(true);
     }
 
@@ -94,12 +97,6 @@ protected:
 
     //! If false doesn't listen for mouse clicks
     //! When true updates selected state when clicked
-    bool Selectable;
-
-    //! If true listens for double click events
-    bool AllowPopUpWIndow;
-
-    //! Called from default _OnSelectionUpdated
-    std::function<void (ListItem&)> OnSelected;
+    std::shared_ptr<ItemSelectable> Selectable = nullptr;
 };
 }

@@ -33,6 +33,9 @@ public:
     //! \brief Goes to the specified path, or to Root if the path is invalid
     void GoToPath(const std::string &path);
 
+    //! \brief Goes to a subfolder
+    void MoveToSubfolder(const std::string &subfoldername);
+
 private:
 
     void _CommonCtor();
@@ -45,6 +48,8 @@ protected:
     // Gtk callbacks //
     void _OnUpFolder();
     void _CreateNewFolder();
+    //! \todo Play error sound on fail and don't go to root
+    void _OnPathEntered();
 
 protected:
     

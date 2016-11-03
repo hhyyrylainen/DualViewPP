@@ -30,7 +30,8 @@ public:
     bool operator ==(const Folder &other) const;
     
     // Implementation of ResourceWithPreview
-    std::shared_ptr<ListItem> CreateListItem(const ItemSelectable &selectable) override;
+    std::shared_ptr<ListItem> CreateListItem(const std::shared_ptr<ItemSelectable> &selectable)
+        override;
     bool IsSame(const ResourceWithPreview &other) override;
     bool UpdateWidgetWithValues(ListItem &control) override;
     

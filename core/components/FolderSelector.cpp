@@ -2,6 +2,7 @@
 #include "FolderSelector.h"
 
 #include "core/resources/Folder.h"
+#include "FolderListItem.h"
 
 #include "DualView.h"
 #include "Database.h"
@@ -50,6 +51,9 @@ void FolderSelector::_CommonCtor(){
     UpFolder.signal_clicked().connect(sigc::mem_fun(*this, &FolderSelector::_OnUpFolder));
     CreateNewFolder.signal_clicked().connect(sigc::mem_fun(*this,
             &FolderSelector::_CreateNewFolder));
+
+    PathEntry.signal_activate().connect(sigc::mem_fun(*this,
+            &FolderSelector::_OnPathEntered));
     
     show_all_children();
     
@@ -76,7 +80,18 @@ void FolderSelector::GoToPath(const std::string &path){
 
     OnFolderChanged();
 }
+void FolderSelector::MoveToSubfolder(const std::string &subfoldername){
 
+    if(subfoldername.empty())
+        return;
+
+    if(CurrentPath.back() != '/' && subfoldername.front() != '/')
+        CurrentPath += '/';
+
+    CurrentPath += subfoldername;
+    GoToPath(CurrentPath);
+}
+// ------------------------------------ //
 void FolderSelector::OnFolderChanged(){
 
     LEVIATHAN_ASSERT(SelectedFolder, "SelectedFolder is null in FolderSelector");
@@ -84,10 +99,24 @@ void FolderSelector::OnFolderChanged(){
     std::vector<std::shared_ptr<Folder>> folders =
         DualView::Get().GetDatabase().SelectFoldersInFolder(*SelectedFolder);
 
-    FolderContents.SetShownItems(folders.begin(), folders.end());
+    auto changefolder = std::make_shared<ItemSelectable>();
+
+    changefolder->AddFolderSelect([this](ListItem &item){
+
+            FolderListItem* asfolder = dynamic_cast<FolderListItem*>(&item);
+
+            if(!asfolder)
+                return;
+
+            MoveToSubfolder(asfolder->GetFolder()->GetName());
+        });
+    
+    FolderContents.SetShownItems(folders.begin(), folders.end(), changefolder);
 
     PathEntry.set_text(CurrentPath);
 }
+
+
 // ------------------------------------ //
 void FolderSelector::_OnUpFolder(){
 
@@ -104,7 +133,7 @@ void FolderSelector::_OnUpFolder(){
     size_t cutend = 0;
 
     // Scan backwards until a /. We start from the second to last character
-    for(size_t i = CurrentPath.size() - 1; i > 0; --i){
+    for(size_t i = CurrentPath.size() - 1 - 1; i > 0; --i){
 
         if(CurrentPath[i] == '/'){
 
@@ -140,4 +169,9 @@ void FolderSelector::_CreateNewFolder(){
 
     // Update folders
     OnFolderChanged();
+}
+// ------------------------------------ //
+void FolderSelector::_OnPathEntered(){
+
+    GoToPath(PathEntry.get_text());
 }

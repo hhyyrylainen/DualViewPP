@@ -13,7 +13,8 @@ class ResourceWithPreview{
 public:
     
     //! \brief Creates a widget of this type with the values in this
-    virtual std::shared_ptr<ListItem> CreateListItem(const ItemSelectable &selectable) = 0;
+    virtual std::shared_ptr<ListItem> CreateListItem(
+        const std::shared_ptr<ItemSelectable> &selectable) = 0;
 
     //! \brief Returns true if this and other has the same actual type and the same
     //! member values
@@ -38,8 +39,19 @@ struct ItemSelectable{
 
     }
 
+    void AddFolderSelect(std::function<void (ListItem&)> folderselected){
+
+        UsesCustomPopup = true;
+        CustomPopup = folderselected;
+    }
+
     bool Selectable;
     std::function<void (ListItem&)> UpdateCallback;
+
+    //! An extra double click open function, if set overrides any default popups
+    //! (view image in new window)
+    std::function<void (ListItem&)> CustomPopup;
+    bool UsesCustomPopup = false;
 };
 
 

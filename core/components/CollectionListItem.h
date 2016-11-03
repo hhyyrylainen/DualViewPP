@@ -13,8 +13,7 @@ class Collection;
 class CollectionListItem : public ListItem{
 public:
 
-    
-    CollectionListItem(const ItemSelectable &selectable,
+    CollectionListItem(const std::shared_ptr<ItemSelectable> &selectable,
         std::shared_ptr<Collection> showncollection = nullptr);
 
     //! \brief Sets the shown collection

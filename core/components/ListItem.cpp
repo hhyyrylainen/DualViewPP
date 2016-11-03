@@ -6,13 +6,11 @@ using namespace DV;
 // ------------------------------------ //
 
 ListItem::ListItem(std::shared_ptr<Image> showimage, const std::string &name,
-    const ItemSelectable &selectable, bool allowpopup) :
+    const std::shared_ptr<ItemSelectable> &selectable, bool allowpopup) :
     Container(Gtk::ORIENTATION_VERTICAL),
     ImageIcon(showimage, allowpopup ? SuperViewer::ENABLED_EVENTS::POPUP :
         SuperViewer::ENABLED_EVENTS::NONE, true),
-    Selectable(selectable.Selectable),
-    AllowPopUpWIndow(allowpopup),
-    OnSelected(selectable.UpdateCallback)
+    Selectable(selectable)
 {
     add(Events);
     Events.add(Container);
@@ -131,20 +129,25 @@ void ListItem::get_preferred_height_for_width_vfunc(int width,
 // ------------------------------------ //
 bool ListItem::_OnMouseButtonPressed(GdkEventButton* event){
 
-    if(!Selectable && !AllowPopUpWIndow)
+    if(!Selectable)
         return false;
 
     if(event->type == GDK_2BUTTON_PRESS){
 
-        if(AllowPopUpWIndow)
+        if(Selectable->UsesCustomPopup){
+            
             _DoPopup();
-        return true;
+            return true;
+        }
+        
+        return false;
     }
 
     // Left mouse //
     if(event->button == 1){
 
-        SetSelected(!CurrentlySelected);
+        if(Selectable->Selectable)
+            SetSelected(!CurrentlySelected);
     }
 
     return true;
@@ -174,8 +177,8 @@ std::shared_ptr<Image> ListItem::GetPrimaryImage() const{
 // ------------------------------------ //
 void ListItem::_OnSelectionUpdated(){
 
-    if(OnSelected)
-        OnSelected(*this);
+    if(Selectable->Selectable)
+        Selectable->UpdateCallback(*this);
 }
 
 void ListItem::_DoPopup(){

@@ -22,7 +22,8 @@ protected:
     struct Element{
 
         //! \brief Automatically creates the widget from create
-        Element(std::shared_ptr<ResourceWithPreview> create, const ItemSelectable &selectable)
+        Element(std::shared_ptr<ResourceWithPreview> create,
+            const std::shared_ptr<ItemSelectable> &selectable)
             : CreatedFrom(create)
         {
 
@@ -80,8 +81,8 @@ public:
     //!
     //! Will also sort existing items that should be kept
     template<class Iterator>
-        void SetShownItems(Iterator begin, Iterator end, const ItemSelectable &selectable =
-            ItemSelectable())
+        void SetShownItems(Iterator begin, Iterator end,
+            const std::shared_ptr<ItemSelectable> &selectable = nullptr)
     {
         if(Positions.empty()){
 
@@ -141,7 +142,7 @@ public:
 
     //! \brief Adds a new item at the end, doesn't sort the items
     inline void AddItem(std::shared_ptr<ResourceWithPreview> item,
-        const ItemSelectable &selectable = ItemSelectable())
+        const std::shared_ptr<ItemSelectable> &selectable = nullptr)
     {
         _AddWidgetToEnd(item, selectable);
         LayoutDirty = true;
@@ -260,7 +261,7 @@ protected:
 
     //! \brief Adds a new widget to the end
     void _AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item,
-        const ItemSelectable &selectable);
+        const std::shared_ptr<ItemSelectable> &selectable);
 
 
     //! \brief A debug helper, errors if there are duplicates in Positions

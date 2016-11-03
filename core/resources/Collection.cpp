@@ -187,8 +187,9 @@ bool Collection::operator ==(const Collection &other) const{
 }
 // ------------------------------------ //
 // Implementation of ResourceWithPreview
-std::shared_ptr<ListItem> Collection::CreateListItem(const ItemSelectable &selectable){
- 
+std::shared_ptr<ListItem> Collection::CreateListItem(
+    const std::shared_ptr<ItemSelectable> &selectable)
+{
     auto widget = std::make_shared<CollectionListItem>(selectable);
     
     _FillWidget(*widget);

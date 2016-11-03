@@ -8,10 +8,10 @@
 
 using namespace DV;
 // ------------------------------------ //
-FolderListItem::FolderListItem(const ItemSelectable &selectable,
+FolderListItem::FolderListItem(const std::shared_ptr<ItemSelectable> &selectable,
     std::shared_ptr<Folder> shownfolder /*= nullptr*/) :
     ListItem(nullptr,
-        shownfolder ? shownfolder->GetName() : "", selectable, true),
+        shownfolder ? shownfolder->GetName() : "", selectable, false),
     CurrentFolder(shownfolder)
 {
     ImageIcon.SetImage(DualView::Get().GetCacheManager().GetFolderAsImage());
@@ -22,4 +22,13 @@ void FolderListItem::SetFolder(std::shared_ptr<Folder> folder){
 
     CurrentFolder = folder;
     _SetName(folder->GetName());
+}
+// ------------------------------------ //
+void FolderListItem::_DoPopup(){
+
+    if(!Selectable || !Selectable->UsesCustomPopup)
+        return;
+
+    // Folder opened //
+    Selectable->CustomPopup(*this);
 }

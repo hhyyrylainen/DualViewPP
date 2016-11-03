@@ -13,12 +13,19 @@ class FolderListItem : public ListItem{
 public:
 
     
-    FolderListItem(const ItemSelectable &selectable,
+    FolderListItem(const std::shared_ptr<ItemSelectable> &selectable,
         std::shared_ptr<Folder> shownfolder = nullptr);
 
     //! \brief Sets the shown folder
     void SetFolder(std::shared_ptr<Folder> folder);
 
+    auto GetFolder() const{
+
+        return CurrentFolder;
+    }
+
+    //! Used to handle opening folders
+    void _DoPopup() override;
 
 private:
 
