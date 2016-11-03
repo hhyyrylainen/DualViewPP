@@ -348,8 +348,12 @@ void SuperContainer::_RemoveElementsNotMarkedKeep(){
             }
 
             // If still empty there are no more widgets to process
-            if(!current.WidgetToPosition)
-                break;
+            // It doesn't seem to be right for some reason to break here
+            if(!current.WidgetToPosition){
+                
+                ++i;
+                continue;
+            }
         }
         
         if(!Positions[i].WidgetToPosition->Keep){
