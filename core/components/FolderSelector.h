@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SuperContainer.h"
+#include "FolderNavigatorHelper.h"
 
 #include <gtkmm.h>
 
@@ -11,7 +12,7 @@ namespace DV{
 class Folder;
 
 //! \brief Allows selecting a DV::Folder
-class FolderSelector : public Gtk::Box{
+class FolderSelector : public Gtk::Box, public FolderNavigatorHelper{
 public:
 
     //! \brief Non-glade constructor
@@ -24,17 +25,8 @@ public:
     //! \brief Returns the current folder. This is never null
     std::shared_ptr<Folder> GetFolder() const{
 
-        return SelectedFolder;
+        return CurrentFolder;
     }
-
-    //! \brief Goes back to root folder
-    void GoToRoot();
-
-    //! \brief Goes to the specified path, or to Root if the path is invalid
-    void GoToPath(const std::string &path);
-
-    //! \brief Goes to a subfolder
-    void MoveToSubfolder(const std::string &subfoldername);
 
 private:
 
@@ -43,20 +35,14 @@ private:
 protected:
 
     //! \brief Reads the properties of the SelectedFolder
-    void OnFolderChanged();
+    void OnFolderChanged() override;
 
     // Gtk callbacks //
-    void _OnUpFolder();
     void _CreateNewFolder();
-    //! \todo Play error sound on fail and don't go to root
-    void _OnPathEntered();
 
 protected:
     
-    std::shared_ptr<Folder> SelectedFolder;
 
-    //! Because a folder can have multiple paths we keep track of the current one
-    std::string CurrentPath;
 
     //! Shows the CurrentPath to the user and can be used to paste in a path
     Gtk::Entry PathEntry;

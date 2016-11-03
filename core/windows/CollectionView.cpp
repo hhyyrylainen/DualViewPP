@@ -5,6 +5,7 @@
 #include "Database.h"
 
 #include "core/components/SuperContainer.h"
+#include "core/components/FolderListItem.h"
 #include "core/resources/Folder.h"
 #include "core/resources/Collection.h"
 
@@ -23,6 +24,14 @@ CollectionView::CollectionView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> bu
     
     builder->get_widget_derived("ImageContainer", Container);
     LEVIATHAN_ASSERT(Container, "Invalid .glade file");
+
+    builder->get_widget("Path", PathEntry);
+    LEVIATHAN_ASSERT(PathEntry, "Invalid .glade file");
+
+    builder->get_widget("UpFolder", UpFolder);
+    LEVIATHAN_ASSERT(UpFolder, "Invalid .glade file");
+
+    RegisterNavigator(*PathEntry, *UpFolder);
 }
 
 CollectionView::~CollectionView(){
@@ -42,7 +51,18 @@ bool CollectionView::_OnClose(GdkEventAny* event){
 // ------------------------------------ //
 void CollectionView::_OnShown(){
 
-    CurrentFolder = DualView::Get().GetRootFolder();
+    GoToRoot();
+}
+
+void CollectionView::_OnHidden(){
+
+    // Explicitly unload items //
+    
+}
+// ------------------------------------ //
+void CollectionView::OnFolderChanged(){
+
+    PathEntry->set_text(CurrentPath);
 
     // Load items //
     auto isalive = GetAliveMarker();
@@ -69,15 +89,21 @@ void CollectionView::_OnShown(){
 
                     INVOKE_CHECK_ALIVE_MARKER(isalive);
 
-                    Container->SetShownItems(loadedresources->begin(), loadedresources->end());
+                    auto changefolder = std::make_shared<ItemSelectable>();
+
+                    changefolder->AddFolderSelect([this](ListItem &item){
+
+                            FolderListItem* asfolder = dynamic_cast<FolderListItem*>(&item);
+
+                            if(!asfolder)
+                                return;
+
+                            MoveToSubfolder(asfolder->GetFolder()->GetName());
+                        });
+
+                    Container->SetShownItems(loadedresources->begin(), loadedresources->end(),
+                        changefolder);
                 });
         });
 }
-
-void CollectionView::_OnHidden(){
-
-    // Explicitly unload items //
-    
-}
-
 

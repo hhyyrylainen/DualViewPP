@@ -271,7 +271,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton">
+              <object class="GtkButton" id="UpFolder">
                 <property name="label">gtk-go-up</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>

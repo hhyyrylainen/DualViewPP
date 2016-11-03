@@ -1,9 +1,8 @@
 #pragma once
 
 #include "BaseWindow.h"
+#include "core/components/FolderNavigatorHelper.h"
 #include "core/IsAlive.h"
-
-#include "Common/ThreadSafe.h"
 
 #include <gtkmm.h>
 
@@ -14,11 +13,14 @@ class ResourceWithPreview;
 class Folder;
 
 //! \brief Window that shows all the (image) things in the database
-class CollectionView : public Gtk::Window, public IsAlive, public Leviathan::ThreadSafe{
+//! \todo Create a base class for all the path moving functions and callbacks
+class CollectionView : public Gtk::Window, public IsAlive, public FolderNavigatorHelper{
 public:
 
     CollectionView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder);
     ~CollectionView();
+
+    void GoToPath(const std::string &path);
 
 private:
 
@@ -26,13 +28,15 @@ private:
 
     void _OnShown();
     void _OnHidden();
+
+    void OnFolderChanged() override;
     
 private:
 
     SuperContainer* Container = nullptr;
 
-    //! The current folder from which items are shown
-    std::shared_ptr<Folder> CurrentFolder;
+    Gtk::Entry* PathEntry;
+    Gtk::Button* UpFolder;
 };
 
 }
