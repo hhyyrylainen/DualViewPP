@@ -14,11 +14,16 @@ public:
     FolderCreator(const std::string path, const std::string &prefillnewname);
     ~FolderCreator();
 
+    //! \brief Gets the name of the new folder
+    void GetNewName(std::string &name, std::string &parentpath);
+
 protected:
 
-    Gtk::Box Container;
-    
     Gtk::Entry PathEntry;
+
+    Gtk::Box NameContainter;
+    Gtk::Label NameLabel;
+    Gtk::Entry NameEntry;
 };
 
 }

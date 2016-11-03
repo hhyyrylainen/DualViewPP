@@ -803,6 +803,11 @@ std::shared_ptr<Folder> Database::InsertFolder(std::string name, bool isprivate,
 {
     // Sanitize name //
     Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(name, "\\/", ' ');
+
+    if(name.empty()){
+
+        throw InvalidSQL("InsertFolder name is empty", 1, "");
+    }
     
     GUARD_LOCK();
 

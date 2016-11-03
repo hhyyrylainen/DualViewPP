@@ -859,16 +859,48 @@ void DualView::RunFolderCreatorAsDialog(const std::string path,
 {
     AssertIfNotMainThread();
 
+    bool isprivate = false;
+
     FolderCreator window(path, prefillnewname);
 
     window.set_transient_for(parentwindow);
     window.set_modal(true);
 
-    window.add_button("_Cancel", Gtk::RESPONSE_CANCEL);
-    window.add_button("_Open", Gtk::RESPONSE_OK);
+    int result = window.run();
 
-    auto result = window.run();
-    LOG_WRITE("It closed");
+    if(result != Gtk::RESPONSE_OK)
+        return;
+
+    std::string name, createpath;
+    window.GetNewName(name, createpath);
+
+    LOG_INFO("Trying to create new folder \"" + name + "\" at: " + createpath);
+
+    try{
+        auto parent = GetFolderFromPath(createpath);
+
+        if(!parent)
+            throw std::runtime_error("Parent folder at path doesn't exist");
+
+        auto created = _Database->InsertFolder(name, isprivate, *parent);
+
+        if(!created)
+            throw std::runtime_error("Failed to create folder");
+        
+    } catch(const std::exception &e){
+
+        auto dialog = Gtk::MessageDialog(parentwindow,
+            "Failed to create folder \"" + name + "\" at: " + createpath,
+            false,
+            Gtk::MESSAGE_ERROR,
+            Gtk::BUTTONS_OK,
+            true 
+        );
+        dialog.set_secondary_text("Try again without using special characters in the "
+            "folder name. And verify that the path at which the folder is to be "
+            "created is valid. Exception message: " + std::string(e.what()));
+        dialog.run();
+    }
 }
 // ------------------------------------ //
 void DualView::RegisterWindow(Gtk::Window &window){
