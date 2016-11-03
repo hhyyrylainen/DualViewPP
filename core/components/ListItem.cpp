@@ -46,10 +46,12 @@ ListItem::ListItem(std::shared_ptr<Image> showimage, const std::string &name,
     
     _SetName(name);
 
+    Container.override_background_color(Gdk::RGBA("white"));
+
     //TextAreaOverlay.set_valign(Gtk::ALIGN_CENTER);
 
     // Click events //
-    if(Selectable || allowpopup){
+    if(Selectable && (Selectable->Selectable || Selectable->UsesCustomPopup)){
 
         LOG_INFO("Registered for events");
         Events.add_events(Gdk::BUTTON_PRESS_MASK);
@@ -154,7 +156,7 @@ void ListItem::SetSelected(bool selected){
 
     if(!CurrentlySelected){
 
-        Container.unset_background_color();
+        Container.override_background_color(Gdk::RGBA("white"));
         
     } else {
         
