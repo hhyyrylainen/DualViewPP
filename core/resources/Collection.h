@@ -73,6 +73,9 @@ public:
     //! It is either the first image or a specifically set image
     std::shared_ptr<Image> GetPreviewIcon();
 
+    //! \brief Returns all the images in the collection
+    std::vector<std::shared_ptr<Image>> GetImages();
+
     inline auto GetIsPrivate() const{
 
         return IsPrivate;

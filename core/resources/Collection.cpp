@@ -170,6 +170,14 @@ std::shared_ptr<Image> Collection::GetPreviewIcon(){
     return InDatabase->SelectCollectionPreviewImage(*this);
 }
 
+std::vector<std::shared_ptr<Image>> Collection::GetImages(){
+
+    if(!IsInDatabase())
+        return {};
+
+    return InDatabase->SelectImagesInCollection(*this);
+}
+
 // ------------------------------------ //
 void Collection::_DoSave(Database &db){
 

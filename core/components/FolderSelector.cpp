@@ -48,7 +48,6 @@ void FolderSelector::_CommonCtor(){
     set_vexpand(true);
 
     // Attach events //
-    
     CreateNewFolder.signal_clicked().connect(sigc::mem_fun(*this,
             &FolderSelector::_CreateNewFolder));
     

@@ -19,7 +19,10 @@ public:
     //! \brief Sets the shown collection
     void SetCollection(std::shared_ptr<Collection> collection);
 
-
+protected:
+    
+    void _DoPopup() override;
+    
 private:
 
     std::shared_ptr<Collection> CurrentCollection;

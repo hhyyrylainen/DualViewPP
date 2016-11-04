@@ -27,3 +27,8 @@ void CollectionListItem::SetCollection(std::shared_ptr<Collection> collection){
     _SetImage(collection->GetPreviewIcon());
     _SetName(collection->GetName());
 }
+// ------------------------------------ //
+void CollectionListItem::_DoPopup(){
+    
+    DualView::Get().OpenSingleCollectionView(CurrentCollection);
+}

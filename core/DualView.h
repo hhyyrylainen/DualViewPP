@@ -52,6 +52,9 @@ public:
     //! \brief Opens an image viewer for a file
     void OpenImageViewer(std::shared_ptr<Image> image);
 
+    //! \brief Opens Collection viewer for collection
+    void OpenSingleCollectionView(std::shared_ptr<Collection> collection);
+
     //! \brief Opens the tag creation window with the text already filled in
     void OpenTagCreator(const std::string &settext);
 
@@ -60,6 +63,8 @@ public:
 
     //! \brief Opens an empty Importer
     void OpenImporter();
+
+
 
     //! \brief Runs folder creator as a modal window
     void RunFolderCreatorAsDialog(const std::string path, const std::string &prefillnewname,

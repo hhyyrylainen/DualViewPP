@@ -42,6 +42,19 @@ public:
     void SetEditedTags(const std::vector<std::shared_ptr<TagCollection>> &tagstoedit){
 
         EditedCollections = tagstoedit;
+
+        // Erase nullpointers //
+        for(auto iter = EditedCollections.begin(); iter != EditedCollections.end(); ){
+
+            if((*iter)){
+
+                ++iter;
+                
+            } else {
+
+                iter = EditedCollections.erase(iter);
+            }
+        }
         
         ReadSetTags();
         _UpdateEditable();

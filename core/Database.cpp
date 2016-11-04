@@ -744,6 +744,33 @@ std::shared_ptr<Image> Database::SelectFirstImageInCollection(Lock &guard,
 
     return nullptr;
 }
+
+std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollection(
+    const Collection &collection)
+{
+    GUARD_LOCK();
+
+    std::vector<std::shared_ptr<Image>> result;
+
+    const char str[] = "SELECT image FROM collection_image WHERE collection = ? "
+        "ORDER BY show_order ASC;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID());
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+
+        if(statementobj.GetObjectIDFromColumn(id, 0)){
+
+            result.push_back(SelectImageByID(guard, id));
+        }
+    }
+
+    return result;
+}
     
 // ------------------------------------ //
 size_t Database::CountExistingTags(){

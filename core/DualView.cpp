@@ -8,6 +8,7 @@
 #include "windows/Importer.h"
 #include "windows/TagManager.h"
 #include "windows/FolderCreator.h"
+#include "windows/SingleCollection.h"
 
 #include "core/CacheManager.h"
 #include "core/Database.h"
@@ -812,6 +813,29 @@ void DualView::OpenImageViewer(std::shared_ptr<Image> image){
     wrapped->show();
     
     wrapped->Open(image);
+}
+
+void DualView::OpenSingleCollectionView(std::shared_ptr<Collection> collection){
+
+    AssertIfNotMainThread();
+
+    auto builder = Gtk::Builder::create_from_file(
+        "../gui/single_collection.glade");
+
+    SingleCollection* window;
+    builder->get_widget_derived("SingleCollection", window);
+
+    if(!window){
+
+        LOG_ERROR("SingleCollection window GUI layout is invalid");
+        return;
+    }
+
+    std::shared_ptr<SingleCollection> wrapped(window);
+    _AddOpenWindow(wrapped, *window);
+    wrapped->show();
+    
+    wrapped->ShowCollection(collection);
 }
 
 void DualView::OpenImporter(){

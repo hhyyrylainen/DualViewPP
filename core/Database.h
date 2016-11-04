@@ -206,6 +206,9 @@ public:
         const Collection &collection);
     CREATE_NON_LOCKING_WRAPPER(SelectFirstImageInCollection);
 
+    //! \brief Returns all images in a collection
+    std::vector<std::shared_ptr<Image>> SelectImagesInCollection(const Collection &collection);
+
     // Statistics functions //
     size_t CountExistingTags();
 
