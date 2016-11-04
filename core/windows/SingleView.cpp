@@ -5,6 +5,7 @@
 #include "core/resources/Tags.h"
 
 #include "core/components/SuperViewer.h"
+#include "core/components/TagEditor.h"
 
 #include "Exceptions.h"
 #include "DualView.h"
@@ -13,7 +14,8 @@
 using namespace DV;
 // ------------------------------------ //
 SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
-    Gtk::Window(window)
+    Gtk::Window(window),
+    EditTagsButton("Edit Tags")
 {
     signal_delete_event().connect(sigc::mem_fun(*this, &BaseWindow::_OnClosed));
 
@@ -36,6 +38,20 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     builder->get_widget("ImageSize", ImageSize);
     LEVIATHAN_ASSERT(ImageSize, "Invalid .glade file");
+
+    builder->get_widget_derived("ImageTags", ImageTags);
+    LEVIATHAN_ASSERT(ImageTags, "Invalid .glade file");
+
+    // Fill the toolbar //
+    Gtk::Toolbar* ImageToolbar;
+    builder->get_widget("ImageToolbar", ImageToolbar);
+    LEVIATHAN_ASSERT(ImageToolbar, "Invalid .glade file");
+
+    ImageToolbar->append(EditTagsButton, sigc::mem_fun(*this,
+            &SingleView::ToggleTagEditor));
+    
+    ImageToolbar->show_all_children();
+
 }
 
 SingleView::~SingleView(){
@@ -77,11 +93,18 @@ void SingleView::OnTagsUpdated(Lock &guard){
             Convert::ToString(img->GetHeight()));
     }
 
+    auto tags = img ? img->GetTags() : nullptr;
+
+    if(ImageTags->get_visible()){
+
+        ImageTags->SetEditedTags({ tags });
+    }
+
     // Start listening for changes on the image //
     if(!IsConnectedTo(img.get(), guard))
         ConnectToNotifier(guard, img.get());
 
-    if(!img->GetTags()){
+    if(!tags){
 
         // Reset tags and block editing //
         TagsLabel->set_text("");
@@ -90,7 +113,6 @@ void SingleView::OnTagsUpdated(Lock &guard){
         
         // Set tags //
         auto isalive = GetAliveMarker();
-        auto tags = img->GetTags();
         
         // Set to editor //
         TagsLabel->set_text("Tags loading...");
@@ -114,4 +136,18 @@ void SingleView::_OnClose(){
     LOG_INFO("SingleView window closed");
 
 }
+// ------------------------------------ //
+void SingleView::ToggleTagEditor(){
 
+    if(ImageTags->get_visible()){
+
+        ImageTags->SetEditedTags({});
+        ImageTags->hide();
+        
+    } else {
+        
+        ImageTags->show();
+        auto img = ImageView->GetImage();
+        ImageTags->SetEditedTags({ img ? img->GetTags() : nullptr});
+    }
+}

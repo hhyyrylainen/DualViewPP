@@ -10,6 +10,7 @@
 namespace DV{
 
 class SuperViewer;
+class TagEditor;
 class Image;
 
 //! \brief Window that shows a single image
@@ -28,6 +29,9 @@ public:
     //! \brief Updates the shown tags
     void OnTagsUpdated(Lock &guard);
 
+    //! \brief Sets tag editor visible or hides it
+    void ToggleTagEditor();
+
     //! \brief Called when the shown image changes properties
     void OnNotified(Lock &ownlock, Leviathan::BaseNotifierAll* parent, Lock &parentlock)
         override;
@@ -38,9 +42,15 @@ protected:
     
 private:
 
-    SuperViewer* ImageView = nullptr;
-    Gtk::Label* TagsLabel = nullptr;
-    Gtk::Label* ImageSize = nullptr;
+    SuperViewer* ImageView;
+
+    TagEditor* ImageTags;
+    
+    Gtk::Label* TagsLabel;
+    Gtk::Label* ImageSize;
+
+    // Toolbar
+    Gtk::ToolButton EditTagsButton;
 };
 
 }
