@@ -51,7 +51,7 @@ ListItem::ListItem(std::shared_ptr<Image> showimage, const std::string &name,
     // Click events //
     if(Selectable && (Selectable->Selectable || Selectable->UsesCustomPopup)){
 
-        LOG_INFO("Registered for events");
+        //LOG_INFO("Registered for events");
         Events.add_events(Gdk::BUTTON_PRESS_MASK);
 
         Events.signal_button_press_event().connect(
