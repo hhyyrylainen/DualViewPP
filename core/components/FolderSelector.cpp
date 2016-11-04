@@ -48,14 +48,9 @@ void FolderSelector::_CommonCtor(){
     set_vexpand(true);
 
     // Attach events //
-
+    
     CreateNewFolder.signal_clicked().connect(sigc::mem_fun(*this,
             &FolderSelector::_CreateNewFolder));
-
-    UpFolder.signal_clicked().connect(sigc::mem_fun(*this, &FolderSelector::_OnUpFolder));
-    
-    PathEntry.signal_activate().connect(sigc::mem_fun(*this,
-            &FolderSelector::_OnPathEntered));
     
     show_all_children();
 

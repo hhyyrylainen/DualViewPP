@@ -52,7 +52,7 @@ void FolderNavigatorHelper::MoveToSubfolder(const std::string &subfoldername){
 // ------------------------------------ //
 void FolderNavigatorHelper::_OnUpFolder(){
 
-    if(CurrentPath == "Root/")
+    if(CurrentPath == "Root/" || CurrentPath == "Root")
         return;
 
     if(CurrentPath.size() < 2){
@@ -69,7 +69,7 @@ void FolderNavigatorHelper::_OnUpFolder(){
 
         if(CurrentPath[i] == '/'){
 
-            cutend = i + 1;
+            cutend = i;
             break;
         }
     }
@@ -77,12 +77,13 @@ void FolderNavigatorHelper::_OnUpFolder(){
     if(cutend < 1 || cutend > CurrentPath.size()){
 
         // Cutting failed //
-        LOG_ERROR("FolderNavigator: path cutting failed. Path is: " + CurrentPath);
+        LOG_ERROR("FolderNavigator: path cutting failed. cut: " + Convert::ToString(cutend) +
+            " Path is: " + CurrentPath);
         GoToRoot();
         return;
     }
     
-    GoToPath(CurrentPath.substr(0, cutend));
+    GoToPath(CurrentPath.substr(0, cutend + 1));
 }
 
 void FolderNavigatorHelper::_OnPathEntered(){
