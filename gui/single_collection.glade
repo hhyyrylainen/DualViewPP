@@ -75,7 +75,7 @@
             </child>
           </object>
           <packing>
-            <property name="expand">True</property>
+            <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="position">0</property>
           </packing>
@@ -111,7 +111,7 @@
           </packing>
         </child>
         <child>
-          <object class="GtkBox" id="TagEditor">
+          <object class="GtkBox" id="CollectionTags">
             <property name="can_focus">False</property>
             <property name="orientation">vertical</property>
             <child>

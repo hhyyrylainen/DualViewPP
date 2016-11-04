@@ -29,6 +29,9 @@ SingleCollection::SingleCollection(_GtkWindow* window, Glib::RefPtr<Gtk::Builder
 
     builder->get_widget("StatusLabel", StatusLabel);
     LEVIATHAN_ASSERT(StatusLabel, "Invalid .glade file");
+
+    OpenTagEdit->signal_clicked().connect(sigc::mem_fun(*this,
+            &SingleCollection::ToggleTagEditor));
 }
 
 SingleCollection::~SingleCollection(){
@@ -99,3 +102,19 @@ void SingleCollection::_OnClose(){
 
 
 }
+// ------------------------------------ //
+void SingleCollection::ToggleTagEditor(){
+
+    if(CollectionTags->get_visible()){
+
+        CollectionTags->SetEditedTags({});
+        CollectionTags->hide();
+        
+    } else {
+
+        CollectionTags->show();
+        CollectionTags->SetEditedTags({
+                ShownCollection ? ShownCollection->GetTags() : nullptr });
+    }
+}
+

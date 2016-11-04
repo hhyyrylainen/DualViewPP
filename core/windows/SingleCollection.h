@@ -28,6 +28,9 @@ public:
     //! \brief Updates the shown images
     void ReloadImages(Lock &guard);
 
+    //! \brief Sets tag editor visible or hides it
+    void ToggleTagEditor();
+
     //! \brief Called when an image is added or removed from the collection
     void OnNotified(Lock &ownlock, Leviathan::BaseNotifierAll* parent, Lock &parentlock)
         override;
@@ -41,7 +44,7 @@ private:
     SuperContainer* ImageContainer;
     
     TagEditor* CollectionTags;
-    Gtk::Button* OpenTagEdit;
+    Gtk::ToolButton* OpenTagEdit;
     
     Gtk::Label* StatusLabel;
 
