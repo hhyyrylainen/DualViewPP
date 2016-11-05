@@ -31,9 +31,10 @@ public:
         try{
             date::get_tzdb();
 
-        } catch(...){
+        } catch(const std::exception &e){
 
-            LOG_FATAL("Failed to initialize / download timezone database");
+            LOG_FATAL("Failed to initialize / download timezone database: " +
+                std::string(e.what()));
             throw;
         }
 
