@@ -126,7 +126,10 @@ void Database::Init(){
     GUARD_LOCK();
 
     {
-        const char str[] = "PRAGMA foreign_keys = ON; PRAGMA recursive_triggers = ON";
+        const char str[] = "PRAGMA foreign_keys = ON; PRAGMA recursive_triggers = ON; "
+            // Note if this is changed also places where journal_mode is restored
+            //! need to be updated
+            "PRAGMA journal_mode = DELETE;";
 
         PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -1537,7 +1540,7 @@ bool Database::CheckDoesAppliedTagModifiersMatch(Lock &guard, DBID id, const App
     std::vector<DBID> modifierids;
     const auto& tagmodifiers = tag.GetModifiers();
     
-    modifierids.reserve(tagmodifiers.size());
+     modifierids.reserve(tagmodifiers.size());
 
     while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
 
@@ -1560,11 +1563,16 @@ bool Database::CheckDoesAppliedTagModifiersMatch(Lock &guard, DBID id, const App
 
         if(!found)
             return false;
+
+        // Store for matching other way //
+        modifierids.push_back(modid);
     }
 
     // Fail if modifierids and tagmodifiers don't contain the same things //
-    if(modifierids.size() != tagmodifiers.size())
+    if(modifierids.size() != tagmodifiers.size()){
+
         return false;
+    }
 
     for(const auto &tagmod : tagmodifiers){
 
@@ -1644,7 +1652,7 @@ bool Database::CheckDoesAppliedTagCombinesMatch(Lock &guard, DBID id, const Appl
 
 DBID Database::SelectAppliedTagIDByOffset(Lock &guard, int64_t offset){
 
-    const char str[] = "SELECT id FROM applied_tag ORDER BY id ASC OFFSET ? LIMIT 1;";
+    const char str[] = "SELECT id FROM applied_tag ORDER BY id ASC LIMIT 1 OFFSET ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -1665,60 +1673,37 @@ DBID Database::SelectAppliedTagIDByOffset(Lock &guard, int64_t offset){
 
 void Database::CombineAppliedTagDuplicate(Lock &guard, DBID first, DBID second){
 
+    LEVIATHAN_ASSERT(first != second,
+        "CombienAppliedTagDuplicate called with the same tag");
+
     // Update references //
-    {
-        const char str[] = "UPDATE collection_tag SET tag = ?1 WHERE tag = ?2;";
+    // It's also possible that the change would cause duplicates.
+    // So after updating delete the rest
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    // Collection
+    RunSQLAsPrepared(guard, "UPDATE collection_tag SET tag = ?1 WHERE tag = ?2;",
+        first, second);
 
-        auto statementinuse = statementobj.Setup(first, second); 
-    
-        statementobj.StepAll(statementinuse);
-    }
+    RunSQLAsPrepared(guard, "DELETE FROM collection_tag WHERE tag = ?;", second);
 
-    {
-        const char str[] = "UPDATE image_tag SET tag = ?1 WHERE tag = ?2;";
+    // Image
+    RunSQLAsPrepared(guard, "UPDATE image_tag SET tag = ?1 WHERE tag = ?2;",
+        first, second);
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
-
-        auto statementinuse = statementobj.Setup(first, second); 
-    
-        statementobj.StepAll(statementinuse);
-    }
-
-    {
-        const char str[] = "UPDATE image_tag SET tag = ?1 WHERE tag = ?2;";
-
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
-
-        auto statementinuse = statementobj.Setup(first, second); 
-    
-        statementobj.StepAll(statementinuse);
-    }
+    RunSQLAsPrepared(guard, "DELETE FROM image_tag WHERE tag = ?;", second);
 
     // combine left side
-    {
-        const char str[] = "UPDATE applied_tag_combine SET tag_left = ?1 WHERE tag_left = ?2;";
+    RunSQLAsPrepared(guard, "UPDATE applied_tag_combine SET tag_left = ?1 "
+        "WHERE tag_left = ?2;", first, second);
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
-
-        auto statementinuse = statementobj.Setup(first, second); 
-    
-        statementobj.StepAll(statementinuse);
-    }
+    RunSQLAsPrepared(guard, "DELETE FROM applied_tag_combine WHERE tag_left = ?;", second);
 
     // combine right side
-    {
-        const char str[] = "UPDATE applied_tag_combine SET tag_right = ?1 WHERE "
-            "tag_right = ?2;";
+    RunSQLAsPrepared(guard, "UPDATE applied_tag_combine SET tag_right = ?1 "
+        "WHERE tag_right = ?2;", first, second);
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
-
-        auto statementinuse = statementobj.Setup(first, second); 
+    RunSQLAsPrepared(guard, "DELETE FROM applied_tag_combine WHERE tag_right = ?;", second);
     
-        statementobj.StepAll(statementinuse);
-    }
-
     LEVIATHAN_ASSERT(!SelectIsAppliedTagUsed(guard, second),
         "CombienAppliedTagDuplicate failed to remove all references to tag");
 
@@ -1913,6 +1898,11 @@ void Database::CombineAllPossibleAppliedTags(Lock &guard){
     LOG_INFO("Database: Maintainance combining all applied_tags that are the same. "
         "Modifier count: " + Convert::ToString(count));
 
+    // For super speed check against only other tags that have the same primary tag
+    const char str[] = "SELECT id FROM applied_tag WHERE tag = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
     for(int64_t i = 0; i < count; ++i){
 
         DBID currentid = SelectAppliedTagIDByOffset(guard, i);
@@ -1920,17 +1910,29 @@ void Database::CombineAllPossibleAppliedTags(Lock &guard){
         if(currentid < 0)
             continue;
 
+        if(currentid == 20449)
+            DEBUG_BREAK;
+
         auto currenttag = SelectAppliedTagByID(guard, currentid);
 
-        // Check against each one to make sure it doesn't match them //
-        for(int64_t a = 0; a < count; ++a){
+        auto statementinuse = statementobj.Setup(currenttag->GetTag()->GetID()); 
+    
+        while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
 
-            // Don't compare with self //
-            if(a == i)
+            DBID otherid = -1;
+            if(!statementobj.GetObjectIDFromColumn(otherid, 0))
+                continue;
+            
+            // Don't compare with self
+            if(currentid == otherid)
                 continue;
 
-            DBID otherid = SelectAppliedTagIDByOffset(guard, a);
+            if(otherid == 20458)
+                DEBUG_BREAK;
 
+            // Primary tags should match already //
+
+            // Then check modifiers and combines
             if(!CheckDoesAppliedTagModifiersMatch(guard, otherid, *currenttag))
                 continue;
 
@@ -1949,20 +1951,20 @@ void Database::CombineAllPossibleAppliedTags(Lock &guard){
         }
     }
 
+    // Verify that count is still right, there shouldn't be anything at offset count
+    DBID verifyisinvalid = SelectAppliedTagIDByOffset(guard, count);
+
+    LEVIATHAN_ASSERT(verifyisinvalid == -1, "Combine AppliedTag decreasing count has "
+        "resulted in wrong number");
+
     LOG_INFO("Database: maintainance shrunk applied_tag count to: " +
         Convert::ToString(count));
 
     // Finish off by deleting duplicate combines
-    const char str[] = "DELETE FROM applied_tag_combine WHERE rowid NOT IN "
+    RunSQLAsPrepared(guard, "DELETE FROM applied_tag_combine WHERE rowid NOT IN "
         "(SELECT min(rowid) FROM applied_tag_combine GROUP BY "
-        "tag_left, tag_right, combined_with);";
+        "tag_left, tag_right, combined_with);");
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
-
-    auto statementinuse = statementobj.Setup(); 
-    
-    statementobj.StepAll(statementinuse);
-        
     LOG_INFO("Database: Maintainance for combining all applied_tags finished.");
 }
 
@@ -2189,6 +2191,8 @@ bool Database::_UpdateDatabase(Lock &guard, const int oldversion){
     } while (boost::filesystem::exists(targetfile));
 
     boost::filesystem::copy(DatabaseFile, targetfile);
+
+    LOG_INFO("Database: running update from version " + Convert::ToString(oldversion));
     
     switch(oldversion){
     case 14:
@@ -2199,11 +2203,30 @@ bool Database::_UpdateDatabase(Lock &guard, const int oldversion){
     }
     case 15:
     {
+        // Delete all invalid AppliedTags
+        RunSQLAsPrepared(guard, "DELETE FROM applied_tag WHERE tag = -1;");
+        
+        LOG_WARNING("During this update sqlite won't run in synchronous mode");
+        _RunSQL(guard, "PRAGMA synchronous = OFF; PRAGMA journal_mode = MEMORY;");
+        
         // This makes sure all appliedtags are unique, and combines are fine
         // which is required for the new version
-        CombineAllPossibleAppliedTags(guard);
+        try{
+            CombineAllPossibleAppliedTags(guard);
+        
+        } catch(...){
+
+            // Save progress //
+            sqlite3_db_cacheflush(SQLiteDb);
+            throw;
+        }
+
+        _RunSQL(guard, "PRAGMA synchronous = ON; PRAGMA journal_mode = DELETE;");
+        
         _RunSQL(guard, STR_MIGRATION_15_16_SQL);
         _SetCurrentDatabaseVersion(guard, 16);
+
+
         return true;
     }
 
@@ -2284,6 +2307,7 @@ void Database::PrintResultingRows(Lock &guard, const std::string &str){
 
     auto statementinuse = statementobj.Setup(); 
 
+    LOG_INFO("SQL result from: \"" + str + "\"");
     statementobj.StepAndPrettyPrint(statementinuse);
 }
 // ------------------------------------ //

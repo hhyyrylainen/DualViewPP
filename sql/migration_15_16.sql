@@ -14,8 +14,8 @@ CREATE TABLE applied_tag_combine (
     combined_with TEXT NOT NULL,
 );
 
-INSERT INTO applied_tag_combine (tag_left, tag_right, combined_with) SELECT
-       tag_left, tag_right, combined_with FROM applied_tag_combine_old;
+INSERT INTO applied_tag_combine (tag_left, tag_right, combined_with) (SELECT
+       tag_left, tag_right, combined_with FROM applied_tag_combine_old);
 
 DROP TABLE applied_tag_combine_old;
 

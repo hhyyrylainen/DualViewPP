@@ -54,6 +54,9 @@ public:
     //! \brief Creates a statement
     PreparedStatement(sqlite3* sqlite, const std::string &str);
 
+    PreparedStatement(const PreparedStatement &other) = delete;
+    PreparedStatement& operator=(PreparedStatement &other) = delete;
+
     ~PreparedStatement(){
 
         sqlite3_finalize(Statement);

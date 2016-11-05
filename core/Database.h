@@ -4,6 +4,7 @@
 #include "SQLHelpers.h"
 
 #include "SingleLoad.h"
+#include "PreparedStatement.h"
 
 #include "Common.h"
 
@@ -323,6 +324,7 @@ public:
     // AppliedTag
     //
     std::shared_ptr<AppliedTag> SelectAppliedTagByID(Lock &guard, DBID id);
+    CREATE_NON_LOCKING_WRAPPER(SelectAppliedTagByID);
 
     //! \brief If the tag is in the database (same main tag and other properties)
     //! returns that
@@ -370,6 +372,8 @@ public:
     //! First is the ID that will be preserved and all references to second will be changed
     //! to first
     void CombineAppliedTagDuplicate(Lock &guard, DBID first, DBID second);
+
+
 
     //
     // TagModifier
@@ -421,6 +425,37 @@ protected:
 
     //! \brief Runs a command and prints all the result rows with column headers to log
     void PrintResultingRows(Lock &guard, const std::string &str);
+
+    //! \brief Runs a command and prints all the result rows with column headers to log
+    //!
+    //! This version allows settings parameters
+    template<typename... TBindTypes>
+        void PrintResultingRows(Lock &guard, const std::string &str,
+            TBindTypes&&... valuestobind)
+    {
+        PreparedStatement statementobj(SQLiteDb, str);
+
+        auto statementinuse = statementobj.Setup(std::forward<TBindTypes>(valuestobind)...); 
+
+        LOG_INFO("SQL result from: \"" + str + "\"");
+        statementobj.StepAndPrettyPrint(statementinuse);
+    }
+
+    //! \brief Runs SQL statement as a prepared statement with the values
+    template<typename... TBindTypes>
+        void RunSQLAsPrepared(Lock &guard, const std::string &str,
+            TBindTypes&&... valuestobind)
+    {
+        PreparedStatement statementobj(SQLiteDb, str);
+
+        auto statementinuse = statementobj.Setup(std::forward<TBindTypes>(valuestobind)...); 
+
+        statementobj.StepAll(statementinuse);
+    }
+
+    //! \brief Runs a raw sql query.
+    //! \note Don't use unless absolutely necessary prefer to use Database::RunSqlAsPrepared
+    void _RunSQL(Lock &guard, const std::string &sql);
     
 private:
 
@@ -487,10 +522,6 @@ private:
 
     //! \brief Sets the database version. Should only be called from _UpdateDatabase
     void _SetCurrentDatabaseVersion(Lock &guard, int newversion);
-
-    //! \brief Runs a raw sql query.
-    //! \note Don't use unless absolutely necessary
-    void _RunSQL(Lock &guard, const std::string &sql);
     
 protected:
 

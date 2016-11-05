@@ -896,3 +896,56 @@ TEST_CASE("Virtual folder Path parsing works", "[folder][path][db]"){
 
 }
 
+TEST_CASE("Specific database applied tag is same", "[tags][db]"){
+
+    std::unique_ptr<Database> dbptr(new TestDatabase());
+    DummyDualView dv(std::move(dbptr));
+    auto& db = static_cast<TestDatabase&>(dv.GetDatabase());
+
+    REQUIRE_NOTHROW(db.Init());
+
+    SECTION("brown hair == brown hair"){
+
+        // 20449
+        // 20458
+        auto hairid = db.SelectTagByNameAG("hair");
+        auto brownmod = db.SelectTagModifierByNameAG("brown");
+
+        REQUIRE(hairid);
+        REQUIRE(brownmod);
+
+        db.Run("BEGIN TRANSACTION;");
+        db.Run("INSERT INTO applied_tag (id, tag) VALUES (?, ?)", 20449, hairid->GetID());
+        db.Run("INSERT INTO applied_tag_modifier (to_tag, modifier) VALUES (?, ?)", 20449,
+            brownmod->GetID());
+        
+        db.Run("INSERT INTO applied_tag (id, tag) VALUES (?, ?)", 20458, hairid->GetID());
+        db.Run("INSERT INTO applied_tag_modifier (to_tag, modifier) VALUES (?, ?)", 20458,
+            brownmod->GetID());
+
+        db.Run("COMMIT TRANSACTION;");
+
+        auto tag1 = db.SelectAppliedTagByIDAG(20449);
+
+        REQUIRE(tag1);
+        REQUIRE(tag1->ToAccurateString() == "brown hair");
+
+        auto tag2 = db.SelectAppliedTagByIDAG(20458);
+
+        REQUIRE(tag2);
+        REQUIRE(tag2->ToAccurateString() == "brown hair");
+
+        GUARD_LOCK_OTHER(db);
+       
+        CHECK(db.CheckDoesAppliedTagModifiersMatch(guard, 20458, *tag1));
+        CHECK(db.CheckDoesAppliedTagCombinesMatch(guard, 20458, *tag1));
+
+        CHECK(db.CheckDoesAppliedTagModifiersMatch(guard, 20449, *tag2));
+        CHECK(db.CheckDoesAppliedTagCombinesMatch(guard, 20449, *tag2));
+
+    }
+    
+    
+    
+}
+

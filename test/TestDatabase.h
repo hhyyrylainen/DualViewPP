@@ -51,6 +51,26 @@ public:
         return SelectImageByHash(guard, hash);
     }
 
+    //! Very unsafe
+    void Run(const std::string &str){
+
+        GUARD_LOCK();
+
+        _RunSQL(guard, str);
+    }
+
+    template<typename... TBindTypes>
+        void Run(const std::string &str, TBindTypes&&... valuestobind)
+    {
+        GUARD_LOCK();
+
+        PreparedStatement statementobj(SQLiteDb, str);
+
+        auto statementinuse = statementobj.Setup(std::forward<TBindTypes>(valuestobind)...); 
+
+        statementobj.StepAll(statementinuse);
+    }
+
     //! Prints the applied tag table
     void PrintAppliedTagTable(){
 
