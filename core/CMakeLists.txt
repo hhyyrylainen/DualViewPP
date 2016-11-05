@@ -39,6 +39,7 @@ add_library(Core
   CacheManager.h CacheManager.cpp
 
   IsAlive.h
+  UbuntuWorkaround.h
 
   VirtualPath.h VirtualPath.cpp
   TimeHelpers.h TimeHelpers.cpp

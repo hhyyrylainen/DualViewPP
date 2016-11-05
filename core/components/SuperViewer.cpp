@@ -17,15 +17,25 @@ using namespace DV;
 
 constexpr auto MAX_LOADING_LINES = 6;
 
-SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
-    std::shared_ptr<Image> displayedResource, bool forcethumbnail) :
-    Gtk::DrawingArea(area), DisplayedResource(displayedResource),
-    Events(ENABLED_EVENTS::ALL),
-    ForceOnlyThumbnail(forcethumbnail)
+#ifdef DV_BUILDER_WORKAROUND
+
+SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder) :
+    Gtk::DrawingArea(area)
 {
-    // Do setup stuff //
+
+}
+
+void SuperViewer::Init(std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events,
+    bool forcethumbnail)
+{
+    DisplayedResource = displayedResource;
+    Events = events;
+    ForceOnlyThumbnail = forcethumbnail;
+    
     _CommonCtor();
 }
+
+#else
 
 SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
     std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events,
@@ -38,6 +48,8 @@ SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> build
     _CommonCtor();
 }
 
+#endif
+
 SuperViewer::SuperViewer(std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events,
     bool forcethumbnail) :
     DisplayedResource(displayedResource),
@@ -47,6 +59,7 @@ SuperViewer::SuperViewer(std::shared_ptr<Image> displayedResource, ENABLED_EVENT
     PRINT_INFO("constructed with a resource");
     _CommonCtor();
 }
+
 
 void SuperViewer::_CommonCtor(){
 

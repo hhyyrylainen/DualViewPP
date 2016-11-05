@@ -124,25 +124,31 @@ Database::~Database(){
 void Database::Init(){
 
     GUARD_LOCK();
-    
-    if(SQLITE_OK != sqlite3_exec(SQLiteDb,
-            "PRAGMA foreign_keys = ON; PRAGMA recursive_triggers = ON",
-            nullptr, nullptr, nullptr))
+
     {
-        throw Leviathan::InvalidState("Failed to enable foreign keys");
+        const char str[] = "PRAGMA foreign_keys = ON; PRAGMA recursive_triggers = ON";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup();
+
+        statementobj.StepAll(statementinuse);
     }
 
     // Verify foreign keys are on //
     {
-        GrabResultHolder grab;
-        sqlite3_exec(SQLiteDb, "PRAGMA foreign_keys; PRAGMA recursive_triggers;",
-            &Database::SqliteExecGrabResult,
-            &grab, nullptr);
+        const char str[] = "PRAGMA foreign_keys; PRAGMA recursive_triggers;";
 
-        if(grab.Rows.size() != 2 || grab.Rows[0].ColumnValues[0] != "1" ||
-            grab.Rows[1].ColumnValues[0] != "1")
-        {
-            throw Leviathan::InvalidState("Foreign keys didn't get enabled");
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup();
+
+        while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+            if(statementobj.GetColumnAsInt(0) != 1){
+
+                throw Leviathan::InvalidState("Foreign keys didn't get enabled");
+            }
         }
     }
 
@@ -179,20 +185,30 @@ void Database::PurgeInactiveCache(){
 // ------------------------------------ //
 bool Database::SelectDatabaseVersion(Lock &guard, int &result){
 
-    GrabResultHolder grab;
-    sqlite3_exec(SQLiteDb, "SELECT number FROM version;",
-        &Database::SqliteExecGrabResult,
-        &grab, nullptr);
+    const char str[] = "SELECT number FROM version;";
 
-    if(grab.Rows.size() != 1 || grab.Rows[0].ColumnValues.empty())
-    {
-        // There is no version //
+    try{
+        
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup();
+
+        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+            result = statementobj.GetColumnAsInt(0);
+            return true;
+        }
+        
+    } catch(const InvalidSQL&){
+
+        // No version info
         result = -1;
         return false;
     }
 
-    result = Convert::StringTo<int>(grab.Rows[0].ColumnValues[0]);
-    return true;
+    // There is no version //
+    result = -1;
+    return false;
 }
 // ------------------------------------ //
 // Image
@@ -1444,52 +1460,9 @@ bool Database::InsertAppliedTag(Lock &guard, AppliedTag &tag){
 
 void Database::DeleteAppliedTagIfNotUsed(Lock &guard, AppliedTag &tag){
 
-    // Check images
-    {
-        const char str[] = "SELECT 1 FROM image_tag WHERE tag = ? LIMIT 1;";
-
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
-
-        auto statementinuse = statementobj.Setup(tag.GetID()); 
+    if(SelectIsAppliedTagUsed(guard, tag.GetID()))
+        return;
     
-        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
-
-            // In use //
-            return;
-        }
-    }
-
-    // Check collections
-    {
-        const char str[] = "SELECT 1 FROM collection_tag WHERE tag = ? LIMIT 1;";
-
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
-
-        auto statementinuse = statementobj.Setup(tag.GetID()); 
-    
-        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
-
-            // In use //
-            return;
-        }
-    }
-
-    // Check tag combines
-    {
-        const char str[] = "SELECT 1 FROM applied_tag_combine WHERE tag_left = ?1 OR "
-            "tag_right = ?1 LIMIT 1;";
-
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
-
-        auto statementinuse = statementobj.Setup(tag.GetID()); 
-    
-        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
-
-            // In use //
-            return;
-        }
-    }    
-
     // Not used, delete //
     const char str[] = "DELETE FROM applied_tag WHERE id = ?1;";
 
@@ -1500,6 +1473,57 @@ void Database::DeleteAppliedTagIfNotUsed(Lock &guard, AppliedTag &tag){
     statementobj.StepAll(statementinuse);
 
     tag.Orphaned();
+}
+
+bool Database::SelectIsAppliedTagUsed(Lock &guard, DBID id){
+
+    // Check images
+    {
+        const char str[] = "SELECT 1 FROM image_tag WHERE tag = ? LIMIT 1;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(id); 
+    
+        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+            // In use //
+            return true;
+        }
+    }
+
+    // Check collections
+    {
+        const char str[] = "SELECT 1 FROM collection_tag WHERE tag = ? LIMIT 1;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(id); 
+    
+        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+            // In use //
+            return true;
+        }
+    }
+
+    // Check tag combines
+    {
+        const char str[] = "SELECT 1 FROM applied_tag_combine WHERE tag_left = ?1 OR "
+            "tag_right = ?1 LIMIT 1;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(id); 
+    
+        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+            // In use //
+            return true;
+        }
+    }    
+
+    return false;
 }
 
 bool Database::CheckDoesAppliedTagModifiersMatch(Lock &guard, DBID id, const AppliedTag &tag){
@@ -1617,6 +1641,97 @@ bool Database::CheckDoesAppliedTagCombinesMatch(Lock &guard, DBID id, const Appl
     // Succeeded if there wasn't supposed to be a combine
     return rightside == -1;
 }
+
+DBID Database::SelectAppliedTagIDByOffset(Lock &guard, int64_t offset){
+
+    const char str[] = "SELECT id FROM applied_tag ORDER BY id ASC OFFSET ? LIMIT 1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(offset); 
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return statementobj.GetColumnAsInt64(0);
+        
+    } else {
+
+        LOG_WARNING("Database failed to retrieve applied_tag with offset: " +
+            Convert::ToString(offset));
+    }
+
+    return -1;
+}
+
+void Database::CombineAppliedTagDuplicate(Lock &guard, DBID first, DBID second){
+
+    // Update references //
+    {
+        const char str[] = "UPDATE collection_tag SET tag = ?1 WHERE tag = ?2;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(first, second); 
+    
+        statementobj.StepAll(statementinuse);
+    }
+
+    {
+        const char str[] = "UPDATE image_tag SET tag = ?1 WHERE tag = ?2;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(first, second); 
+    
+        statementobj.StepAll(statementinuse);
+    }
+
+    {
+        const char str[] = "UPDATE image_tag SET tag = ?1 WHERE tag = ?2;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(first, second); 
+    
+        statementobj.StepAll(statementinuse);
+    }
+
+    // combine left side
+    {
+        const char str[] = "UPDATE applied_tag_combine SET tag_left = ?1 WHERE tag_left = ?2;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(first, second); 
+    
+        statementobj.StepAll(statementinuse);
+    }
+
+    // combine right side
+    {
+        const char str[] = "UPDATE applied_tag_combine SET tag_right = ?1 WHERE "
+            "tag_right = ?2;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(first, second); 
+    
+        statementobj.StepAll(statementinuse);
+    }
+
+    LEVIATHAN_ASSERT(!SelectIsAppliedTagUsed(guard, second),
+        "CombienAppliedTagDuplicate failed to remove all references to tag");
+
+    // And the delete it //
+    const char str[] = "DELETE FROM applied_tag WHERE id = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(second); 
+    
+    statementobj.StepAll(statementinuse);
+}
+    
 
 //
 // TagModifier
@@ -1778,10 +1893,77 @@ void Database::UpdateTagBreakRule(const TagBreakRule &rule){
 
 // ------------------------------------ //
 // Database maintainance functions
-
 void Database::CombineAllPossibleAppliedTags(Lock &guard){
 
-    DEBUG_BREAK;
+    int64_t count = 0;
+
+    {
+        const char str[] = "SELECT COUNT(*) FROM applied_tag;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(); 
+    
+        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+            count = statementobj.GetColumnAsInt64(0);
+        }
+    }
+
+    LOG_INFO("Database: Maintainance combining all applied_tags that are the same. "
+        "Modifier count: " + Convert::ToString(count));
+
+    for(int64_t i = 0; i < count; ++i){
+
+        DBID currentid = SelectAppliedTagIDByOffset(guard, i);
+
+        if(currentid < 0)
+            continue;
+
+        auto currenttag = SelectAppliedTagByID(guard, currentid);
+
+        // Check against each one to make sure it doesn't match them //
+        for(int64_t a = 0; a < count; ++a){
+
+            // Don't compare with self //
+            if(a == i)
+                continue;
+
+            DBID otherid = SelectAppliedTagIDByOffset(guard, a);
+
+            if(!CheckDoesAppliedTagModifiersMatch(guard, otherid, *currenttag))
+                continue;
+
+            if(!CheckDoesAppliedTagCombinesMatch(guard, otherid, *currenttag))
+                continue;
+
+            LOG_INFO("Database: found matching AppliedTags, " + Convert::ToString(currentid) +
+                " == " + Convert::ToString(otherid));
+
+            CombineAppliedTagDuplicate(guard, currentid, otherid);
+
+            // count is now smaller //
+            // But because we are looping by offset ordered by id we should be able to
+            // continue without adjusting i
+            --count;
+        }
+    }
+
+    LOG_INFO("Database: maintainance shrunk applied_tag count to: " +
+        Convert::ToString(count));
+
+    // Finish off by deleting duplicate combines
+    const char str[] = "DELETE FROM applied_tag_combine WHERE rowid NOT IN "
+        "(SELECT min(rowid) FROM applied_tag_combine GROUP BY "
+        "tag_left, tag_right, combined_with);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(); 
+    
+    statementobj.StepAll(statementinuse);
+        
+    LOG_INFO("Database: Maintainance for combining all applied_tags finished.");
 }
 
 int64_t Database::CountAppliedTags(){
@@ -1960,6 +2142,9 @@ bool Database::_VerifyLoadedVersion(Lock &guard, int fileversion){
     // Update the database //
     int updateversion = fileversion;
 
+    LOG_INFO("Database: updating from version " + Convert::ToString(updateversion) +
+        " to version " + Convert::ToString(DATABASE_CURRENT_VERSION));
+
     while(updateversion != DATABASE_CURRENT_VERSION){
 
         if(!_UpdateDatabase(guard, updateversion)){
@@ -1967,12 +2152,19 @@ bool Database::_VerifyLoadedVersion(Lock &guard, int fileversion){
             LOG_ERROR("Database update failed, database file version is unsupported");
             return false;
         }
+
+        // Get new version //
+        if(!SelectDatabaseVersion(guard, updateversion)){
+
+            LOG_ERROR("Database failed to retrieve new version after update");
+            return false;
+        }
     }
 
     return true;
 }
 
-bool Database::_UpdateDatabase(Lock &guard, int &oldversion){
+bool Database::_UpdateDatabase(Lock &guard, const int oldversion){
 
     if(oldversion < 14){
 
@@ -2076,11 +2268,13 @@ void Database::_InsertDefaultTags(Lock &guard){
     InsertCollection(guard, "Backgrounds", false);
 }
 void Database::_RunSQL(Lock &guard, const std::string &sql){
+
+    auto result = sqlite3_exec(SQLiteDb, sql.c_str(),
+        nullptr, nullptr, nullptr);
     
-    if(SQLITE_OK != sqlite3_exec(SQLiteDb, sql.c_str(),
-        nullptr, nullptr, nullptr))
-    {
-        ThrowCurrentSqlError(guard);
+    if(SQLITE_OK != result){
+        
+        ThrowErrorFromDB(SQLiteDb, result);
     }
 }
 

@@ -6,6 +6,7 @@
 #include "Common/Types.h"
 
 #include <gtkmm.h>
+#include "core/UbuntuWorkaround.h"
 
 #include <chrono>
 
@@ -47,13 +48,22 @@ public:
     SuperViewer(std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events,
         bool forcethumbnail);
     
-    //! \brief Constructor called by glade builder when loading a widget of this type
-    SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
-        std::shared_ptr<Image> displayedResource, bool forcethumbnail);
+#ifdef DV_BUILDER_WORKAROUND
 
+    SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder);
+
+    //! \brief Workaround for old and bad ubuntu gtk versions
+    void Init(std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events,
+        bool forcethumbnail);
+#else
+
+    //! \brief Constructor called by glade builder when loading a widget of this type
     SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
         std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events,
         bool forcethumbnail);
+
+#endif
+
 
 
 

@@ -23,7 +23,19 @@ using namespace DV;
 Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     Gtk::Window(window)
 {
-    builder->get_widget_derived("PreviewImage", PreviewImage, nullptr, false);
+    
+#ifdef DV_BUILDER_WORKAROUND
+
+    builder->get_widget_derived("PreviewImage", PreviewImage);
+    PreviewImage->Init(nullptr, SuperViewer::ENABLED_EVENTS::ALL, false);
+    
+#else
+    
+    builder->get_widget_derived("PreviewImage", PreviewImage, nullptr,
+        SuperViewer::ENABLED_EVENTS::ALL, false);
+
+#endif // DV_BUILDER_WORKAROUND
+
     LEVIATHAN_ASSERT(PreviewImage, "Invalid .glade file");
 
     builder->get_widget_derived("ImageList", ImageList);

@@ -351,11 +351,25 @@ public:
     //! as there probably won't be infinitely many tags that aren't used
     void DeleteAppliedTagIfNotUsed(Lock &guard, AppliedTag &tag);
 
+    //! \brief Returns true if applied tag id is referenced somewhere
+    bool SelectIsAppliedTagUsed(Lock &guard, DBID id);
+
     //! \brief Checks that the TagModifiers set in the database to id, match the ones in tag
     bool CheckDoesAppliedTagModifiersMatch(Lock &guard, DBID id, const AppliedTag &tag);
 
     //! \brief Checks that the tag combines set in the database to id, match the ones in tag
     bool CheckDoesAppliedTagCombinesMatch(Lock &guard, DBID id, const AppliedTag &tag);
+
+    //! \brief Helper for looping all applied_tag
+    //! \returns -1 on error
+    DBID SelectAppliedTagIDByOffset(Lock &guard, int64_t offset);
+
+    //! \brief Combines two applied tags into one
+    //!
+    //! Used after checking that to applied_tag entries match to remove the duplicate.
+    //! First is the ID that will be preserved and all references to second will be changed
+    //! to first
+    void CombineAppliedTagDuplicate(Lock &guard, DBID first, DBID second);
 
     //
     // TagModifier
@@ -469,7 +483,7 @@ private:
     //! \param oldversion The version from which the update is done, will contain the new
     //! version after this returns. Can be called again to update to the next version
     //! \returns True if succeeded, false if update is not supported
-    bool _UpdateDatabase(Lock &guard, int &oldversion);
+    bool _UpdateDatabase(Lock &guard, const int oldversion);
 
     //! \brief Sets the database version. Should only be called from _UpdateDatabase
     void _SetCurrentDatabaseVersion(Lock &guard, int newversion);

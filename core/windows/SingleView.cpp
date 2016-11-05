@@ -20,9 +20,17 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     signal_delete_event().connect(sigc::mem_fun(*this, &BaseWindow::_OnClosed));
 
     try{
+
+    #ifdef DV_BUILDER_WORKAROUND
+
+        builder->get_widget_derived("ImageView", ImageView);
+        ImageView->Init(nullptr, SuperViewer::ENABLED_EVENTS::ALL, false);
+    #else
         
         builder->get_widget_derived("ImageView", ImageView, nullptr,
             SuperViewer::ENABLED_EVENTS::ALL, false);
+
+    #endif // DV_BUILDER_WORKAROUND
         
     } catch(const Leviathan::InvalidArgument &e){
 
@@ -85,6 +93,7 @@ void SingleView::OnTagsUpdated(Lock &guard){
     if(!img){
 
         ImageSize->set_text("No image");
+        TagsLabel->set_text("");
         return;
         
     } else {
@@ -106,7 +115,6 @@ void SingleView::OnTagsUpdated(Lock &guard){
 
     if(!tags){
 
-        // Reset tags and block editing //
         TagsLabel->set_text("");
         
     } else {
