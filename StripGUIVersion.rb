@@ -1,4 +1,4 @@
-#!/bin/ruby
+#!/usr/bin/env ruby
 # Strips version requirements from glade files. Sample: <requires lib="gtk+" version="3.20"/>
 require 'nokogiri'
 
