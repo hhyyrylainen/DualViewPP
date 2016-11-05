@@ -2,12 +2,35 @@
 BEGIN TRANSACTION;
 
 -- Clear tables common_composite_tags, composite_tag_modifiers
-DELETE FROM common_composite_tags;
-DELETE FROM composite_tag_modifiers;
+DROP TABLE common_composite_tags;
+DROP TABLE composite_tag_modifiers;
 
--- Add the replacement values
+-- Recreate the tables
+CREATE TABLE common_composite_tags (
+    
+    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+    
+    -- The text tto match this detection
+    -- The string may contain * to indicate that it may be any tag, 
+    -- for example "wet*" would match any tag that has 'wet' in front of an existing tag
+    tag_string TEXT UNIQUE,
+    
+    -- The actual tag meant
+    -- May be 0 if * is used
+    actual_tag INTEGER NOT NULL
+    
+);
+
+CREATE TABLE composite_tag_modifiers (
+    
+    composite INTEGER REFERENCES common_composite_tags(id) ON DELETE CASCADE,
+    modifier INTEGER REFERENCES tag_modifiers(id) ON DELETE CASCADE
+);
+
+-- Insert new values
 INSERT INTO common_composite_tags (tag_string, actual_tag) VALUES ("*grab", 0);
-INSERT INTO composite_tag_modifiers (composite, modifier) VALUES ((SELECT last_insert_rowid()), (SELECT id FROM tag_modifiers WHERE name="grabbing"));
+        
+INSERT INTO composite_tag_modifiers (composite, modifier) VALUES ( (SELECT last_insert_rowid()) , (SELECT id FROM tag_modifiers WHERE name="grabbing") );
 
 -- Create new tables: tag_modifier_aliases tag_super_aliases
 -- Super aliases. These allow a matching tag string to expand to the expanded form

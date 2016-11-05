@@ -150,6 +150,7 @@ CREATE TABLE common_composite_tags (
     actual_tag INTEGER NOT NULL
     
 );
+
 -- The modifiers to apply to the above table detection rule
 CREATE TABLE composite_tag_modifiers (
     
