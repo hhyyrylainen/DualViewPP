@@ -1910,9 +1910,6 @@ void Database::CombineAllPossibleAppliedTags(Lock &guard){
         if(currentid < 0)
             continue;
 
-        if(currentid == 20449)
-            DEBUG_BREAK;
-
         auto currenttag = SelectAppliedTagByID(guard, currentid);
 
         auto statementinuse = statementobj.Setup(currenttag->GetTag()->GetID()); 
@@ -1926,9 +1923,6 @@ void Database::CombineAllPossibleAppliedTags(Lock &guard){
             // Don't compare with self
             if(currentid == otherid)
                 continue;
-
-            if(otherid == 20458)
-                DEBUG_BREAK;
 
             // Primary tags should match already //
 
