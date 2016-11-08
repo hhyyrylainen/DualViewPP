@@ -55,10 +55,25 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     builder->get_widget("ImageToolbar", ImageToolbar);
     LEVIATHAN_ASSERT(ImageToolbar, "Invalid .glade file");
 
-    ImageToolbar->append(EditTagsButton, sigc::mem_fun(*this,
-            &SingleView::ToggleTagEditor));
+    //ImageToolbar->set_accel_group(get_accel_group());
+
+    ImageToolbar->append(EditTagsButton);
     
     ImageToolbar->show_all_children();
+
+    EditTagsButton.signal_clicked().connect(sigc::mem_fun(*this,
+            &SingleView::ToggleTagEditor));
+
+    // This just doesn't want to work and it seems to be because Toolbar items don't have
+    // activate signal
+    //EditTagsButton.set_accel_path("<SingleImage-View>/Toolbar/EditTags", get_accel_group());
+    //Gtk::AccelMap::add_entry("<SingleImage-View>/Toolbar/EditTags", GDK_KEY_T,
+    //(Gdk::ModifierType)0);
+
+    EditTagsButton.add_accelerator("clicked", get_accel_group(), GDK_KEY_T,
+        (Gdk::ModifierType)0, Gtk::ACCEL_VISIBLE);
+    
+
 
 }
 
