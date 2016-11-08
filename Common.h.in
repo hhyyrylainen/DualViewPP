@@ -25,7 +25,6 @@ constexpr auto SUPPORTED_EXTENSIONS = {
 
 
 //! The amount of time before CacheManager automatically unloads images
-//! \todo Add this to settings
 constexpr auto DUALVIEW_SETTINGS_UNLOAD_TIME_MS = 30000;
 
 //! Database id type
