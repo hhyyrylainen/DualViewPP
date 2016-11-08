@@ -22,10 +22,19 @@ public:
 protected:
     
     void _DoPopup() override;
+
+    bool _OnRightClick(GdkEventButton* causedbyevent) override;
     
 private:
 
     std::shared_ptr<Collection> CurrentCollection;
+
+    //! Context menu for right click
+    Gtk::Menu ContextMenu;
+    Gtk::MenuItem ItemView;
+    Gtk::SeparatorMenuItem ItemSeparator1;
+    Gtk::MenuItem ItemAddToFolder;
+    Gtk::MenuItem ItemRemoveFromFolders;
 };
 
 }

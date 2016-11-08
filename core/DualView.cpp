@@ -277,6 +277,10 @@ void DualView::_OnInstanceLoaded(){
     // Store the window //
     _TagManager = std::shared_ptr<TagManager>(tmpTagManager);
 
+    // Initialize accelerator keys here
+    //Gtk::AccelMap::add_entry("<CollectionList-Item>/Right/Help", GDK_KEY_H,
+    //    Gdk::CONTROL_MASK);
+
     // Start worker threads //
     _StartWorkerThreads();
 

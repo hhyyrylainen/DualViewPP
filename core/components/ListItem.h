@@ -77,6 +77,10 @@ protected:
 
     //! \brief Called when the image part is double clicked. By default does nothing
     virtual void _DoPopup();
+
+    //! \brief Opens context menu if there is one
+    //! \returns True if handled
+    virtual bool _OnRightClick(GdkEventButton* causedbyevent);
     
     
 protected:

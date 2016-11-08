@@ -58,6 +58,7 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     //ImageToolbar->set_accel_group(get_accel_group());
 
     ImageToolbar->append(EditTagsButton);
+
     
     ImageToolbar->show_all_children();
 
@@ -72,8 +73,6 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     EditTagsButton.add_accelerator("clicked", get_accel_group(), GDK_KEY_T,
         (Gdk::ModifierType)0, Gtk::ACCEL_VISIBLE);
-    
-
 
 }
 

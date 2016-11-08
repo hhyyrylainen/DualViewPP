@@ -148,6 +148,10 @@ bool ListItem::_OnMouseButtonPressed(GdkEventButton* event){
 
         if(Selectable->Selectable)
             SetSelected(!CurrentlySelected);
+        
+    } else if(event->button == 3){
+
+        return _OnRightClick(event);
     }
 
     return true;
@@ -183,5 +187,8 @@ void ListItem::_OnSelectionUpdated(){
 
 void ListItem::_DoPopup(){
 
-    LOG_INFO("Popup from listitem");
+}
+
+bool ListItem::_OnRightClick(GdkEventButton* causedbyevent){
+    return false;
 }
