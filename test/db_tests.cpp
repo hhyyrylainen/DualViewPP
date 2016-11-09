@@ -958,17 +958,60 @@ TEST_CASE("Tag suggestions", "[db][tags]"){
 
     REQUIRE_NOTHROW(db.Init());
 
-    SECTION("Single tag completion"){
+    // SECTION("Single tag completion"){
         
-        auto tag = dv.ParseTagFromString("watermark");
+    //     auto tag = dv.ParseTagFromString("watermark");
+    //     REQUIRE(tag);
+
+    //     auto suggestions = dv.GetSuggestionsForTag("water");
+    //     CHECK(suggestions.size() > 0);
+    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "watermark") !=
+    //         suggestions.end());
+        
+    // }
+
+    // SECTION("single modifier completion"){
+        
+    //     auto suggestions = dv.GetSuggestionsForTag("bro");
+    //     CHECK(suggestions.size() > 0);
+    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "brown") !=
+    //         suggestions.end());
+    // }
+
+
+    // SECTION("super alias completion"){
+        
+    //     auto suggestions = dv.GetSuggestionsForTag("redhe");
+    //     CHECK(suggestions.size() > 0);
+    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "redhead") !=
+    //         suggestions.end());
+    // }
+
+    // SECTION("break rule completion"){
+
+    //     // TODO: make this more complex
+    //     auto suggestions = dv.GetSuggestionsForTag("hair grab");
+    //     CHECK(suggestions.size() > 0);
+    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "hair grab") !=
+    //         suggestions.end());
+    // }
+
+    SECTION("Tag with modifiers completion"){
+        
+        auto tag = dv.ParseTagFromString("large watermark");
         REQUIRE(tag);
 
-        auto suggestions = dv.GetSuggestionsForTag("water");
+        auto suggestions = dv.GetSuggestionsForTag("large wate");
         CHECK(suggestions.size() > 0);
-        CHECK(std::find(suggestions.begin(), suggestions.end(), "watermark") !=
+
+        for(auto i : suggestions)
+            LOG_WRITE("thing: " + i);
+        
+        CHECK(std::find(suggestions.begin(), suggestions.end(), "large watermark") !=
             suggestions.end());
         
     }
+
 }
 
 

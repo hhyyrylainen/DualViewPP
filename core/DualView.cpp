@@ -1531,6 +1531,9 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
     std::string currentpart;
     std::unique_ptr<std::string> currentword;
 
+    // Used to prepend the valid part to suggestions
+    std::string prefix;
+
     while(!itr.IsOutOfBounds()){
 
         currentword = itr.GetUntilNextCharacterOrAll<std::string>(' ');
@@ -1543,6 +1546,7 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
         // If it is a valid tag component clear it //
         if(IsStrValidTagPart(currentpart)){
 
+            prefix += currentpart + " ";
             currentpart.clear();
             continue;
         }
@@ -1572,7 +1576,15 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
     } else {
 
         // Get suggestions for it //
-        RetrieveTagsMatching(result, currentpart);
+        std::vector<std::string> tmpholder;
+        RetrieveTagsMatching(tmpholder, currentpart);
+
+        result.reserve(result.size() + tmpholder.size());
+
+        for(const auto& gotmatch : tmpholder){
+
+            result.push_back(prefix + gotmatch);
+        }
     }
 
     return result;
