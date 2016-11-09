@@ -114,6 +114,10 @@ public:
 
     //! \brief Returns true if file extension is in SUPPORTED_EXTENSIONS
     static bool IsFileContent(const std::string &file);
+
+    //! \brief Converts a unicode string to lower
+    //! \todo Cache the boost::locale::generator
+    static std::string StringToLower(const std::string &str);
     
     //
     // Database insert and modify functions
@@ -150,8 +154,22 @@ public:
 
     //! \brief Parses an AppliedTag from a string. Doesn't add it to the database automatically
     //! \note This will lock the database, so if it already locked this causes a deadlock
-    //! \todo Cache the boost::locale::generator
     std::shared_ptr<AppliedTag> ParseTagFromString(std::string str) const;
+
+
+    //! \brief Parses a tag and returns a list of suggestions
+    //!
+    //! If the str is a valid tag the first suggestion == str
+    std::vector<std::string> GetSuggestionsForTag(std::string str) const;
+
+    //! \brief Retrieves tag names, modifiers, aliases, super aliases, and common modifiers
+    //! containing str
+    void RetrieveTagsMatching(std::vector<std::string> &result, const std::string &str) const;
+
+    //! \brief Returns true if str is a valid part of a tag
+    bool IsStrValidTagPart(const std::string &str) const;
+
+    
 
     //! \brief Helper for ParseTagFromString
     //!

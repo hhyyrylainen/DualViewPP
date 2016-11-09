@@ -785,6 +785,12 @@ bool DualView::IsFileContent(const std::string &file){
 
     return false;
 }
+
+std::string DualView::StringToLower(const std::string &str){
+
+    boost::locale::generator gen;
+    return boost::locale::to_lower(str, gen(""));
+}
 // ------------------------------------ //
 bool DualView::OpenImageViewer(const std::string &file){
 
@@ -1453,8 +1459,7 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const{
         return nullptr;
 
     // Convert to lower //
-    boost::locale::generator gen;
-    str = boost::locale::to_lower(str, gen(""));
+    str = StringToLower(str);
 
     // Exact match a tag //
     auto existingtag = ParseTagName(str);
@@ -1506,6 +1511,142 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const{
 
     throw Leviathan::InvalidArgument("unknown tag '" + str + "'");
 }
+// ------------------------------------ //
+std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
+
+    // Strip whitespace //
+    Leviathan::StringOperations::RemovePreceedingTrailingSpaces(str);
+
+    if(str.empty())
+        return {};
+
+    // Convert to lower //
+    str = StringToLower(str);
+
+    std::vector<std::string> result;
+    
+    // We want to provide suggestions for modifiers, tags and combines
+    Leviathan::StringIterator itr(str);
+
+    std::string currentpart;
+    std::unique_ptr<std::string> currentword;
+
+    while(!itr.IsOutOfBounds()){
+
+        currentword = itr.GetUntilNextCharacterOrAll<std::string>(' ');
+
+        if(!currentword)
+            continue;
+
+        currentpart += *currentword;
+
+        // If it is a valid tag component clear it //
+        if(IsStrValidTagPart(currentpart)){
+
+            currentpart.clear();
+            continue;
+        }
+    }
+    
+    // If there's nothing left in currentpart the tag would be successfully parsed
+    // So just make sure that it is and at it to the result
+    if(currentpart.empty()){
+
+        try{
+            auto parsed = ParseTagFromString(str);
+
+            if(parsed)
+                result.push_back(str);
+            
+        } catch(...){
+
+            // Not actually a tag
+            LOG_WARNING("Get suggestions thought \"" + str + "\" would be a valid tag "
+                "but it isn't");
+        }
+
+        // Also we want to get longer tags that start with the same thing //
+        if(currentword)
+            RetrieveTagsMatching(result, *currentword);
+        
+    } else {
+
+        // Get suggestions for it //
+        RetrieveTagsMatching(result, currentpart);
+    }
+
+    return result;
+}
+
+bool DualView::IsStrValidTagPart(const std::string &str) const{
+
+    auto byname = _Database->SelectTagByNameOrAlias(str);
+    if(byname)
+        return true;
+
+    auto mod = _Database->SelectTagModifierByNameOrAliasAG(str);
+    if(mod)
+        return true;
+
+    auto rule = _Database->SelectTagBreakRuleByStr(str);
+
+    if(rule){
+
+        std::string tagname;
+        std::shared_ptr<Tag> tag;
+        auto modifiers = rule->DoBreak(str, tagname, tag);
+
+        if(tag || !modifiers.empty()){
+
+            // Rule matched
+            return true;
+        }
+    }
+
+    auto alias = _Database->SelectTagSuperAlias(str);
+    if(!alias.empty())
+        return true;
+
+    // Combined with works if we can remove the first word and the second part is valid //
+    auto withoutfirst = Leviathan::StringOperations::RemoveFirstWords(str, 1);
+
+    if(!withoutfirst.empty() && withoutfirst != str){
+
+        return IsStrValidTagPart(withoutfirst);
+    }
+
+    return false;
+}
+
+void DualView::RetrieveTagsMatching(std::vector<std::string> &result,
+    const std::string &str) const
+{
+    const auto initSize = result.size();
+    
+    _Database->SelectTagNamesWildcard(result, str);
+    
+    _Database->SelectTagAliasesWildcard(result, str);
+
+    _Database->SelectTagModifierNamesWildcard(result, str);
+    
+    _Database->SelectTagBreakRulesByStrWildcard(result, str);
+
+    _Database->SelectTagSuperAliasWildcard(result, str);
+
+    // Combined with works if we can remove the first word
+    // But only if we didn't already get good matches
+    if(result.size() - initSize < 2){
+        
+        auto withoutfirst = Leviathan::StringOperations::RemoveFirstWords(str, 1);
+
+        if(!withoutfirst.empty() && withoutfirst != str){
+
+            RetrieveTagsMatching(result, withoutfirst);
+        }
+    }
+}
+
+
 // ------------------------------------ //
 // Gtk callbacks
 void DualView::OpenImageFile_OnClick(){

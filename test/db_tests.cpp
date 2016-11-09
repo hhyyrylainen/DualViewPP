@@ -949,3 +949,26 @@ TEST_CASE("Specific database applied tag is same", "[tags][db]"){
     
 }
 
+
+TEST_CASE("Tag suggestions", "[db][tags]"){
+
+    std::unique_ptr<Database> dbptr(new TestDatabase());
+    DummyDualView dv(std::move(dbptr));
+    auto& db = dv.GetDatabase();
+
+    REQUIRE_NOTHROW(db.Init());
+
+    SECTION("Single tag completion"){
+        
+        auto tag = dv.ParseTagFromString("watermark");
+        REQUIRE(tag);
+
+        auto suggestions = dv.GetSuggestionsForTag("water");
+        CHECK(suggestions.size() > 0);
+        CHECK(std::find(suggestions.begin(), suggestions.end(), "watermark") !=
+            suggestions.end());
+        
+    }
+}
+
+

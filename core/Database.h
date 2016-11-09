@@ -409,6 +409,25 @@ public:
     //! \todo Implement
     void UpdateTagBreakRule(const TagBreakRule &rule);
 
+
+    //
+    // Wilcard searches for tag suggestions
+    //
+    //! \brief Returns text of all break rules that contain str
+    void SelectTagBreakRulesByStrWildcard(std::vector<std::string> &breakrules,
+        const std::string &pattern);
+
+    void SelectTagNamesWildcard(std::vector<std::string> &result, const std::string &pattern);
+    
+    void SelectTagAliasesWildcard(std::vector<std::string> &result,
+        const std::string &pattern);
+
+    void SelectTagModifierNamesWildcard(std::vector<std::string> &result,
+        const std::string &pattern);
+    
+    void SelectTagSuperAliasWildcard(std::vector<std::string> &result,
+        const std::string &pattern);
+    
     //
     // Database maintainance functions
     //

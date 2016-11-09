@@ -1876,6 +1876,88 @@ void Database::UpdateTagBreakRule(const TagBreakRule &rule){
     
 }
 
+//
+// Wilcard searches for tag suggestions
+//
+//! \brief Returns text of all break rules that contain str
+void Database::SelectTagBreakRulesByStrWildcard(std::vector<std::string> &breakrules,
+    const std::string &pattern)
+{
+    GUARD_LOCK();
+
+    const char str[] = "SELECT tag_string FROM common_composite_tags WHERE "
+        "REPLACE(tag_string, '*', '') LIKE ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup("%" + pattern + "%"); 
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        breakrules.push_back(statementobj.GetColumnAsString(0));
+    }
+}
+
+void Database::SelectTagNamesWildcard(std::vector<std::string> &result,
+    const std::string &pattern)
+{
+    const char str[] = "SELECT name FROM tags WHERE name LIKE ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup("%" + pattern + "%"); 
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        result.push_back(statementobj.GetColumnAsString(0));
+    }
+}
+
+void Database::SelectTagAliasesWildcard(std::vector<std::string> &result,
+    const std::string &pattern)
+{
+    const char str[] = "SELECT name FROM tag_aliases WHERE name LIKE ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup("%" + pattern + "%"); 
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        result.push_back(statementobj.GetColumnAsString(0));
+    }
+}
+
+void Database::SelectTagModifierNamesWildcard(std::vector<std::string> &result,
+    const std::string &pattern)
+{
+    const char str[] = "SELECT name FROM tag_modifiers WHERE name LIKE ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup("%" + pattern + "%"); 
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        result.push_back(statementobj.GetColumnAsString(0));
+    }
+}
+    
+void Database::SelectTagSuperAliasWildcard(std::vector<std::string> &result,
+    const std::string &pattern)
+{
+    const char str[] = "SELECT alias FROM tag_super_aliases WHERE alias LIKE ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup("%" + pattern + "%"); 
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        result.push_back(statementobj.GetColumnAsString(0));
+    }
+}
+
 // ------------------------------------ //
 // Database maintainance functions
 void Database::CombineAllPossibleAppliedTags(Lock &guard){
