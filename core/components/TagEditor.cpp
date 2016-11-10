@@ -274,21 +274,26 @@ void TagEditor::_TextUpdated(){
     if(TagEntry.get_text_length() < 3)
         return;
 
-    CompletionRows->clear();
+    auto isalive = GetAliveMarker();
+    auto text = TagEntry.get_text();
+    
+    DualView::Get().QueueDBThreadFunction([this, isalive, text](){
 
-    //Fill the TreeView's model
-    Gtk::TreeModel::Row row = *(CompletionRows->append());
-    row[CompletionColumns.m_tag_text] = "Outen";
+            auto result = DualView::Get().GetSuggestionsForTag(text);
+            
+            DualView::Get().InvokeFunction([this, isalive, result{std::move(result)}](){
 
-    row = *(CompletionRows->append());
-    row[CompletionColumns.m_tag_text] = "Outer ring";
+                    INVOKE_CHECK_ALIVE_MARKER(isalive);
 
-    row = *(CompletionRows->append());
-    row[CompletionColumns.m_tag_text] = "Outside";
-
-    row = *(CompletionRows->append());
-    row[CompletionColumns.m_tag_text] = "Outdoors";
-
-    row = *(CompletionRows->append());
-    row[CompletionColumns.m_tag_text] = "Outdoors type";
+                    CompletionRows->clear();
+                    
+                    // Fill the autocomplete
+                    for(const auto& str : result){
+                        
+                        Gtk::TreeModel::Row row = *(CompletionRows->append());
+                        row[CompletionColumns.m_tag_text] = str;
+                    }
+                    
+                });
+        });
 }

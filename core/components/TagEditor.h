@@ -1,12 +1,14 @@
 #pragma once
 
 #include "core/resources/Tags.h"
+#include "core/IsAlive.h"
 
 #include <gtkmm.h>
 
 namespace DV{
 
-class TagEditor : public Gtk::Box{
+//! \brief Components that implements editing of TagCollection
+class TagEditor : public Gtk::Box, public IsAlive{
 
     class ModelColumns : public Gtk::TreeModel::ColumnRecord
     {

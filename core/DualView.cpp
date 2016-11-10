@@ -1587,6 +1587,28 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
         }
     }
 
+    // Sort the most relevant results first //
+    std::sort(result.begin(), result.end(), [&str](
+            const std::string &left, const std::string &right) -> bool
+        {
+            if(left == str && (right != str)){
+
+                // Exact match first //
+                return true;
+            }
+            
+            if(Leviathan::StringOperations::StringStartsWith(left, str) && 
+                !Leviathan::StringOperations::StringStartsWith(right, str))
+            {
+                // Matching prefix with pattern first
+                return true;
+            }
+
+            // Sort which one is closer in length to str first
+            return std::abs(str.length() - left.length()) <
+                std::abs(str.length() - right.length());
+        });
+
     return result;
 }
 
