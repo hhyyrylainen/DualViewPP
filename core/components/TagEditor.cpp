@@ -66,31 +66,14 @@ void TagEditor::_CommonCtor(){
     TagCompletion = Gtk::EntryCompletion::create();
     TagEntry.set_completion(TagCompletion);
 
-    //Create and fill the completion's filter model
-    auto refCompletionModel =
-        Gtk::ListStore::create(CompletionColumns);
-    TagCompletion->set_model(refCompletionModel);
+    // Create an empty liststore for completions
+    CompletionRows = Gtk::ListStore::create(CompletionColumns);
+    TagCompletion->set_model(CompletionRows);
 
     // For more complex comparisons, use a filter match callback, like this.
     // See the comment below for more details:
     //completion->set_match_func( sigc::mem_fun(*this,
     //&ExampleWindow::on_completion_match) );
-
-    //Fill the TreeView's model
-    Gtk::TreeModel::Row row = *(refCompletionModel->append());
-    row[CompletionColumns.m_tag_text] = "Outen";
-
-    row = *(refCompletionModel->append());
-    row[CompletionColumns.m_tag_text] = "Outer ring";
-
-    row = *(refCompletionModel->append());
-    row[CompletionColumns.m_tag_text] = "Outside";
-
-    row = *(refCompletionModel->append());
-    row[CompletionColumns.m_tag_text] = "Outdoors";
-
-    row = *(refCompletionModel->append());
-    row[CompletionColumns.m_tag_text] = "Outdoors type";
 
     //Tell the completion what model column to use to
     //- look for a match (when we use the default matching, instead of
@@ -104,6 +87,8 @@ void TagEditor::_CommonCtor(){
 
     TagEntry.set_placeholder_text("input new tag here");
     TagEntry.signal_activate().connect(sigc::mem_fun(*this, &TagEditor::_OnInsertTag));
+
+    TagEntry.signal_changed().connect(sigc::mem_fun(*this, &TagEditor::_TextUpdated));
     
     add(TagEntry);
 
@@ -281,4 +266,29 @@ bool TagEditor::_OnKeyPress(GdkEventKey* key_event){
     }
 
     return false;
+}
+// ------------------------------------ //
+void TagEditor::_TextUpdated(){
+
+    // No completion if less than 3 characters
+    if(TagEntry.get_text_length() < 3)
+        return;
+
+    CompletionRows->clear();
+
+    //Fill the TreeView's model
+    Gtk::TreeModel::Row row = *(CompletionRows->append());
+    row[CompletionColumns.m_tag_text] = "Outen";
+
+    row = *(CompletionRows->append());
+    row[CompletionColumns.m_tag_text] = "Outer ring";
+
+    row = *(CompletionRows->append());
+    row[CompletionColumns.m_tag_text] = "Outside";
+
+    row = *(CompletionRows->append());
+    row[CompletionColumns.m_tag_text] = "Outdoors";
+
+    row = *(CompletionRows->append());
+    row[CompletionColumns.m_tag_text] = "Outdoors type";
 }

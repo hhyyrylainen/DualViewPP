@@ -90,6 +90,9 @@ protected:
     //! Detects when delete is pressed
     bool _OnKeyPress(GdkEventKey* key_event);
 
+    //! Called when text is changed to update auto completes
+    void _TextUpdated();
+
 protected:
 
     // Gtk widgets //
@@ -113,6 +116,7 @@ protected:
     Gtk::Entry TagEntry;
     Glib::RefPtr<Gtk::EntryCompletion> TagCompletion;
     TagCompletionColumns CompletionColumns;
+    Glib::RefPtr<Gtk::ListStore> CompletionRows;
 
 
     //! This is directly set by SetEditable. Contains the value our owner wants
