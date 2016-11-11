@@ -52,6 +52,7 @@ add_library(Core
   windows/TagManager.h windows/TagManager.cpp
   windows/FolderCreator.h windows/FolderCreator.cpp
   windows/SingleCollection.h windows/SingleCollection.cpp
+  windows/Downloader.h windows/Downloader.cpp
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp
@@ -60,6 +61,8 @@ add_library(Core
   components/ImageListItem.h components/ImageListItem.cpp
   components/CollectionListItem.h components/CollectionListItem.cpp
   components/FolderListItem.h components/FolderListItem.cpp
+
+  components/DLListItem.h components/DLListItem.cpp
 
   components/TagEditor.h components/TagEditor.cpp
   components/FolderSelector.h components/FolderSelector.cpp

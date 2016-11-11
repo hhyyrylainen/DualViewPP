@@ -1,6 +1,5 @@
 #pragma once
 
-#include "BaseWindow.h"
 #include "core/IsAlive.h"
 
 #include <gtkmm.h>

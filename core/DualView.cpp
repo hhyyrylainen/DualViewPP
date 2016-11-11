@@ -9,6 +9,7 @@
 #include "windows/TagManager.h"
 #include "windows/FolderCreator.h"
 #include "windows/SingleCollection.h"
+#include "windows/Downloader.h"
 
 #include "core/CacheManager.h"
 #include "core/Database.h"
@@ -92,6 +93,7 @@ DualView::~DualView(){
 
     _CollectionView.reset();
     _TagManager.reset();
+    _Downloader.reset();
 
     // Unload plugins //
     _PluginManager.reset();
@@ -259,6 +261,13 @@ void DualView::_OnInstanceLoaded(){
 
     OpenTags->signal_clicked().connect(
         sigc::mem_fun<void>(*this, &DualView::OpenTagCreator));
+
+    Gtk::Button* OpenDownloader = nullptr;
+    MainBuilder->get_widget("OpenDownloader", OpenDownloader);
+    LEVIATHAN_ASSERT(OpenDownloader, "Invalid .glade file");
+
+    OpenDownloader->signal_clicked().connect(
+        sigc::mem_fun<void>(*this, &DualView::OpenDownloader));
     
 
     //_CollectionView
@@ -276,6 +285,14 @@ void DualView::_OnInstanceLoaded(){
 
     // Store the window //
     _TagManager = std::shared_ptr<TagManager>(tmpTagManager);
+
+    // Downloader
+    Downloader* tmpDownloader = nullptr;
+    MainBuilder->get_widget_derived("Downloader", tmpDownloader);
+    LEVIATHAN_ASSERT(tmpDownloader, "Invalid .glade file");
+
+    // Store the window //
+    _Downloader = std::shared_ptr<Downloader>(tmpDownloader);
 
     // Initialize accelerator keys here
     //Gtk::AccelMap::add_entry("<CollectionList-Item>/Right/Help", GDK_KEY_H,
@@ -869,6 +886,16 @@ void DualView::OpenImporter(){
     std::shared_ptr<Importer> wrapped(window);
     _AddOpenWindow(wrapped, *window);
     wrapped->show();
+}
+
+void DualView::OpenDownloader(){
+
+    AssertIfNotMainThread();
+
+    // Show it //
+    Application->add_window(*_Downloader);
+    _Downloader->show();
+    _Downloader->present();
 }
 
 void DualView::OpenTagCreator(const std::string &settext){

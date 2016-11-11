@@ -34,6 +34,7 @@ class Settings;
 
 class CollectionView;
 class TagManager;
+class Downloader;
 
 //! \brief Main class that contains all the windows and systems
 class DualView {
@@ -63,6 +64,9 @@ public:
 
     //! \brief Opens an empty Importer
     void OpenImporter();
+
+    //! \brief Opens the Downloader
+    void OpenDownloader();
 
 
 
@@ -395,6 +399,9 @@ private:
 
     //! Tag editing window
     std::shared_ptr<TagManager> _TagManager;
+
+    //! Downloader window
+    std::shared_ptr<Downloader> _Downloader;
 
     //! Plugin manager. For loading extra functionality
     std::unique_ptr<PluginManager> _PluginManager;
