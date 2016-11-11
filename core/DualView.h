@@ -68,6 +68,9 @@ public:
     //! \brief Opens the Downloader
     void OpenDownloader();
 
+    //! \brief Opens a setup window for a new downloadable gallery
+    void OpenDownloadSetup();
+
 
 
     //! \brief Runs folder creator as a modal window

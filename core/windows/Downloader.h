@@ -23,6 +23,8 @@ protected:
     void _OnShown();
     void _OnHidden();
 
+    void _OpenNewDownloadSetup();
+
 protected:
 
     Gtk::FlowBox* DLWidgets;

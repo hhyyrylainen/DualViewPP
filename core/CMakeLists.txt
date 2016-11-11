@@ -53,6 +53,7 @@ add_library(Core
   windows/FolderCreator.h windows/FolderCreator.cpp
   windows/SingleCollection.h windows/SingleCollection.cpp
   windows/Downloader.h windows/Downloader.cpp
+  windows/DownloadSetup.h windows/DownloadSetup.cpp
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp

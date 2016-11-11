@@ -19,7 +19,14 @@ Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     builder->get_widget("DLList", DLWidgets);
     LEVIATHAN_ASSERT(DLWidgets, "Invalid .glade file");
 
+
+    Gtk::Button* AddNewLink;
+    builder->get_widget("AddNewLink", AddNewLink);
+    LEVIATHAN_ASSERT(AddNewLink, "Invalid .glade file");
     
+    AddNewLink->signal_pressed().connect(sigc::mem_fun(*this,
+            &Downloader::_OpenNewDownloadSetup));
+
 }
 
 Downloader::~Downloader(){
@@ -49,5 +56,9 @@ void Downloader::_OnHidden(){
 
     // Ask user whether downloads should be paused //
     
+}
+// ------------------------------------ //
+void Downloader::_OpenNewDownloadSetup(){
+    DualView::Get().OpenDownloadSetup();
 }
 // ------------------------------------ //

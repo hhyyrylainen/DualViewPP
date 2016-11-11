@@ -10,6 +10,7 @@
 #include "windows/FolderCreator.h"
 #include "windows/SingleCollection.h"
 #include "windows/Downloader.h"
+#include "windows/DownloadSetup.h"
 
 #include "core/CacheManager.h"
 #include "core/Database.h"
@@ -896,6 +897,28 @@ void DualView::OpenDownloader(){
     Application->add_window(*_Downloader);
     _Downloader->show();
     _Downloader->present();
+}
+
+void DualView::OpenDownloadSetup(){
+    AssertIfNotMainThread();
+
+    auto builder = Gtk::Builder::create_from_file(
+        "../gui/download_setup.glade");
+
+    DownloadSetup* window;
+    builder->get_widget_derived("DownloadSetup", window);
+
+    if(!window){
+
+        LOG_ERROR("DownloadSetup window GUI layout is invalid");
+        return;
+    }
+
+    LOG_INFO("Opened DownloadSetup window");
+
+    std::shared_ptr<DownloadSetup> wrapped(window);
+    _AddOpenWindow(wrapped, *window);
+    wrapped->show();
 }
 
 void DualView::OpenTagCreator(const std::string &settext){
