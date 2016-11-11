@@ -54,7 +54,7 @@ CREATE TABLE image_region (
     start_frame INTEGER DEFAULT 0,
     end_frame INTEGER DEFAULT 0,
     
-    parent_image INTEGER NOT NULL REFERENCES pictures(id) ON DELETE CASCADE ON UPDATE RESTRICT 
+    parent_image INTEGER NOT NULL REFERENCES pictures(id) ON DELETE CASCADE
 );
 
 -- All defined tags

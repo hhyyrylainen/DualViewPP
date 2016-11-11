@@ -70,6 +70,10 @@ void TagEditor::_CommonCtor(){
     CompletionRows = Gtk::ListStore::create(CompletionColumns);
     TagCompletion->set_model(CompletionRows);
 
+    TagCompletion->signal_match_selected().connect(sigc::mem_fun(*this,
+            &TagEditor::_OnMatchSelected), false);
+
+
     // For more complex comparisons, use a filter match callback, like this.
     // See the comment below for more details:
     //completion->set_match_func( sigc::mem_fun(*this,
@@ -83,7 +87,8 @@ void TagEditor::_CommonCtor(){
 
     // Doesn't seem to work
     //TagCompletion->set_inline_completion();
-    TagCompletion->set_inline_selection();
+    // This messes with auto completion
+    //TagCompletion->set_inline_selection();
 
     TagEntry.set_placeholder_text("input new tag here");
     TagEntry.signal_activate().connect(sigc::mem_fun(*this, &TagEditor::_OnInsertTag));
@@ -272,7 +277,7 @@ void TagEditor::_TextUpdated(){
 
     // No completion if less than 3 characters
     if(TagEntry.get_text_length() < 3)
-        return;
+        return;    
 
     auto isalive = GetAliveMarker();
     auto text = TagEntry.get_text();
@@ -297,3 +302,15 @@ void TagEditor::_TextUpdated(){
                 });
         });
 }
+
+bool TagEditor::_OnMatchSelected(const Gtk::TreeModel::iterator &iter){
+
+    Gtk::TreeModel::Row row = *(iter);
+    if(AddTag(static_cast<Glib::ustring>(row[CompletionColumns.m_tag_text]))){
+
+        return true;
+    }
+    
+    return false;
+}
+

@@ -65,6 +65,21 @@ enum class TAG_CATEGORY {
     QUALITY_HELPFULL_LEVEL = 5
 };
 
+//! Prebuilt list of TAG_CATEGORY and strings
+constexpr auto TAG_CATEGORY_STR = {
+    std::make_tuple(TAG_CATEGORY::DESCRIBE_CHARACTER_OBJECT,
+        "DESCRIBE_CHARACTER_OBJECT"),
+    std::make_tuple(TAG_CATEGORY::CHARACTER,
+        "CHARACTER"),
+    std::make_tuple(TAG_CATEGORY::META,
+        "META"),
+    std::make_tuple(TAG_CATEGORY::COPYRIGHT,
+        "COPYRIGHT"),
+    std::make_tuple(TAG_CATEGORY::ACTION,
+        "ACTION"),
+    std::make_tuple(TAG_CATEGORY::QUALITY_HELPFULL_LEVEL,
+        "QUALITY_HELPFULL_LEVEL"),
+};
 
 }
 

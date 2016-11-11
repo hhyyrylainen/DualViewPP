@@ -1089,6 +1089,29 @@ std::shared_ptr<Tag> Database::SelectTagByName(Lock &guard, const std::string &n
     return nullptr;
 }
 
+std::vector<std::shared_ptr<Tag>> Database::SelectTagsWildcard(const std::string &pattern,
+    int max /*= 50*/)
+{
+    GUARD_LOCK();
+
+    std::vector<std::shared_ptr<Tag>> result;
+    int found = 0;
+
+    const char str[] = "SELECT * FROM tags WHERE name LIKE ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup("%" + pattern + "%");
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW &&
+        ++found <= max)
+    {
+        result.push_back(_LoadTagFromRow(guard, statementobj));
+    }
+
+    return result;
+}
+
 std::shared_ptr<Tag> Database::SelectTagByAlias(Lock &guard, const std::string &alias){
 
     const char str[] = "SELECT tags.* FROM tag_aliases "

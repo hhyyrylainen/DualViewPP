@@ -290,6 +290,10 @@ public:
     std::shared_ptr<Tag> SelectTagByName(Lock &guard, const std::string &name);
     CREATE_NON_LOCKING_WRAPPER(SelectTagByName);
 
+    //! \brief Selects tags containing pattern
+    std::vector<std::shared_ptr<Tag>> SelectTagsWildcard(const std::string &pattern,
+        int max = 50);
+
     //! \brief Selects a tag based on an alias name
     std::shared_ptr<Tag> SelectTagByAlias(Lock &guard, const std::string &alias);
     CREATE_NON_LOCKING_WRAPPER(SelectTagByAlias);

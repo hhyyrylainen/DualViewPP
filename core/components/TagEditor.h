@@ -95,6 +95,9 @@ protected:
     //! Called when text is changed to update auto completes
     void _TextUpdated();
 
+    //! When an autocomplete entry is selected
+    bool _OnMatchSelected(const Gtk::TreeModel::iterator &iter);
+
 protected:
 
     // Gtk widgets //

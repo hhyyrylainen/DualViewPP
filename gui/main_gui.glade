@@ -183,40 +183,6 @@
       </row>
     </data>
   </object>
-  <object class="GtkListStore" id="TagTypeStore">
-    <columns>
-      <!-- column-name Value -->
-      <column type="gint"/>
-      <!-- column-name Name -->
-      <column type="gchararray"/>
-    </columns>
-    <data>
-      <row>
-        <col id="0">0</col>
-        <col id="1" translatable="yes">DESCRIBE_CHARACTER_OBJECT</col>
-      </row>
-      <row>
-        <col id="0">1</col>
-        <col id="1" translatable="yes">CHARACTER</col>
-      </row>
-      <row>
-        <col id="0">2</col>
-        <col id="1" translatable="yes">META</col>
-      </row>
-      <row>
-        <col id="0">3</col>
-        <col id="1" translatable="yes">COPYRIGHT</col>
-      </row>
-      <row>
-        <col id="0">4</col>
-        <col id="1" translatable="yes">ACTION</col>
-      </row>
-      <row>
-        <col id="0">5</col>
-        <col id="1" translatable="yes">QUALITY_HELPFULL_LEVEL</col>
-      </row>
-    </data>
-  </object>
   <object class="GtkWindow" id="WelcomeWindow">
     <property name="can_focus">False</property>
     <property name="skip_taskbar_hint">True</property>
@@ -542,6 +508,8 @@
   </object>
   <object class="GtkWindow" id="TagManager">
     <property name="can_focus">False</property>
+    <property name="default_width">600</property>
+    <property name="default_height">500</property>
     <child>
       <object class="GtkNotebook">
         <property name="visible">True</property>
@@ -566,7 +534,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                         <child>
-                          <object class="GtkSearchEntry">
+                          <object class="GtkSearchEntry" id="TagSearch">
                             <property name="visible">True</property>
                             <property name="can_focus">True</property>
                             <property name="primary_icon_name">edit-find-symbolic</property>
@@ -627,35 +595,20 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkTreeView">
+                  <object class="GtkScrolledWindow">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
-                    <property name="model">MatchingTagsStore</property>
-                    <property name="activate_on_single_click">True</property>
-                    <child internal-child="selection">
-                      <object class="GtkTreeSelection"/>
-                    </child>
+                    <property name="hscrollbar_policy">never</property>
+                    <property name="shadow_type">in</property>
                     <child>
-                      <object class="GtkTreeViewColumn">
-                        <property name="title" translatable="yes">Tag</property>
-                        <property name="reorderable">True</property>
-                        <property name="sort_column_id">0</property>
-                        <child>
-                          <object class="GtkCellRendererText"/>
-                          <attributes>
-                            <attribute name="text">1</attribute>
-                          </attributes>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkTreeViewColumn">
-                        <property name="title" translatable="yes">ID</property>
-                        <child>
-                          <object class="GtkCellRendererText"/>
-                          <attributes>
-                            <attribute name="text">0</attribute>
-                          </attributes>
+                      <object class="GtkTreeView" id="FoundTags">
+                        <property name="visible">True</property>
+                        <property name="can_focus">True</property>
+                        <property name="model">MatchingTagsStore</property>
+                        <property name="enable_search">False</property>
+                        <property name="activate_on_single_click">True</property>
+                        <child internal-child="selection">
+                          <object class="GtkTreeSelection"/>
                         </child>
                       </object>
                     </child>
@@ -768,7 +721,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkEntry">
+                  <object class="GtkEntry" id="NewTagName">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="placeholder_text" translatable="yes">Enter Name For New Tag</property>
@@ -780,18 +733,11 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkComboBox">
+                  <object class="GtkComboBox" id="NewTagCategory">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="model">TagTypeStore</property>
                     <property name="active">0</property>
                     <property name="id_column">0</property>
-                    <child>
-                      <object class="GtkCellRendererText"/>
-                      <attributes>
-                        <attribute name="text">1</attribute>
-                      </attributes>
-                    </child>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -800,7 +746,21 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkEntry">
+                  <object class="GtkCheckButton" id="NewTagPrivate">
+                    <property name="label" translatable="yes">Private</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">False</property>
+                    <property name="draw_indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkEntry" id="NewTagDescription">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="placeholder_text" translatable="yes">Description for tag</property>
@@ -808,7 +768,7 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
-                    <property name="position">3</property>
+                    <property name="position">4</property>
                   </packing>
                 </child>
                 <child>
@@ -820,34 +780,35 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
-                    <property name="position">4</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkTextView">
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="accepts_tab">False</property>
-                  </object>
-                  <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
                     <property name="position">5</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkButton">
-                    <property name="label">gtk-ok</property>
+                  <object class="GtkFrame">
                     <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">True</property>
-                    <property name="use_stock">True</property>
-                    <property name="always_show_image">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label_xalign">0</property>
+                    <property name="shadow_type">in</property>
+                    <child>
+                      <object class="GtkAlignment">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <child>
+                          <object class="GtkTextView" id="NewTagAliases">
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="accepts_tab">False</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child type="label_item">
+                      <placeholder/>
+                    </child>
                   </object>
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
-                    <property name="pack_type">end</property>
                     <property name="position">6</property>
                   </packing>
                 </child>
@@ -864,7 +825,49 @@
                   </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkFrame">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label_xalign">0</property>
+                    <property name="shadow_type">in</property>
+                    <child>
+                      <object class="GtkAlignment">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <child>
+                          <object class="GtkTextView" id="NewTagImplies">
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="accepts_tab">False</property>
+                          </object>
+                        </child>
+                      </object>
+                    </child>
+                    <child type="label_item">
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">8</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton" id="CreateTagButton">
+                    <property name="label">gtk-ok</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                    <property name="use_stock">True</property>
+                    <property name="always_show_image">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="pack_type">end</property>
+                    <property name="position">9</property>
+                  </packing>
                 </child>
               </object>
               <packing>
