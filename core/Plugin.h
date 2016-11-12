@@ -10,6 +10,19 @@
 
 namespace DV{
 
+//! \brief Implementation of a website scanner
+struct IWebsiteScanner : cppcomponents::define_interface<
+    cppcomponents::uuid<0x684cb0ee, 0xa8f7, 0x11e6, 0x91eb, 0x305a3a06584e>>
+{
+    //! \brief Returns a user readable name string, may also contain version
+    std::string GetName();
+
+    //! \brief Returns true if this plugin can handle url
+    bool CanHandleURL(std::string url);
+    
+    CPPCOMPONENTS_CONSTRUCT(IWebsiteScanner, GetName, CanHandleURL);
+};
+
 //! \brief Description of a plugin
 //!
 //! When loading plugins this is the first thing that is loaded from the plugin and
@@ -19,8 +32,8 @@ struct IPluginDescription : cppcomponents::define_interface<
     cppcomponents::uuid<0xd9c0d740, 0x7e96, 0x11e6, 0x9820, 0x305a3a06584e>>
 {
 
-    //! \returns A list of regexes for sites that this plugin supports
-    std::vector<std::string> GetSupportedSites();
+    //! \returns A list of Website scanners
+    std::vector<cppcomponents::use<IWebsiteScanner>> GetSupportedSites();
     
     //! \returns A list of regexes for tag download sites that this plugin supports
     std::vector<std::string> GetSupportedTagSites();
@@ -50,6 +63,8 @@ using PluginDescription = cppcomponents::use_runtime_class<PluginDescription_t>;
 // This will probably be used if cppcomponents::NoConstructorFactoryInterface doesn't
 // work
 //cppcomponents::object_interfaces<IPluginDescription>
+
+
 
 
 }

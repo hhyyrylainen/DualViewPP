@@ -26,6 +26,7 @@ public:
 
     //! \brief Called from curl when the download has progressed
     //! \returns True if download should be canceled
+    //! \todo Timeout
     virtual bool OnDownloadProgress(float dlprogress, float uploadprogress);
     
 protected:
@@ -50,7 +51,11 @@ protected:
 class PageScanJob : public DownloadJob{
 public:
 
+    //! \exception Leviathan::InvalidArgument if the URL is not supported
     PageScanJob(const std::string &url, const std::string &referrer = "");
+
+    //! \brief Returns the scanner plugin if this site is supported
+    
     
 protected:
 

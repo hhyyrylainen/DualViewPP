@@ -18,12 +18,21 @@ class DualView;
 class PluginManager{
     friend DualView;
 public:
-    PluginManager() = default;
+    
+    PluginManager();
 
     //! \brief Ensures plugins are closed properly
     ~PluginManager();
 
+    //! \brief Prints stats about loaded plugins
+    void PrintPluginStats() const;
+
+    //! \brief Returns the best scanner for url, or null
+    cppcomponents::use<IWebsiteScanner> GetScannerForURL(const std::string &url) const;
+
 protected:
+
+    void AddScanner(const cppcomponents::use<IWebsiteScanner> scanner);
 
     //! \brief Tries to load plugin from a file
     //! \returns True on success
@@ -31,7 +40,8 @@ protected:
 
 private:
 
-    
+    //! Loaded Website scanners
+    std::vector<cppcomponents::use<IWebsiteScanner>> WebsiteScanners;
 };
 }
 

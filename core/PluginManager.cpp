@@ -5,8 +5,15 @@
 
 using namespace DV;
 // ------------------------------------ //
+PluginManager::PluginManager(){
+
+}
+
 PluginManager::~PluginManager(){
 
+    // Unload all //
+    // They are actually smart pointers so it might not unload all
+    WebsiteScanners.clear();
     
 }
 // ------------------------------------ //
@@ -24,8 +31,13 @@ bool PluginManager::LoadPlugin(const std::string &fileName){
     }
 
     try{
+        LOG_INFO("Loading plugin file: " + fileName);
+
         auto p = PluginDescription::dynamic_creator(
             fileName, "PluginDescription")();
+        
+        //auto version = PluginDescription::static_interface(fileName,
+        //PluginDescriptionID()).GetDualViewVersionStr();
 
         if(!p){
 
@@ -43,6 +55,12 @@ bool PluginManager::LoadPlugin(const std::string &fileName){
             return false;
         }
 
+        // Get downloaders //
+        {
+            for(const auto &scanner : p.GetSupportedSites())
+                AddScanner(scanner);
+        }
+
         LOG_INFO("Plugin: " + p.GetPluginName() + " successfully loaded");
         return true;
     
@@ -53,4 +71,42 @@ bool PluginManager::LoadPlugin(const std::string &fileName){
     }
 
 
+}
+// ------------------------------------ //
+void PluginManager::AddScanner(const cppcomponents::use<IWebsiteScanner> scanner){
+
+    for(const auto &existing : WebsiteScanners){
+
+        if(existing.GetName() == scanner.GetName())
+            return;
+    }
+
+    LOG_INFO("PluginManager: loaded new download plugin: " + scanner.GetName());
+    WebsiteScanners.push_back(scanner);
+}
+
+cppcomponents::use<IWebsiteScanner> PluginManager::GetScannerForURL(const std::string &url)
+    const
+{
+    for(const auto& scanner : WebsiteScanners){
+
+        if(scanner.CanHandleURL(url))
+            return scanner;
+    }
+
+    return nullptr;
+}
+// ------------------------------------ //
+void PluginManager::PrintPluginStats() const{
+
+    LOG_INFO("PluginManager has loaded:");
+    
+    LOG_WRITE(Convert::ToString(WebsiteScanners.size()) +
+        " website scan plugins:");
+
+    for(const auto& dl : WebsiteScanners)
+        LOG_WRITE("- " + dl.GetName());
+    LOG_WRITE("");
+
+    LOG_WRITE("");
 }

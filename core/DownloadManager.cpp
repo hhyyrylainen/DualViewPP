@@ -148,7 +148,8 @@ bool DownloadJob::OnDownloadProgress(float dlprogress, float uploadprogress){
     }
 
     //LOG_WRITE("DL progress: " + Convert::ToString(dlprogress));
-
+    Progress = std::max(dlprogress, uploadprogress);
+    
     // Continue //
     return false;
 }
@@ -229,7 +230,7 @@ void DownloadJob::DoDownload(DownloadManager &manager){
     
 }
 // ------------------------------------ //
-// DownloadJob
+// PageScanJob
 PageScanJob::PageScanJob(const std::string &url, const std::string &referrer /*= ""*/) :
     DownloadJob(url, referrer)
 {

@@ -340,6 +340,15 @@ bool DualView::_DoInitThreadAction(){
         return true;
     }
 
+    if(!_PluginManager->LoadPlugin("plugins/libPlugin_GoogleImages.so")){
+
+        LOG_ERROR("Failed to load plugin");
+        return true;
+    }
+
+    // Print how many plugins are loaded //
+    _PluginManager->PrintPluginStats();
+
     // Start downloader threads and load more curl instances
     _DownloadManager = std::make_unique<DownloadManager>();
 
