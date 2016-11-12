@@ -85,6 +85,39 @@ DownloadJob::DownloadJob(const std::string &url, const std::string &referrer) :
 
 }
 
+int CurlProgressCallback(void *clientp, curl_off_t dltotal, curl_off_t dlnow,
+    curl_off_t ultotal, curl_off_t ulnow)
+{
+    auto* obj = reinterpret_cast<DownloadJob*>(clientp);
+
+    return obj->OnDownloadProgress(
+        dltotal != 0 ? static_cast<float>(dlnow) / dltotal : 0.f,
+        ultotal != 0 ? static_cast<float>(ulnow) / ultotal : 0.f);
+}
+
+bool DownloadJob::OnDownloadProgress(float dlprogress, float uploadprogress){
+
+    // Timeout //
+    if(false){
+
+        LOG_WARNING("DownloadJob: timing out: " + URL);
+        return true;
+    }
+
+    //LOG_WRITE("DL progress: " + Convert::ToString(dlprogress));
+
+    // Continue //
+    return false;
+}
+
+size_t DV::CurlWriteCallback(char *ptr, size_t size, size_t nmemb, void *userdata){
+
+    auto* obj = reinterpret_cast<DownloadJob*>(userdata);
+
+    obj->DownloadBytes.append(ptr, size * nmemb);
+    return size * nmemb;
+}
+
 void DownloadJob::DoDownload(DownloadManager &manager){
 
     LOG_INFO("DownloadJob running: " + URL);
@@ -105,6 +138,15 @@ void DownloadJob::DoDownload(DownloadManager &manager){
     
     curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
 
+    if(!Referrer.empty()){
+
+        curl_easy_setopt(curl, CURLOPT_REFERER, Referrer.c_str());
+    }
+
+    // Mozilla useragent
+    curl_easy_setopt(curl, CURLOPT_USERAGENT,
+        "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:49.0) Gecko/20100101 Firefox/49.0");
+
     // Capture error messages
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curlError); 
 
@@ -112,6 +154,15 @@ void DownloadJob::DoDownload(DownloadManager &manager){
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
     // Max 10 redirects
     curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 10);
+
+    // Data retrieval //
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &CurlWriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
+
+    // Progress callback //
+    curl_easy_setopt(curl, CURLOPT_XFERINFODATA, this);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, &CurlProgressCallback);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
 
     // Do download
     const auto result = curl_easy_perform(curl);
@@ -145,4 +196,5 @@ PageScanJob::PageScanJob(const std::string &url, const std::string &referrer /*=
 void PageScanJob::HandleContent(){
 
     LOG_INFO("PageScanJob scanning links");
+    //LOG_WRITE("Data: " + DownloadBytes);
 }

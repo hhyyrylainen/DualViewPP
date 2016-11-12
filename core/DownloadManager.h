@@ -12,14 +12,21 @@ namespace DV{
 
 class DownloadManager;
 
+size_t CurlWriteCallback(char *ptr, size_t size, size_t nmemb, void *userdata);
+
 //! \brief A job for the downloader to do
 class DownloadJob{
+    friend size_t CurlWriteCallback(char *ptr, size_t size, size_t nmemb, void *userdata);
 public:
 
     DownloadJob(const std::string &url, const std::string &referrer);
 
     //! \brief Called on the download thread to process this download
     virtual void DoDownload(DownloadManager &manager);
+
+    //! \brief Called from curl when the download has progressed
+    //! \returns True if download should be canceled
+    virtual bool OnDownloadProgress(float dlprogress, float uploadprogress);
     
 protected:
 
