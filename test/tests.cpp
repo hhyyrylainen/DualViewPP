@@ -5,6 +5,7 @@
 #include "core/CacheManager.h"
 #include "core/Settings.h"
 #include "core/VirtualPath.h"
+#include "core/DownloadManager.h"
 
 #include "core/TimeHelpers.h"
 
@@ -182,4 +183,13 @@ TEST_CASE("Datetime parsing", "[db][time]"){
 
         CHECK(TimeHelpers::format8601(time) == original);
     }
+}
+
+TEST_CASE("Filename from URL", "[url][download]"){
+    
+    CHECK(DownloadManager::ExtractFileName(
+            "http://w.com//images/eb/3f/eb3f8e3a01665cc99794bb7017dd5b92.jpg?3427768") ==
+        "eb3f8e3a01665cc99794bb7017dd5b92.jpg");
+
+    CHECK(DownloadManager::ExtractFileName("http://i.imgur.com/AF7pCun.jpg") == "AF7pCun.jpg");
 }

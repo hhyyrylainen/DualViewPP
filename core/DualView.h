@@ -75,7 +75,7 @@ public:
 
 
     //! \brief Runs folder creator as a modal window
-    void RunFolderCreatorAsDialog(const std::string path, const std::string &prefillnewname,
+    void RunFolderCreatorAsDialog(const VirtualPath path, const std::string &prefillnewname,
         Gtk::Window &parentwindow);
 
     //! \brief Registers a gtk window with the gtk instance

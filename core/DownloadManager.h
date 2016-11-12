@@ -62,6 +62,25 @@ protected:
     std::vector<std::string> Content;
 };
 
+//! \brief Downloads a file to a local file in the staging folder
+class ImageFileDLJob : public DownloadJob{
+public:
+
+    //! \param replacelocal If true the local filename is not made unique before downloading.
+    //! if false numbers are added to the end of the name if it exists already
+    ImageFileDLJob(const std::string &url, const std::string &referrer,
+        bool replacelocal = false);
+    
+
+protected:
+
+    //! Once download has started (or finished) this contains the local file path
+    std::string LocalFile;
+    
+};
+
+
+
 //! \brief Handles scanning pages for content and downloading found content
 //!
 //! Uses plugins to handle contents of webpages once downloaded
@@ -76,7 +95,9 @@ public:
 
     //! \brief Adds an item to the work queue
     void QueueDownload(std::shared_ptr<DownloadJob> job);
-    
+
+    //! \brief Extracts a filename from an url
+    static std::string ExtractFileName(const std::string &url);
 
 protected:
 

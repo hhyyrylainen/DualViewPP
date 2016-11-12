@@ -78,6 +78,26 @@ void DownloadManager::QueueDownload(std::shared_ptr<DownloadJob> job){
     NotifyThread.notify_all();
 }
 // ------------------------------------ //
+std::string DownloadManager::ExtractFileName(const std::string &url){
+
+    auto lastslash = url.find_last_of('/');
+
+    if(lastslash != std::string::npos)
+        return ExtractFileName(url.substr(lastslash + 1));
+
+    // Get until a ? or #
+    size_t length = 0;
+
+    for(size_t i = 0; i < url.size(); ++i){
+
+        if(url[i] == '?' || url[i] == '#')
+            break;
+        length = i;
+    }
+
+    return url.substr(0, length + 1);
+}
+// ------------------------------------ //
 // DownloadJob
 DownloadJob::DownloadJob(const std::string &url, const std::string &referrer) :
     URL(url), Referrer(referrer)
