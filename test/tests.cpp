@@ -192,4 +192,8 @@ TEST_CASE("Filename from URL", "[url][download]"){
         "eb3f8e3a01665cc99794bb7017dd5b92.jpg");
 
     CHECK(DownloadManager::ExtractFileName("http://i.imgur.com/AF7pCun.jpg") == "AF7pCun.jpg");
+
+    CHECK(DownloadManager::ExtractFileName("http://x.abs.com/u/ufo/6495436/263030533/82.jpg")
+        == "82.jpg");
+    
 }

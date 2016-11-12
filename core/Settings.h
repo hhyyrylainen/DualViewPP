@@ -40,6 +40,12 @@ public:
         return PublicCollection;
     }
 
+    //! \brief Returns a path to the staging folder
+    const std::string GetStagingFolder() const{
+
+        return (boost::filesystem::path(PrivateCollection) / "staging/").string();
+    }
+
 
     //! \brief Returns the database file
     const auto GetDatabaseFile() const{

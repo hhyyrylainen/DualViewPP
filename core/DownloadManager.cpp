@@ -7,6 +7,10 @@
 #include "core/Settings.h"
 #include "Common.h"
 
+#include "leviathan/FileSystem.h"
+
+#include <boost/filesystem.hpp>
+
 using namespace DV;
 // ------------------------------------ //
 
@@ -218,3 +222,35 @@ void PageScanJob::HandleContent(){
     LOG_INFO("PageScanJob scanning links");
     //LOG_WRITE("Data: " + DownloadBytes);
 }
+
+// ------------------------------------ //
+// ImageFileDLJob
+ImageFileDLJob::ImageFileDLJob(const std::string &url, const std::string &referrer,
+    bool replacelocal /*= false*/) :
+    DownloadJob(url, referrer), ReplaceLocal(replacelocal)
+{
+    
+    
+}
+
+void ImageFileDLJob::HandleContent(){
+
+    // Generate filename //
+    if(ReplaceLocal){
+
+        LocalFile = (boost::filesystem::path(
+                    DualView::Get().GetSettings().GetStagingFolder()) /
+                DownloadManager::ExtractFileName(URL)).string();
+        
+    } else {
+        LocalFile = DualView::MakePathUniqueAndShort((boost::filesystem::path(
+                    DualView::Get().GetSettings().GetStagingFolder()) /
+                DownloadManager::ExtractFileName(URL)).string());
+    }
+
+    LOG_INFO("Writing downloaded image to file: " + LocalFile);
+
+    Leviathan::FileSystem::WriteToFile(DownloadBytes, LocalFile);
+}
+
+

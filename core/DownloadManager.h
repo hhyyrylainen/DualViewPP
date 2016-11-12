@@ -71,12 +71,17 @@ public:
     ImageFileDLJob(const std::string &url, const std::string &referrer,
         bool replacelocal = false);
     
+protected:
+
+    //! Writes the received data to a file
+    void HandleContent() override;
 
 protected:
 
     //! Once download has started (or finished) this contains the local file path
     std::string LocalFile;
-    
+
+    bool ReplaceLocal;
 };
 
 
