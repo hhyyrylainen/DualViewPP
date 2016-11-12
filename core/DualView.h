@@ -245,11 +245,19 @@ public:
         
         return *_DownloadManager;
     }
+
+    inline PluginManager& GetPluginManager() const{
+        
+        return *_PluginManager;
+    }
     
     //! \brief Returns true if called on the main thread
     //!
     //! Used to detect errors where functions are called on the wrong thread
     static bool IsOnMainThread();
+
+    //! \brief Asserts if IsOnMainThread returns false
+    static void IsOnMainThreadAssert();
     
     //! \brief Returns the global instance or asserts and quits the program
     static DualView& Get();

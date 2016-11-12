@@ -5,6 +5,8 @@
 
 #include "core/DualView.h"
 #include "core/Settings.h"
+#include "core/PluginManager.h"
+
 #include "Common.h"
 
 #include "leviathan/FileSystem.h"
@@ -234,13 +236,25 @@ void DownloadJob::DoDownload(DownloadManager &manager){
 PageScanJob::PageScanJob(const std::string &url, const std::string &referrer /*= ""*/) :
     DownloadJob(url, referrer)
 {
+    auto scanner = DualView::Get().GetPluginManager().GetScannerForURL(url);
 
+    if(!scanner)
+        throw Leviathan::InvalidArgument("Unsupported website for url");
 }
-    
+
 void PageScanJob::HandleContent(){
 
-    LOG_INFO("PageScanJob scanning links");
-    //LOG_WRITE("Data: " + DownloadBytes);
+    auto scanner = DualView::Get().GetPluginManager().GetScannerForURL(URL);
+
+    if(!scanner){
+
+        LOG_ERROR("PageScanJob: scanner is not found anymore with url: " + URL);
+        HandleError();
+        return;
+    }
+
+    LOG_INFO("PageScanJob scanning links with: " + std::string(scanner->GetName()));
+    
 }
 
 // ------------------------------------ //

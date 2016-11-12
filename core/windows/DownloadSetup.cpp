@@ -81,9 +81,17 @@ void DownloadSetup::OnURLChanged(){
     DetectedSettings->set_text("Checking for valid URL, please wait.");
     URLCheckSpinner->property_active() = true;
 
-    auto scan = std::make_shared<PageScanJob>(URLEntry->get_text());
+    try{
+        
+        auto scan = std::make_shared<PageScanJob>(URLEntry->get_text());
 
-    DualView::Get().GetDownloadManager().QueueDownload(scan);
+        DualView::Get().GetDownloadManager().QueueDownload(scan);
+
+    } catch(const Leviathan::InvalidArgument&){
+
+        // Invalid url //
+        UrlCheckFinished(false, "website not supported");
+    }
 }
 
 void DownloadSetup::OnInvalidateURL(){
@@ -91,3 +99,17 @@ void DownloadSetup::OnInvalidateURL(){
     DetectedSettings->set_text("URL changed, accept it to update.");
     URLCheckSpinner->property_active() = false;
 }
+
+void DownloadSetup::UrlCheckFinished(bool wasvalid, const std::string &message){
+
+    DualView::IsOnMainThreadAssert();
+
+    URLCheckSpinner->property_active() = false;
+
+    if(!wasvalid){
+
+        DetectedSettings->set_text("Invalid URL: " + message);
+        return;
+    }
+}
+

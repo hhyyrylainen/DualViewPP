@@ -31,6 +31,9 @@ public:
 protected:
 
     void _OnClose() override;
+
+    //! \brief Called after the url check has finished
+    void UrlCheckFinished(bool wasvalid, const std::string &message);
     
 private:
 

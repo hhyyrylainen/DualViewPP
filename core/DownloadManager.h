@@ -53,8 +53,6 @@ public:
 
     //! \exception Leviathan::InvalidArgument if the URL is not supported
     PageScanJob(const std::string &url, const std::string &referrer = "");
-
-    //! \brief Returns the scanner plugin if this site is supported
     
     
 protected:

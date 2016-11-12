@@ -181,6 +181,11 @@ bool DualView::IsOnMainThread(){
 
     return ThreadSpecifier == MAIN_THREAD_MAGIC;
 }
+
+void DualView::IsOnMainThreadAssert(){
+
+    LEVIATHAN_ASSERT(DualView::IsOnMainThread(), "Function not called on the main thread");
+}
 // ------------------------------------ //
 void DualView::_OnInstanceLoaded(){
 
