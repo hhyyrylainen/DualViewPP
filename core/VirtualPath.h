@@ -59,6 +59,14 @@ public:
 
         return PathStr;
     }
+
+    //! \brief Returns true if this is the path to root
+    bool IsRootPath() const{
+
+        if(PathStr == "Root" || PathStr == "Root/")
+            return true;
+        return false;
+    }
     
     // Operators //
 
@@ -81,6 +89,11 @@ public:
     bool operator ==(const VirtualPath &other) const{
 
         return PathStr == other.PathStr;
+    }
+
+    operator std::string() const{
+
+        return PathStr;
     }
 
     // Iterators for path parts

@@ -948,7 +948,7 @@ void DualView::OpenTagCreator(){
     _TagManager->present();
 }
 
-void DualView::RunFolderCreatorAsDialog(const std::string path,
+void DualView::RunFolderCreatorAsDialog(const VirtualPath &path,
     const std::string &prefillnewname, Gtk::Window &parentwindow)
 {
     AssertIfNotMainThread();
@@ -965,10 +965,12 @@ void DualView::RunFolderCreatorAsDialog(const std::string path,
     if(result != Gtk::RESPONSE_OK)
         return;
 
-    std::string name, createpath;
+    std::string name;
+    VirtualPath createpath;
     window.GetNewName(name, createpath);
 
-    LOG_INFO("Trying to create new folder \"" + name + "\" at: " + createpath);
+    LOG_INFO("Trying to create new folder \"" + name + "\" at: " +
+        createpath.operator std::string());
 
     try{
         auto parent = GetFolderFromPath(createpath);
@@ -984,7 +986,8 @@ void DualView::RunFolderCreatorAsDialog(const std::string path,
     } catch(const std::exception &e){
 
         auto dialog = Gtk::MessageDialog(parentwindow,
-            "Failed to create folder \"" + name + "\" at: " + createpath,
+            "Failed to create folder \"" + name + "\" at: " +
+            createpath.operator std::string(),
             false,
             Gtk::MESSAGE_ERROR,
             Gtk::BUTTONS_OK,
@@ -1213,31 +1216,28 @@ std::shared_ptr<Collection> DualView::GetUncategorized(){
 }
 
 // ------------------------------------ //
-std::shared_ptr<Folder> DualView::GetFolderFromPath(const std::string &path){
+std::shared_ptr<Folder> DualView::GetFolderFromPath(const VirtualPath &path){
 
     // Root folder //
-    if(path == "Root" || path == "Root/"){
-
+    if(path.IsRootPath())
         return GetRootFolder();
-    }
+
 
     // Loop through all the path components and verify that a folder exists
-    // This is actually overkill for what we are doing
-    Leviathan::StringIterator itr(path);
 
     std::shared_ptr<Folder> currentfolder;
 
-    while(!itr.IsOutOfBounds()){
+    for(auto iter = path.begin(); iter != path.end(); ++iter){
 
-        auto part = itr.GetUntilNextCharacterOrAll<std::string>('/');
+        auto part = *iter;
 
-        if(!part){
+        if(part.empty()){
 
             // String ended //
             return currentfolder;
         }
 
-        if(!currentfolder && (*part == "Root")){
+        if(!currentfolder && (part == "Root")){
 
             currentfolder = GetRootFolder();
             continue;
@@ -1250,7 +1250,7 @@ std::shared_ptr<Folder> DualView::GetFolderFromPath(const std::string &path){
         }
 
         // Find a folder with the current name inside currentfolder //
-        auto nextfolder = _Database->SelectFolderByNameAndParentAG(*part, *currentfolder);
+        auto nextfolder = _Database->SelectFolderByNameAndParentAG(part, *currentfolder);
 
         if(!nextfolder){
 

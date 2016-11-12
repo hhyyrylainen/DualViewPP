@@ -84,7 +84,7 @@ void FolderSelector::OnFolderChanged(){
     
     FolderContents.SetShownItems(folders.begin(), folders.end(), changefolder);
 
-    PathEntry.set_text(CurrentPath);
+    PathEntry.set_text(CurrentPath.GetPathString());
 }
 // ------------------------------------ //
 void FolderSelector::_CreateNewFolder(){
@@ -92,7 +92,7 @@ void FolderSelector::_CreateNewFolder(){
     // If the user has typed something in the entry use that as the name for the new folder //
     std::string userinput = PathEntry.get_text();
 
-    userinput.erase(0, CurrentPath.length());
+    userinput.erase(0, CurrentPath.GetPathString().length());
     // userinput is most likely empty here //
 
     

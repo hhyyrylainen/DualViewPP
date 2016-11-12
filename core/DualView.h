@@ -3,6 +3,8 @@
 
 #include "windows/BaseWindow.h"
 
+#include "VirtualPath.h"
+
 #include <condition_variable>
 #include <mutex>
 #include <thread>
@@ -75,7 +77,7 @@ public:
 
 
     //! \brief Runs folder creator as a modal window
-    void RunFolderCreatorAsDialog(const VirtualPath path, const std::string &prefillnewname,
+    void RunFolderCreatorAsDialog(const VirtualPath &path, const std::string &prefillnewname,
         Gtk::Window &parentwindow);
 
     //! \brief Registers a gtk window with the gtk instance
@@ -158,7 +160,7 @@ public:
     //! \brief Retrieves a Folder from path
     //! \returns Null if the folder doesn't exist
     //! \todo Fix " and ' in the path
-    std::shared_ptr<Folder> GetFolderFromPath(const std::string &path);
+    std::shared_ptr<Folder> GetFolderFromPath(const VirtualPath &path);
 
     //! \brief Parses an AppliedTag from a string. Doesn't add it to the database automatically
     //! \note This will lock the database, so if it already locked this causes a deadlock

@@ -9,10 +9,10 @@ using namespace DV;
 
 void FolderNavigatorHelper::GoToRoot(){
 
-    GoToPath("Root/");
+    GoToPath(VirtualPath("Root/"));
 }
 
-void FolderNavigatorHelper::GoToPath(const std::string &path){
+void FolderNavigatorHelper::GoToPath(const VirtualPath &path){
 
     CurrentFolder = DualView::Get().GetFolderFromPath(path);
     CurrentPath = path;
@@ -23,7 +23,7 @@ void FolderNavigatorHelper::GoToPath(const std::string &path){
     OnFolderChanged();
 }
 // ------------------------------------ //
-bool FolderNavigatorHelper::TryGoToPath(const std::string &path){
+bool FolderNavigatorHelper::TryGoToPath(const VirtualPath &path){
 
     auto folder = DualView::Get().GetFolderFromPath(path);
 
@@ -42,48 +42,14 @@ void FolderNavigatorHelper::MoveToSubfolder(const std::string &subfoldername){
     if(subfoldername.empty())
         return;
 
-    if(CurrentPath.back() != '/' && subfoldername.front() != '/')
-        CurrentPath += '/';
-
-    CurrentPath += subfoldername;
+    CurrentPath = CurrentPath / VirtualPath(subfoldername);
     GoToPath(CurrentPath);
 }
-
 // ------------------------------------ //
 void FolderNavigatorHelper::_OnUpFolder(){
 
-    if(CurrentPath == "Root/" || CurrentPath == "Root")
-        return;
-
-    if(CurrentPath.size() < 2){
-
-        GoToRoot();
-        return;
-    }
-
-    // Cut of the last part of the path //
-    size_t cutend = 0;
-
-    // Scan backwards until a /. We start from the second to last character
-    for(size_t i = CurrentPath.size() - 1 - 1; i > 0; --i){
-
-        if(CurrentPath[i] == '/'){
-
-            cutend = i;
-            break;
-        }
-    }
-
-    if(cutend < 1 || cutend > CurrentPath.size()){
-
-        // Cutting failed //
-        LOG_ERROR("FolderNavigator: path cutting failed. cut: " + Convert::ToString(cutend) +
-            " Path is: " + CurrentPath);
-        GoToRoot();
-        return;
-    }
-    
-    GoToPath(CurrentPath.substr(0, cutend + 1));
+    --CurrentPath;
+    GoToPath(CurrentPath);
 }
 
 void FolderNavigatorHelper::_OnPathEntered(){
@@ -91,7 +57,7 @@ void FolderNavigatorHelper::_OnPathEntered(){
     if(!NavigatorPathEntry)
         return;
 
-    if(!TryGoToPath(NavigatorPathEntry->get_text())){
+    if(!TryGoToPath(VirtualPath(NavigatorPathEntry->get_text(), false))){
 
         LOG_ERROR("FolderNavigator: TODO: error sound");
     }

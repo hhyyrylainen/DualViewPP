@@ -13,6 +13,7 @@ VirtualPath::VirtualPath(const std::string &path, bool addroot /*= false*/){
 
     PathStr = Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(
         path, "\\", '/');
+    Leviathan::StringOperations::RemovePreceedingTrailingSpaces(PathStr);
 
     if(addroot){
 

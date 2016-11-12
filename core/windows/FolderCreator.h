@@ -1,5 +1,7 @@
 #pragma once
 
+#include "VirtualPath.h"
+
 #include <gtkmm.h>
 
 #include <memory>
@@ -11,11 +13,11 @@ class FolderCreator : public Gtk::Dialog{
 public:
 
     //! \brief Constructor called by glade builder when loading a widget of this type
-    FolderCreator(const std::string path, const std::string &prefillnewname);
+    FolderCreator(const VirtualPath &path, const std::string &prefillnewname);
     ~FolderCreator();
 
     //! \brief Gets the name of the new folder
-    void GetNewName(std::string &name, std::string &parentpath);
+    void GetNewName(std::string &name, VirtualPath &parentpath);
 
 protected:
 

@@ -6,9 +6,9 @@
 using namespace DV;
 // ------------------------------------ //
 //! \brief Constructor called by glade builder when loading a widget of this type
-FolderCreator::FolderCreator(const std::string path, const std::string &prefillnewname){
+FolderCreator::FolderCreator(const VirtualPath &path, const std::string &prefillnewname){
 
-    PathEntry.set_text(path);
+    PathEntry.set_text(path.GetPathString());
     get_vbox()->add(PathEntry);
     
     NameContainter.set_orientation(Gtk::ORIENTATION_HORIZONTAL);
@@ -40,10 +40,10 @@ FolderCreator::~FolderCreator(){
 
 }
 // ------------------------------------ //
-void FolderCreator::GetNewName(std::string &name, std::string &parentpath){
+void FolderCreator::GetNewName(std::string &name, VirtualPath &parentpath){
 
     name = NameEntry.get_text();
     Leviathan::StringOperations::RemovePreceedingTrailingSpaces(name);
 
-    parentpath = PathEntry.get_text();
+    parentpath = VirtualPath(PathEntry.get_text());
 }

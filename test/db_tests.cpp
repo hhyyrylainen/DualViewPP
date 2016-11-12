@@ -855,7 +855,7 @@ TEST_CASE("Virtual folder Path parsing works", "[folder][path][db]"){
 
     SECTION("Root path"){
         
-        auto folder = dv.GetFolderFromPath("Root/");
+        auto folder = dv.GetFolderFromPath(VirtualPath("Root/"));
         REQUIRE(folder);
         
         CHECK(*folder == *root);
@@ -867,7 +867,8 @@ TEST_CASE("Virtual folder Path parsing works", "[folder][path][db]"){
         auto inserted = db.InsertFolder("nice folder", false,
             *root);
 
-        auto folder = dv.GetFolderFromPath("Root/nice folder");
+        auto folder = dv.GetFolderFromPath(VirtualPath(
+                "Root/nice folder"));
         REQUIRE(folder);
         
         CHECK(*folder == *inserted);
@@ -888,7 +889,8 @@ TEST_CASE("Virtual folder Path parsing works", "[folder][path][db]"){
         auto inserted4 = db.InsertFolder("last", false,
             *inserted3);
 
-        auto folder = dv.GetFolderFromPath("Root/nice folder/subfolder/more parts/last");
+        auto folder = dv.GetFolderFromPath(VirtualPath(
+                "Root/nice folder/subfolder/more parts/last"));
         REQUIRE(folder);
         
         CHECK(*folder == *inserted4);

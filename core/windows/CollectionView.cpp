@@ -62,7 +62,7 @@ void CollectionView::_OnHidden(){
 // ------------------------------------ //
 void CollectionView::OnFolderChanged(){
 
-    PathEntry->set_text(CurrentPath);
+    PathEntry->set_text(CurrentPath.GetPathString());
 
     // Load items //
     auto isalive = GetAliveMarker();

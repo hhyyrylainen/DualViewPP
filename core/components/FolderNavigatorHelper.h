@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/VirtualPath.h"
+
 #include <gtkmm.h>
 #include <string>
 #include <memory>
@@ -18,11 +20,11 @@ public:
     void GoToRoot();
 
     //! \brief Goes to the specified path, or to Root if the path is invalid
-    void GoToPath(const std::string &path);
+    void GoToPath(const VirtualPath &path);
 
     //! \brief Tries to go to the specified path, if invalid does nothing
     //! \returns True on success
-    bool TryGoToPath(const std::string &path);
+    bool TryGoToPath(const VirtualPath &path);
 
     //! \brief Goes to a subfolder
     void MoveToSubfolder(const std::string &subfoldername);
@@ -47,7 +49,7 @@ protected:
     std::shared_ptr<Folder> CurrentFolder;
 
     //! Because a folder can have multiple paths we keep track of the current one
-    std::string CurrentPath;
+    VirtualPath CurrentPath;
 };
 
 }
