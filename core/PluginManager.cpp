@@ -64,18 +64,28 @@ bool PluginManager::LoadPlugin(const std::string &fileName){
 
     // Lookup functions //
 
+    // Clear errors, just for good practice
+    dlerror();
+
     creation = reinterpret_cast<CreateDescriptionFuncPtr>(
         dlsym(sohandle, "CreatePluginDesc"));
+
+    char* error = dlerror();
+    if(error || !creation){
+
+        LOG_ERROR("Required function (create plugin info) not found in plugin '" +
+            fileName + "': " + (error ? std::string(error) : std::string()));
+        return false;
+    }
+    
     deletion = reinterpret_cast<DestroyDescriptionFuncPtr>(
         dlsym(sohandle, "DestroyPluginDesc"));
 
-    if(!creation || !deletion){
+    error = dlerror();
+    if(error || !creation){
 
-        auto* errorstr = dlerror();
-        
-        LOG_ERROR("Required functions not found in plugin '" + fileName + "': " + (errorstr ?
-                std::string(errorstr) : std::string()));
-
+        LOG_ERROR("Required function (delete plugin info) not found in plugin '" +
+            fileName + "': " + (error ? std::string(error) : std::string()));
         return false;
     }
 
