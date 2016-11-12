@@ -70,6 +70,11 @@ public:
         return "../gui/icons/folders.png";
     }
 
+    auto GetCurlDebug() const{
+
+        return CurlDebug;
+    }
+
     //! \brief Returns true if loadversion is compatible with SETTINGS_VERSION
     static bool IsVersionCompatible(int loadversion);
 
@@ -110,6 +115,9 @@ protected:
 
     //! How many images behind the current one are loaded
     int32_t PreloadCollectionBackwards = 1;
+
+    //! True if curl should print debug output
+    bool CurlDebug = false;
 
     //! Settings storage object
     //! \todo This will be used to preserve comments in the file, currently does nothing

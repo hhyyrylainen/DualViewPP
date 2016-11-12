@@ -50,6 +50,7 @@
                       <object class="GtkEntry" id="URLEntry">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
+                        <property name="has_focus">True</property>
                         <property name="placeholder_text" translatable="yes">Write URL here and press enter</property>
                         <property name="input_purpose">url</property>
                       </object>
@@ -60,7 +61,7 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkSpinner">
+                      <object class="GtkSpinner" id="URLCheckSpinner">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
                       </object>

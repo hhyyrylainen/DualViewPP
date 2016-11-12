@@ -197,7 +197,8 @@ void CacheManager::_RunFullSizeLoaderThread(){
     while(!Quitting){
 
         // Wait for more work //
-        NotifyFullLoaderThread.wait(lock);
+        if(LoadQueue.empty())
+            NotifyFullLoaderThread.wait(lock);
 
         // Process whole queue //
         while(!LoadQueue.empty()){
@@ -253,7 +254,8 @@ void CacheManager::_RunThumbnailGenerationThread(){
     while(!Quitting){
 
         // Wait for more work //
-        NotifyThumbnailGenerationThread.wait(lock);
+        if(ThumbQueue.empty())
+            NotifyThumbnailGenerationThread.wait(lock);
 
         // Process whole queue //
         while(!ThumbQueue.empty()){

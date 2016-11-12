@@ -23,6 +23,7 @@
 
 #include "Settings.h"
 #include "PluginManager.h"
+#include "DownloadManager.h"
 #include "Exceptions.h"
 
 #include "Common/StringOperations.h"
@@ -72,6 +73,10 @@ DualView::~DualView(){
         _CacheManager->QuitProcessingThreads();
     }
 
+    // Signal downloads to end after the next one
+    if(_DownloadManager)
+        _DownloadManager->StopDownloads();
+
     if(!IsInitialized){
 
         _WaitForWorkerThreads();
@@ -95,6 +100,9 @@ DualView::~DualView(){
     _CollectionView.reset();
     _TagManager.reset();
     _Downloader.reset();
+
+    // Downloads should have already stopped so this should be quick to delete //
+    _DownloadManager.reset();
 
     // Unload plugins //
     _PluginManager.reset();
@@ -207,9 +215,8 @@ void DualView::_OnInstanceLoaded(){
 
     // Create objects with simple constructors //
     _PluginManager = std::make_unique<PluginManager>();
-    
     LEVIATHAN_ASSERT(_PluginManager, "Alloc failed in DualView constructor");
-
+    
     // Connect dispatcher //
     StartDispatcher.connect(sigc::mem_fun(*this, &DualView::_OnLoadingFinished));
     MessageDispatcher.connect(sigc::mem_fun(*this, &DualView::_HandleMessages));
@@ -332,6 +339,9 @@ bool DualView::_DoInitThreadAction(){
         LOG_ERROR("Failed to load plugin");
         return true;
     }
+
+    // Start downloader threads and load more curl instances
+    _DownloadManager = std::make_unique<DownloadManager>();
 
     // Load ImageMagick library //
     _CacheManager = std::make_unique<CacheManager>();

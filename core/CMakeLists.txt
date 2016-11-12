@@ -37,6 +37,7 @@ add_library(Core
   PreparedStatement.h PreparedStatement.cpp
   SingleLoad.h 
   CacheManager.h CacheManager.cpp
+  DownloadManager.h DownloadManager.cpp
 
   IsAlive.h
   UbuntuWorkaround.h

@@ -87,6 +87,21 @@ void Settings::Save(){
         data.AddObject(images);
     }
 
+    // Download settings //
+    {
+        auto downloads = std::make_shared<ObjectFileObjectProper>("Downloads",
+            "", std::vector<std::unique_ptr<std::string>>());
+
+        auto downloadsDelays = std::make_unique<ObjectFileListProper>("curl");
+
+        downloadsDelays->AddVariable(std::make_shared<NamedVariableList>("Debug",
+                new BoolBlock(CurlDebug)));
+    
+        downloads->AddVariableList(std::move(downloadsDelays));
+
+        data.AddObject(downloads);
+    }
+
     if(!ObjectFileProcessor::WriteObjectFile(data, SettingsFile,
             DualView::Get().GetLogger()))
     {
@@ -124,6 +139,7 @@ void Settings::_Load(){
 
     std::shared_ptr<Leviathan::ObjectFileObject> collection = nullptr;
     std::shared_ptr<Leviathan::ObjectFileObject> images = nullptr;
+    std::shared_ptr<Leviathan::ObjectFileObject> downloads = nullptr;
 
     for(size_t i = 0; i < file->GetTotalObjectCount(); ++i){
 
@@ -136,7 +152,11 @@ void Settings::_Load(){
         } else if(obj->GetName() == "Images"){
 
             images = obj;
+        } else if(obj->GetName() == "Downloads"){
+
+            downloads = obj;
         }
+        
     }
 
     // Collection settings //
@@ -205,7 +225,27 @@ void Settings::_Load(){
 
         LOG_WARNING("Settings file missing Images settings");
     }
-    
+
+    // Downloads settings //
+    if(downloads){
+        
+        auto curl = downloads->GetListWithName("curl");
+
+        if(curl){
+
+            Leviathan::ObjectFileProcessor::LoadValueFromNamedVars(curl->GetVariables(),
+                "Debug", CurlDebug, CurlDebug,
+                log, "Settings: Load:");
+            
+        } else {
+
+            LOG_WARNING("Settings Downloads missing curl options list");
+        }
+
+    } else {
+
+        LOG_WARNING("Settings file missing Downloads settings");
+    }
 }
 
 bool Settings::IsVersionCompatible(int loadversion){

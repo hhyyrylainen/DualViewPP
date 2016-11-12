@@ -21,6 +21,12 @@ public:
 
     DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder);
     ~DownloadSetup();
+
+    //! \brief Called when the url is changed and it should be scanned again
+    void OnURLChanged();
+
+    //! \brief When the user edits the current url it should invalidate stuff
+    void OnInvalidateURL();
     
 protected:
 
@@ -39,6 +45,11 @@ private:
 
     TagEditor* CurrentImageEditor;
     SuperViewer* CurrentImage;
+
+    // Url entry
+    Gtk::Entry* URLEntry;
+    Gtk::Label* DetectedSettings;
+    Gtk::Spinner* URLCheckSpinner;
         
 };
 

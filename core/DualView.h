@@ -29,6 +29,7 @@ class PluginManager;
 class CacheManager;
 class CurlWrapper;
 class Database;
+class DownloadManager;
 
 class Settings;
 
@@ -232,10 +233,15 @@ public:
         return *_Settings;
     }
 
-    //! \brief Returns settings
+    //! \brief Returns the logger object
     inline Leviathan::Logger* GetLogger() const{
 
         return _Logger.get();
+    }
+
+    inline DownloadManager& GetDownloadManager() const{
+        
+        return *_DownloadManager;
     }
     
     //! \brief Returns true if called on the main thread
@@ -414,6 +420,9 @@ private:
 
     //! Database holds all the data related to images
     std::unique_ptr<Database> _Database;
+
+    //! Download manager drives all network related activity
+    std::unique_ptr<DownloadManager> _DownloadManager;
 
     //! Logger object
     std::unique_ptr<Leviathan::Logger> _Logger;

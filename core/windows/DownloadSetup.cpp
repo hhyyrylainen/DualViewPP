@@ -8,6 +8,9 @@
 #include "core/components/FolderSelector.h"
 #include "core/components/SuperContainer.h"
 
+#include "core/DownloadManager.h"
+#include "core/DualView.h"
+
 #include "Common.h"
 
 using namespace DV;
@@ -47,6 +50,20 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     CollectionTags = std::make_shared<TagCollection>();
 
     CollectionTagEditor->SetEditedTags({CollectionTags});
+
+
+    builder->get_widget("URLEntry", URLEntry);
+    LEVIATHAN_ASSERT(URLEntry, "Invalid .glade file");
+
+    URLEntry->signal_activate().connect(sigc::mem_fun(*this, &DownloadSetup::OnURLChanged));
+
+    URLEntry->signal_changed().connect(sigc::mem_fun(*this, &DownloadSetup::OnInvalidateURL));
+
+    builder->get_widget("DetectedSettings", DetectedSettings);
+    LEVIATHAN_ASSERT(DetectedSettings, "Invalid .glade file");
+
+    builder->get_widget("URLCheckSpinner", URLCheckSpinner);
+    LEVIATHAN_ASSERT(URLCheckSpinner, "Invalid .glade file");
 }
 
 DownloadSetup::~DownloadSetup(){
@@ -57,4 +74,20 @@ DownloadSetup::~DownloadSetup(){
 void DownloadSetup::_OnClose(){
 
 
+}
+// ------------------------------------ //
+void DownloadSetup::OnURLChanged(){
+    
+    DetectedSettings->set_text("Checking for valid URL, please wait.");
+    URLCheckSpinner->property_active() = true;
+
+    auto scan = std::make_shared<PageScanJob>(URLEntry->get_text());
+
+    DualView::Get().GetDownloadManager().QueueDownload(scan);
+}
+
+void DownloadSetup::OnInvalidateURL(){
+
+    DetectedSettings->set_text("URL changed, accept it to update.");
+    URLCheckSpinner->property_active() = false;
 }
