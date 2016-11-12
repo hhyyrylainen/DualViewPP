@@ -89,19 +89,50 @@ void DownloadJob::DoDownload(DownloadManager &manager){
 
     LOG_INFO("DownloadJob running: " + URL);
 
-    CurlWrapper curl;
+    // Holds curl errors //
+    char curlError[CURL_ERROR_SIZE];
+
+    CurlWrapper curlwrapper;
+    CURL* curl = curlwrapper.Get();
 
     bool debug = DualView::Get().GetSettings().GetCurlDebug();
 
     if(debug){
 
         LOG_INFO("Downloads using curl debug");
+        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1); 
     }
     
+    curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
+
+    // Capture error messages
+    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curlError); 
+
+    // Follow redirects
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
+    // Max 10 redirects
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 10);
+
+    // Do download
+    const auto result = curl_easy_perform(curl);
+
+    if(result == CURLE_OK){
+        
+        // Download finished successfully
+        HandleContent();
+        return;
+    }
+
+    // Handle error //
+    curlError[CURL_ERROR_SIZE - 1] = '\0';
+
+    std::string error = curlError;
 
 
-    // Download finished successfully
-    HandleContent();
+
+    LOG_ERROR("Curl failed with error(" + Convert::ToString(result) + "): " + error);
+
+    
 }
 // ------------------------------------ //
 // DownloadJob
