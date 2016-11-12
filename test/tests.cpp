@@ -186,14 +186,32 @@ TEST_CASE("Datetime parsing", "[db][time]"){
 }
 
 TEST_CASE("Filename from URL", "[url][download]"){
-    
-    CHECK(DownloadManager::ExtractFileName(
-            "http://w.com//images/eb/3f/eb3f8e3a01665cc99794bb7017dd5b92.jpg?3427768") ==
-        "eb3f8e3a01665cc99794bb7017dd5b92.jpg");
 
-    CHECK(DownloadManager::ExtractFileName("http://i.imgur.com/AF7pCun.jpg") == "AF7pCun.jpg");
+    SECTION("Normal names"){
+        CHECK(DownloadManager::ExtractFileName(
+                "http://w.com//images/eb/3f/eb3f8e3a01665cc99794bb7017dd5b92.jpg?3427768") ==
+            "eb3f8e3a01665cc99794bb7017dd5b92.jpg");
 
-    CHECK(DownloadManager::ExtractFileName("http://x.abs.com/u/ufo/6495436/263030533/82.jpg")
-        == "82.jpg");
+        CHECK(DownloadManager::ExtractFileName("http://i.imgur.com/AF7pCun.jpg") ==
+            "AF7pCun.jpg");
+        
+        CHECK(DownloadManager::ExtractFileName(
+                "http://x.abs.com/u/ufo/6495436/263030533/82.jpg")
+            == "82.jpg");
+    }
+
+    SECTION("Unescaping stuff"){
+
+        CHECK(DownloadManager::ExtractFileName(
+                "http://normalsite.com/contents/My%20cool%20image%20%3Ahere.jpg")
+            == "My cool image :here.jpg");
+    }
+
+    SECTION("Sneaky slashes"){
+
+        CHECK(DownloadManager::ExtractFileName(
+                "http://normalsite.com/contents/My%20cool%20image%20%3%2Ahere.jpg").
+            find_first_of('/') == std::string::npos);
+    }
     
 }

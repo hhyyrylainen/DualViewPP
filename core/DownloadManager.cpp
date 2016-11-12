@@ -8,6 +8,7 @@
 #include "Common.h"
 
 #include "leviathan/FileSystem.h"
+#include "leviathan/Common/StringOperations.h"
 
 #include <boost/filesystem.hpp>
 
@@ -99,7 +100,25 @@ std::string DownloadManager::ExtractFileName(const std::string &url){
         length = i;
     }
 
-    return url.substr(0, length + 1);
+    auto name = url.substr(0, length + 1);
+
+    // Unescape things like spaces
+    {
+        CurlWrapper curl;
+        int outlength;
+        
+        auto unescaped = curl_easy_unescape(curl.Get(), name.c_str(), name.length() ,
+            &outlength);
+
+        name = std::string(unescaped, outlength);
+
+        curl_free(unescaped);
+    }
+
+    // Remove unwanted characters like /'s
+    // (Looks like curl refuses to decode %2 (/) so it might be safe without this)
+    return Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(name,
+        "/\\", '_');
 }
 // ------------------------------------ //
 // DownloadJob
