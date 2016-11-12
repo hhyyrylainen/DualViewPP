@@ -3,6 +3,12 @@
 
 #include <fstream>
 
+#ifdef __linux__
+#include <dlfcn.h>
+#else
+#error todo: shared object opening
+#endif
+
 using namespace DV;
 // ------------------------------------ //
 PluginManager::PluginManager(){
@@ -14,7 +20,14 @@ PluginManager::~PluginManager(){
     // Unload all //
     // They are actually smart pointers so it might not unload all
     WebsiteScanners.clear();
+
+    // Try to unload libraries //
+    for(void* handle : OpenLibraryHandles){
+
+        dlclose(handle);
+    }
     
+    OpenLibraryHandles.clear();
 }
 // ------------------------------------ //
 bool PluginManager::LoadPlugin(const std::string &fileName){
@@ -30,67 +43,106 @@ bool PluginManager::LoadPlugin(const std::string &fileName){
         }
     }
 
-    try{
-        LOG_INFO("Loading plugin file: " + fileName);
+    LOG_INFO("Loading plugin file: " + fileName);
 
-        auto p = PluginDescription::dynamic_creator(
-            fileName, "PluginDescription")();
-        
-        //auto version = PluginDescription::static_interface(fileName,
-        //PluginDescriptionID()).GetDualViewVersionStr();
+    void* sohandle = dlopen(fileName.c_str(), RTLD_NOW);
 
-        if(!p){
+    if(!sohandle){
 
-            LOG_ERROR("PluginDescription retrieval failed for: " + fileName);
-            return false;
-        }
+        auto* errorstr = dlerror();
+            
+        LOG_ERROR("Failed to load plugin library '" + fileName + "': " + (errorstr ?
+                std::string(errorstr) : std::string()));
 
-        // Verify version //
-        std::string pluginVersion = p.GetDualViewVersionStr();
-
-        if(pluginVersion != DUALVIEW_VERSION){
-
-            LOG_ERROR("Plugin version mistatch: in '" + fileName + "': plugin version: " +
-                pluginVersion + " required version: " + DUALVIEW_VERSION);
-            return false;
-        }
-
-        // Get downloaders //
-        {
-            for(const auto &scanner : p.GetSupportedSites())
-                AddScanner(scanner);
-        }
-
-        LOG_INFO("Plugin: " + p.GetPluginName() + " successfully loaded");
-        return true;
-    
-    } catch (const cppcomponents::error_unable_to_load_library &e){
-
-        LOG_ERROR("Failed to load plugin library '" + fileName + "': " + e.what());
         return false;
     }
 
+    OpenLibraryHandles.push_back(sohandle);
 
+    CreateDescriptionFuncPtr creation;
+    DestroyDescriptionFuncPtr deletion;
+
+    // Lookup functions //
+
+    creation = reinterpret_cast<CreateDescriptionFuncPtr>(
+        dlsym(sohandle, "CreatePluginDesc"));
+    deletion = reinterpret_cast<DestroyDescriptionFuncPtr>(
+        dlsym(sohandle, "DestroyPluginDesc"));
+
+    if(!creation || !deletion){
+
+        auto* errorstr = dlerror();
+        
+        LOG_ERROR("Required functions not found in plugin '" + fileName + "': " + (errorstr ?
+                std::string(errorstr) : std::string()));
+
+        return false;
+    }
+
+    std::shared_ptr<IPluginDescription> plugindesc(creation() , [=](IPluginDescription* obj)
+        {
+            deletion(obj);
+        });
+
+    if(!plugindesc){
+
+        LOG_ERROR("PluginDescription retrieval failed for: " + fileName);
+        return false;
+    }
+
+    // Sanity check
+    {
+        std::string sanitystr = plugindesc->GetTheAnswer();
+
+        if(sanitystr != std::string("42")){
+
+            LOG_ERROR("Plugin sanity check failed for: " + fileName);
+            return false;
+        }
+    }
+    // The string destructor might also break everything so maybe install a signal handler
+    // that is active while the sanity check is done
+        
+    // Verify version //
+    std::string pluginVersion = plugindesc->GetDualViewVersionStr();
+
+    if(pluginVersion != DUALVIEW_VERSION){
+
+        LOG_ERROR("Plugin version mistatch: in '" + fileName + "': plugin version: " +
+            pluginVersion + " required version: " + DUALVIEW_VERSION);
+        return false;
+    }
+
+    // Get downloaders //
+    {
+        for(const auto &scanner : plugindesc->GetSupportedSites())
+            AddScanner(scanner);
+    }
+
+    LOG_INFO("Plugin: " + std::string(plugindesc->GetPluginName()) + " successfully loaded (" +
+        plugindesc->GetUUID() + ")");
+    
+    return true;
 }
 // ------------------------------------ //
-void PluginManager::AddScanner(const cppcomponents::use<IWebsiteScanner> scanner){
+void PluginManager::AddScanner(std::shared_ptr<IWebsiteScanner> scanner){
 
     for(const auto &existing : WebsiteScanners){
 
-        if(existing.GetName() == scanner.GetName())
+        if(existing->GetName() == scanner->GetName())
             return;
     }
 
-    LOG_INFO("PluginManager: loaded new download plugin: " + scanner.GetName());
+    LOG_INFO("PluginManager: loaded new download plugin: " + std::string(scanner->GetName()));
     WebsiteScanners.push_back(scanner);
 }
 
-cppcomponents::use<IWebsiteScanner> PluginManager::GetScannerForURL(const std::string &url)
+std::shared_ptr<IWebsiteScanner> PluginManager::GetScannerForURL(const std::string &url)
     const
 {
     for(const auto& scanner : WebsiteScanners){
 
-        if(scanner.CanHandleURL(url))
+        if(scanner->CanHandleURL(url))
             return scanner;
     }
 
@@ -105,7 +157,7 @@ void PluginManager::PrintPluginStats() const{
         " website scan plugins:");
 
     for(const auto& dl : WebsiteScanners)
-        LOG_WRITE("- " + dl.GetName());
+        LOG_WRITE("- " + std::string(dl->GetName()));
     LOG_WRITE("");
 
     LOG_WRITE("");

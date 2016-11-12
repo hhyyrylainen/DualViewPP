@@ -2,8 +2,7 @@
 
 #include "Common.h"
 
-//! \file Defines the interface for DualView plugins to implement
-#include "cppcomponents/cppcomponents.hpp"
+#include <memory>
 
 #include <vector>
 #include <string>
@@ -11,16 +10,14 @@
 namespace DV{
 
 //! \brief Implementation of a website scanner
-struct IWebsiteScanner : cppcomponents::define_interface<
-    cppcomponents::uuid<0x684cb0ee, 0xa8f7, 0x11e6, 0x91eb, 0x305a3a06584e>>
-{
+class IWebsiteScanner{
+public:
+    
     //! \brief Returns a user readable name string, may also contain version
-    std::string GetName();
+    virtual const char* GetName() = 0;
 
     //! \brief Returns true if this plugin can handle url
-    bool CanHandleURL(std::string url);
-    
-    CPPCOMPONENTS_CONSTRUCT(IWebsiteScanner, GetName, CanHandleURL);
+    virtual bool CanHandleURL(const std::string &url) = 0;
 };
 
 //! \brief Description of a plugin
@@ -28,44 +25,30 @@ struct IWebsiteScanner : cppcomponents::define_interface<
 //! When loading plugins this is the first thing that is loaded from the plugin and
 //! based on the definitions the plugin is added to the right places to be used
 //! later
-struct IPluginDescription : cppcomponents::define_interface<
-    cppcomponents::uuid<0xd9c0d740, 0x7e96, 0x11e6, 0x9820, 0x305a3a06584e>>
-{
+class IPluginDescription{
+public:
+    
+    //! \returns A unique string from uuid for this plugin
+    virtual const char* GetUUID() = 0;
+
+    //! \returns The (user readable) name of the plugin
+    virtual const char* GetPluginName() = 0;
+    
+    //! \returns The constant DUALVIEW_VERSION
+    virtual const char* GetDualViewVersionStr() = 0;
 
     //! \returns A list of Website scanners
-    std::vector<cppcomponents::use<IWebsiteScanner>> GetSupportedSites();
-    
-    //! \returns A list of regexes for tag download sites that this plugin supports
-    std::vector<std::string> GetSupportedTagSites();
+    virtual std::vector<std::shared_ptr<IWebsiteScanner>> GetSupportedSites() = 0;
 
-    //! \returns The name of the plugin
-    std::string GetPluginName();
-
-    //! \returns The constant DUALVIEW_VERSION_STR
-    std::string GetDualViewVersionStr();
-
-    CPPCOMPONENTS_CONSTRUCT(IPluginDescription, GetSupportedSites, GetSupportedTagSites,
-        GetPluginName, GetDualViewVersionStr);
+    //! \brief For checking that everything is fine
+    virtual std::string GetTheAnswer() = 0;
 };
 
-inline auto PluginDescriptionID() { return "PluginDescription"; }
-
-// using PluginDescription_t = cppcomponents::runtime_class<
-//     PluginDescriptionID, cppcomponents::factory_interface<
-//                              cppcomponents::NoConstructorFactoryInterface>,
-//     cppcomponents::static_interfaces<IPluginDescription>>;
-using PluginDescription_t = cppcomponents::runtime_class<
-    PluginDescriptionID, cppcomponents::object_interfaces<IPluginDescription>>;
-
-
-using PluginDescription = cppcomponents::use_runtime_class<PluginDescription_t>;
-
-// This will probably be used if cppcomponents::NoConstructorFactoryInterface doesn't
-// work
-//cppcomponents::object_interfaces<IPluginDescription>
-
-
-
+// These function pointers must match the functions that the plugins expose
+// Also they must be called CreatePluginDesc DestroyPluginDesc and defined
+// with c linkage
+using CreateDescriptionFuncPtr = IPluginDescription* (*)();
+using DestroyDescriptionFuncPtr =  void (*)(IPluginDescription*);
 
 }
 

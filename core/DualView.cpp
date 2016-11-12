@@ -333,18 +333,19 @@ bool DualView::_DoInitThreadAction(){
     _CurlWrapper = std::make_unique<CurlWrapper>();
 
     // Load plugins //
-    //libPlugin_Imgur.so
+    if(!_PluginManager->LoadPlugin("plugins/libPlugin_GoogleImages.so")){
+
+        LOG_ERROR("Failed to load plugin");
+        return true;
+    }
+
+    
     if(!_PluginManager->LoadPlugin("plugins/libPlugin_Imgur.so")){
 
         LOG_ERROR("Failed to load plugin");
         return true;
     }
 
-    if(!_PluginManager->LoadPlugin("plugins/libPlugin_GoogleImages.so")){
-
-        LOG_ERROR("Failed to load plugin");
-        return true;
-    }
 
     // Print how many plugins are loaded //
     _PluginManager->PrintPluginStats();
