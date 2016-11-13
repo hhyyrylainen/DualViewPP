@@ -1,5 +1,9 @@
 # Create shared libraries from all the plugins
 
+set(CMAKE_INSTALL_RPATH "$ORIGIN/../leviathan:$ORIGIN/../hcxselect:$ORIGIN/../lib")
+
+set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
+
 pkg_check_modules(GUMBO REQUIRED gumbo)
 
 include_directories(${GUMBO_INCLUDE_DIRS})

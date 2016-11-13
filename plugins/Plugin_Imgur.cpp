@@ -4,6 +4,10 @@
 
 #include "Common.h"
 
+#include <htmlcxx/html/ParserDom.h>
+
+#include "hcxselect/hcxselect.h"
+
 using namespace DV;
 // ------------------------------------ //
 
@@ -29,7 +33,33 @@ class ImgurScanner final : public IWebsiteScanner{
 
         LOG_INFO("ImgurScanner: scanning page: " + url);
 
-        
+        htmlcxx::HTML::ParserDom parser;
+        tree<htmlcxx::HTML::Node> dom = parser.parseTree(body);
+
+        hcxselect::Selector s(dom);
+
+        try{
+            
+            s = s.select("a");
+            
+        } catch(hcxselect::ParseException &e){
+            
+            LOG_ERROR("Parse error: " + std::string(e.what()));
+
+            //std::stringstream fmterror;
+            // could print the characther with e.position()
+            
+            return result;
+            
+        } catch (...) {
+            
+            LOG_ERROR("Unknown parse error");
+            return result;
+        }
+
+        for (hcxselect::Selector::const_iterator it = s.begin(); it != s.end(); ++it) {
+            LOG_INFO("stuff: " + body.substr((*it)->data.offset(), (*it)->data.length()));
+        }
 
         return result;
     }
