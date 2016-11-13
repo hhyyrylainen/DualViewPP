@@ -9,6 +9,13 @@
 
 namespace DV{
 
+//! \brief Result data for IWebsiteScanner
+struct ScanResult{
+
+    
+
+};
+
 //! \brief Implementation of a website scanner
 class IWebsiteScanner{
 public:
@@ -18,6 +25,9 @@ public:
 
     //! \brief Returns true if this plugin can handle url
     virtual bool CanHandleURL(const std::string &url) = 0;
+
+    //! \brief Scans a webpage
+    virtual ScanResult ScanSite(const std::string &body, const std::string &url) = 0;
 };
 
 //! \brief Description of a plugin

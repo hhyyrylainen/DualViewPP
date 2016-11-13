@@ -33,6 +33,9 @@ protected:
 
     virtual void HandleContent() = 0;
     virtual void HandleError(){};
+
+    //! \brief Called from HandleContent or HandleError once finished
+    virtual void OnFinished(bool success);
     
 protected:
 

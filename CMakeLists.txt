@@ -34,6 +34,11 @@ else(WIN32)
   if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_definitions("-D_DEBUG")
   endif()
+
+  # Setup rpath
+  set(CMAKE_INSTALL_RPATH "$ORIGIN/lib:$ORIGIN/leviathan")
+
+  set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
   
 endif(WIN32)
 

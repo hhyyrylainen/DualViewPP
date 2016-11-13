@@ -130,6 +130,11 @@ DownloadJob::DownloadJob(const std::string &url, const std::string &referrer) :
 
 }
 
+void DownloadJob::OnFinished(bool success){
+
+    
+}
+
 int CurlProgressCallback(void *clientp, curl_off_t dltotal, curl_off_t dlnow,
     curl_off_t ultotal, curl_off_t ulnow)
 {
@@ -254,9 +259,12 @@ void PageScanJob::HandleContent(){
     }
 
     LOG_INFO("PageScanJob scanning links with: " + std::string(scanner->GetName()));
+
+    const ScanResult result = scanner->ScanSite(DownloadBytes, URL);
+
+    // Copy result //
     
 }
-
 // ------------------------------------ //
 // ImageFileDLJob
 ImageFileDLJob::ImageFileDLJob(const std::string &url, const std::string &referrer,

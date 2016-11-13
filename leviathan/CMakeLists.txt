@@ -1,6 +1,6 @@
 # A minimal Leviathan plugin build file
 
-set(CREATE_STATIC ON)
+#set(CREATE_STATIC ON)
 
 set(GroupCore "Define.cpp" "Define.h" "FileSystem.cpp" "FileSystem.h" "ForwardDeclarations.h"
   "ErrorReporter.h" "Logger.cpp" "Logger.h" "utf8.h" "Include.h"

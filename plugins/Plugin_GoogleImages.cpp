@@ -22,6 +22,17 @@ class GoogleImagesScanner final : public IWebsiteScanner{
 
         return false;
     }
+
+    ScanResult ScanSite(const std::string &body, const std::string &url) override{
+
+        ScanResult result;
+
+        LOG_INFO("GoogleImagesScanner: scanning page: " + url);
+
+        
+
+        return result;
+    }
 };
 
 

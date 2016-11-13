@@ -7,10 +7,11 @@ link_directories(${GUMBO_LIBRARY_DIRS})
 
 add_library(Plugin_Imgur SHARED Plugin_Imgur.cpp)
 
-target_link_libraries(Plugin_Imgur hcxselect ${GUMBO_LIBRARIES} ${CMAKE_DL_LIBS})
+target_link_libraries(Plugin_Imgur Leviathan hcxselect ${GUMBO_LIBRARIES} ${CMAKE_DL_LIBS})
 
 add_library(Plugin_GoogleImages SHARED Plugin_GoogleImages.cpp)
 
-target_link_libraries(Plugin_GoogleImages hcxselect ${GUMBO_LIBRARIES} ${CMAKE_DL_LIBS})
+target_link_libraries(Plugin_GoogleImages Leviathan hcxselect ${GUMBO_LIBRARIES}
+  ${CMAKE_DL_LIBS})
 
 
