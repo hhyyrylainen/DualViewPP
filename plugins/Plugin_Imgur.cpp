@@ -84,7 +84,31 @@ class ImgurScanner final : public IWebsiteScanner{
                                 Leviathan::StringOperations::CombineURL(url,
                                     link.to_string()));
                         }
-                    }                    
+                    }
+
+
+                    // Unloaded images //
+                    node->Each(".post-image-container", [&](const gq::Node* contentLink){
+
+                            const auto linkid = contentLink->GetAttributeValue(
+                                boost::string_ref("id"));
+                            
+                            // For gifs this is required //
+                            // TODO: webms
+                            auto videos = contentLink->Find(".video-container");
+                            
+                            for(size_t i = 0; i < videos.GetNodeCount(); ++i){
+
+                                // Needs to download as gif
+                                result.AddContentLink(
+                                    Leviathan::StringOperations::URLProtocol(url) +
+                                    "://i.imgur.com/" + linkid.to_string() + ".gif");
+                            
+                            }
+
+                            result.AddSubpage(Leviathan::StringOperations::CombineURL(url,
+                                    "/" + linkid.to_string()));
+                        });
                 });
         }
         catch(std::runtime_error& e)
@@ -93,27 +117,6 @@ class ImgurScanner final : public IWebsiteScanner{
             LOG_ERROR("GQ selector error: " + std::string(e.what()));
             return result;
         }
-        
-        // // Unloaded images //
-        // foreach (var link in CurrentDocument.QuerySelectorAll(".post-image-container")) {
-        //     // For gifs this is required //
-        //     // TODO: webms
-        //     var video = link.QuerySelector (".video-container");
-
-        //     if (video != null) {
-        //         // Needs to download as gif
-        //         var gifurl = new Url (new Url (Requester.Address.Scheme + "://i.imgur.com"), 
-        //             "/" + link.Id + ".gif");
-
-        //         galleryimagelinks.AddContent (gifurl.Href, new TagCollection ());
-
-        //         continue;
-        //     }
-
-        //     var url = new Uri (Requester.Address, "/" + link.Id);
-
-        //     galleryimagelinks.AddPageToScan (url, ref pagequeue);
-        // }
 
         return result;
     }
