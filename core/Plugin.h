@@ -11,9 +11,32 @@ namespace DV{
 
 //! \brief Result data for IWebsiteScanner
 struct ScanResult{
-
+public:
     
+    //! \brief Used by scanners to add a link with no tags
+    void AddContentLink(const std::string &link){
 
+        for(auto existinglink : ContentLinks){
+
+            if(existinglink == link)
+                return;
+        }
+        
+        ContentLinks.push_back(link);
+    }
+
+    //! \brief Used by scanners when more pages for a gallery are found
+    void AddSubpage(const std::string &url){
+
+    }
+
+    void PrintInfo() const{
+
+        LOG_INFO("ScanResult: has " + Convert::ToString(ContentLinks.size()) +
+            " found images");
+    }
+
+    std::vector<std::string> ContentLinks;
 };
 
 //! \brief Implementation of a website scanner

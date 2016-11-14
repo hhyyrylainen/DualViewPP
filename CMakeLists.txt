@@ -115,7 +115,7 @@ add_subdirectory(leviathan)
 add_subdirectory(third_party)
 
 if(CREATE_DL_PLUGINS)
-  add_subdirectory(hcxselect)
+  add_subdirectory(GQ)
   add_subdirectory(plugins)
 endif()
 

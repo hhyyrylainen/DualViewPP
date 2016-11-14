@@ -263,6 +263,8 @@ void PageScanJob::HandleContent(){
     const ScanResult result = scanner->ScanSite(DownloadBytes, URL);
 
     // Copy result //
+    result.PrintInfo();
+
     
 }
 // ------------------------------------ //

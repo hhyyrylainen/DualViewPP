@@ -4,12 +4,17 @@
 
 #include "Common.h"
 
-#include <htmlcxx/html/ParserDom.h>
+#include "leviathan/Common/StringOperations.h"
 
-#include "hcxselect/hcxselect.h"
+#include "GQ/src/Document.hpp"
+
+#include <regex>
 
 using namespace DV;
 // ------------------------------------ //
+
+static const auto IUContentLink = std::regex(".*i.imgur.com\\/.+",
+    std::regex::ECMAScript | std::regex::icase);
 
 class ImgurScanner final : public IWebsiteScanner{
 
@@ -33,33 +38,82 @@ class ImgurScanner final : public IWebsiteScanner{
 
         LOG_INFO("ImgurScanner: scanning page: " + url);
 
-        htmlcxx::HTML::ParserDom parser;
-        tree<htmlcxx::HTML::Node> dom = parser.parseTree(body);
+        auto testDocument = gq::Document::Create();
+        testDocument->Parse(body);
 
-        hcxselect::Selector s(dom);
+        try
+        {
+            testDocument->Each(".post-images .post-image", [&](const gq::Node* node){
 
-        try{
-            
-            s = s.select("a");
-            
-        } catch(hcxselect::ParseException &e){
-            
-            LOG_ERROR("Parse error: " + std::string(e.what()));
+                    // Child link of class 'zoom' should have href as a link to content
+                    // The above statement is only true if javascript is enabled,
+                    // which currently isn't
 
-            //std::stringstream fmterror;
-            // could print the characther with e.position()
-            
-            return result;
-            
-        } catch (...) {
-            
-            LOG_ERROR("Unknown parse error");
+                    node->Each(".post-images .post-image", [&](const gq::Node* contentLink){
+
+                            if(!contentLink->HasAttribute(boost::string_ref("href")))
+                                return;
+
+                            auto link = contentLink->GetAttributeValue(
+                                boost::string_ref("href"));
+
+                            if(std::regex_match(std::begin(link), std::end(link),
+                                    IUContentLink))
+                            {
+                                // Combine the url to make it absolute //
+                                result.AddContentLink(
+                                    Leviathan::StringOperations::CombineURL(url,
+                                        link.to_string()));
+                            }
+                        });
+                    
+                    // Directly images //
+                    auto images = node->Find("img");
+
+                    if(images.GetNodeCount() > 0 && images.GetNodeAt(0)->HasAttribute(
+                            boost::string_ref("src")))
+                    {
+                        auto link = images.GetNodeAt(0)->GetAttributeValue(
+                            boost::string_ref("src"));
+                        
+                        if(std::regex_match(std::begin(link), std::end(link),
+                                IUContentLink))
+                        {
+                            // Combine the url to make it absolute //
+                            result.AddContentLink(
+                                Leviathan::StringOperations::CombineURL(url,
+                                    link.to_string()));
+                        }
+                    }                    
+                });
+        }
+        catch(std::runtime_error& e)
+        {
+            // Errors from the css selection
+            LOG_ERROR("GQ selector error: " + std::string(e.what()));
             return result;
         }
+        
+        // // Unloaded images //
+        // foreach (var link in CurrentDocument.QuerySelectorAll(".post-image-container")) {
+        //     // For gifs this is required //
+        //     // TODO: webms
+        //     var video = link.QuerySelector (".video-container");
 
-        for (hcxselect::Selector::const_iterator it = s.begin(); it != s.end(); ++it) {
-            LOG_INFO("stuff: " + body.substr((*it)->data.offset(), (*it)->data.length()));
-        }
+        //     if (video != null) {
+        //         // Needs to download as gif
+        //         var gifurl = new Url (new Url (Requester.Address.Scheme + "://i.imgur.com"), 
+        //             "/" + link.Id + ".gif");
+
+        //         galleryimagelinks.AddContent (gifurl.Href, new TagCollection ());
+
+        //         continue;
+        //     }
+
+        //     var url = new Uri (Requester.Address, "/" + link.Id);
+
+        //     galleryimagelinks.AddPageToScan (url, ref pagequeue);
+        // }
 
         return result;
     }
