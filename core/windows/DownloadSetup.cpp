@@ -9,6 +9,7 @@
 #include "core/components/SuperContainer.h"
 
 #include "core/DownloadManager.h"
+#include "core/PluginManager.h"
 #include "core/DualView.h"
 
 #include "Common.h"
@@ -77,13 +78,37 @@ void DownloadSetup::_OnClose(){
 }
 // ------------------------------------ //
 void DownloadSetup::OnURLChanged(){
+
+    if(UrlBeingChecked)
+        return;
+    
+    UrlBeingChecked = true;
     
     DetectedSettings->set_text("Checking for valid URL, please wait.");
     URLCheckSpinner->property_active() = true;
 
+    std::string str = URLEntry->get_text();
+    CurrentlyCheckedURL = str;
+
+    // Find plugin for URL //
+    auto scanner = DualView::Get().GetPluginManager().GetScannerForURL(str);
+
+    if(!scanner){
+
+        UrlCheckFinished(false, "No plugin found that supports input url");
+        return;
+    }
+
+    // Link rewrite //
+    if(scanner->UsesURLRewrite()){
+
+        str = scanner->RewriteURL(str);
+        URLEntry->set_text(str.c_str());
+    }
+
     try{
         
-        auto scan = std::make_shared<PageScanJob>(URLEntry->get_text());
+        auto scan = std::make_shared<PageScanJob>(str);
 
         DualView::Get().GetDownloadManager().QueueDownload(scan);
 
@@ -92,9 +117,15 @@ void DownloadSetup::OnURLChanged(){
         // Invalid url //
         UrlCheckFinished(false, "website not supported");
     }
+
+    UrlBeingChecked = false;
 }
 
 void DownloadSetup::OnInvalidateURL(){
+
+    // This gets called if an url rewrite happens in OnURLChanged
+    if(UrlBeingChecked)
+        return;
 
     DetectedSettings->set_text("URL changed, accept it to update.");
     URLCheckSpinner->property_active() = false;
@@ -103,6 +134,8 @@ void DownloadSetup::OnInvalidateURL(){
 void DownloadSetup::UrlCheckFinished(bool wasvalid, const std::string &message){
 
     DualView::IsOnMainThreadAssert();
+
+    UrlBeingChecked = false;
 
     URLCheckSpinner->property_active() = false;
 

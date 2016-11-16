@@ -8,12 +8,19 @@
 
 #include "GQ/src/Document.hpp"
 
+#include "third_party/json.hpp"
+
 #include <regex>
 
 using namespace DV;
+using json = nlohmann::json;
 // ------------------------------------ //
 
 static const auto IUContentLink = std::regex(".*i.imgur.com\\/.+",
+    std::regex::ECMAScript | std::regex::icase);
+
+
+static const auto ImgurIDCapture = std::regex(R"(.*imgur.com\/gallery\/(\w+).*)",
     std::regex::ECMAScript | std::regex::icase);
 
 class ImgurScanner final : public IWebsiteScanner{
@@ -32,62 +39,39 @@ class ImgurScanner final : public IWebsiteScanner{
         return false;
     }
 
-    ScanResult ScanSite(const std::string &body, const std::string &url) override{
-
-        ScanResult result;
+    //! For parsing html if for some reason that is returned
+    void ScanHtml(const std::string &body, const std::string &url, ScanResult &result){
 
         LOG_INFO("ImgurScanner: scanning page: " + url);
-
+        
         auto testDocument = gq::Document::Create();
         testDocument->Parse(body);
 
         try
         {
-            testDocument->Each(".post-images .post-image", [&](const gq::Node* node){
+            
+            testDocument->Each(".post-images", [&](const gq::Node* node){
+                    
+                    // Directly images //
+                    node->Each("img", [&](const gq::Node* image){
 
-                    // Child link of class 'zoom' should have href as a link to content
-                    // The above statement is only true if javascript is enabled,
-                    // which currently isn't
-
-                    node->Each(".post-images .post-image", [&](const gq::Node* contentLink){
-
-                            if(!contentLink->HasAttribute(boost::string_ref("href")))
+                            if(!image->HasAttribute(boost::string_ref("src")))
                                 return;
-
-                            auto link = contentLink->GetAttributeValue(
-                                boost::string_ref("href"));
-
+                            
+                            auto link = image->GetAttributeValue(
+                                boost::string_ref("src"));
+                        
                             if(std::regex_match(std::begin(link), std::end(link),
                                     IUContentLink))
                             {
+                                LOG_INFO("Found type 2 (direct image)");
                                 // Combine the url to make it absolute //
                                 result.AddContentLink(
                                     Leviathan::StringOperations::CombineURL(url,
                                         link.to_string()));
                             }
                         });
-                    
-                    // Directly images //
-                    auto images = node->Find("img");
 
-                    if(images.GetNodeCount() > 0 && images.GetNodeAt(0)->HasAttribute(
-                            boost::string_ref("src")))
-                    {
-                        auto link = images.GetNodeAt(0)->GetAttributeValue(
-                            boost::string_ref("src"));
-                        
-                        if(std::regex_match(std::begin(link), std::end(link),
-                                IUContentLink))
-                        {
-                            // Combine the url to make it absolute //
-                            result.AddContentLink(
-                                Leviathan::StringOperations::CombineURL(url,
-                                    link.to_string()));
-                        }
-                    }
-
-
-                    // Unloaded images //
                     node->Each(".post-image-container", [&](const gq::Node* contentLink){
 
                             const auto linkid = contentLink->GetAttributeValue(
@@ -99,15 +83,19 @@ class ImgurScanner final : public IWebsiteScanner{
                             
                             for(size_t i = 0; i < videos.GetNodeCount(); ++i){
 
+                                LOG_INFO("Found gif");
+
                                 // Needs to download as gif
                                 result.AddContentLink(
                                     Leviathan::StringOperations::URLProtocol(url) +
                                     "://i.imgur.com/" + linkid.to_string() + ".gif");
-                            
                             }
 
-                            result.AddSubpage(Leviathan::StringOperations::CombineURL(url,
-                                    "/" + linkid.to_string()));
+                            // If this doesn't have an img tag (or a video container)
+                            // then this is unloaded
+                            // But forcing ?grid should put all the images on one page
+                            //result.AddSubpage(Leviathan::StringOperations::CombineURL(url,
+                            //        "/" + linkid.to_string()));
                         });
                 });
         }
@@ -115,9 +103,103 @@ class ImgurScanner final : public IWebsiteScanner{
         {
             // Errors from the css selection
             LOG_ERROR("GQ selector error: " + std::string(e.what()));
-            return result;
+        }
+    }
+
+    //! URL rewrite is used to actually retrieve a json object defining the images
+    bool UsesURLRewrite() override{
+
+        return true;
+    }
+
+    std::string RewriteURL(const std::string &url) override{
+
+        std::smatch matches;
+ 
+        if(std::regex_match(url, matches, ImgurIDCapture)){
+
+            // The second match is the one we want
+            if(matches.size() == 2){
+                
+                std::ssub_match base_sub_match = matches[1];
+
+                return Leviathan::StringOperations::URLProtocol(url) +
+                    "://imgur.com/ajaxalbums/getimages/" + base_sub_match.str() +
+                    "/hit.json";
+            }
         }
 
+        // Wasn't a valid imgur URL
+        LOG_WARNING("Imgur rewrite failed for url: " + url);
+        return url;
+    }
+
+    ScanResult ScanSite(const std::string &body, const std::string &url,
+        const std::string &contenttype) override
+    {
+
+        ScanResult result;
+
+        if(contenttype == "application/json"){
+
+            LOG_INFO("Parsing imgur json API");
+
+            try{
+
+                auto j = json::parse(body);
+
+                bool valid = true;
+
+                // data list has all the images
+                if(j.find("data") != j.end()){
+
+                    // has that list //
+                    int32_t count = j["data"]["count"];
+
+                    LOG_INFO("Imgur downloader: expecting " + Convert::ToString(count) +
+                        " images");
+
+                    for(const auto &image : j["data"]["images"]){
+
+                        std::string extension = image["ext"];
+                        
+                        const std::string name = image["hash"];
+
+                        const std::string description = image["title"];
+
+                        // Force gifs for webms and other videos //
+                        if(extension == ".webm" || extension == ".mp4")
+                            extension = ".gif";
+
+                        // Create link and add //
+                        result.AddContentLink(
+                            Leviathan::StringOperations::URLProtocol(url) +
+                            "://i.imgur.com/" + name + extension);
+                    }
+                }
+
+                if(!valid){
+                    
+                    LOG_ERROR("Imgur json format has changed! this was not processed "
+                        "correctly:");
+                    LOG_WRITE(j.dump(4));
+                }
+
+            } catch(const std::exception &e){
+
+                LOG_ERROR("Imgur downloader: json parsing error: " + std::string(e.what()));
+                return result;
+            }
+            
+        } else if(contenttype == "text/html"){
+
+            ScanHtml(body, url, result);
+            
+        } else {
+
+            LOG_ERROR("Imgur downloader got unknown content type: " + contenttype);
+        }
+        
         return result;
     }
 };

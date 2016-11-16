@@ -49,8 +49,18 @@ public:
     //! \brief Returns true if this plugin can handle url
     virtual bool CanHandleURL(const std::string &url) = 0;
 
+    //! \brief Returns true if this plugin uses URL rewriting
+    virtual bool UsesURLRewrite() = 0;
+
+    //! \brief Returns URL after rewriting.
+    //!
+    //! Only valid if UsesURLRewrite returns true
+    virtual std::string RewriteURL(const std::string &url) = 0;
+
     //! \brief Scans a webpage
-    virtual ScanResult ScanSite(const std::string &body, const std::string &url) = 0;
+    //! \param contenttype Content type sent by the server. Probably equals "test/html"
+    virtual ScanResult ScanSite(const std::string &body, const std::string &url,
+        const std::string &contenttype) = 0;
 };
 
 //! \brief Description of a plugin

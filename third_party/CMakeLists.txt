@@ -1,4 +1,5 @@
 
+# For date library
 add_definitions(-DINSTALL=.)
 
 add_library(ThirdParty

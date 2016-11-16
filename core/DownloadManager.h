@@ -45,6 +45,9 @@ protected:
     //! Holds data while downloading
     std::string DownloadBytes;
 
+    //! After fetching has the content type if the server sent the type to us
+    std::string DownloadedContentType;
+
     //! Current progress. Range 0.0f - 1.0f
     std::atomic<float> Progress;
 };

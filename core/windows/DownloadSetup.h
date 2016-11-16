@@ -53,6 +53,16 @@ private:
     Gtk::Entry* URLEntry;
     Gtk::Label* DetectedSettings;
     Gtk::Spinner* URLCheckSpinner;
+
+    //! If true OnURLChanged callback is running.
+    //! This is used to avoid stackoverflows when rewriting URLs
+    bool UrlBeingChecked = false;
+
+    //! Holds the original url that is being checked. Can be used to
+    //! get the original URL when URL rewriting has changed it
+    std::string CurrentlyCheckedURL;
+
+    
         
 };
 

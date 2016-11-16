@@ -221,6 +221,16 @@ void DownloadJob::DoDownload(DownloadManager &manager){
     if(result == CURLE_OK){
         
         // Download finished successfully
+
+        // Get content type
+        char* contentptr = nullptr;
+        
+        if(CURLE_OK == curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &contentptr) &&
+            contentptr)
+        {
+            DownloadedContentType = std::string(contentptr);
+        }
+        
         HandleContent();
         return;
     }
@@ -260,7 +270,7 @@ void PageScanJob::HandleContent(){
 
     LOG_INFO("PageScanJob scanning links with: " + std::string(scanner->GetName()));
 
-    const ScanResult result = scanner->ScanSite(DownloadBytes, URL);
+    const ScanResult result = scanner->ScanSite(DownloadBytes, URL, DownloadedContentType);
 
     // Copy result //
     result.PrintInfo();
