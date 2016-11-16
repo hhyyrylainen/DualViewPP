@@ -28,15 +28,23 @@ public:
     //! \brief Used by scanners when more pages for a gallery are found
     void AddSubpage(const std::string &url){
 
+        for(auto existinglink : PageLinks){
+
+            if(existinglink == url)
+                return;
+        }
+        
+        PageLinks.push_back(url);
     }
 
     void PrintInfo() const{
 
         LOG_INFO("ScanResult: has " + Convert::ToString(ContentLinks.size()) +
-            " found images");
+            " found images and " + Convert::ToString(PageLinks.size()) + " page links");
     }
 
     std::vector<std::string> ContentLinks;
+    std::vector<std::string> PageLinks;
 };
 
 //! \brief Implementation of a website scanner
