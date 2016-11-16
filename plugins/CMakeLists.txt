@@ -9,9 +9,8 @@ add_library(Plugin_Imgur SHARED Plugin_Imgur.cpp)
 
 target_link_libraries(Plugin_Imgur Leviathan GQ ${CMAKE_DL_LIBS})
 
-# Google Images
-add_library(Plugin_GoogleImages SHARED Plugin_GoogleImages.cpp)
 
-target_link_libraries(Plugin_GoogleImages Leviathan GQ ${CMAKE_DL_LIBS})
+#add_library(Plugin_NEW SHARED Plugin_NEW.cpp)
+#target_link_libraries(Plugin_NEW Leviathan GQ ${CMAKE_DL_LIBS})
 
 
