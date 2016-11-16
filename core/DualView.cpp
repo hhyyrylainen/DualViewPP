@@ -338,22 +338,33 @@ bool DualView::_DoInitThreadAction(){
     _CurlWrapper = std::make_unique<CurlWrapper>();
 
     // Load plugins //
-    if(!_PluginManager->LoadPlugin("plugins/libPlugin_GoogleImages.so")){
-
-        LOG_ERROR("Failed to load plugin");
-        return true;
-    }
-
+    const auto plugins = _Settings->GetPluginList();
     
-    if(!_PluginManager->LoadPlugin("plugins/libPlugin_Imgur.so")){
+    if(!plugins.empty()){
 
-        LOG_ERROR("Failed to load plugin");
-        return true;
+        const auto pluginFolder = boost::filesystem::path(_Settings->GetPluginFolder());
+
+        LOG_INFO("Loading " + Convert::ToString(plugins.size()) + " plugin(s)");
+
+        for(const auto& plugin : plugins){
+
+            // Plugin name
+        #ifdef _WIN32
+            const auto libname = plugin + ".dll";
+        #else
+            const auto libname = "lib" + plugin + ".so";
+        #endif //_WIN32
+
+            if(!_PluginManager->LoadPlugin((pluginFolder /  libname).string())){
+
+                LOG_ERROR("Failed to load plugin: " + plugin);
+                return true;
+            } 
+        }
+
+        // Print how many plugins are loaded //
+        _PluginManager->PrintPluginStats();
     }
-
-
-    // Print how many plugins are loaded //
-    _PluginManager->PrintPluginStats();
 
     // Start downloader threads and load more curl instances
     _DownloadManager = std::make_unique<DownloadManager>();

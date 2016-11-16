@@ -81,6 +81,16 @@ public:
         return CurlDebug;
     }
 
+    auto GetPluginList() const{
+
+        return PluginsToLoad;
+    }
+
+    auto GetPluginFolder() const{
+
+        return PluginFolder;
+    }
+
     //! \brief Returns true if loadversion is compatible with SETTINGS_VERSION
     static bool IsVersionCompatible(int loadversion);
 
@@ -124,6 +134,12 @@ protected:
 
     //! True if curl should print debug output
     bool CurlDebug = false;
+
+    //! List of plugins that need to be loaded
+    std::vector<std::string> PluginsToLoad = { "Plugin_Imgur" };
+
+    //! Folder where plugin files are stored in
+    std::string PluginFolder = "plugins/";
 
     //! Settings storage object
     //! \todo This will be used to preserve comments in the file, currently does nothing

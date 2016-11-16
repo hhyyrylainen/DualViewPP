@@ -102,6 +102,28 @@ void Settings::Save(){
         data.AddObject(downloads);
     }
 
+    // Plugins
+    {
+        auto plugins = std::make_shared<ObjectFileObjectProper>("Plugins",
+            "", std::vector<std::unique_ptr<std::string>>());
+
+        auto pluginsList = std::make_unique<ObjectFileTextBlockProper>("load_plugins");
+
+        for(const auto& plugin : PluginsToLoad)
+            pluginsList->AddTextLine(plugin);
+
+
+        auto pluginsConfig = std::make_unique<ObjectFileListProper>("settings");
+
+        pluginsConfig->AddVariable(std::make_shared<NamedVariableList>("PluginsFolder",
+                new StringBlock(PluginFolder)));
+
+        plugins->AddTextBlock(std::move(pluginsList));
+        plugins->AddVariableList(std::move(pluginsConfig));
+
+        data.AddObject(plugins);
+    }
+
     if(!ObjectFileProcessor::WriteObjectFile(data, SettingsFile,
             DualView::Get().GetLogger()))
     {
@@ -140,6 +162,7 @@ void Settings::_Load(){
     std::shared_ptr<Leviathan::ObjectFileObject> collection = nullptr;
     std::shared_ptr<Leviathan::ObjectFileObject> images = nullptr;
     std::shared_ptr<Leviathan::ObjectFileObject> downloads = nullptr;
+    std::shared_ptr<Leviathan::ObjectFileObject> plugins = nullptr;
 
     for(size_t i = 0; i < file->GetTotalObjectCount(); ++i){
 
@@ -152,9 +175,14 @@ void Settings::_Load(){
         } else if(obj->GetName() == "Images"){
 
             images = obj;
+            
         } else if(obj->GetName() == "Downloads"){
 
             downloads = obj;
+            
+        } else if(obj->GetName() == "Plugins"){
+
+            plugins = obj;
         }
         
     }
@@ -245,6 +273,44 @@ void Settings::_Load(){
     } else {
 
         LOG_WARNING("Settings file missing Downloads settings");
+    }
+
+    // Plugins settings //
+    if(plugins){
+
+        auto settings = plugins->GetListWithName("settings");
+
+        if(settings){
+
+            Leviathan::ObjectFileProcessor::LoadValueFromNamedVars(settings->GetVariables(),
+                "PluginsFolder", PluginFolder, PluginFolder,
+                log, "Settings: Load:");
+            
+        } else {
+
+            LOG_WARNING("Plugins missing settings list");
+        }
+
+        auto loadplugins = plugins->GetTextBlockWithName("load_plugins");
+        
+        if(loadplugins){
+
+            PluginsToLoad.clear();
+            
+            for(size_t i = 0; i < loadplugins->GetLineCount(); ++i){
+
+                PluginsToLoad.push_back(loadplugins->GetLine(i));
+            }
+            
+        } else {
+
+            LOG_WARNING("Plugins missing active plugin list");
+        }
+        
+        
+    } else {
+
+        LOG_WARNING("Settings file missing Plugin settings");
     }
 }
 
