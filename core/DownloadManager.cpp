@@ -130,9 +130,14 @@ DownloadJob::DownloadJob(const std::string &url, const std::string &referrer) :
 
 }
 
+void DownloadJob::SetFinishCallback(const std::function<void (DownloadJob&, bool)> &callback){
+
+    FinishCallback = callback;
+}
+
 void DownloadJob::OnFinished(bool success){
 
-    
+    FinishCallback(*this, success);
 }
 
 int CurlProgressCallback(void *clientp, curl_off_t dltotal, curl_off_t dlnow,
@@ -243,7 +248,7 @@ void DownloadJob::DoDownload(DownloadManager &manager){
 
 
     LOG_ERROR("Curl failed with error(" + Convert::ToString(result) + "): " + error);
-
+    HandleError();
     
 }
 // ------------------------------------ //
@@ -270,12 +275,13 @@ void PageScanJob::HandleContent(){
 
     LOG_INFO("PageScanJob scanning links with: " + std::string(scanner->GetName()));
 
-    const ScanResult result = scanner->ScanSite(DownloadBytes, URL, DownloadedContentType);
+    Result = scanner->ScanSite(DownloadBytes, URL, DownloadedContentType);
 
     // Copy result //
-    result.PrintInfo();
+    Result.PrintInfo();
 
     
+    OnFinished(true);
 }
 // ------------------------------------ //
 // ImageFileDLJob
@@ -305,6 +311,8 @@ void ImageFileDLJob::HandleContent(){
     LOG_INFO("Writing downloaded image to file: " + LocalFile);
 
     Leviathan::FileSystem::WriteToFile(DownloadBytes, LocalFile);
+
+    OnFinished(true);
 }
 
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/Plugin.h"
+
 #include <thread>
 #include <list>
 #include <vector>
@@ -28,11 +30,16 @@ public:
     //! \returns True if download should be canceled
     //! \todo Timeout
     virtual bool OnDownloadProgress(float dlprogress, float uploadprogress);
+
+
+    //! \brief Sets a finish callback for this job
+    void SetFinishCallback(const std::function<void (DownloadJob&, bool)> &callback);
+    
     
 protected:
 
     virtual void HandleContent() = 0;
-    virtual void HandleError(){};
+    virtual void HandleError(){ OnFinished(false); };
 
     //! \brief Called from HandleContent or HandleError once finished
     virtual void OnFinished(bool success);
@@ -50,6 +57,8 @@ protected:
 
     //! Current progress. Range 0.0f - 1.0f
     std::atomic<float> Progress;
+
+    std::function<void (DownloadJob&, bool)> FinishCallback;
 };
 
 //! \brief Scans a single page and gets a list of all the links and content on it
@@ -59,7 +68,11 @@ public:
 
     //! \exception Leviathan::InvalidArgument if the URL is not supported
     PageScanJob(const std::string &url, const std::string &referrer = "");
-    
+
+    ScanResult& GetResult(){
+        
+        return Result;
+    }
     
 protected:
 
@@ -69,6 +82,8 @@ protected:
     
     std::vector<std::string> Links;
     std::vector<std::string> Content;
+
+    ScanResult Result;
 };
 
 //! \brief Downloads a file to a local file in the staging folder

@@ -88,6 +88,10 @@ constexpr auto TAG_CATEGORY_STR = {
 TBindTypes&&... valuestobind) { GUARD_LOCK(); return x (guard, \
     std::forward<TBindTypes>(valuestobind)...); }
 
+//! Helper macro for loading widgets from Gtk builder
+#define BUILDER_GET_WIDGET(name) builder->get_widget(#name, name); \
+ LEVIATHAN_ASSERT(name, "Invalid .glade file");
+
 
 
 

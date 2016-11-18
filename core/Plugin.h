@@ -37,6 +37,18 @@ public:
         PageLinks.push_back(url);
     }
 
+    //! \brief Used by scanners to add tags to currently scanned thing
+    void AddTagStr(const std::string &tag){
+
+        for(auto existingtag : PageTags){
+
+            if(existingtag == tag)
+                return;
+        }
+        
+        PageTags.push_back(tag);
+    }
+
     void PrintInfo() const{
 
         LOG_INFO("ScanResult: has " + Convert::ToString(ContentLinks.size()) +
@@ -45,6 +57,7 @@ public:
 
     std::vector<std::string> ContentLinks;
     std::vector<std::string> PageLinks;
+    std::vector<std::string> PageTags;
 };
 
 //! \brief Implementation of a website scanner
