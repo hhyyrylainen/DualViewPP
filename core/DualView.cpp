@@ -588,6 +588,9 @@ void DualView::_RunHashCalculateThread(){
 
     while(!QuitWorkerThreads){
 
+        if(HashImageQueue.empty())
+            HashCalculationThreadNotify.wait(lock);
+
         while(!HashImageQueue.empty()){
 
             auto img = HashImageQueue.front().lock();
@@ -624,8 +627,6 @@ void DualView::_RunHashCalculateThread(){
             
             img->_OnFinishHash();
         }
-
-        HashCalculationThreadNotify.wait(lock);
     }
 }
 // ------------------------------------ //
@@ -638,11 +639,23 @@ void DualView::QueueDBThreadFunction(std::function<void()> func){
     DatabaseThreadNotify.notify_all();
 }
 
+void DualView::QueueWorkerFunction(std::function<void()> func){
+
+    std::lock_guard<std::mutex> lock(WorkerFuncQueueMutex);
+
+    WorkerFuncQueue.push_back(std::make_unique<std::function<void()>>(func));
+
+    WorkerThreadNotify.notify_one();
+}
+
 void DualView::_RunDatabaseThread(){
 
-    std::unique_lock<std::mutex> lock(HashImageQueueMutex);
+    std::unique_lock<std::mutex> lock(DatabaseFuncQueueMutex);
 
     while(!QuitWorkerThreads){
+
+        if(DatabaseFuncQueue.empty())
+            DatabaseThreadNotify.wait(lock);
 
         while(!DatabaseFuncQueue.empty()){
 
@@ -656,8 +669,30 @@ void DualView::_RunDatabaseThread(){
             
             lock.lock();
         }
+    }
+}
 
-        DatabaseThreadNotify.wait(lock);
+void DualView::_RunWorkerThread(){
+
+    std::unique_lock<std::mutex> lock(WorkerFuncQueueMutex);
+
+    while(!QuitWorkerThreads){
+
+        if(WorkerFuncQueue.empty())
+            WorkerThreadNotify.wait(lock);
+
+        while(!WorkerFuncQueue.empty()){
+
+            auto func = std::move(WorkerFuncQueue.front());
+
+            WorkerFuncQueue.pop_front();
+
+            lock.unlock();
+
+            func-> operator()();
+            
+            lock.lock();
+        }
     }
 }
 // ------------------------------------ //
@@ -694,6 +729,7 @@ void DualView::_StartWorkerThreads(){
     QuitWorkerThreads = false;
 
     HashCalculationThread = std::thread(std::bind(&DualView::_RunHashCalculateThread, this));
+    Worker1Thread = std::thread(std::bind(&DualView::_RunWorkerThread, this));
 }
 
 void DualView::_WaitForWorkerThreads(){
@@ -703,6 +739,7 @@ void DualView::_WaitForWorkerThreads(){
 
     HashCalculationThreadNotify.notify_all();
     DatabaseThreadNotify.notify_all();
+    WorkerThreadNotify.notify_all();
 
     if(HashCalculationThread.joinable())
         HashCalculationThread.join();
@@ -712,6 +749,9 @@ void DualView::_WaitForWorkerThreads(){
 
     if(DateInitThread.joinable())
         DateInitThread.join();
+
+    if(Worker1Thread.joinable())
+        Worker1Thread.join();
 }
 // ------------------------------------ //
 std::string DualView::GetPathToCollection(bool isprivate) const{

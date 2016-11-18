@@ -105,6 +105,9 @@ public:
     //! \brief Queues a function to be ran on the database thread
     void QueueDBThreadFunction(std::function<void()> func);
 
+    //! \brief Queues a function to be ran on a worker thread
+    void QueueWorkerFunction(std::function<void()> func);
+
     //! \brief Queues a function to be ran on the main thread
     void InvokeFunction(std::function<void()> func);
 
@@ -307,6 +310,9 @@ protected:
 
     //! \brief Processes DatabaseFuncQueue
     void _RunDatabaseThread();
+
+    //! \brief Processer worker queue
+    void _RunWorkerThread();
     
 private:
 
@@ -457,6 +463,13 @@ private:
 
     std::list<std::unique_ptr<std::function<void()>>> DatabaseFuncQueue;
     std::mutex DatabaseFuncQueueMutex;
+
+    //! Worker threads
+    std::thread Worker1Thread;
+    
+    std::condition_variable WorkerThreadNotify;
+    std::list<std::unique_ptr<std::function<void()>>> WorkerFuncQueue;
+    std::mutex WorkerFuncQueueMutex;
 
 
     static DualView* Staticinstance;
