@@ -2,6 +2,7 @@
 #include "DownloadSetup.h"
 
 #include "core/resources/Tags.h"
+#include "core/resources/InternetImage.h"
 
 #include "core/components/SuperViewer.h"
 #include "core/components/TagEditor.h"
@@ -61,11 +62,19 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
 
     BUILDER_GET_WIDGET(OKButton);
 
+    OKButton->signal_clicked().connect(sigc::mem_fun(*this,
+            &DownloadSetup::OnUserAcceptSettings));
+
     BUILDER_GET_WIDGET(PageRangeLabel);
 
     BUILDER_GET_WIDGET(ScanPages);
+    ScanPages->signal_clicked().connect(sigc::mem_fun(*this,
+            &DownloadSetup::StartPageScanning));
 
     BUILDER_GET_WIDGET(PageScanSpinner);
+
+    // Set all the editor controls read only
+    _UpdateWidgetStates();
 }
 
 DownloadSetup::~DownloadSetup(){
@@ -75,7 +84,18 @@ DownloadSetup::~DownloadSetup(){
 // ------------------------------------ //
 void DownloadSetup::_OnClose(){
 
+    
+}
+// ------------------------------------ //
+void DownloadSetup::OnUserAcceptSettings(){
 
+    if(State != STATE::URL_OK){
+
+        LOG_ERROR("DownloadSetup: trying to accept in not URL_OK state");
+        return;
+    }
+
+    close();
 }
 // ------------------------------------ //
 void DownloadSetup::AddSubpage(const std::string &url){
@@ -87,6 +107,44 @@ void DownloadSetup::AddSubpage(const std::string &url){
     }
 
     PagesToScan.push_back(url);
+}
+
+void DownloadSetup::OnFoundContent(const ScanFoundImage &content){
+
+    DualView::IsOnMainThreadAssert();
+    
+    for(auto& existinglink : ImagesToDownload){
+
+        if(existinglink == content){
+            existinglink.Merge(content);
+            return;
+        }
+    }
+    
+    try{
+        
+        ImageObjects.push_back(InternetImage::Create(content));
+        
+    } catch(const Leviathan::InvalidArgument &e){
+
+        LOG_ERROR("DownloadSetup: failed to create InternetImage for link because url "
+            "is invalid, link: " + content.URL + ", exception: ");
+        e.PrintToLog();
+        return;
+    }
+
+    ImagesToDownload.push_back(content);
+    
+    // Add it to the selectable content //
+    ImageSelection->AddItem(ImageObjects.back(), std::make_shared<ItemSelectable>(
+            std::bind(&DownloadSetup::OnItemSelected, this, std::placeholders::_1)));
+
+    LOG_INFO("DownloadSetup added new image: " + content.URL);
+}
+// ------------------------------------ //
+void DownloadSetup::OnItemSelected(ListItem &item){
+
+    
 }
 // ------------------------------------ //
 void DownloadSetup::OnURLChanged(){
@@ -192,6 +250,97 @@ void DownloadSetup::UrlCheckFinished(bool wasvalid, const std::string &message){
     _SetState(STATE::URL_OK);
 }
 // ------------------------------------ //
+//! Data for DownloadSetup::StartPageScanning
+struct DV::SetupScanQueueData{
+
+    std::string MainReferrer;
+
+    std::vector<std::string> PagesToScan;
+    size_t CurrentPageToScan = 0;
+
+    ScanResult Scans;
+};
+
+void DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup* setup,
+    IsAlive::AliveMarkerT alive, std::shared_ptr<PageScanJob> scanned)
+{
+    if(scanned){
+
+        data->Scans.Combine(scanned->GetResult());
+    }
+    
+    auto finished = [=](){
+
+        DualView::IsOnMainThreadAssert();
+        INVOKE_CHECK_ALIVE_MARKER(alive);
+
+        LOG_INFO("Finished Scanning");
+
+        // Add the content //
+        for(const auto& content : data->Scans.ContentLinks)
+            setup->OnFoundContent(content);
+
+        // Add new subpages //
+        for(const auto& page : data->Scans.PageLinks)
+            setup->AddSubpage(page);
+        
+        setup->_SetState(DownloadSetup::STATE::URL_OK);
+    };
+
+    if(data->PagesToScan.size() <= data->CurrentPageToScan){
+
+        LOG_INFO("DownloadSetup scan finished, result:");
+        data->Scans.PrintInfo();
+        DualView::Get().InvokeFunction(finished);                     
+        return;
+    }
+
+    LOG_INFO("DownloadSetup running scanning task " +
+        Convert::ToString(data->CurrentPageToScan + 1) + "/" +
+        Convert::ToString(data->CurrentPageToScan + 1));
+
+    const auto str = data->PagesToScan[data->CurrentPageToScan];
+    ++data->CurrentPageToScan;
+                
+    try{
+        auto scan = std::make_shared<PageScanJob>(str, data->MainReferrer);
+        // Queue next call //
+        scan->SetFinishCallback(std::bind(&DV::QueueNextThing, data, setup, alive, scan));
+
+        DualView::Get().GetDownloadManager().QueueDownload(scan);
+
+    } catch(const Leviathan::InvalidArgument&){
+
+        LOG_ERROR("DownloadSetup invalid url to scan: " + str);
+    }
+}
+
+void DownloadSetup::StartPageScanning(){
+
+    DualView::IsOnMainThreadAssert();
+
+    auto expectedstate = STATE::URL_OK;
+    if(!State.compare_exchange_weak(expectedstate, STATE::SCANNING_PAGES,
+        std::memory_order_release,
+            std::memory_order_acquire))
+    {
+        LOG_ERROR("Tried to enter DownloadSetup::StartPageScanning while not in URL_OK state");
+        return;
+    }
+
+    _UpdateWidgetStates();
+    
+    auto alive = GetAliveMarker();
+
+    auto data = std::make_shared<SetupScanQueueData>();
+    data->PagesToScan = PagesToScan;
+    data->MainReferrer = CurrentlyCheckedURL;
+
+    DualView::Get().QueueWorkerFunction(std::bind(&QueueNextThing, data, this, alive,
+            nullptr));
+}
+
+// ------------------------------------ //
 void DownloadSetup::_SetState(STATE newstate){
 
     if(State == newstate)
@@ -200,7 +349,7 @@ void DownloadSetup::_SetState(STATE newstate){
     State = newstate;
     auto alive = GetAliveMarker();
     
-    DualView::Get().InvokeFunction([this, alive](){
+    DualView::Get().RunOnMainThread([this, alive](){
 
             INVOKE_CHECK_ALIVE_MARKER(alive);
 
@@ -212,17 +361,30 @@ void DownloadSetup::_UpdateWidgetStates(){
 
     DualView::IsOnMainThreadAssert();
 
-    URLCheckSpinner->property_active() = State == STATE::CHECKING_URL; 
+    // Spinners //
+    URLCheckSpinner->property_active() = State == STATE::CHECKING_URL;
+    PageScanSpinner->property_active() = State == STATE::SCANNING_PAGES; 
 
     // Set button states //
+    ScanPages->set_sensitive(State == STATE::URL_OK);
 
     if(State == STATE::URL_OK){
 
-        ScanPages->set_sensitive(true);
+        TargetFolder->set_sensitive(true);
+        CollectionTagEditor->set_sensitive(true);
+        CurrentImageEditor->set_sensitive(true);
+        CurrentImage->set_sensitive(true);
+        OKButton->set_sensitive(true);
+        ImageSelection->set_sensitive(true);
         
     } else {
-
-        ScanPages->set_sensitive(false);
+        
+        TargetFolder->set_sensitive(false);
+        CollectionTagEditor->set_sensitive(false);
+        CurrentImageEditor->set_sensitive(false);
+        CurrentImage->set_sensitive(false);
+        OKButton->set_sensitive(false);
+        ImageSelection->set_sensitive(false);
     }
 
     switch(State){
@@ -248,6 +410,15 @@ void DownloadSetup::_UpdateWidgetStates(){
 
             PageRangeLabel->set_text("1-" + Convert::ToString(PagesToScan.size())); 
         }
+
+        // Update found image objects //
+        
+    }
+    break;
+    case STATE::SCANNING_PAGES:
+    {
+        
+
     }
     break;
     

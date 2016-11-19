@@ -76,6 +76,7 @@ add_library(Core
   resources/ResourceWithPreview.h resources/ResourceWithPreview.cpp
   
   resources/Image.h resources/Image.cpp
+  resources/InternetImage.h resources/InternetImage.cpp
   resources/Collection.h resources/Collection.cpp
   resources/Folder.h resources/Folder.cpp
   resources/Tags.h resources/Tags.cpp

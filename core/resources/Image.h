@@ -35,6 +35,10 @@ protected:
     //! \exception Leviathan::InvalidArgument if something is wrong with the file
     Image(const std::string &file);
 
+    //! \brief Subclass constructor for empty images, will assert if default functions
+    //! get called
+    Image();
+
     //! \brief Constructor for database loading
     Image(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id);
 
@@ -199,7 +203,7 @@ protected:
     //! \brief Fills a widget with this resource
     void _FillWidget(ImageListItem &widget);
     
-private:
+protected:
 
     //! True when Hash has been calculated and duplicate check has completed
     std::atomic<bool> IsReadyToAdd = { false };

@@ -17,9 +17,6 @@
 #include "Common.h"
 
 #include <boost/filesystem.hpp>
-#include <cryptopp/sha.h>
-
-#include "third_party/base64.h"
 
 using namespace DV;
 // ------------------------------------ //
@@ -44,6 +41,17 @@ Image::Image(const std::string &file) :
 
     Tags = std::make_shared<TagCollection>();
 }
+
+Image::Image() :
+    DatabaseResource(true),
+    AddDate(date::make_zoned(date::current_zone(),
+            std::chrono::time_point_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now()))),
+    LastView(AddDate)
+{
+    Tags = std::make_shared<TagCollection>();
+}
+    
 
 Image::Image(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id) :
     DatabaseResource(id, db),
@@ -100,6 +108,7 @@ void Image::Init(){
 // ------------------------------------ //
 std::shared_ptr<LoadedImage> Image::GetImage() const{
 
+    LEVIATHAN_ASSERT(!ResourcePath.empty(), "Image: ResourcePath is empty");
     return DualView::Get().GetCacheManager().LoadFullImage(ResourcePath);
 }
     
@@ -107,7 +116,8 @@ std::shared_ptr<LoadedImage> Image::GetThumbnail() const{
 
     if(!IsHashValid)
         return nullptr;
-    
+
+    LEVIATHAN_ASSERT(!ResourcePath.empty(), "Image: ResourcePath is empty");
     return DualView::Get().GetCacheManager().LoadThumbImage(ResourcePath, Hash);
 }
 
@@ -145,6 +155,8 @@ void Image::_OnAdopted(){
 // ------------------------------------ //
 std::string Image::CalculateFileHash() const{
 
+    LEVIATHAN_ASSERT(!ResourcePath.empty(), "Image: ResourcePath is empty");
+    
     // Load file bytes //
     std::string contents;
     if(!Leviathan::FileSystem::ReadFileEntirely(ResourcePath, contents)){
@@ -152,21 +164,7 @@ std::string Image::CalculateFileHash() const{
         LEVIATHAN_ASSERT(0, "Failed to read file for hash calculation");
     }
 
-    // Calculate sha256 hash //
-    byte digest[CryptoPP::SHA256::DIGESTSIZE];
-
-    CryptoPP::SHA256().CalculateDigest(digest, reinterpret_cast<const byte*>(
-            contents.data()), contents.length());
-
-    static_assert(sizeof(digest) == CryptoPP::SHA256::DIGESTSIZE, "sizeof funkyness");
-
-    // Encode it //
-    std::string hash = base64_encode(digest, sizeof(digest));
-
-    // Make it path safe //
-    hash = Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(hash, "/", '_');
-
-    return hash;
+    return DualView::CalculateBase64EncodedHash(contents);
 }
 
 void Image::_DoHashCalculation(){
@@ -174,6 +172,7 @@ void Image::_DoHashCalculation(){
     Hash = CalculateFileHash();
 
     LEVIATHAN_ASSERT(!Hash.empty(), "Image created an empty hash");
+    LEVIATHAN_ASSERT(!ResourcePath.empty(), "Image: ResourcePath is empty");
 
     // Load the image size //
     if(!CacheManager::GetImageSize(ResourcePath, Width, Height)){

@@ -34,6 +34,10 @@
 #include <boost/filesystem.hpp>
 #include <boost/locale.hpp>
 
+#include <cryptopp/sha.h>
+
+#include "third_party/base64.h"
+
 using namespace DV;
 // ------------------------------------ //
 
@@ -706,6 +710,18 @@ void DualView::InvokeFunction(std::function<void()> func){
     InvokeDispatcher.emit();
 }
 
+void DualView::RunOnMainThread(const std::function<void()> &func){
+
+    if(IsOnMainThread()){
+
+        func();
+        
+    } else {
+
+        InvokeFunction(func);
+    }
+}
+
 void DualView::_ProcessInvokeQueue(){
 
     std::unique_lock<std::mutex> lock(InvokeQueueMutex);
@@ -764,45 +780,6 @@ std::string DualView::GetPathToCollection(bool isprivate) const{
 
         return _Settings->GetPublicCollection();
     }
-}
-
-std::string DualView::MakePathUniqueAndShort(const std::string &path){
-
-    const auto original = boost::filesystem::path(path);
-    
-    // First cut it //
-    const auto length = boost::filesystem::absolute(original).string().size();
-
-    const auto extension = original.extension();
-    const auto baseFolder = original.parent_path();
-    const auto fileName = original.stem();
-    
-    if(length > DUALVIEW_MAX_ALLOWED_PATH){
-
-        std::string name = fileName.string();
-        name = name.substr(0, name.size() / 2);
-        return MakePathUniqueAndShort((baseFolder / (name + extension.string())).string());
-    }
-
-    // Then make sure it doesn't exist //
-    if(!boost::filesystem::exists(original)){
-
-        return original.c_str();
-    }
-    
-    long number = 0;
-
-    boost::filesystem::path finaltarget;
-
-    do{
-        
-        finaltarget = baseFolder / (fileName.string() + "_" + Convert::ToString(++number) +
-            extension.string());
-
-    } while(boost::filesystem::exists(finaltarget));
-
-    // Make sure it is still short enough
-    return MakePathUniqueAndShort(finaltarget.string());
 }
 
 bool DualView::MoveFileToCollectionFolder(std::shared_ptr<Image> img,
@@ -1865,5 +1842,61 @@ void DualView::OpenCollection_OnClick(){
     Application->add_window(*_CollectionView);
     _CollectionView->show();
     _CollectionView->present();
+}
+// ------------------------------------ //
+std::string DualView::MakePathUniqueAndShort(const std::string &path){
+
+    const auto original = boost::filesystem::path(path);
+    
+    // First cut it //
+    const auto length = boost::filesystem::absolute(original).string().size();
+
+    const auto extension = original.extension();
+    const auto baseFolder = original.parent_path();
+    const auto fileName = original.stem();
+    
+    if(length > DUALVIEW_MAX_ALLOWED_PATH){
+
+        std::string name = fileName.string();
+        name = name.substr(0, name.size() / 2);
+        return MakePathUniqueAndShort((baseFolder / (name + extension.string())).string());
+    }
+
+    // Then make sure it doesn't exist //
+    if(!boost::filesystem::exists(original)){
+
+        return original.c_str();
+    }
+    
+    long number = 0;
+
+    boost::filesystem::path finaltarget;
+
+    do{
+        
+        finaltarget = baseFolder / (fileName.string() + "_" + Convert::ToString(++number) +
+            extension.string());
+
+    } while(boost::filesystem::exists(finaltarget));
+
+    // Make sure it is still short enough
+    return MakePathUniqueAndShort(finaltarget.string());
+}
+
+std::string DualView::CalculateBase64EncodedHash(const std::string &str){
+
+    // Calculate sha256 hash //
+    byte digest[CryptoPP::SHA256::DIGESTSIZE];
+
+    CryptoPP::SHA256().CalculateDigest(digest, reinterpret_cast<const byte*>(
+            str.data()), str.length());
+
+    static_assert(sizeof(digest) == CryptoPP::SHA256::DIGESTSIZE, "sizeof funkyness");
+
+    // Encode it //
+    std::string hash = base64_encode(digest, sizeof(digest));
+
+    // Make it path safe //
+    return Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(hash, "/", '_');
 }
 

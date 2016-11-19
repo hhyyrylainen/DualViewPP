@@ -111,6 +111,11 @@ public:
     //! \brief Queues a function to be ran on the main thread
     void InvokeFunction(std::function<void()> func);
 
+    //! \brief Makes sure function is ran on the main thread.
+    //!
+    //! Either by queueing it or running it immediately if the main thread calls this function
+    void RunOnMainThread(const std::function<void()> &func);
+
     //! \brief Returns a path to the collection root folder, where imported images are
     //! copied or moved to
     std::string GetPathToCollection(bool isprivate) const;
@@ -118,6 +123,11 @@ public:
     //! \brief Makes a target file path shorter than DUALVIEW_MAX_ALLOWED_PATH and one
     //! that doesn't exist
     static std::string MakePathUniqueAndShort(const std::string &path);
+
+    //! \brief Calculates a sha hash of a string and base64 encodes it
+    //!
+    //! Also any characthers not valid in paths will be replaced
+    static std::string CalculateBase64EncodedHash(const std::string &str);
     
     //! \brief Moves an image to the folder determined from the collection's name
     //! \return True if succeeded, false if it failed for some reason

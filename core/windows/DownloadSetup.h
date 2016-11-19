@@ -3,6 +3,8 @@
 #include "BaseWindow.h"
 #include "core/IsAlive.h"
 
+#include "core/Plugin.h"
+
 #include "leviathan/Common/BaseNotifiable.h"
 
 #include <gtkmm.h>
@@ -17,8 +19,23 @@ class FolderSelector;
 class TagCollection;
 class SuperContainer;
 
+class DownloadSetup;
+class PageScanJob;
+
+class ListItem;
+class InternetImage;
+
+struct SetupScanQueueData;
+
+void QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup* setup,
+    IsAlive::AliveMarkerT alive, std::shared_ptr<PageScanJob> scanned);
+
 //! \brief Manages setting up a new gallery to be downloaded
+//! \todo Merge single image selection and tag editing from Importer to a base class
 class DownloadSetup : public BaseWindow, public Gtk::Window, public IsAlive{
+
+    friend void QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup* setup,
+        IsAlive::AliveMarkerT alive, std::shared_ptr<PageScanJob> scanned);
 
     enum class STATE{
 
@@ -27,13 +44,21 @@ class DownloadSetup : public BaseWindow, public Gtk::Window, public IsAlive{
         
         CHECKING_URL,
 
-        URL_OK
+        //! Main state that is active when everything is good
+        URL_OK,
+
+        //! Set when going through all the pages
+        SCANNING_PAGES
     };
     
 public:
 
     DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder);
     ~DownloadSetup();
+
+    //! \brief Accepts this window settings and closes
+    void OnUserAcceptSettings();
+    
 
     //! \brief Called when the url is changed and it should be scanned again
     void OnURLChanged();
@@ -43,6 +68,13 @@ public:
 
     //! \brief Adds a page to scan when looking for images
     void AddSubpage(const std::string &url);
+
+    //! \brief Starts page scanning if not currently running
+    void StartPageScanning();
+
+    //! \brief Adds an image to the list of found images
+    void OnFoundContent(const ScanFoundImage &content);
+
     
 protected:
 
@@ -55,6 +87,9 @@ protected:
     void _SetState(STATE newstate);
 
     void _UpdateWidgetStates();
+
+
+    void OnItemSelected(ListItem &item);
     
 private:
 
@@ -64,6 +99,12 @@ private:
 
     //! Found list of pages
     std::vector<std::string> PagesToScan;
+
+    //! Found list of images
+    std::vector<ScanFoundImage> ImagesToDownload;
+    //! Actual list of InternetImages that are added to the DownloadableCollection
+    //! when done setting up this download
+    std::vector<std::shared_ptr<InternetImage>> ImageObjects;
 
     //! If true OnURLChanged callback is running.
     //! This is used to avoid stackoverflows when rewriting URLs
