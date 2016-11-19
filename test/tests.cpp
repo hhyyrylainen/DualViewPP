@@ -213,5 +213,14 @@ TEST_CASE("Filename from URL", "[url][download]"){
                 "http://normalsite.com/contents/My%20cool%20image%20%3%2Ahere.jpg").
             find_first_of('/') == std::string::npos);
     }
+
+    SECTION("Real world examples"){
+
+        CHECK(DownloadManager::ExtractFileName(
+                "http://x.site.com/u/usrname/6525068/348430179/04_thief.jpg")
+            == "04_thief.jpg");
+    }
     
 }
+
+
