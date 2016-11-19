@@ -12,14 +12,16 @@ namespace DV{
 class IsAlive{
 public:
 
-    static bool IsStillAlive(const std::weak_ptr<bool> &objectalivemarker){
+    using AliveMarkerT = std::weak_ptr<bool>;
+
+    static bool IsStillAlive(const AliveMarkerT &objectalivemarker){
 
         auto object = objectalivemarker.lock();
 
         return object.operator bool();
     }
 
-    std::weak_ptr<bool> GetAliveMarker(){
+    AliveMarkerT GetAliveMarker(){
 
         if(!IsAliveObjectOwner)
             IsAliveObjectOwner = std::make_shared<bool>(true);

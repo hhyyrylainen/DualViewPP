@@ -66,9 +66,9 @@ class ImgurScanner final : public IWebsiteScanner{
                             {
                                 LOG_INFO("Found type 2 (direct image)");
                                 // Combine the url to make it absolute //
-                                result.AddContentLink(
+                                result.AddContentLink(ScanFoundImage(
                                     Leviathan::StringOperations::CombineURL(url,
-                                        link.to_string()));
+                                        link.to_string()), url));
                             }
                         });
 
@@ -86,9 +86,9 @@ class ImgurScanner final : public IWebsiteScanner{
                                 LOG_INFO("Found gif");
 
                                 // Needs to download as gif
-                                result.AddContentLink(
+                                result.AddContentLink(ScanFoundImage(
                                     Leviathan::StringOperations::URLProtocol(url) +
-                                    "://i.imgur.com/" + linkid.to_string() + ".gif");
+                                    "://i.imgur.com/" + linkid.to_string() + ".gif", url));
                             }
 
                             // If this doesn't have an img tag (or a video container)
@@ -172,9 +172,9 @@ class ImgurScanner final : public IWebsiteScanner{
                             extension = ".gif";
 
                         // Create link and add //
-                        result.AddContentLink(
+                        result.AddContentLink(ScanFoundImage(
                             Leviathan::StringOperations::URLProtocol(url) +
-                            "://i.imgur.com/" + name + extension);
+                            "://i.imgur.com/" + name + extension, url));
                     }
                 }
 

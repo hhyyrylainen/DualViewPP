@@ -9,17 +9,43 @@
 
 namespace DV{
 
+//! \brief Scan result that has a content link
+struct ScanFoundImage{
+
+    ScanFoundImage(const std::string &url, const std::string &referrer) :
+        URL(url), Referrer(referrer)
+    {
+        
+    }
+    
+    bool operator ==(const ScanFoundImage &other) const{
+
+        return URL == other.URL;
+    }
+
+    //! Merges tags from other
+    void Merge(const ScanFoundImage &other){
+
+    }
+
+    std::string URL;
+    std::string Referrer;
+    //std::vector<std::string> Tags
+};
+
 //! \brief Result data for IWebsiteScanner
 struct ScanResult{
 public:
     
     //! \brief Used by scanners to add a link with no tags
-    void AddContentLink(const std::string &link){
+    void AddContentLink(const ScanFoundImage &link){
 
-        for(auto existinglink : ContentLinks){
+        for(auto& existinglink : ContentLinks){
 
-            if(existinglink == link)
+            if(existinglink == link){
+                existinglink.Merge(link);
                 return;
+            }
         }
         
         ContentLinks.push_back(link);
@@ -28,7 +54,7 @@ public:
     //! \brief Used by scanners when more pages for a gallery are found
     void AddSubpage(const std::string &url){
 
-        for(auto existinglink : PageLinks){
+        for(auto& existinglink : PageLinks){
 
             if(existinglink == url)
                 return;
@@ -40,7 +66,7 @@ public:
     //! \brief Used by scanners to add tags to currently scanned thing
     void AddTagStr(const std::string &tag){
 
-        for(auto existingtag : PageTags){
+        for(auto& existingtag : PageTags){
 
             if(existingtag == tag)
                 return;
@@ -52,10 +78,23 @@ public:
     void PrintInfo() const{
 
         LOG_INFO("ScanResult: has " + Convert::ToString(ContentLinks.size()) +
-            " found images and " + Convert::ToString(PageLinks.size()) + " page links");
+            " found images and " + Convert::ToString(PageLinks.size()) + " page links and " +
+            Convert::ToString(PageTags.size()) + " page tags");
     }
 
-    std::vector<std::string> ContentLinks;
+    void Combine(const ScanResult &other){
+
+        for(const auto &inother : other.ContentLinks)
+            AddContentLink(inother);
+
+        for(const auto &inother : other.PageLinks)
+            AddSubpage(inother);
+
+        for(const auto &inother : other.PageTags)
+            AddTagStr(inother);
+    }
+
+    std::vector<ScanFoundImage> ContentLinks;
     std::vector<std::string> PageLinks;
     std::vector<std::string> PageTags;
 };
