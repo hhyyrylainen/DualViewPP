@@ -106,13 +106,13 @@ void Image::Init(){
     }
 }
 // ------------------------------------ //
-std::shared_ptr<LoadedImage> Image::GetImage() const{
+std::shared_ptr<LoadedImage> Image::GetImage(){
 
     LEVIATHAN_ASSERT(!ResourcePath.empty(), "Image: ResourcePath is empty");
     return DualView::Get().GetCacheManager().LoadFullImage(ResourcePath);
 }
     
-std::shared_ptr<LoadedImage> Image::GetThumbnail() const{
+std::shared_ptr<LoadedImage> Image::GetThumbnail(){
 
     if(!IsHashValid)
         return nullptr;

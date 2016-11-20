@@ -49,6 +49,8 @@ protected:
     
 public:
 
+    virtual ~Image(){};
+
     //! \brief Loads a database image
     //! \exception InvalidSQL if data is missing in the statement
     inline static std::shared_ptr<Image> Create(Database &db, Lock &dblock,
@@ -70,11 +72,11 @@ public:
     }
     
     //! \brief Returns the full sized image
-    std::shared_ptr<LoadedImage> GetImage() const;
+    virtual std::shared_ptr<LoadedImage> GetImage();
     
     //! \brief Returns the thumbnail image
     //! \note Will return null if hash hasn't been calculated yet
-    std::shared_ptr<LoadedImage> GetThumbnail() const;
+    virtual std::shared_ptr<LoadedImage> GetThumbnail();
 
     //! \brief Returns the hash
     //! \exception Leviathan::InvalidState if hash hasn't been calculated yet
