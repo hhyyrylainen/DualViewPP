@@ -113,6 +113,20 @@ protected:
     bool ReplaceLocal;
 };
 
+//! \brief A fake download that loads a local file
+class LocallyCachedDLJob : public DownloadJob{
+public:
+
+    //! \exception Leviathan::InvalidArgument if file doesn't exist
+    LocallyCachedDLJob(const std::string &file);
+
+    void DoDownload(DownloadManager &manager) override;
+    
+protected:
+
+    void HandleContent() override;
+};
+
 //! \brief A basic download that saves response to memory
 class MemoryDLJob : public DownloadJob{
 public:

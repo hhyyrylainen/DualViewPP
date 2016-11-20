@@ -7,7 +7,7 @@
 
 namespace DV{
 
-class MemoryDLJob;
+class DownloadJob;
 
 //! \brief Loads an image from memory to be displayed
 class DownloadLoadedImage : public LoadedImage{
@@ -78,8 +78,11 @@ protected:
     std::string Referrer;
 
     //! The downloaded image file, can be written to a file and added to the database if wanted
-    std::shared_ptr<MemoryDLJob> FileDL;
+    std::shared_ptr<DownloadJob> FileDL;
     bool DLReady = false;
+
+    //! If we loaded a local file
+    bool WasAlreadyCached = false;
 
     std::shared_ptr<DownloadLoadedImage> FullImage;
     std::shared_ptr<DownloadLoadedImage> ThumbImage;

@@ -7,11 +7,11 @@
 #include "core/DownloadManager.h"
 
 #include "leviathan/Common/StringOperations.h"
+#include "leviathan/FileSystem.h"
 #include "Exceptions.h"
 
 #include <Magick++.h>
 
-#include <regex>
 #include <boost/filesystem.hpp>
 
 using namespace DV;
@@ -99,12 +99,20 @@ void InternetImage::_CheckFileDownload(){
     
     if(FileDL)
         return;
-
+    
     // Check does the file exist already //
-    
-    
+    if(boost::filesystem::exists(ResourcePath)){
 
-    FileDL = std::make_shared<MemoryDLJob>(DLURL, Referrer);
+        LOG_INFO("InternetImage: hashed url file already exists: " + DLURL + " at path: " +
+            ResourcePath);
+
+        FileDL = std::make_shared<LocallyCachedDLJob>(ResourcePath);
+        WasAlreadyCached = true;
+        
+    } else {
+
+        FileDL = std::make_shared<MemoryDLJob>(DLURL, Referrer);
+    }
 
     auto us = std::dynamic_pointer_cast<InternetImage>(shared_from_this());
 
@@ -135,6 +143,14 @@ void InternetImage::_CheckFileDownload(){
                 if(us->FullImage)
                     us->FullImage->OnSuccess(us->FullImage,
                         us->FileDL->GetDownloadedBytes());
+
+                // Save the bytes to disk (if over 10KB) //
+                if(!us->WasAlreadyCached && us->FileDL->GetDownloadedBytes().size() > 10000){
+
+                    LOG_INFO("InternetImage: caching image to: " + us->ResourcePath);
+                    Leviathan::FileSystem::WriteToFile(us->FileDL->GetDownloadedBytes(),
+                        us->ResourcePath);
+                }
             }
         });
 

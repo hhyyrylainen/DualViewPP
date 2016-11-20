@@ -314,7 +314,27 @@ void ImageFileDLJob::HandleContent(){
 
     OnFinished(true);
 }
+// ------------------------------------ //
+// LocallyCachedDLJob
+LocallyCachedDLJob::LocallyCachedDLJob(const std::string &file) : DownloadJob(file, ""){
 
+    if(!boost::filesystem::exists(file)){
+
+        throw Leviathan::InvalidArgument("LocallyCachedDLJob: file doesn't exist");
+    }
+}
+
+void LocallyCachedDLJob::DoDownload(DownloadManager &manager){
+
+    Leviathan::FileSystem::ReadFileEntirely(URL, DownloadBytes);
+
+    OnFinished(true);
+}
+    
+void LocallyCachedDLJob::HandleContent(){
+
+    OnFinished(true);
+}
 // ------------------------------------ //
 // MemoryDLJob
 MemoryDLJob::MemoryDLJob(const std::string &url, const std::string &referrer) :
