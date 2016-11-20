@@ -297,7 +297,7 @@ void DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
 
     LOG_INFO("DownloadSetup running scanning task " +
         Convert::ToString(data->CurrentPageToScan + 1) + "/" +
-        Convert::ToString(data->CurrentPageToScan + 1));
+        Convert::ToString(data->PagesToScan.size()));
 
     const auto str = data->PagesToScan[data->CurrentPageToScan];
     ++data->CurrentPageToScan;
