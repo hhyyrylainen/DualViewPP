@@ -34,6 +34,11 @@ public:
 
     //! \brief Sets a finish callback for this job
     void SetFinishCallback(const std::function<void (DownloadJob&, bool)> &callback);
+
+    const std::string& GetDownloadedBytes() const{
+
+        return DownloadBytes;
+    }
     
     
 protected:
@@ -106,6 +111,16 @@ protected:
     std::string LocalFile;
 
     bool ReplaceLocal;
+};
+
+//! \brief A basic download that saves response to memory
+class MemoryDLJob : public DownloadJob{
+public:
+    MemoryDLJob(const std::string &url, const std::string &referrer);
+
+protected:
+
+    void HandleContent() override;
 };
 
 

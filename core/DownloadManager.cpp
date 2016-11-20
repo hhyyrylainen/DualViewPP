@@ -315,4 +315,17 @@ void ImageFileDLJob::HandleContent(){
     OnFinished(true);
 }
 
+// ------------------------------------ //
+// MemoryDLJob
+MemoryDLJob::MemoryDLJob(const std::string &url, const std::string &referrer) :
+    DownloadJob(url, referrer)
+{
+
+}
+
+void MemoryDLJob::HandleContent(){
+
+    OnFinished(true);
+}
+
 
