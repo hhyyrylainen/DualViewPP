@@ -94,7 +94,7 @@ void TagEditor::_CommonCtor(){
     TagEntry.signal_activate().connect(sigc::mem_fun(*this, &TagEditor::_OnInsertTag));
 
     TagEntry.signal_changed().connect(sigc::mem_fun(*this, &TagEditor::_TextUpdated));
-    
+
     add(TagEntry);
 
     CreateTag.set_always_show_image();
