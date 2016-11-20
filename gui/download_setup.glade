@@ -197,6 +197,7 @@
                     <child>
                       <object class="GtkEntry" id="PageRangeEntry">
                         <property name="visible">True</property>
+                        <property name="sensitive">False</property>
                         <property name="can_focus">True</property>
                         <property name="tooltip_markup" translatable="yes">For example "1-3" scans pages 1,2, and 3. "1,3-4" scans the 1,3,4 pages</property>
                         <property name="placeholder_text" translatable="yes">Write the wanted page range here (leave blank for all)</property>
@@ -267,7 +268,7 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkLinkButton">
+                      <object class="GtkLinkButton" id="CurrentScanURL">
                         <property name="label" translatable="yes">button</property>
                         <property name="visible">True</property>
                         <property name="sensitive">False</property>
@@ -392,7 +393,7 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkEntry">
+                      <object class="GtkEntry" id="TargetCollectionName">
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                       </object>
@@ -627,7 +628,7 @@
                     <property name="can_focus">False</property>
                     <property name="layout_style">start</property>
                     <child>
-                      <object class="GtkCheckButton" id="SelectOnlyOne">
+                      <object class="GtkCheckButton" id="SelectOnlyOneImage">
                         <property name="label" translatable="yes">Select Only One</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>

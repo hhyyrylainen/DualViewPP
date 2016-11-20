@@ -76,6 +76,11 @@ public:
     void OnFoundContent(const ScanFoundImage &content);
 
     
+    void SetTargetCollectionName(const std::string &str);
+
+    //! \returns True if ready to download
+    bool IsReadyToDownload() const;
+    
 protected:
 
     void _OnClose() override;
@@ -90,6 +95,13 @@ protected:
 
 
     void OnItemSelected(ListItem &item);
+
+    std::vector<std::shared_ptr<InternetImage>> GetSelectedImages();
+
+    void UpdateReadyStatus();
+
+    //! Updates the images whose tags are edited
+    void UpdateEditedImages();
     
 private:
 
@@ -116,8 +128,9 @@ private:
     
 
     Gtk::Button* OKButton;
+    Gtk::Label* MainStatusLabel;
 
-    SuperContainer* ImageSelection;
+
      
     FolderSelector* TargetFolder;
     
@@ -137,8 +150,15 @@ private:
     Gtk::Label* PageRangeLabel;
     Gtk::Button* ScanPages;
     Gtk::Spinner* PageScanSpinner;
+    Gtk::LinkButton* CurrentScanURL;
+    Gtk::LevelBar* PageScanProgress;
 
 
+    Gtk::Entry* TargetCollectionName;
+
+    // Tag editing / Image list view
+    SuperContainer* ImageSelection;
+    Gtk::CheckButton* SelectOnlyOneImage;
 
     
         

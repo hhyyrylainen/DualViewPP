@@ -73,6 +73,16 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
 
     BUILDER_GET_WIDGET(PageScanSpinner);
 
+    BUILDER_GET_WIDGET(CurrentScanURL);
+
+    BUILDER_GET_WIDGET(PageScanProgress);
+
+    BUILDER_GET_WIDGET(TargetCollectionName);
+
+    BUILDER_GET_WIDGET(MainStatusLabel);
+
+    BUILDER_GET_WIDGET(SelectOnlyOneImage);
+
     // Set all the editor controls read only
     _UpdateWidgetStates();
 }
@@ -95,7 +105,57 @@ void DownloadSetup::OnUserAcceptSettings(){
         return;
     }
 
-    close();
+    if(!IsReadyToDownload())
+        return;
+
+    // Create a DownloadCollection and add that to the database
+    const auto selected = GetSelectedImages();
+
+
+
+    // Remove the added from the list //
+    for(size_t i = 0; i < ImageObjects.size(); ){
+
+        bool removed = false;
+
+        for(const auto& added : selected){
+            if(ImageObjects[i].get() == added.get()){
+
+                ImageObjects.erase(ImageObjects.begin() + i);
+                ImagesToDownload.erase(ImagesToDownload.begin() + i);
+                removed = true;
+                break;
+            }
+        }
+
+        if(!removed)
+            ++i;
+    }
+    
+    // We are done
+
+    // If there are leftover images allow adding those to another collection
+    if(ImageObjects.empty()){
+        
+        close();
+        return;
+    }
+
+    // There are still some stuff //
+    auto dialog = Gtk::MessageDialog(*this,
+        "Added Some Images From This Internet Resource",
+        false,
+        Gtk::MESSAGE_INFO,
+        Gtk::BUTTONS_OK,
+        true 
+    );
+    
+    dialog.set_secondary_text("You can either select the remaining images and add them also. "
+        "Or you can close this window to discard the rest of the images");
+    dialog.run();
+
+    ImageSelection->SetShownItems(ImageObjects.begin(), ImageObjects.end());
+    UpdateEditedImages();
 }
 // ------------------------------------ //
 void DownloadSetup::AddSubpage(const std::string &url){
@@ -144,7 +204,66 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage &content){
 // ------------------------------------ //
 void DownloadSetup::OnItemSelected(ListItem &item){
 
+    // Deselect others if only one is wanted //
+    if(SelectOnlyOneImage->get_active() && item.IsSelected()){
+
+        // Deselect all others //
+        ImageSelection->DeselectAllExcept(&item);
+    }
+
+    UpdateEditedImages();
+}
+
+void DownloadSetup::UpdateEditedImages(){
+
+    const auto result = GetSelectedImages();
     
+    // Preview image //
+    if(result.empty()){
+        
+        CurrentImage->RemoveImage();
+        
+    } else {
+        
+        CurrentImage->SetImage(result.front());
+    }
+
+    // Tag editing //
+    std::vector<std::shared_ptr<TagCollection>> tagstoedit;
+    
+    for(const auto& image : result){
+
+        tagstoedit.push_back(image->GetTags());
+    }
+
+    CurrentImageEditor->SetEditedTags(tagstoedit);
+
+    UpdateReadyStatus();
+}
+
+std::vector<std::shared_ptr<InternetImage>> DownloadSetup::GetSelectedImages(){
+
+    std::vector<std::shared_ptr<InternetImage>> result;
+
+    std::vector<std::shared_ptr<ResourceWithPreview>> SelectedItems;
+    
+    ImageSelection->GetSelectedItems(SelectedItems);
+
+    for(const auto& preview : SelectedItems){
+
+        auto asImage = std::dynamic_pointer_cast<InternetImage>(preview);
+
+        if(!asImage){
+
+            LOG_WARNING("DownloadSetup: SuperContainer has something that "
+                "isn't InternetImage");
+            continue;
+        }
+        
+        result.push_back(asImage);
+    }
+
+    return result;
 }
 // ------------------------------------ //
 void DownloadSetup::OnURLChanged(){
@@ -194,6 +313,10 @@ void DownloadSetup::OnURLChanged(){
 
                     for(const auto &page : result.PageLinks)
                         AddSubpage(page);
+
+                    // Set the title //
+                    if(!result.PageTitle.empty())
+                        SetTargetCollectionName(result.PageTitle);
                 }
 
                 DualView::Get().InvokeFunction([this, alive, success, scan](){
@@ -283,7 +406,8 @@ void DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
         // Add new subpages //
         for(const auto& page : data->Scans.PageLinks)
             setup->AddSubpage(page);
-        
+
+        setup->PageScanProgress->set_value(1.0);
         setup->_SetState(DownloadSetup::STATE::URL_OK);
     };
 
@@ -299,8 +423,27 @@ void DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
         Convert::ToString(data->CurrentPageToScan + 1) + "/" +
         Convert::ToString(data->PagesToScan.size()));
 
+
+    float progress = static_cast<float>(data->CurrentPageToScan) /
+        data->PagesToScan.size();
+        
     const auto str = data->PagesToScan[data->CurrentPageToScan];
     ++data->CurrentPageToScan;
+
+    // Update status //
+    DualView::Get().InvokeFunction([setup, alive, str, progress](){
+
+            INVOKE_CHECK_ALIVE_MARKER(alive);
+
+            // Scanned link //
+            setup->CurrentScanURL->set_uri(str);
+            setup->CurrentScanURL->set_label(str);
+            setup->CurrentScanURL->set_sensitive(true);
+
+            // Progress bar //
+            setup->PageScanProgress->set_value(progress);
+        });
+
                 
     try{
         auto scan = std::make_shared<PageScanJob>(str, data->MainReferrer);
@@ -341,6 +484,11 @@ void DownloadSetup::StartPageScanning(){
 }
 
 // ------------------------------------ //
+void DownloadSetup::SetTargetCollectionName(const std::string &str){
+
+    TargetCollectionName->set_text(str);
+}
+// ------------------------------------ //
 void DownloadSetup::_SetState(STATE newstate){
 
     if(State == newstate)
@@ -376,6 +524,7 @@ void DownloadSetup::_UpdateWidgetStates(){
         CurrentImage->set_sensitive(true);
         OKButton->set_sensitive(true);
         ImageSelection->set_sensitive(true);
+        TargetCollectionName->set_sensitive(true);
         
     } else {
         
@@ -385,6 +534,7 @@ void DownloadSetup::_UpdateWidgetStates(){
         CurrentImage->set_sensitive(false);
         OKButton->set_sensitive(false);
         ImageSelection->set_sensitive(false);
+        TargetCollectionName->set_sensitive(false);
     }
 
     switch(State){
@@ -411,8 +561,9 @@ void DownloadSetup::_UpdateWidgetStates(){
             PageRangeLabel->set_text("1-" + Convert::ToString(PagesToScan.size())); 
         }
 
-        // Update found image objects //
-        
+        // Update main status //
+        UpdateReadyStatus();
+
     }
     break;
     case STATE::SCANNING_PAGES:
@@ -424,5 +575,30 @@ void DownloadSetup::_UpdateWidgetStates(){
     
 
     }
+}
+
+void DownloadSetup::UpdateReadyStatus(){
+    
+    const auto selected = ImageSelection->CountSelectedItems();
+    const auto total = ImageObjects.size();
+
+        
+    bool ready = IsReadyToDownload(); 
+        
+    MainStatusLabel->set_text((ready ? "Ready" : "Not ready") + std::string(
+            " to download " + Convert::ToString(selected) + " (out of " +
+            Convert::ToString(total) + ") images to \"" + TargetCollectionName->get_text()
+            + "\""));
+}
+
+bool DownloadSetup::IsReadyToDownload() const{
+
+    if(State != STATE::URL_OK)
+        return false;
+    
+    const auto selected = ImageSelection->CountSelectedItems();
+    const auto total = ImageObjects.size();
+
+    return selected > 0 && selected <= total;
 }
 

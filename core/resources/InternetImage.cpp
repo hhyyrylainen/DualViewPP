@@ -100,6 +100,10 @@ void InternetImage::_CheckFileDownload(){
     if(FileDL)
         return;
 
+    // Check does the file exist already //
+    
+    
+
     FileDL = std::make_shared<MemoryDLJob>(DLURL, Referrer);
 
     auto us = std::dynamic_pointer_cast<InternetImage>(shared_from_this());

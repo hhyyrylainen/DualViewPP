@@ -92,11 +92,19 @@ public:
 
         for(const auto &inother : other.PageTags)
             AddTagStr(inother);
+
+        if(!other.PageTitle.empty())
+            PageTitle += "; " + other.PageTitle;
     }
 
     std::vector<ScanFoundImage> ContentLinks;
     std::vector<std::string> PageLinks;
     std::vector<std::string> PageTags;
+
+    //! Title of the scanned page
+    //! \note Scan plugins should remove unneeded parts from this. For example if the
+    //! title has the site name that should be removed
+    std::string PageTitle;
 };
 
 //! \brief Implementation of a website scanner
