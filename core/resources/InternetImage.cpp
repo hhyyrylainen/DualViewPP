@@ -185,7 +185,7 @@ void DownloadLoadedImage::OnSuccess(std::shared_ptr<DownloadLoadedImage> thisobj
             if(image->size() > 1){
 
                 auto coalesced = std::make_shared<std::vector<Magick::Image>>();
-                coalesceImages(image.get(), coalesced->begin(), coalesced->end());
+                coalesceImages(coalesced.get(), image->begin(), image->end());
 
                 image = coalesced;
             }
@@ -197,10 +197,12 @@ void DownloadLoadedImage::OnSuccess(std::shared_ptr<DownloadLoadedImage> thisobj
 
                 // Keep track of dropped frames //
                 size_t losttime = 0;
+                size_t actualnumber = 0;
                 
                 for(size_t i = 0; i < image->size(); )
                 {
-                    if (i % dropmodulo != 0 && i + 1 < image->size())
+                    
+                    if (actualnumber % dropmodulo != 0 && i + 1 < image->size())
                     {
                         losttime += image->at(i).animationDelay();
                         image->erase(image->begin() + i);
@@ -218,6 +220,8 @@ void DownloadLoadedImage::OnSuccess(std::shared_ptr<DownloadLoadedImage> thisobj
                         
                         ++i;
                     }
+
+                    actualnumber++;
                 }
 
                 // Add time to last frame //
