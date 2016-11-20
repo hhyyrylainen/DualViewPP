@@ -46,7 +46,7 @@ std::shared_ptr<LoadedImage> InternetImage::GetImage(){
 
     if(!FullImage){
         
-        FullImage = std::make_shared<DownloadLoadedImage>(true);
+        FullImage = std::make_shared<DownloadLoadedImage>(false);
 
         if(DLReady){
 
@@ -223,9 +223,11 @@ void DownloadLoadedImage::OnSuccess(std::shared_ptr<DownloadLoadedImage> thisobj
             }
 
             // Resize all frames //
-            for(auto iter = image->begin(); iter != image->end(); ++iter){
+            if(resize){
+                for(auto iter = image->begin(); iter != image->end(); ++iter){
 
-                iter->resize(CacheManager::CreateResizeSizeForImage(*iter, 128, 0));
+                    iter->resize(CacheManager::CreateResizeSizeForImage(*iter, 128, 0));
+                }
             }
 
             thisobject->OnLoadSuccess(image);            
