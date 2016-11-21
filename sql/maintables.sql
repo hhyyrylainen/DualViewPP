@@ -288,8 +288,11 @@ CREATE TABLE net_files (
     
     -- Name to use for this once downloaded
     preferred_name TEXT NOT NULL,
-    
-    -- Potentially part of a net gallery
+
+    -- Tags on this image. Contains ';' delimited list of tags
+    tags_string TEXT,
+
+    -- Part of a net gallery
     belongs_to_gallery INTEGER REFERENCES net_gallery(id) ON DELETE CASCADE
 );
 

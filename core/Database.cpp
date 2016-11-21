@@ -18,6 +18,7 @@
 
 #include "generated/migration_14_15.sql.h"
 #include "generated/migration_15_16.sql.h"
+#include "generated/migration_16_17.sql.h"
 
 #include "core/CurlWrapper.h"
 
@@ -2328,7 +2329,12 @@ bool Database::_UpdateDatabase(Lock &guard, const int oldversion){
 
         return true;
     }
-
+    case 16:
+    {
+        _RunSQL(guard, STR_MIGRATION_16_17_SQL);
+        _SetCurrentDatabaseVersion(guard, 17);
+        return true;
+    }
     default:
     {
         LOG_ERROR("Unknown database version to update from: " + Convert::ToString(oldversion));
