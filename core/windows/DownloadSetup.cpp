@@ -107,6 +107,40 @@ void DownloadSetup::_OnClose(){
     
 }
 // ------------------------------------ //
+void DownloadSetup::_OnFinishAccept(){
+
+    // If there are leftover images allow adding those to another collection
+    if(ImageObjects.empty()){
+        
+        close();
+        return;
+    }
+
+    // There are still some stuff //
+    auto dialog = Gtk::MessageDialog(*this,
+        "Added Some Images From This Internet Resource",
+        false,
+        Gtk::MESSAGE_INFO,
+        Gtk::BUTTONS_OK,
+        true 
+    );
+
+    // Restore cursor
+    auto window = get_window();
+    if(window)
+        window->set_cursor();
+    
+    dialog.set_secondary_text("You can either select the remaining images and add them also. "
+        "Or you can close this window to discard the rest of the images");
+    dialog.run();
+
+    // Restore editing
+    set_sensitive(true);
+
+    ImageSelection->SetShownItems(ImageObjects.begin(), ImageObjects.end());
+    UpdateEditedImages();
+}
+
 void DownloadSetup::OnUserAcceptSettings(){
 
     if(State != STATE::URL_OK){
@@ -132,30 +166,43 @@ void DownloadSetup::OnUserAcceptSettings(){
 
     // Make sure that the url is valid //
     SetTargetCollectionName(TargetCollectionName->get_text());
+
+    // Store values //
+
+    // Collection Tags
+    const auto collectionTags = CollectionTags->TagsAsString(";");
+    CollectionTags = std::make_shared<TagCollection>();
+    CollectionTagEditor->SetEditedTags({CollectionTags});
+
+    // Collection Path
+    const auto collectionPath = TargetFolder->GetPath();
+    TargetFolder->GoToRoot();
+
+    const auto alive = GetAliveMarker();
+
+    DualView::Get().QueueWorkerFunction([us { this }, alive,
+            selected, collectionTags, collectionPath,
+            url { CurrentlyCheckedURL }, name { TargetCollectionName->get_text() } ]()
+        {
+            auto gallery = std::make_shared<NetGallery>(url, name);
+
+            gallery->SetTags(collectionTags);
+            gallery->SetTargetPath(collectionPath); 
+
+            // Save the net gallery to the databse
+            // (which also allows the DownloadManager to pick it up)
+            DualView::Get().GetDatabase().InsertNetGallery(gallery);
+            gallery->AddFilesToDownload(selected);
+
+            // We are done
+            DualView::Get().InvokeFunction([=](){
+
+                    INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                    us->DownloadSetup::_OnFinishAccept();
+                });
+        });
     
-    auto gallery = std::make_shared<NetGallery>(CurrentlyCheckedURL,
-        TargetCollectionName->get_text());
-
-    if(CollectionTags->HasTags()){
-        
-        gallery->SetTags(CollectionTags->TagsAsString(";"));
-        
-        CollectionTags = std::make_shared<TagCollection>();
-        CollectionTagEditor->SetEditedTags({CollectionTags});
-    }
-
-    if(!TargetFolder->GetFolder()->IsRoot()){
-
-        gallery->SetTargetPath(TargetFolder->GetPath());
-        
-        TargetFolder->GoToRoot();
-    }
-    
-    // Save the net gallery to the databse
-    // (which also allows the DownloadManager to pick it up)
-    DualView::Get().GetDatabase().InsertNetGallery(gallery);
-    gallery->AddFilesToDownload(selected);
-
     // Remove the added from the list //
     for(size_t i = 0; i < ImageObjects.size(); ){
 
@@ -175,31 +222,11 @@ void DownloadSetup::OnUserAcceptSettings(){
             ++i;
     }
 
-
-    // We are done
-
-    // If there are leftover images allow adding those to another collection
-    if(ImageObjects.empty()){
-        
-        close();
-        return;
-    }
-
-    // There are still some stuff //
-    auto dialog = Gtk::MessageDialog(*this,
-        "Added Some Images From This Internet Resource",
-        false,
-        Gtk::MESSAGE_INFO,
-        Gtk::BUTTONS_OK,
-        true 
-    );
-    
-    dialog.set_secondary_text("You can either select the remaining images and add them also. "
-        "Or you can close this window to discard the rest of the images");
-    dialog.run();
-
-    ImageSelection->SetShownItems(ImageObjects.begin(), ImageObjects.end());
-    UpdateEditedImages();
+    // Start waiting for things //
+    set_sensitive(false);
+    auto window = get_window();
+    if(window)
+        window->set_cursor(Gdk::Cursor::create(Gdk::WATCH));
 }
 // ------------------------------------ //
 void DownloadSetup::AddSubpage(const std::string &url){
@@ -220,6 +247,8 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage &content){
     for(auto& existinglink : ImagesToDownload){
 
         if(existinglink == content){
+            LOG_INFO("TODO: merge tags to the actual iamge object, duplicate now merged only "
+                "into ImagesToDownload links");
             existinglink.Merge(content);
             return;
         }
@@ -243,7 +272,8 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage &content){
     ImageSelection->AddItem(ImageObjects.back(), std::make_shared<ItemSelectable>(
             std::bind(&DownloadSetup::OnItemSelected, this, std::placeholders::_1)));
 
-    LOG_INFO("DownloadSetup added new image: " + content.URL);
+    LOG_INFO("DownloadSetup added new image: " + content.URL + " referrer: " +
+        content.Referrer);
 }
 // ------------------------------------ //
 void DownloadSetup::OnItemSelected(ListItem &item){

@@ -105,6 +105,8 @@ protected:
 
     //! Updates the images whose tags are edited
     void UpdateEditedImages();
+
+    void _OnFinishAccept();
     
 private:
 
