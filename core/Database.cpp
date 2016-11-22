@@ -1953,7 +1953,7 @@ bool Database::InsertNetGallery(std::shared_ptr<NetGallery> gallery){
 
     GUARD_LOCK();
 
-    const char str[] = "INSERT INTO tag_gallery (gallery_url, target_path, gallery_name, "
+    const char str[] = "INSERT INTO net_gallery (gallery_url, target_path, gallery_name, "
         "currently_scanned, is_downloaded, tags_string) VALUES (?, ?, ?, ?, ?, ?);";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -2034,7 +2034,7 @@ void Database::InsertNetFile(NetFile &netfile, NetGallery &gallery){
     if(!gallery.IsInDatabase())
         return;
 
-    const char str[] = "INSERT INTO net_files (file_url, referrer, preferred_name, "
+    const char str[] = "INSERT INTO net_files (file_url, page_referrer, preferred_name, "
         "tags_string, belongs_to_gallery) VALUES (?, ?, ?, ?, ?);";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));

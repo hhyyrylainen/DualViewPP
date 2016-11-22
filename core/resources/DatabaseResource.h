@@ -77,6 +77,14 @@ protected:
 
     //! Points to the database this was loaded from, or null
     Database* InDatabase = nullptr;
+
+    //! \brief Must be called by all classes inheriting from this, in their destructors
+    void DBResourceDestruct();
+
+private:
+
+    //! Set to true once DBResourceDestruct has been called
+    bool _DestructCalled = false;
 };
 
 

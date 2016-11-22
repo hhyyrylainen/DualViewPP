@@ -33,6 +33,8 @@ public:
     //! \brief Database load function
     Collection(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id);
 
+    ~Collection();
+
     //! \brief Return Name with illegal characters replaced with spaces
     std::string GetNameForFolder() const;
 

@@ -18,6 +18,8 @@ public:
     //! \brief Database load function
     Folder(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id);
 
+    ~Folder();
+
     const auto GetName() const{
 
         return Name;

@@ -49,7 +49,7 @@ protected:
     
 public:
 
-    virtual ~Image(){};
+    virtual ~Image();
 
     //! \brief Loads a database image
     //! \exception InvalidSQL if data is missing in the statement

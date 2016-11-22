@@ -9,8 +9,8 @@
 
 using namespace DV;
 // ------------------------------------ //
-NetGallery::NetGallery(const std::string &url) :
-    DatabaseResource(true), GalleryUrl(url)
+NetGallery::NetGallery(const std::string &url, const std::string &targetgallery) :
+    DatabaseResource(true), GalleryUrl(url), TargetGalleryName(targetgallery)
 {
 
 }
@@ -41,6 +41,7 @@ NetGallery::NetGallery(Database &db, Lock &dblock, PreparedStatement &statement,
     
 NetGallery::~NetGallery(){
 
+    DBResourceDestruct();
 }
 // ------------------------------------ //
 void NetGallery::AddFilesToDownload(const std::vector<std::shared_ptr<InternetImage>> &images){
@@ -90,6 +91,11 @@ NetFile::NetFile(Database &db, Lock &dblock, PreparedStatement &statement, int64
     PageReferrer = statement.GetColumnAsString(2);
     PreferredName = statement.GetColumnAsString(3);
     TagsString = statement.GetColumnAsString(4);
+}
+
+NetFile::~NetFile(){
+
+    DBResourceDestruct();
 }
 // ------------------------------------ //
 void NetFile::_DoSave(Database &db){

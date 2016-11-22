@@ -21,6 +21,8 @@ public:
     //! \brief Constructor for database loading
     NetFile(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id);
 
+    ~NetFile();
+
     auto GetFileURL() const{
 
         return FileURL;
@@ -62,7 +64,7 @@ class NetGallery : public DatabaseResource{
 public:
 
     //! \brief Constructor for creating new ones
-    NetGallery(const std::string &url);
+    NetGallery(const std::string &url, const std::string &targetgallery);
 
     //! \brief Constructor for database loading
     NetGallery(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id);
@@ -134,17 +136,16 @@ protected:
 
 protected:
 
-
     std::string GalleryUrl;
 
     std::string TargetPath;
     
-    std::string TargetGalleryName; 
+    std::string TargetGalleryName = "Uncategorized";
 
     //! \unused
     std::string CurrentlyScanned;
 
-    bool IsDownloaded;
+    bool IsDownloaded = false;
 
     std::string TagsString;
 };

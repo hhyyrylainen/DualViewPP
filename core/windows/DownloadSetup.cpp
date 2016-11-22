@@ -18,6 +18,8 @@
 
 #include "Common.h"
 
+#include "leviathan/Common/StringOperations.h"
+
 using namespace DV;
 // ------------------------------------ //
 DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
@@ -86,6 +88,11 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
 
     BUILDER_GET_WIDGET(SelectOnlyOneImage);
 
+    BUILDER_GET_WIDGET(SelectAllImagesButton);
+
+    SelectAllImagesButton->signal_clicked().connect(sigc::mem_fun(*this,
+            &DownloadSetup::SelectAllImages));
+
     // Set all the editor controls read only
     _UpdateWidgetStates();
 }
@@ -122,8 +129,12 @@ void DownloadSetup::OnUserAcceptSettings(){
                 image->SaveFileToDisk();
             }
         });
+
+    // Make sure that the url is valid //
+    SetTargetCollectionName(TargetCollectionName->get_text());
     
-    auto gallery = std::make_shared<NetGallery>(CurrentlyCheckedURL);
+    auto gallery = std::make_shared<NetGallery>(CurrentlyCheckedURL,
+        TargetCollectionName->get_text());
 
     if(CollectionTags->HasTags()){
         
@@ -297,6 +308,12 @@ std::vector<std::shared_ptr<InternetImage>> DownloadSetup::GetSelectedImages(){
     }
 
     return result;
+}
+
+void DownloadSetup::SelectAllImages(){
+
+    ImageSelection->SelectAllItems();
+    UpdateEditedImages();
 }
 // ------------------------------------ //
 void DownloadSetup::OnURLChanged(){
@@ -519,7 +536,8 @@ void DownloadSetup::StartPageScanning(){
 // ------------------------------------ //
 void DownloadSetup::SetTargetCollectionName(const std::string &str){
 
-    TargetCollectionName->set_text(str);
+    TargetCollectionName->set_text(Leviathan::StringOperations::ReplaceSingleCharacter<
+        std::string>(str, "/\\", ' '));
 }
 // ------------------------------------ //
 void DownloadSetup::_SetState(STATE newstate){
@@ -558,6 +576,7 @@ void DownloadSetup::_UpdateWidgetStates(){
         OKButton->set_sensitive(true);
         ImageSelection->set_sensitive(true);
         TargetCollectionName->set_sensitive(true);
+        SelectAllImagesButton->set_sensitive(true);
         
     } else {
         
@@ -568,6 +587,7 @@ void DownloadSetup::_UpdateWidgetStates(){
         OKButton->set_sensitive(false);
         ImageSelection->set_sensitive(false);
         TargetCollectionName->set_sensitive(false);
+        SelectAllImagesButton->set_sensitive(false);
     }
 
     switch(State){

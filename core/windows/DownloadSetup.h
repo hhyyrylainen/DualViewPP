@@ -80,6 +80,9 @@ public:
 
     //! \returns True if ready to download
     bool IsReadyToDownload() const;
+
+    //! \brief Selects all found images
+    void SelectAllImages();
     
 protected:
 
@@ -160,6 +163,7 @@ private:
     SuperContainer* ImageSelection;
     Gtk::CheckButton* SelectOnlyOneImage;
 
+    Gtk::Button* SelectAllImagesButton;
     
         
 };

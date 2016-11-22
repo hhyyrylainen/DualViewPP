@@ -20,10 +20,18 @@ DatabaseResource::DatabaseResource(int64_t id, Database &from) : ID(id), InDatab
 
 DatabaseResource::~DatabaseResource(){
 
+    LEVIATHAN_ASSERT(_DestructCalled, "DatabaseResource child class has "
+        "not called DBResourceDestruct");
+}
+
+void DatabaseResource::DBResourceDestruct(){
+
     // Stop listeners from receiving updates
     ReleaseChildHooks();
     
     Save();
+
+    _DestructCalled = true;
 }
 // ------------------------------------ //
 void DatabaseResource::OnAdopted(int64_t id, Database &from){

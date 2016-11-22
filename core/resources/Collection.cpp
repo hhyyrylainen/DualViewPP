@@ -53,6 +53,10 @@ Collection::Collection(Database &db, Lock &dblock, PreparedStatement &statement,
     LastView = TimeHelpers::ParseTime(statement.GetColumnAsString(4));
 }
 
+Collection::~Collection(){
+
+    DBResourceDestruct();
+}
 
 // ------------------------------------ //
 std::string Collection::GetNameForFolder() const{

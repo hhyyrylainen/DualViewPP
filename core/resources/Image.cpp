@@ -92,6 +92,11 @@ Image::Image(Database &db, Lock &dblock, PreparedStatement &statement, int64_t i
     LastView = TimeHelpers::ParseTime(statement.GetColumnAsString(7));
 }
 
+Image::~Image(){
+
+    DBResourceDestruct();
+}
+
 void Image::Init(){
 
     if(!IsHashValid){

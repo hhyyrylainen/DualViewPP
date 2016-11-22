@@ -19,6 +19,11 @@ Folder::Folder(Database &db, Lock &dblock, PreparedStatement &statement, int64_t
     Name = statement.GetColumnAsString(1);
     IsPrivate = statement.GetColumnAsBool(2);
 }
+
+Folder::~Folder(){
+
+    DBResourceDestruct();
+}
 // ------------------------------------ //
 void Folder::_DoSave(Database &db){
 

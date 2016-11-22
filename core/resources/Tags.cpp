@@ -28,6 +28,11 @@ TagModifier::TagModifier(Database &db, Lock &dblock, PreparedStatement &statemen
     IsPrivate = statement.GetColumnAsBool(2);
 }
 
+TagModifier::~TagModifier(){
+
+    DBResourceDestruct();
+}
+
 void TagModifier::UpdateProperties(std::string name, std::string category, bool isprivate){
     
     if(!IsInDatabase())
@@ -115,6 +120,11 @@ Tag::Tag(Database &db, Lock &dblock, PreparedStatement &statement,
     Description = statement.GetColumnAsString(3);
     Category = static_cast<TAG_CATEGORY>(statement.GetColumnAsInt64(2));
     IsPrivate = statement.GetColumnAsBool(4);
+}
+
+Tag::~Tag(){
+
+    DBResourceDestruct();
 }
 
 void Tag::AddAlias(const std::string alias){
@@ -354,6 +364,11 @@ TagBreakRule::TagBreakRule(Database &db, Lock &dblock, PreparedStatement &statem
     }
 
     Modifiers = db.SelectModifiersForBreakRule(dblock, *this);
+}
+
+TagBreakRule::~TagBreakRule(){
+
+    DBResourceDestruct();
 }
 
 std::vector<std::shared_ptr<TagModifier>> TagBreakRule::DoBreak(std::string str,

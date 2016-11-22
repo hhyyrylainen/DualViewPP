@@ -13,6 +13,8 @@ class TagModifier : public DatabaseResource {
 public:
     
     TagModifier(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id);
+
+    ~TagModifier();
     
     std::string ToAccurateString(){
         
@@ -91,6 +93,8 @@ public:
     Tag(Database &db, Lock &dblock, PreparedStatement &statement,
         int64_t id);
 
+    ~Tag();
+
     bool operator <(const Tag &other) const{
 
         return Name < other.Name;
@@ -158,7 +162,7 @@ protected:
 //! Represents an imply relationship between two tags
 //! When the ImpliedBy tag is applied also the Primary tag should be assumed to be applied
 //! \todo Allow loading and saving these from the database
-class ImpliedTag /*: public DatabaseResource*/{
+class ImpliedTag{
 public:
 
     ImpliedTag(std::shared_ptr<Tag> tag, std::shared_ptr<Tag> impliedby) :
@@ -202,6 +206,8 @@ class TagBreakRule : public DatabaseResource {
 public:
     
     TagBreakRule(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id);
+
+    ~TagBreakRule();
     
     //! Breaks a string according to this rule
     //! \returns The modifiers that were before the tag
