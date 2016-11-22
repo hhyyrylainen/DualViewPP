@@ -31,14 +31,26 @@ Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     AddNewLink->signal_pressed().connect(sigc::mem_fun(*this,
             &Downloader::_OpenNewDownloadSetup));
 
+
+    BUILDER_GET_WIDGET(StartDownloadButton);
+    StartDownloadButton->signal_pressed().connect(sigc::mem_fun(*this,
+            &Downloader::_ToggleDownloadThread));
+
+    BUILDER_GET_WIDGET(DLStatusLabel);
+    BUILDER_GET_WIDGET(DLSpinner);
 }
 
 Downloader::~Downloader(){
 
+    WaitForDownloadThread();
 }
 
 // ------------------------------------ //
 bool Downloader::_OnClose(GdkEventAny* event){
+
+    // Ask user to stop downloads //
+
+    StopDownloadThread();
 
     // Just hide it //
     hide();
@@ -98,3 +110,63 @@ void Downloader::_OpenNewDownloadSetup(){
     DualView::Get().OpenDownloadSetup();
 }
 // ------------------------------------ //
+void Downloader::StartDownloadThread(){
+
+    if(RunDownloadThread)
+        return;
+    
+    // Make sure the thread isn't running 
+    WaitForDownloadThread();
+
+    RunDownloadThread = true;
+    
+    DownloadThread = std::thread(&Downloader::_RunDownloadThread, this);
+}
+
+void Downloader::StopDownloadThread(){
+
+    RunDownloadThread = false;
+}
+
+void Downloader::WaitForDownloadThread(){
+
+    if(RunDownloadThread)
+        StopDownloadThread();
+
+    NotifyDownloadThread.notify_all();
+
+    if(DownloadThread.joinable())
+        DownloadThread.join();
+}
+// ------------------------------------ //
+void Downloader::_RunDownloadThread(){
+
+    std::unique_lock<std::mutex> lock(DownloadThreadMutex);
+
+    while(RunDownloadThread){
+
+        
+        
+        
+        NotifyDownloadThread.wait_for(lock, std::chrono::milliseconds(10));
+    }
+}
+// ------------------------------------ //
+void Downloader::_ToggleDownloadThread(){
+
+    if(RunDownloadThread){
+        
+        StopDownloadThread();
+        StartDownloadButton->set_label("Start Download");
+        DLStatusLabel->set_text("Not downloading");
+        
+    } else {
+
+        StartDownloadThread();
+        StartDownloadButton->set_label("Stop Download Thread");
+        DLStatusLabel->set_text("Downloader thread waiting for work");
+    }
+}
+// ------------------------------------ //
+
+

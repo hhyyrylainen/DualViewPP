@@ -16,7 +16,7 @@
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <child>
-              <object class="GtkButton" id="StartDownload">
+              <object class="GtkButton" id="StartDownloadButton">
                 <property name="label" translatable="yes">Start Download</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
@@ -100,7 +100,6 @@
               <object class="GtkSpinner" id="DLSpinner">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="active">True</property>
               </object>
               <packing>
                 <property name="expand">False</property>

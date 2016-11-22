@@ -1,6 +1,8 @@
 // ------------------------------------ //
 #include "DLListItem.h"
 
+#include "core/DualView.h"
+
 using namespace DV;
 // ------------------------------------ //
 
@@ -39,10 +41,20 @@ DLListItem::DLListItem(std::shared_ptr<NetGallery> todownload) :
     Container.pack_end(NameBox, false, true);
     NameBox.set_valign(Gtk::ALIGN_CENTER);
 
+    if(Gallery)
+        ReadGalleryData();
+
     show_all_children();
 }
 
 DLListItem::~DLListItem(){
 
 
+}
+// ------------------------------------ //
+void DLListItem::ReadGalleryData(){
+
+    DualView::IsOnMainThreadAssert();
+
+    
 }

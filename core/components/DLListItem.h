@@ -14,6 +14,9 @@ public:
     ~DLListItem();
 
 
+    //! \brief Reads properties from Gallery and updates widgets
+    void ReadGalleryData();
+
     auto GetGallery() const{
 
         return Gallery;
