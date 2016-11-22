@@ -110,10 +110,37 @@ void Downloader::AddNetGallery(std::shared_ptr<NetGallery> gallery){
     }
 
     auto item = std::make_shared<DLListItem>(gallery);
+
+    // The item should always be destroyed before this
+    item->SetRemoveCallback(std::bind(&Downloader::_OnRemoveListItem, this,
+            std::placeholders::_1));
+    
     DLList.push_back(item);
+    
 
     DLWidgets->add(*item);
     item->show();            
+}
+
+void Downloader::_OnRemoveListItem(DLListItem &item){
+
+    auto alive = GetAliveMarker();
+    
+    DualView::Get().InvokeFunction([=, toremove { &item }](){
+
+            INVOKE_CHECK_ALIVE_MARKER(alive);
+
+            for(auto iter = DLList.begin(); iter != DLList.end(); ++iter){
+
+                if((*iter).get() == toremove){
+
+                    (*iter)->hide();
+                    //DLWidgets->remove(**iter);
+                    DLList.erase(iter);
+                    break;
+                }
+            }
+        });
 }
 // ------------------------------------ //
 void Downloader::_OpenNewDownloadSetup(){
@@ -183,16 +210,7 @@ void Downloader::_DLFinished(std::shared_ptr<DLListItem> item){
                     gallery->SetIsDownload(true);
                 });
 
-            DLWidgets->remove(*item);
-
-            for(auto iter = DLList.begin(); iter != DLList.end(); ++iter){
-
-                if((*iter).get() == item.get()){
-
-                    DLList.erase(iter);
-                    break;
-                }
-            }
+            _OnRemoveListItem(*item);
 
             done.set_value(true);
         });
@@ -481,7 +499,7 @@ void Downloader::_RunDownloadThread(){
             }
         }
         
-        NotifyDownloadThread.wait_for(lock, std::chrono::milliseconds(1000));
+        NotifyDownloadThread.wait_for(lock, std::chrono::milliseconds(10));
     }
 
     _SetDLThreadStatus("Downloader Stopped", false, 1.0f);

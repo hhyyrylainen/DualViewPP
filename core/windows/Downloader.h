@@ -60,9 +60,12 @@ protected:
     
     void _SetDLThreadStatus(const std::string &statusstr, bool spinneractive, float progress);
 
+    void _OnRemoveListItem(DLListItem &item);
+
 protected:
 
-    Gtk::FlowBox* DLWidgets;
+    //! \warnign If this is a flowbox all hell breaks loose
+    Gtk::Box* DLWidgets;
 
 
     Gtk::Button* StartDownloadButton;

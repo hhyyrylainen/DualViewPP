@@ -17,7 +17,8 @@ public:
     DLListItem(std::shared_ptr<NetGallery> todownload);
     ~DLListItem();
 
-
+    void SetRemoveCallback(std::function<void (DLListItem&)> callback);
+    
     //! \brief Sets the current progress. Valid range: 0.0f - 1.0f
     void SetProgress(float value);
     
@@ -44,10 +45,14 @@ protected:
     //! \brief Updates the gallery name
     void OnNameUpdated();
 
+    void OnPressedRemove();
+
 protected:
 
     //! The gallery that is being edited / progress shown on
     std::shared_ptr<NetGallery> Gallery;
+
+    std::function<void (DLListItem&)> OnRemoveCallback;
 
     Gtk::Box Container;
 

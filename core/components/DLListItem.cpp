@@ -42,6 +42,8 @@ DLListItem::DLListItem(std::shared_ptr<NetGallery> todownload) :
     ButtonBox.add(AdvancedSettings);
     ButtonBox.add(Delete);
 
+    Delete.signal_pressed().connect(sigc::mem_fun(*this, &DLListItem::OnPressedRemove)); 
+
     Container.pack_end(NameBox, true, true);
     NameBox.set_valign(Gtk::ALIGN_CENTER);
     NameBox.signal_changed().connect(sigc::mem_fun(*this, &DLListItem::OnNameUpdated));
@@ -129,4 +131,14 @@ void DLListItem::OnNotified(Lock &ownlock, Leviathan::BaseNotifierAll* parent,
     LOG_INFO("DLListItem: gallery changed, reading changes");
     ReadGalleryData();
 }
-    
+// ------------------------------------ //
+void DLListItem::SetRemoveCallback(std::function<void (DLListItem&)> callback){
+
+    OnRemoveCallback = callback;
+}
+
+void DLListItem::OnPressedRemove(){
+
+    if(OnRemoveCallback)
+        OnRemoveCallback(*this);
+}
