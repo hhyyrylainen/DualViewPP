@@ -1975,7 +1975,7 @@ void Database::UpdateNetGallery(NetGallery &gallery){
 
     GUARD_LOCK();
 
-    const char str[] = "UPDATE tag_gallery SET gallery_url = ?, target_path = ?, "
+    const char str[] = "UPDATE net_gallery SET gallery_url = ?, target_path = ?, "
         "gallery_name = ?, currently_scanned = ?, is_downloaded = ?, tags_string = ? "
         "WHERE id = ?;";
 

@@ -126,6 +126,12 @@ public:
         OnMarkDirty();
     }
 
+    void SetTargetGalleryName(const std::string &newvalue){
+
+        TargetGalleryName = newvalue;
+        OnMarkDirty();
+    }
+
     //! \brief Adds all images to this gallery
     //! \note Doesn't check for duplicates
     void AddFilesToDownload(const std::vector<std::shared_ptr<InternetImage>> &images);

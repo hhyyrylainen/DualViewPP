@@ -44,9 +44,12 @@ DLListItem::DLListItem(std::shared_ptr<NetGallery> todownload) :
 
     Container.pack_end(NameBox, true, true);
     NameBox.set_valign(Gtk::ALIGN_CENTER);
+    NameBox.signal_changed().connect(sigc::mem_fun(*this, &DLListItem::OnNameUpdated));
 
+    // Reset hooks when changing items ReleaseParentHooks(guard);
+    GUARD_LOCK();
     if(Gallery)
-        ReadGalleryData();
+        ReadGalleryData(guard);
 
     show_all_children();
 }
@@ -68,9 +71,10 @@ void DLListItem::SetProgress(float value){
         });
 }
 // ------------------------------------ //
-void DLListItem::ReadGalleryData(){
+void DLListItem::ReadGalleryData(Lock &guard){
 
-    DualView::IsOnMainThreadAssert();
+    if(!IsConnectedTo(Gallery.get(), guard))
+        ConnectToNotifier(guard, Gallery.get());
 
     URLLabel.set_text(Gallery->GetGalleryURL());
     Progress.set_value(0);
@@ -79,3 +83,21 @@ void DLListItem::ReadGalleryData(){
 
     ErrorLabel.set_text("");
 }
+// ------------------------------------ //
+void DLListItem::OnNameUpdated(){
+
+    if(Gallery && Gallery->GetTargetGalleryName() != NameBox.get_text()){
+        
+        Gallery->SetTargetGalleryName(NameBox.get_text());
+    }
+}
+
+void DLListItem::OnNotified(Lock &ownlock, Leviathan::BaseNotifierAll* parent,
+    Lock &parentlock)
+{
+    DualView::IsOnMainThreadAssert();
+    
+    LOG_INFO("DLListItem: gallery changed, reading changes");
+    ReadGalleryData(ownlock);
+}
+    

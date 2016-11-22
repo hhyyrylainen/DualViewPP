@@ -2,6 +2,8 @@
 
 #include "core/IsAlive.h"
 
+#include "leviathan/Common/BaseNotifiable.h"
+
 #include <gtkmm.h>
 
 namespace DV{
@@ -9,7 +11,7 @@ namespace DV{
 class NetGallery;
 
 //! \brief Holds things about a collection of images that's ready to be downloaded
-class DLListItem : public Gtk::Frame, public IsAlive{
+class DLListItem : public Gtk::Frame, public IsAlive, public Leviathan::BaseNotifiableAll{
 public:
 
     DLListItem(std::shared_ptr<NetGallery> todownload);
@@ -20,15 +22,21 @@ public:
     void SetProgress(float value);
     
     //! \brief Reads properties from Gallery and updates widgets
-    void ReadGalleryData();
+    void ReadGalleryData(Lock &guard);
 
     auto GetGallery() const{
 
         return Gallery;
     }
 
+    //! \brief Called when the gallery changes properties
+    void OnNotified(Lock &ownlock, Leviathan::BaseNotifierAll* parent, Lock &parentlock)
+        override;
+
 protected:
 
+    //! \brief Updates the gallery name
+    void OnNameUpdated();
 
 protected:
 
