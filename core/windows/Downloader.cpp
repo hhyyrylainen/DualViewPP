@@ -3,7 +3,11 @@
 
 #include "core/components/DLListItem.h"
 
+#include "core/resources/NetGallery.h"
+
 #include "core/DualView.h"
+#include "core/Database.h"
+
 #include "Common.h"
 
 using namespace DV;
@@ -45,17 +49,49 @@ bool Downloader::_OnClose(GdkEventAny* event){
 void Downloader::_OnShown(){
     
     // Load items if not already loaded //
-    auto item = std::make_shared<DLListItem>();
-    DLList.push_back(item);
+    const auto itemids = DualView::Get().GetDatabase().SelectNetGalleryIDs(true);
 
-    DLWidgets->add(*item);
-    item->show();
+
+    for(auto id : itemids){
+
+        // Skip already added ones //
+        bool added = false;
+
+        for(const auto &existing : DLList){
+
+            if(existing->GetGallery()->GetID() == id){
+
+                added = true;
+                break;
+            }
+        }
+
+        if(added)
+            continue;
+
+        AddNetGallery(DualView::Get().GetDatabase().SelectNetGalleryByIDAG(id));
+    }
 }
 
 void Downloader::_OnHidden(){
 
     // Ask user whether downloads should be paused //
     
+}
+// ------------------------------------ //
+void Downloader::AddNetGallery(std::shared_ptr<NetGallery> gallery){
+
+    if(!gallery){
+
+        LOG_ERROR("Downloader trying to add null NetGallery");
+        return;
+    }
+
+    auto item = std::make_shared<DLListItem>(gallery);
+    DLList.push_back(item);
+
+    DLWidgets->add(*item);
+    item->show();            
 }
 // ------------------------------------ //
 void Downloader::_OpenNewDownloadSetup(){

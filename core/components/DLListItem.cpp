@@ -4,7 +4,8 @@
 using namespace DV;
 // ------------------------------------ //
 
-DLListItem::DLListItem() :
+DLListItem::DLListItem(std::shared_ptr<NetGallery> todownload) :
+    Gallery(todownload),
     Container(Gtk::ORIENTATION_HORIZONTAL),
     URLLabel("URL not loaded..."),
     ButtonBox(Gtk::ORIENTATION_VERTICAL),
@@ -15,7 +16,7 @@ DLListItem::DLListItem() :
     add(Container);
     
     Container.pack_start(Enabled, false, false);
-    Enabled.set_state(true);
+    Enabled.set_state(false);
     Enabled.set_valign(Gtk::ALIGN_CENTER);
 
     Container.pack_start(URLLabel, false, true);

@@ -425,7 +425,8 @@ public:
 
     //! \brief Returns a NetGallery by id
     std::shared_ptr<NetGallery> SelectNetGalleryByID(Lock &guard, DBID id);
-
+    CREATE_NON_LOCKING_WRAPPER(SelectNetGalleryByID);
+        
     //! \brief Adds a new NetGallery to the database
     //! \returns True if added, false if it is already added
     bool InsertNetGallery(std::shared_ptr<NetGallery> gallery);

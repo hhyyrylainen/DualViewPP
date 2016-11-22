@@ -7,6 +7,7 @@
 namespace DV{
 
 class DLListItem;
+class NetGallery;
 
 //! \brief Window that has all the download objects
 //! and also implements the download algorithm
@@ -15,6 +16,9 @@ public:
 
     Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder);
     ~Downloader();
+
+    //! \brief Adds a NetGallery to be shown
+    void AddNetGallery(std::shared_ptr<NetGallery> gallery);
 
 protected:
     
