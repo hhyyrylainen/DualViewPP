@@ -4,11 +4,20 @@
 #include "core/components/DLListItem.h"
 
 #include "core/resources/NetGallery.h"
+#include "core/resources/Image.h"
+#include "core/resources/Tags.h"
+#include "core/resources/Collection.h"
 
 #include "core/DualView.h"
 #include "core/Database.h"
+#include "core/Settings.h"
+#include "core/DownloadManager.h"
+
+#include "leviathan/Common/StringOperations.h"
 
 #include "Common.h"
+
+#include <boost/filesystem.hpp>
 
 using namespace DV;
 // ------------------------------------ //
@@ -38,6 +47,7 @@ Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     BUILDER_GET_WIDGET(DLStatusLabel);
     BUILDER_GET_WIDGET(DLSpinner);
+    BUILDER_GET_WIDGET(DLProgress);
 }
 
 Downloader::~Downloader(){
@@ -139,18 +149,345 @@ void Downloader::WaitForDownloadThread(){
         DownloadThread.join();
 }
 // ------------------------------------ //
+std::shared_ptr<DLListItem> Downloader::GetNextSelectedGallery(){
+
+    std::promise<std::shared_ptr<DLListItem>> result;
+
+    DualView::Get().RunOnMainThread([&](){
+
+            std::shared_ptr<DLListItem> foundGallery;
+
+            for(auto& item : DLList){
+
+                if(item->IsSelected()){
+
+                    foundGallery = item;
+                    break;
+                }
+            }
+
+            result.set_value(foundGallery);
+        });
+
+    return result.get_future().get();
+}
+
+void Downloader::_DLFinished(std::shared_ptr<DLListItem> item){
+
+    std::promise<bool> done;
+
+    DualView::Get().RunOnMainThread([&](){
+
+            DualView::Get().QueueDBThreadFunction([gallery { item->GetGallery()}](){
+
+                    gallery->SetIsDownload(true);
+                });
+
+            DLWidgets->remove(*item);
+
+            for(auto iter = DLList.begin(); iter != DLList.end(); ++iter){
+
+                if((*iter).get() == item.get()){
+
+                    DLList.erase(iter);
+                    break;
+                }
+            }
+
+            done.set_value(true);
+        });
+
+    done.get_future().wait();
+}
+
+// ------------------------------------ //
+void Downloader::_SetDLThreadStatus(const std::string &statusstr, bool spinneractive,
+    float progress)
+{
+
+    auto alive = GetAliveMarker();
+
+    DualView::Get().RunOnMainThread([=](){
+
+            INVOKE_CHECK_ALIVE_MARKER(alive);
+
+            if(!statusstr.empty())
+                DLStatusLabel->set_text(statusstr);
+            DLSpinner->property_active() = spinneractive;
+
+            if(progress >= 0.f)
+                DLProgress->set_value(progress);
+        });
+}
+
+// ------------------------------------ //
+//! Holds the state of a download
+struct DV::DownloadProgressState{
+
+    enum class STATE{
+
+        INITIAL,
+
+        //! Waiting to get a list of images to download
+        WAITING_FOR_DB,
+
+        DOWNLOADING_IMAGES,
+
+        WAITING_FOR_HASHES,
+        
+        ENDED
+    };
+
+    DownloadProgressState(Downloader* downloader, std::shared_ptr<DLListItem> listitem,
+        std::shared_ptr<NetGallery> gallery) :
+        Loader(downloader), Gallery(gallery), Widget(listitem)
+    {
+        Widget->LockSelected(true);
+        Loader->_SetDLThreadStatus("Downloading: " + gallery->GetTargetGalleryName(), true, 0);
+    }
+
+    ~DownloadProgressState(){
+
+        if(Widget)
+            Widget->LockSelected(false);
+    }
+
+    //! \returns True once done
+    bool Tick(std::shared_ptr<DownloadProgressState> us){
+
+        switch(state){
+        case STATE::INITIAL:
+        {
+
+            DualView::Get().QueueDBThreadFunction([us](){
+
+                    us->ImageList = DualView::Get().GetDatabase().SelectNetFilesFromGallery(
+                        *us->Gallery);
+                    
+                    us->ImageListReady = true;
+                });
+            
+            state = STATE::WAITING_FOR_DB;
+            return false;
+        }
+        case STATE::WAITING_FOR_DB:
+        {
+            Loader->_SetDLThreadStatus("Waiting on Database", true, 0.05f);
+            if(ImageListReady){
+
+                state = STATE::DOWNLOADING_IMAGES;
+            }
+            
+            return false;
+        }
+        case STATE::DOWNLOADING_IMAGES:
+        {
+            if(imagedl){
+
+                // Wait for the download to finish //
+                if(!imagedl->IsReady())
+                    return false;
+
+                if(imagedl->HasFailed()){
+
+                    LOG_ERROR("Downloading failed for URL: " + imagedl->GetURL());
+                    Loader->_SetDLThreadStatus("Failed to download: " + imagedl->GetURL(),
+                        false, -1);
+                    return false;
+                }
+                
+                DownloadedImages.push_back(Image::Create(imagedl->GetLocalFile(),
+                        DownloadManager::ExtractFileName(imagedl->GetURL()),
+                        imagedl->GetURL()));
+                
+                LOG_INFO("Successfully downloaded: " + imagedl->GetURL());
+                LOG_INFO("Local path: " + imagedl->GetLocalFile());
+                imagedl.reset();
+                return false;
+            }
+
+            if(CurrentDownload >= ImageList.size()){
+
+                // Finished downloading //
+                state = STATE::WAITING_FOR_HASHES;
+                return false;
+            }
+            
+            const float progress = static_cast<float>(CurrentDownload) / ImageList.size();
+            
+            Loader->_SetDLThreadStatus("Downloading image #" +
+                Convert::ToString(CurrentDownload + 1), true, 0.1f + (0.9f * progress));
+            Widget->SetProgress(progress);
+
+            // Download if the target file doesn't exist yet //
+            const auto currentdl = ImageList[CurrentDownload];
+            
+            const auto cachefile = DownloadManager::GetCachePathForURL(
+                currentdl->GetFileURL());
+
+            if(boost::filesystem::exists(cachefile)){
+
+                LOG_INFO("Downloader: found locally cached version, using this instead of "
+                    "the URL: " + currentdl->GetFileURL() + " file: " + cachefile);
+
+                // Auto wanted path //
+                const auto wantedpath = (boost::filesystem::path(
+                        DualView::Get().GetSettings().GetStagingFolder()) /
+                    currentdl->GetPreferredName()).string();
+
+                std::string finalpath = wantedpath;
+
+                if(!boost::filesystem::equivalent(cachefile, wantedpath)){
+                
+                    // Rename into target file //
+                    auto path = DualView::MakePathUniqueAndShort(wantedpath);
+
+                    boost::filesystem::rename(cachefile, path);
+
+                    LEVIATHAN_ASSERT(boost::filesystem::exists(path), "Move file failed");
+
+                    finalpath = path;
+                }
+
+               DownloadedImages.push_back(Image::Create(finalpath,
+                       currentdl->GetPreferredName(), currentdl->GetFileURL()));
+
+            } else {
+
+                // Download it //
+                imagedl = std::make_shared<ImageFileDLJob>(currentdl->GetFileURL(),
+                    currentdl->GetPageReferrer());
+
+                DualView::Get().GetDownloadManager().QueueDownload(imagedl);
+            }
+            
+            ++CurrentDownload;
+            
+            return false;
+        }
+        case STATE::WAITING_FOR_HASHES:
+        {
+            for(const auto image : DownloadedImages){
+
+                if(!image->IsReady()){
+
+                    Loader->_SetDLThreadStatus("Waiting for hash calculations to end",
+                        true, 1.0f);
+
+                    
+                    return false;
+                }
+            }
+
+            LOG_INFO("TODO: delete files in staging folder that already existed");
+            state = STATE::ENDED;
+            return false;
+        }
+        case STATE::ENDED:
+        {
+            // Queue import on a worker thread //
+            LOG_INFO("TODO: control how many import tasks can be queued");
+
+            DualView::Get().QueueWorkerFunction([gallery { Gallery},
+                    images { DownloadedImages} ]()
+                {
+                    TagCollection tags;
+
+                    if(!gallery->GetTagsString().empty()){
+
+                        tags.ReplaceWithText(gallery->GetTagsString(), ";");
+                    }
+                    
+                    const auto result = DualView::Get().DualView::AddToCollection(images, true,
+                        gallery->GetTargetGalleryName(), tags /*, progresscallback*/);
+
+                    LEVIATHAN_ASSERT(result, "Downloader's import failed");
+
+                    LOG_INFO("Downloader: imported " + Convert::ToString(images.size()) +
+                        " images to '" + gallery->GetTargetGalleryName() + "'");
+
+                    // Add to folder //
+                    VirtualPath path(gallery->GetTargetPath());
+
+                    if(!path.IsRootPath() && !gallery->GetTargetGalleryName().empty() &&
+                        gallery->GetTargetGalleryName() !=
+                        DualView::Get().GetUncategorized()->GetName())
+                    {
+                        DualView::Get().AddCollectionToFolder(
+                            DualView::Get().GetFolderFromPath(path),
+                            DualView::Get().GetDatabase().SelectCollectionByNameAG(
+                                gallery->GetTargetGalleryName()));
+
+                        LOG_INFO("Downloader: moved target collection '" +
+                            gallery->GetTargetGalleryName() + "' to: " +
+                            static_cast<std::string>(path));
+                    }
+                        
+                });
+            
+
+            
+            Loader->_SetDLThreadStatus("Finished Downloading: " +
+                Gallery->GetTargetGalleryName(), false, 1.0f);
+            
+            return true;
+        }
+        }
+
+        return false;
+    }
+
+    Downloader* Loader;
+    const std::shared_ptr<NetGallery> Gallery;
+    const std::shared_ptr<DLListItem> Widget;
+
+
+    STATE state = STATE::INITIAL;
+
+    std::atomic<bool> ImageListReady = { false };
+    std::vector<std::shared_ptr<NetFile>> ImageList;
+    size_t CurrentDownload = 0;
+
+    std::vector<std::shared_ptr<Image>> DownloadedImages;
+
+    std::shared_ptr<ImageFileDLJob> imagedl;
+    
+};
+
 void Downloader::_RunDownloadThread(){
 
     std::unique_lock<std::mutex> lock(DownloadThreadMutex);
 
+    std::shared_ptr<DownloadProgressState> dlState;
+
     while(RunDownloadThread){
 
+        if(dlState){
+
+            if(dlState->Tick(dlState)){
+
+                _DLFinished(dlState->Widget);
+                dlState.reset();
+            }
+            
+        } else {
+
+            auto gallery = GetNextSelectedGallery();
+
+            if(gallery){
+
+                dlState = std::make_shared<DownloadProgressState>(this, gallery,
+                    gallery->GetGallery());
+            }
+        }
         
-        
-        
-        NotifyDownloadThread.wait_for(lock, std::chrono::milliseconds(10));
+        NotifyDownloadThread.wait_for(lock, std::chrono::milliseconds(1000));
     }
+
+    _SetDLThreadStatus("Downloader Stopped", false, 1.0f);
 }
+
+
 // ------------------------------------ //
 void Downloader::_ToggleDownloadThread(){
 

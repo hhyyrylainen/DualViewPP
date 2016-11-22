@@ -122,6 +122,14 @@ std::string DownloadManager::ExtractFileName(const std::string &url){
     return Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(name,
         "/\\", '_');
 }
+
+std::string DownloadManager::GetCachePathForURL(const std::string &url){
+
+    return (boost::filesystem::path(DualView::Get().GetSettings().GetStagingFolder()) /
+        (DualView::CalculateBase64EncodedHash(url) + "." +
+            Leviathan::StringOperations::GetExtension(ExtractFileName(url)))).string();
+}
+
 // ------------------------------------ //
 // DownloadJob
 DownloadJob::DownloadJob(const std::string &url, const std::string &referrer) :
@@ -137,7 +145,11 @@ void DownloadJob::SetFinishCallback(const std::function<void (DownloadJob&, bool
 
 void DownloadJob::OnFinished(bool success){
 
-    FinishCallback(*this, success);
+    HasFinished = true;
+    HasSucceeded = success;
+
+    if(FinishCallback)
+        FinishCallback(*this, success);
 }
 
 int CurlProgressCallback(void *clientp, curl_off_t dltotal, curl_off_t dlnow,

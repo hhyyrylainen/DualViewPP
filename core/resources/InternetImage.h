@@ -62,11 +62,6 @@ public:
     //! \todo Add support for downloading premade thumbnails
     virtual std::shared_ptr<LoadedImage> GetThumbnail() override;
 
-    //! \brief Returns the local filename once this has been downloaded
-    //! \note The file will be in the staging folder
-    //! \warning This hashes the DLURL each time this is called
-    std::string GetLocalFilename() const;
-
     auto GetURL() const{
 
         return DLURL;

@@ -369,6 +369,9 @@ public:
     //! \brief Replaces all tags with a multiline tag string
     void ReplaceWithText(std::string text);
 
+    //! \brief Replaces all tags with a tag string with specific separator
+    void ReplaceWithText(const std::string &text, const std::string &separator);
+
     //! \brief Converts all tags to text and adds the separator inbetween
     std::string TagsAsString(const std::string &separator);
 

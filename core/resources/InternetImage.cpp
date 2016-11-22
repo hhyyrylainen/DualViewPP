@@ -27,8 +27,7 @@ InternetImage::InternetImage(const ScanFoundImage &link) :
 
     Extension = Leviathan::StringOperations::GetExtension(ResourceName);
 
-    ResourcePath = (boost::filesystem::path(DualView::Get().GetSettings().GetStagingFolder()) /
-        GetLocalFilename()).string();
+    ResourcePath = DownloadManager::GetCachePathForURL(DLURL);
 
     ImportLocation = DLURL;
 }
@@ -164,13 +163,6 @@ bool InternetImage::SaveFileToDisk(Lock &guard){
 
     Leviathan::FileSystem::WriteToFile(FileDL->GetDownloadedBytes(), ResourcePath);
     return true;
-}
-
-std::string InternetImage::GetLocalFilename() const{
-
-    const auto hash = DualView::CalculateBase64EncodedHash(DLURL);
-
-    return hash + "." + Extension;
 }
 // ------------------------------------ //
 // DownloadLoadedImage

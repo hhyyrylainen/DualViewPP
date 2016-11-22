@@ -35,6 +35,9 @@ protected:
     //! \exception Leviathan::InvalidArgument if something is wrong with the file
     Image(const std::string &file);
 
+    //! \see Image::Create
+    Image(const std::string &file, const std::string &name, const std::string &importoverride);
+
     //! \brief Subclass constructor for empty images, will assert if default functions
     //! get called
     Image();
@@ -63,10 +66,20 @@ public:
 
     //! \brief Creates a non-db version of an Image.
     //! \exception Leviathan::InvalidArgument if something is wrong with the file
-    //! \todo If the file path is in the database load that instead
     inline static std::shared_ptr<Image> Create(const std::string &file){
 
         auto obj = std::shared_ptr<Image>(new Image(file));
+        obj->Init();
+        return obj;
+    }
+
+    //! \brief Creates a non-db version of an Image.
+    //! \exception Leviathan::InvalidArgument if something is wrong with the file
+    //! \param importoverride Sets the import location property
+    inline static std::shared_ptr<Image> Create(const std::string &file,
+        const std::string &name, const std::string &importoverride)
+    {
+        auto obj = std::shared_ptr<Image>(new Image(file, name, importoverride));
         obj->Init();
         return obj;
     }
@@ -81,6 +94,7 @@ public:
     //! \brief Returns the hash
     //! \exception Leviathan::InvalidState if hash hasn't been calculated yet
     std::string GetHash() const;
+
 
     //! \brief Returns a tag collection
     //!

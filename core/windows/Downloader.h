@@ -7,15 +7,21 @@
 #include <atomic>
 #include <thread>
 #include <condition_variable>
+#include <future>
 
 namespace DV{
 
 class DLListItem;
 class NetGallery;
 
+struct DownloadProgressState;
+
 //! \brief Window that has all the download objects
 //! and also implements the download algorithm
 class Downloader : public Gtk::Window, public IsAlive{
+    
+    friend DownloadProgressState;
+    
 public:
 
     Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder);
@@ -45,8 +51,14 @@ protected:
 
     void _OpenNewDownloadSetup();
 
+    //! \brief Gets the next selected download gallery
+    std::shared_ptr<DLListItem> GetNextSelectedGallery();
 
     void _RunDownloadThread();
+
+    void _DLFinished(std::shared_ptr<DLListItem> item);
+    
+    void _SetDLThreadStatus(const std::string &statusstr, bool spinneractive, float progress);
 
 protected:
 
@@ -56,6 +68,7 @@ protected:
     Gtk::Button* StartDownloadButton;
     Gtk::Label* DLStatusLabel;
     Gtk::Spinner* DLSpinner;
+    Gtk::LevelBar* DLProgress;
 
     // Download thread //
     std::atomic<bool> RunDownloadThread;

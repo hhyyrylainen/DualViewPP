@@ -46,12 +46,10 @@ DLListItem::DLListItem(std::shared_ptr<NetGallery> todownload) :
     NameBox.set_valign(Gtk::ALIGN_CENTER);
     NameBox.signal_changed().connect(sigc::mem_fun(*this, &DLListItem::OnNameUpdated));
 
-    // Reset hooks when changing items ReleaseParentHooks(guard);
-    GUARD_LOCK();
-    if(Gallery)
-        ReadGalleryData(guard);
-
     show_all_children();
+
+    if(Gallery)
+        ReadGalleryData();
 }
 
 DLListItem::~DLListItem(){
@@ -71,21 +69,54 @@ void DLListItem::SetProgress(float value){
         });
 }
 // ------------------------------------ //
-void DLListItem::ReadGalleryData(Lock &guard){
+void DLListItem::ReadGalleryData(){
 
-    if(!IsConnectedTo(Gallery.get(), guard))
-        ConnectToNotifier(guard, Gallery.get());
+    auto alive = GetAliveMarker();
 
-    URLLabel.set_text(Gallery->GetGalleryURL());
-    Progress.set_value(0);
-    Enabled.set_state(false);
-    NameBox.set_text(Gallery->GetTargetGalleryName());
+    DualView::Get().InvokeFunction([=](){
 
-    ErrorLabel.set_text("");
+            INVOKE_CHECK_ALIVE_MARKER(alive);
+
+            GUARD_LOCK();
+
+            LOG_INFO("Settings DLListItem data");
+
+            if(!IsConnectedTo(Gallery.get(), guard))
+                ConnectToNotifier(guard, Gallery.get());
+
+            URLLabel.set_text(Gallery->GetGalleryURL());
+            Progress.set_value(0);
+            Enabled.set_state(false);
+            NameBox.set_text(Gallery->GetTargetGalleryName());
+
+            ErrorLabel.set_text("");
+
+            LOG_INFO("Finished DLListItem data update");
+        });
+}
+// ------------------------------------ //
+bool DLListItem::IsSelected() const{
+
+    DualView::IsOnMainThreadAssert();
+    return Enabled.get_state();
+}
+
+void DLListItem::LockSelected(bool locked){
+
+    auto alive = GetAliveMarker();
+    
+    DualView::Get().RunOnMainThread([=](){
+
+            INVOKE_CHECK_ALIVE_MARKER(alive);
+
+            Enabled.set_sensitive(!locked);
+        });
 }
 // ------------------------------------ //
 void DLListItem::OnNameUpdated(){
 
+    DualView::IsOnMainThreadAssert();
+    
     if(Gallery && Gallery->GetTargetGalleryName() != NameBox.get_text()){
         
         Gallery->SetTargetGalleryName(NameBox.get_text());
@@ -95,9 +126,7 @@ void DLListItem::OnNameUpdated(){
 void DLListItem::OnNotified(Lock &ownlock, Leviathan::BaseNotifierAll* parent,
     Lock &parentlock)
 {
-    DualView::IsOnMainThreadAssert();
-    
     LOG_INFO("DLListItem: gallery changed, reading changes");
-    ReadGalleryData(ownlock);
+    ReadGalleryData();
 }
     

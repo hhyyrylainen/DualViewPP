@@ -39,7 +39,21 @@ public:
 
         return DownloadBytes;
     }
-    
+
+    bool IsReady() const{
+
+        return HasFinished;
+    }
+
+    bool HasFailed() const{
+
+        return !HasSucceeded;
+    }
+
+    auto GetURL() const{
+
+        return URL;
+    }
     
 protected:
 
@@ -59,6 +73,9 @@ protected:
 
     //! After fetching has the content type if the server sent the type to us
     std::string DownloadedContentType;
+
+    bool HasFinished = false;
+    bool HasSucceeded = true;
 
     //! Current progress. Range 0.0f - 1.0f
     std::atomic<float> Progress;
@@ -99,6 +116,11 @@ public:
     //! if false numbers are added to the end of the name if it exists already
     ImageFileDLJob(const std::string &url, const std::string &referrer,
         bool replacelocal = false);
+
+    auto GetLocalFile() const{
+
+        return LocalFile;
+    }
     
 protected:
 
@@ -156,6 +178,9 @@ public:
 
     //! \brief Extracts a filename from an url
     static std::string ExtractFileName(const std::string &url);
+
+    //! \brief Returns a local path for caching an URL
+    static std::string GetCachePathForURL(const std::string &url);
 
 protected:
 

@@ -42,6 +42,28 @@ Image::Image(const std::string &file) :
     Tags = std::make_shared<TagCollection>();
 }
 
+Image::Image(const std::string &file, const std::string &name,
+    const std::string &importoverride) :
+    DatabaseResource(true), ResourcePath(file),
+
+    AddDate(date::make_zoned(date::current_zone(),
+            std::chrono::time_point_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now()))),
+    LastView(AddDate),
+    ImportLocation(importoverride)
+    
+{
+    if(!boost::filesystem::exists(file)){
+
+        throw Leviathan::InvalidArgument("Image: file doesn't exist");
+    }
+    
+    ResourceName = name;
+    Extension = boost::filesystem::path(ResourcePath).extension().string();
+
+    Tags = std::make_shared<TagCollection>();
+}
+
 Image::Image() :
     DatabaseResource(true),
     AddDate(date::make_zoned(date::current_zone(),

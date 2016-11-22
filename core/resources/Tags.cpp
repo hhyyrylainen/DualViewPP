@@ -633,6 +633,29 @@ size_t TagCollection::GetTagCount(){
     return Tags.size();
 }
 // ------------------------------------ //
+void TagCollection::ReplaceWithText(const std::string &text, const std::string &separator){
+
+    CheckIsLoaded();
+
+    std::vector<std::string> tagparts;
+    Leviathan::StringOperations::CutString<std::string>(text, separator, tagparts);
+    
+    Clear();
+
+    for(auto& line : tagparts){
+
+        if(line.empty())
+            continue;
+
+        auto tag = DualView::Get().ParseTagFromString(line);
+
+        if(!tag)
+            continue;
+
+        Add(tag);
+    }
+}
+
 void TagCollection::ReplaceWithText(std::string text){
 
     CheckIsLoaded();

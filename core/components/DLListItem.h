@@ -22,12 +22,18 @@ public:
     void SetProgress(float value);
     
     //! \brief Reads properties from Gallery and updates widgets
-    void ReadGalleryData(Lock &guard);
+    //! \note This will always be run on the main thread when it's free
+    void ReadGalleryData();
 
     auto GetGallery() const{
 
         return Gallery;
     }
+
+    bool IsSelected() const;
+
+    //! \brief Prevents the user from changing the selected switch
+    void LockSelected(bool locked);
 
     //! \brief Called when the gallery changes properties
     void OnNotified(Lock &ownlock, Leviathan::BaseNotifierAll* parent, Lock &parentlock)
