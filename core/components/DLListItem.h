@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/IsAlive.h"
+
 #include <gtkmm.h>
 
 namespace DV{
@@ -7,13 +9,16 @@ namespace DV{
 class NetGallery;
 
 //! \brief Holds things about a collection of images that's ready to be downloaded
-class DLListItem : public Gtk::Frame{
+class DLListItem : public Gtk::Frame, public IsAlive{
 public:
 
     DLListItem(std::shared_ptr<NetGallery> todownload);
     ~DLListItem();
 
 
+    //! \brief Sets the current progress. Valid range: 0.0f - 1.0f
+    void SetProgress(float value);
+    
     //! \brief Reads properties from Gallery and updates widgets
     void ReadGalleryData();
 

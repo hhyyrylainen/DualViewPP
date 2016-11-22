@@ -71,9 +71,9 @@ public:
     
     ~NetGallery();
 
-    auto GetGalleryUrl() const{
+    auto GetGalleryURL() const{
 
-        return GalleryUrl;
+        return GalleryURL;
     }
 
     auto GetTargetPath() const{
@@ -136,7 +136,7 @@ protected:
 
 protected:
 
-    std::string GalleryUrl;
+    std::string GalleryURL;
 
     std::string TargetPath;
     

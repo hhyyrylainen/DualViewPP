@@ -10,7 +10,7 @@
 using namespace DV;
 // ------------------------------------ //
 NetGallery::NetGallery(const std::string &url, const std::string &targetgallery) :
-    DatabaseResource(true), GalleryUrl(url), TargetGalleryName(targetgallery)
+    DatabaseResource(true), GalleryURL(url), TargetGalleryName(targetgallery)
 {
 
 }
@@ -26,7 +26,7 @@ NetGallery::NetGallery(Database &db, Lock &dblock, PreparedStatement &statement,
     CheckRowID(statement, 5, "is_downloaded");
     CheckRowID(statement, 6, "tags_string");
 
-    GalleryUrl = statement.GetColumnAsString(1);
+    GalleryURL = statement.GetColumnAsString(1);
 
     TargetPath = statement.GetColumnAsString(2);
     

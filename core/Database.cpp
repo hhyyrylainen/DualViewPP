@@ -1958,7 +1958,7 @@ bool Database::InsertNetGallery(std::shared_ptr<NetGallery> gallery){
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(gallery->GetGalleryUrl(),
+    auto statementinuse = statementobj.Setup(gallery->GetGalleryURL(),
         gallery->GetTargetPath(), gallery->GetTargetGalleryName(),
         gallery->GetCurrentlyScanned(), gallery->GetIsDownloaded(), gallery->GetTagsString()); 
     
@@ -1981,7 +1981,7 @@ void Database::UpdateNetGallery(NetGallery &gallery){
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(gallery.GetGalleryUrl(), gallery.GetTargetPath(),
+    auto statementinuse = statementobj.Setup(gallery.GetGalleryURL(), gallery.GetTargetPath(),
         gallery.GetTargetGalleryName(), gallery.GetCurrentlyScanned(),
         gallery.GetIsDownloaded(), gallery.GetTagsString(),
         gallery.GetID()); 
