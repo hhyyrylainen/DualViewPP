@@ -26,6 +26,8 @@ class Image;
 class Collection;
 class Folder;
 class TagCollection;
+class NetGallery;
+class NetFile;
 
 class Tag;
 class AppliedTag;
@@ -413,6 +415,38 @@ public:
     //! \todo Implement
     void UpdateTagBreakRule(const TagBreakRule &rule);
 
+    //
+    // NetGallery
+    //
+    
+    //! \brief Returns all the netgalleries
+    //! \param nodownloaded If true won't include galleries that are marked as downloaded
+    std::vector<DBID> SelectNetGalleryIDs(bool nodownloaded);
+
+    //! \brief Returns a NetGallery by id
+    std::shared_ptr<NetGallery> SelectNetGalleryByID(Lock &guard, DBID id);
+
+    //! \brief Adds a new NetGallery to the database
+    //! \returns True if added, false if it is already added
+    bool InsertNetGallery(std::shared_ptr<NetGallery> gallery);
+
+    void UpdateNetGallery(NetGallery &gallery);
+
+    //
+    // NetFile
+    //
+    
+    //! \brief Returns all the netgalleries
+    //! \param nodownloaded If true won't include galleries that are marked as downloaded
+    std::vector<std::shared_ptr<NetFile>> SelectNetFilesFromGallery(NetGallery &gallery);
+
+    //! \brief Returns a NetFile by id
+    std::shared_ptr<NetFile> SelectNetFileByID(Lock &guard, DBID id);
+
+    //! \brief Adds a new NetFile to the database
+    void InsertNetFile(NetFile &netfile, NetGallery &gallery);
+
+    void UpdateNetFile(NetFile &netfile);
 
     //
     // Wilcard searches for tag suggestions
@@ -485,6 +519,12 @@ private:
     //
     // Row parsing functions
     //
+
+    std::shared_ptr<NetFile> _LoadNetFileFromRow(Lock &guard,
+        PreparedStatement &statement);
+
+    std::shared_ptr<NetGallery> _LoadNetGalleryFromRow(Lock &guard,
+        PreparedStatement &statement);
 
     //! \brief Loads a TagBreakRule object from the current row
     std::shared_ptr<TagBreakRule> _LoadTagBreakRuleFromRow(Lock &guard,
@@ -565,7 +605,9 @@ protected:
 
     //! Makes sure each Tag is only loaded once
     SingleLoad<Tag, int64_t> LoadedTags;
-
+    
+    //! Makes sure each NetGallery is only loaded once
+    SingleLoad<NetGallery, int64_t> LoadedNetGalleries;
 };
 
 }

@@ -81,6 +81,7 @@ add_library(Core
   resources/Collection.h resources/Collection.cpp
   resources/Folder.h resources/Folder.cpp
   resources/Tags.h resources/Tags.cpp
+  resources/NetGallery.h resources/NetGallery.cpp
 
   # Generated headers
   ${GENERATED_SQL_FILES}

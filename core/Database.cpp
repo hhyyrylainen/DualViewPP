@@ -9,6 +9,7 @@
 #include "core/resources/Collection.h"
 #include "core/resources/Tags.h"
 #include "core/resources/Folder.h"
+#include "core/resources/NetGallery.h"
 
 #include "core/TimeHelpers.h"
 
@@ -185,6 +186,7 @@ void Database::PurgeInactiveCache(){
     LoadedImages.Purge();
     LoadedFolders.Purge();
     LoadedTags.Purge();
+    LoadedNetGalleries.Purge();
 }
 // ------------------------------------ //
 bool Database::SelectDatabaseVersion(Lock &guard, int &result){
@@ -1901,6 +1903,171 @@ void Database::UpdateTagBreakRule(const TagBreakRule &rule){
 }
 
 //
+// NetGallery
+//
+std::vector<DBID> Database::SelectNetGalleryIDs(bool nodownloaded){
+
+    GUARD_LOCK();
+
+    std::vector<DBID> result;
+
+    PreparedStatement statementobj(SQLiteDb, (nodownloaded ?
+            "SELECT id FROM net_gallery WHERE is_downloaded = 0;"
+            : "SELECT id FROM net_gallery;"));
+
+    auto statementinuse = statementobj.Setup(); 
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+
+        if(statementobj.GetObjectIDFromColumn(id, 0)){
+
+            result.push_back(id);
+        }
+    }
+    
+    return result;
+}
+
+std::shared_ptr<NetGallery> Database::SelectNetGalleryByID(Lock &guard, DBID id){
+    
+    const char str[] = "SELECT * FROM net_gallery WHERE id = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(id); 
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return _LoadNetGalleryFromRow(guard, statementobj);
+    }
+    
+    return nullptr;
+}
+
+bool Database::InsertNetGallery(std::shared_ptr<NetGallery> gallery){
+
+    if(gallery->IsInDatabase())
+        return false;
+
+    GUARD_LOCK();
+
+    const char str[] = "INSERT INTO tag_gallery (gallery_url, target_path, gallery_name, "
+        "currently_scanned, is_downloaded, tags_string) VALUES (?, ?, ?, ?, ?, ?);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(gallery->GetGalleryUrl(),
+        gallery->GetTargetPath(), gallery->GetTargetGalleryName(),
+        gallery->GetCurrentlyScanned(), gallery->GetIsDownloaded(), gallery->GetTagsString()); 
+    
+    statementobj.StepAll(statementinuse);
+
+    gallery->OnAdopted(sqlite3_last_insert_rowid(SQLiteDb), *this);
+    return true;
+}
+
+void Database::UpdateNetGallery(NetGallery &gallery){
+
+    if(!gallery.IsInDatabase())
+        return;
+
+    GUARD_LOCK();
+
+    const char str[] = "UPDATE tag_gallery SET gallery_url = ?, target_path = ?, "
+        "gallery_name = ?, currently_scanned = ?, is_downloaded = ?, tags_string = ? "
+        "WHERE id = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(gallery.GetGalleryUrl(), gallery.GetTargetPath(),
+        gallery.GetTargetGalleryName(), gallery.GetCurrentlyScanned(),
+        gallery.GetIsDownloaded(), gallery.GetTagsString(),
+        gallery.GetID()); 
+    
+    statementobj.StepAll(statementinuse);
+}
+
+//
+// NetFile
+//
+std::vector<std::shared_ptr<NetFile>> Database::SelectNetFilesFromGallery(NetGallery &gallery){
+
+    GUARD_LOCK();
+
+    std::vector<std::shared_ptr<NetFile>> result;
+
+    PreparedStatement statementobj(SQLiteDb, "SELECT * FROM net_files WHERE "
+        "belongs_to_gallery = ?;");
+
+    auto statementinuse = statementobj.Setup(gallery.GetID()); 
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        result.push_back(_LoadNetFileFromRow(guard, statementobj));
+    }
+    
+    return result;
+}
+
+std::shared_ptr<NetFile> Database::SelectNetFileByID(Lock &guard, DBID id){
+
+    const char str[] = "SELECT * FROM net_files WHERE id = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(id); 
+    
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return _LoadNetFileFromRow(guard, statementobj);
+    }
+    
+    return nullptr;
+}
+
+void Database::InsertNetFile(NetFile &netfile, NetGallery &gallery){
+
+    GUARD_LOCK();
+
+    if(!gallery.IsInDatabase())
+        return;
+
+    const char str[] = "INSERT INTO net_files (file_url, referrer, preferred_name, "
+        "tags_string, belongs_to_gallery) VALUES (?, ?, ?, ?, ?);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(
+        netfile.GetFileURL(), netfile.GetPageReferrer(), netfile.GetPreferredName(),
+        netfile.GetTagsString(),
+        gallery.GetID()); 
+    
+    statementobj.StepAll(statementinuse);
+    netfile.OnAdopted(sqlite3_last_insert_rowid(SQLiteDb), *this);
+}
+
+void Database::UpdateNetFile(NetFile &netfile){
+
+    GUARD_LOCK();
+
+    const char str[] = "UPDATE net_files SET file_url = ?, referrer = ?, preferred_name = ?, "
+        "tags_string = ?, belongs_to_gallery = ? WHERE id = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(
+        netfile.GetFileURL(), netfile.GetPageReferrer(), netfile.GetPreferredName(),
+        netfile.GetTagsString(),
+        netfile.GetID()); 
+    
+    statementobj.StepAll(statementinuse);
+}
+
+
+
+//
 // Wilcard searches for tag suggestions
 //
 //! \brief Returns text of all break rules that contain str
@@ -2087,6 +2254,44 @@ int64_t Database::CountAppliedTags(){
 
 // ------------------------------------ //
 // Row parsing functions
+std::shared_ptr<NetFile> Database::_LoadNetFileFromRow(Lock &guard,
+    PreparedStatement &statement)
+{
+    CheckRowID(statement, 0, "id");
+
+    DBID id;
+    if(!statement.GetObjectIDFromColumn(id, 0)){
+
+        LOG_ERROR("Object id column is invalid");
+        return nullptr;
+    }
+    
+    return std::make_shared<NetFile>(*this, guard, statement, id);
+}
+
+std::shared_ptr<NetGallery> Database::_LoadNetGalleryFromRow(Lock &guard,
+    PreparedStatement &statement)
+{
+    CheckRowID(statement, 0, "id");
+
+    DBID id;
+    if(!statement.GetObjectIDFromColumn(id, 0)){
+
+        LOG_ERROR("Object id column is invalid");
+        return nullptr;
+    }
+    
+    auto loaded = LoadedNetGalleries.GetIfLoaded(id);
+
+    if(loaded)
+        return loaded;
+
+    loaded = std::make_shared<NetGallery>(*this, guard, statement, id);
+
+    LoadedNetGalleries.OnLoad(loaded);
+    return loaded;
+}
+
 std::shared_ptr<TagBreakRule> Database::_LoadTagBreakRuleFromRow(Lock &guard,
     PreparedStatement &statement)
 {

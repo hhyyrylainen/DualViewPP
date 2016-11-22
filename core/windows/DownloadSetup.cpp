@@ -3,6 +3,8 @@
 
 #include "core/resources/Tags.h"
 #include "core/resources/InternetImage.h"
+#include "core/resources/Folder.h"
+#include "core/resources/NetGallery.h"
 
 #include "core/components/SuperViewer.h"
 #include "core/components/TagEditor.h"
@@ -12,6 +14,7 @@
 #include "core/DownloadManager.h"
 #include "core/PluginManager.h"
 #include "core/DualView.h"
+#include "core/Database.h"
 
 #include "Common.h"
 
@@ -111,7 +114,36 @@ void DownloadSetup::OnUserAcceptSettings(){
     // Create a DownloadCollection and add that to the database
     const auto selected = GetSelectedImages();
 
+    // Cache all images that are already downloaded
+    DualView::Get().QueueWorkerFunction([selected](){
 
+            for(const auto& image : selected){
+
+                image->SaveFileToDisk();
+            }
+        });
+    
+    auto gallery = std::make_shared<NetGallery>(CurrentlyCheckedURL);
+
+    if(CollectionTags->HasTags()){
+        
+        gallery->SetTags(CollectionTags->TagsAsString(";"));
+        
+        CollectionTags = std::make_shared<TagCollection>();
+        CollectionTagEditor->SetEditedTags({CollectionTags});
+    }
+
+    if(!TargetFolder->GetFolder()->IsRoot()){
+
+        gallery->SetTargetPath(TargetFolder->GetPath());
+        
+        TargetFolder->GoToRoot();
+    }
+    
+    // Save the net gallery to the databse
+    // (which also allows the DownloadManager to pick it up)
+    DualView::Get().GetDatabase().InsertNetGallery(gallery);
+    gallery->AddFilesToDownload(selected);
 
     // Remove the added from the list //
     for(size_t i = 0; i < ImageObjects.size(); ){
@@ -131,7 +163,8 @@ void DownloadSetup::OnUserAcceptSettings(){
         if(!removed)
             ++i;
     }
-    
+
+
     // We are done
 
     // If there are leftover images allow adding those to another collection
@@ -183,7 +216,7 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage &content){
     
     try{
         
-        ImageObjects.push_back(InternetImage::Create(content));
+        ImageObjects.push_back(InternetImage::Create(content, false));
         
     } catch(const Leviathan::InvalidArgument &e){
 

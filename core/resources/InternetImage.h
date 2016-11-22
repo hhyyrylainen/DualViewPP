@@ -44,9 +44,13 @@ public:
 
     //! \brief Loads a database image
     //! \exception Leviathan::InvalidArgument if link doesn't have filename
-    inline static auto Create(const ScanFoundImage &link){
+    inline static auto Create(const ScanFoundImage &link, bool autosavecache){
         
         auto obj = std::shared_ptr<InternetImage>(new InternetImage(link));
+        
+        if(autosavecache)
+            obj->AutoSaveCache = true;
+        
         obj->Init();
         return obj;
     }
@@ -62,6 +66,25 @@ public:
     //! \note The file will be in the staging folder
     //! \warning This hashes the DLURL each time this is called
     std::string GetLocalFilename() const;
+
+    auto GetURL() const{
+
+        return DLURL;
+    }
+
+    auto GetReferrer() const{
+
+        return Referrer;
+    }
+
+    //! \brief If a file has been downloaded saves it to disk
+    //! \returns True if saved, false if a file wasn't downloaded
+    bool SaveFileToDisk(Lock &guard);
+
+    inline bool SaveFileToDisk(){
+        GUARD_LOCK();
+        return SaveFileToDisk(guard);
+    }
 
 protected:
 
@@ -83,6 +106,9 @@ protected:
 
     //! If we loaded a local file
     bool WasAlreadyCached = false;
+
+    //! If true a file will be automatically saved to disk once downloaded
+    bool AutoSaveCache = false;
 
     std::shared_ptr<DownloadLoadedImage> FullImage;
     std::shared_ptr<DownloadLoadedImage> ThumbImage;

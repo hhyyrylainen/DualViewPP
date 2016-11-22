@@ -145,11 +145,11 @@ void InternetImage::_CheckFileDownload(){
                         us->FileDL->GetDownloadedBytes());
 
                 // Save the bytes to disk (if over 10KB) //
-                if(!us->WasAlreadyCached && us->FileDL->GetDownloadedBytes().size() > 10000){
-
+                if(!us->WasAlreadyCached && us->FileDL->GetDownloadedBytes().size() > 10000 &&
+                    us->AutoSaveCache)
+                {
                     LOG_INFO("InternetImage: caching image to: " + us->ResourcePath);
-                    Leviathan::FileSystem::WriteToFile(us->FileDL->GetDownloadedBytes(),
-                        us->ResourcePath);
+                    us->SaveFileToDisk(guard);
                 }
             }
         });
@@ -157,6 +157,15 @@ void InternetImage::_CheckFileDownload(){
     DualView::Get().GetDownloadManager().QueueDownload(FileDL);
 }
 // ------------------------------------ //
+bool InternetImage::SaveFileToDisk(Lock &guard){
+
+    if(!FileDL || FileDL->GetDownloadedBytes().size() < 1000)
+        return false;
+
+    Leviathan::FileSystem::WriteToFile(FileDL->GetDownloadedBytes(), ResourcePath);
+    return true;
+}
+
 std::string InternetImage::GetLocalFilename() const{
 
     const auto hash = DualView::CalculateBase64EncodedHash(DLURL);

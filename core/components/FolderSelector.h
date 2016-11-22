@@ -28,6 +28,12 @@ public:
         return CurrentFolder;
     }
 
+    //! \brief Returns the current path string
+    VirtualPath GetPath() const{
+
+        return VirtualPath(PathEntry.get_text());
+    }
+
 private:
 
     void _CommonCtor();
