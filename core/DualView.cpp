@@ -158,6 +158,26 @@ DualView::DualView(bool tests, const std::string &dbfile){
     _StartWorkerThreads();
 }
 
+DualView::DualView(bool tests, bool memorysettings){
+
+    _Logger = std::make_unique<Leviathan::Logger>("test_log_m.txt");
+
+    LEVIATHAN_ASSERT(tests && memorysettings, "DualView test constructor called with false");
+
+    SuppressSecondInstance = true;
+
+    Staticinstance = this;
+    ThreadSpecifier = MAIN_THREAD_MAGIC;
+
+    _CacheManager = std::make_unique<CacheManager>();
+
+    _Settings = std::make_unique<Settings>("memory");
+
+    _Database = std::make_unique<Database>(true);
+
+    _StartWorkerThreads();
+}
+
 DualView::DualView(std::string tests, std::unique_ptr<Database> &&db /*= nullptr*/){
 
     _Logger = std::make_unique<Leviathan::Logger>("empty_dualview_log.txt");

@@ -105,6 +105,11 @@ protected:
 
 protected:
 
+    //! \brief If true saving is disabled
+    //!
+    //! Used for running tests
+    bool InMemoryOnly = false;
+
     //! If true needs to be saved to disk
     bool IsDirty = true;
 

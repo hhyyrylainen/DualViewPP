@@ -17,6 +17,15 @@ public:
 
 };
 
+class MemorySettingsDualView : public DualView{
+public:
+
+    MemorySettingsDualView() : DualView(true, true){
+
+    }
+
+};
+
 //! \brief Version of DualView that has no worker threads
 class DummyDualView : public DualView{
 public:

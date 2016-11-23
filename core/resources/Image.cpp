@@ -95,7 +95,8 @@ Image::Image(Database &db, Lock &dblock, PreparedStatement &statement, int64_t i
     CheckRowID(statement, 9, "from_file");
     CheckRowID(statement, 10, "file_hash");
 
-    ResourcePath = statement.GetColumnAsString(1);
+    // Convert path to runtime path
+    ResourcePath = CacheManager::GetFinalImagePath(statement.GetColumnAsString(1));
     ResourceName = statement.GetColumnAsString(4);
 
     Extension = statement.GetColumnAsString(5);

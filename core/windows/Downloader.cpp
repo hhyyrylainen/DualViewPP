@@ -135,7 +135,7 @@ void Downloader::_OnRemoveListItem(DLListItem &item){
                 if((*iter).get() == toremove){
 
                     (*iter)->hide();
-                    //DLWidgets->remove(**iter);
+                    DLWidgets->remove(**iter);
                     DLList.erase(iter);
                     break;
                 }

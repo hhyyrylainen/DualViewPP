@@ -12,6 +12,7 @@
 #include "core/resources/NetGallery.h"
 
 #include "core/TimeHelpers.h"
+#include "core/CacheManager.h"
 
 #include "generated/maintables.sql.h"
 #include "generated/defaulttablevalues.sql.h"
@@ -230,7 +231,9 @@ void Database::InsertImage(Image &image){
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(image.GetResourcePath(), image.GetWidth(),
+    auto statementinuse = statementobj.Setup(
+        CacheManager::GetDatabaseImagePath(image.GetResourcePath()),
+        image.GetWidth(),
         image.GetHeight(), image.GetName(), image.GetExtension(), image.GetAddDateStr(),
         image.GetLastViewStr(), image.GetIsPrivate(), image.GetFromFile(), image.GetHash());
 
@@ -243,6 +246,7 @@ void Database::InsertImage(Image &image){
 
 bool Database::UpdateImage(const Image &image){
 
+    // Don't forget to call CacheManager::GetDatabaseImagePath when saving the path
     return false;
 }
 

@@ -12,6 +12,12 @@ using namespace DV;
 // ------------------------------------ //
 Settings::Settings(const std::string &file) : SettingsFile(file){
 
+    if(file == "memory"){
+
+        InMemoryOnly = true;
+        return;
+    }
+
     LEVIATHAN_ASSERT(!SettingsFile.empty(), "Settings file empty");
 
     if(boost::filesystem::exists(SettingsFile))
@@ -20,11 +26,17 @@ Settings::Settings(const std::string &file) : SettingsFile(file){
 
 Settings::~Settings(){
 
+    if(InMemoryOnly)
+        return;
+
     if(IsDirty)
         Save();
 }
 // ------------------------------------ //
 void Settings::Save(){
+
+    if(InMemoryOnly)
+        return;
 
     using namespace Leviathan;
 
@@ -132,6 +144,9 @@ void Settings::Save(){
 }
 
 void Settings::_Load(){
+
+    if(InMemoryOnly)
+        return;
 
     LOG_INFO("Loading settings from: " + SettingsFile);
 

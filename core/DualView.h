@@ -286,6 +286,9 @@ protected:
     DualView(bool tests, const std::string &dbfile);
 
     //! \brief Constructor for test subclass to use
+    DualView(bool tests, bool memorysettings);
+
+    //! \brief Constructor for test subclass to use
     DualView(std::string tests, std::unique_ptr<Database> &&db = nullptr);
 
     //! \brief Ran in the loader thread

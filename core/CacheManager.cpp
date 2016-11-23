@@ -10,6 +10,8 @@
 #include "DualView.h"
 #include "Settings.h"
 
+#include "leviathan/Common/StringOperations.h"
+
 #include <boost/filesystem.hpp>
 
 using namespace DV;
@@ -318,7 +320,7 @@ void CacheManager::_LoadThumbnail(LoadedImage &thumb, const std::string &hash) c
 
         const auto error = "Failed to open full image for thumbnail generation: " +
             std::string(e.what());
-        LOG_ERROR(error);
+        LOG_ERROR(error + ", file: " + thumb.GetPath());
         thumb.OnLoadFail(error);
         return;
     }
@@ -426,6 +428,65 @@ bool CacheManager::GetImageSize(const std::string &image, int &width, int &heigh
         return false;
     }
 }
+
+std::string CacheManager::GetFinalImagePath(const std::string &path){
+
+    if(path.empty())
+        return path;
+
+    // substr is used to cut the beginning. -1 after sizeof because of nullterminator
+    // Public collection
+    if(Leviathan::StringOperations::StringStartsWith<std::string>(path, ":?ocl/")){
+        
+        return (boost::filesystem::path(DualView::Get().GetSettings().GetPublicCollection()) /
+            path.substr(sizeof(":?ocl/") - 1)).string();
+    }
+
+    if(Leviathan::StringOperations::StringStartsWith<std::string>(path,
+            "./public_collection/"))
+    {
+        return (boost::filesystem::path(DualView::Get().GetSettings().GetPublicCollection()) /
+            path.substr(sizeof("./public_collection/") - 1)).string();
+    }
+
+
+    // Private collection
+    if(Leviathan::StringOperations::StringStartsWith<std::string>(path, ":?scl/")){
+        
+        return (boost::filesystem::path(DualView::Get().GetSettings().GetPrivateCollection()) /
+            path.substr(sizeof(":?scl/") - 1)).string();
+    }
+
+    if(Leviathan::StringOperations::StringStartsWith<std::string>(path,
+            "./private_collection/"))
+    {
+        return (boost::filesystem::path(DualView::Get().GetSettings().GetPrivateCollection()) /
+            path.substr(sizeof("./private_collection/") - 1)).string();
+    }
+    
+    // Path is not in the database, don't touch it //
+    return path;
+}
+
+std::string CacheManager::GetDatabaseImagePath(const std::string &path){
+
+
+    const auto settings = DualView::Get().GetSettings();
+
+    if(Leviathan::StringOperations::StringStartsWith(path, settings.GetPrivateCollection())){
+
+        return ":?scl/" + path.substr(settings.GetPrivateCollection().size());
+    }
+
+    if(Leviathan::StringOperations::StringStartsWith(path, settings.GetPublicCollection())){
+
+        return ":?ocl/" + path.substr(settings.GetPublicCollection().size());
+    }
+    
+    // That's an error //
+    return "ERROR_DATABASIFYING:" + path;
+}
+
 // ------------------------------------ //
 // LoadedImage
 LoadedImage::LoadedImage(const std::string &path) : FromPath(path){

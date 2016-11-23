@@ -237,6 +237,13 @@ public:
     //! \returns False if the image cannot be opened
     static bool GetImageSize(const std::string &image, int &width, int &height);
 
+    //! \brief Returns the actual path for loading an image. This takes the database directory
+    //! in account
+    static std::string GetFinalImagePath(const std::string &path);
+
+    //! \brief Returns a database version for a path
+    static std::string GetDatabaseImagePath(const std::string &path);
+
 protected:
 
     std::shared_ptr<LoadedImage> GetCachedImage(const std::lock_guard<std::mutex> &lock,

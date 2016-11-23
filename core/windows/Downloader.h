@@ -64,7 +64,7 @@ protected:
 
 protected:
 
-    //! \warnign If this is a flowbox all hell breaks loose
+    //! \warning If this is a flowbox all hell breaks loose
     Gtk::Box* DLWidgets;
 
 

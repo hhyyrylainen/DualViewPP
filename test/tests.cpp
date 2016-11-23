@@ -9,6 +9,8 @@
 
 #include "core/TimeHelpers.h"
 
+#include "leviathan/Common/StringOperations.h"
+
 #include <thread>
 #include <memory>
 
@@ -221,6 +223,46 @@ TEST_CASE("Filename from URL", "[url][download]"){
             == "04_thief.jpg");
     }
     
+}
+
+TEST_CASE("CacheManager database path translations", "[path][db]"){
+
+    DV::MemorySettingsDualView dv;
+    REQUIRE(dv.GetSettings().GetPrivateCollection() == "./private_collection/");
+
+    REQUIRE(Leviathan::StringOperations::StringStartsWith<std::string>(
+            "./private_collection/collections/users data/image1.jpg",
+            "./private_collection/"));
+
+    SECTION("Basic valid things"){
+        
+        CHECK(CacheManager::GetDatabaseImagePath(
+                "./private_collection/collections/users data/image1.jpg") ==
+            ":?scl/collections/users data/image1.jpg");
+
+        CHECK(CacheManager::GetDatabaseImagePath(
+                "./public_collection/collections/users data/image1.jpg") ==
+            ":?ocl/collections/users data/image1.jpg");
+        
+        CHECK(CacheManager::GetFinalImagePath(
+                ":?ocl/collections/users data/image1.jpg") == 
+                "./public_collection/collections/users data/image1.jpg");
+
+        CHECK(CacheManager::GetFinalImagePath(
+                ":?scl/collections/users data/image1.jpg") == 
+            "./private_collection/collections/users data/image1.jpg");
+    }
+
+    SECTION("legacy paths"){
+
+        CHECK(CacheManager::GetFinalImagePath(
+                "./public_collection/collections/users data/image1.jpg") == 
+            "./public_collection/collections/users data/image1.jpg");
+
+        CHECK(CacheManager::GetFinalImagePath(
+                "./private_collection/collections/users data/image1.jpg") == 
+            "./private_collection/collections/users data/image1.jpg");
+    }
 }
 
 
