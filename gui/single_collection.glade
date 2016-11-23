@@ -21,7 +21,6 @@
                 <property name="can_focus">False</property>
                 <property name="label" translatable="yes">Edit Tags</property>
                 <property name="use_underline">True</property>
-                <accelerator key="t" signal="clicked"/>
               </object>
               <packing>
                 <property name="expand">False</property>
