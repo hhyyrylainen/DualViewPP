@@ -991,51 +991,42 @@ TEST_CASE("Tag suggestions", "[db][tags]"){
             suggestions.end());
     }
 
-    // SECTION("Random tag1"){
+    SECTION("Random tag1"){
 
-    //     auto suggestions = dv.GetSuggestionsForTag("pink wa");
-    //     CHECK(suggestions.size() > 0);
+        auto suggestions = dv.GetSuggestionsForTag("pink wa");
+        CHECK(suggestions.size() > 0);
 
-    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "pink watermark") !=
-    //         suggestions.end());
-    // }
+        CHECK(std::find(suggestions.begin(), suggestions.end(), "pink watermark") !=
+            suggestions.end());
+    }
 
-    // SECTION("Random tag2"){
+    SECTION("Random tag2"){
 
-    //     auto suggestions = dv.GetSuggestionsForTag("pink ev");
-    //     CHECK(suggestions.size() > 0);
+        auto suggestions = dv.GetSuggestionsForTag("pink ev");
+        CHECK(suggestions.size() > 0);
 
-    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "pink eve online") !=
-    //         suggestions.end());
-    // }
+        CHECK(std::find(suggestions.begin(), suggestions.end(), "pink eve online") !=
+            suggestions.end());
+    }
 
-    // SECTION("Combines without any letters"){
+    SECTION("Combines with beginning"){
 
-    //     auto suggestions = dv.GetSuggestionsForTag("captions in");
-    //     CHECK(suggestions.size() > 0);
+        auto suggestions = dv.GetSuggestionsForTag("captions in w");
+        CHECK(suggestions.size() > 0);
 
-    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "captions in watermark") !=
-    //         suggestions.end());
-    // }
+        CHECK(std::find(suggestions.begin(), suggestions.end(), "captions in watermark") !=
+            suggestions.end());
+    }
 
-    // SECTION("Combines with beginning"){
-
-    //     auto suggestions = dv.GetSuggestionsForTag("captions in w");
-    //     CHECK(suggestions.size() > 0);
-
-    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "captions in watermark") !=
-    //         suggestions.end());
-    // }
-
-    // SECTION("Combines with modifiers"){
+    SECTION("Combines with modifiers"){
         
-    //     auto suggestions = dv.GetSuggestionsForTag("white captions in black");
-    //     CHECK(suggestions.size() > 0);
+        auto suggestions = dv.GetSuggestionsForTag("white captions in black w");
+        CHECK(suggestions.size() > 0);
 
-    //     CHECK(std::find(suggestions.begin(), suggestions.end(),
-    //             "white captions in black watermark") !=
-    //         suggestions.end());
-    // }
+        CHECK(std::find(suggestions.begin(), suggestions.end(),
+                "white captions in black watermark") !=
+            suggestions.end());
+    }
 
 }
 

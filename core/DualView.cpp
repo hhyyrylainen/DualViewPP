@@ -1635,6 +1635,16 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const{
     throw Leviathan::InvalidArgument("unknown tag '" + str + "'");
 }
 // ------------------------------------ //
+//#define GETSUGGESTIONS_DEBUG
+
+#ifdef GETSUGGESTIONS_DEBUG
+
+#define SUGG_DEBUG(x) LOG_WRITE("Suggestions" + std::string(x));
+
+#else
+#define SUGG_DEBUG(x) {}
+#endif
+
 std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
 
     // Strip whitespace //
@@ -1646,7 +1656,7 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
     // Convert to lower //
     str = StringToLower(str);
 
-    LOG_WRITE("Gettings suggetsions for: " + str);
+    SUGG_DEBUG("Gettings suggetsions for: " + str);
 
     std::vector<std::string> result;
     
@@ -1671,7 +1681,7 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
         if(false){
 
         thingwasvalidlabel:
-            LOG_WRITE("Part was valid: " + currentpart);
+            SUGG_DEBUG("Part was valid: " + currentpart);
             prefix += prefix.empty() ? currentpart : " " + currentpart;
             currentpart.clear();
             continue;
@@ -1729,8 +1739,8 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
     if(!prefix.empty())
         prefix += " ";
     
-    LOG_WRITE("Finished parsing and valid prefix is: " + prefix);
-    LOG_WRITE("Unparsed part is: " + currentpart);
+    SUGG_DEBUG("Finished parsing and valid prefix is: " + prefix);
+    SUGG_DEBUG("Unparsed part is: " + currentpart);
     
     // If there's nothing left in currentpart the tag would be successfully parsed
     // So just make sure that it is and at it to the result
@@ -1757,7 +1767,7 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
 
         // Get suggestions for it //
         {
-            LOG_WRITE("Finding suggestions: " + currentpart);
+            SUGG_DEBUG("Finding suggestions: " + currentpart);
             
             std::vector<std::string> tmpholder;
             RetrieveTagsMatching(tmpholder, currentpart);
@@ -1766,7 +1776,7 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
 
             for(const auto& gotmatch : tmpholder){
 
-                LOG_WRITE("Found suggestion: " + gotmatch + ", prefix: " + prefix);
+                SUGG_DEBUG("Found suggestion: " + gotmatch + ", prefix: " + prefix);
                 result.push_back(prefix + gotmatch);
             }
         }
@@ -1776,19 +1786,21 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
 
         if(tail != currentpart){
 
-            LOG_WRITE("Finding combine suggestions: " + tail);
+            SUGG_DEBUG("Finding combine suggestions: " + tail);
 
-            const auto tailprefix = prefix + " " + currentpart.substr(0, currentpart.size()
+            const auto tailprefix = prefix + currentpart.substr(0, currentpart.size()
                 - tail.size());
 
             std::vector<std::string> tmpholder;
-            RetrieveTagsMatching(tmpholder, tail);
+            //RetrieveTagsMatching(tmpholder, tail);
+
+            tmpholder = GetSuggestionsForTag(tail);
 
             result.reserve(result.size() + tmpholder.size());
 
             for(const auto& gotmatch : tmpholder){
 
-                LOG_WRITE("Found combine suggestion: " + gotmatch + ", prefix: " + tailprefix);
+                SUGG_DEBUG("Found combine suggestion: " + gotmatch + ", prefix: " + tailprefix);
                 result.push_back(tailprefix + gotmatch);
             } 
         } else {
@@ -1823,9 +1835,9 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
     result.erase(last, result.end());
 
 
-    LOG_WRITE("Resulting suggestions: " + Convert::ToString(result.size()));
+    SUGG_DEBUG("Resulting suggestions: " + Convert::ToString(result.size()));
     for(const auto &suggestion : result)
-        LOG_WRITE(" " + suggestion);
+        SUGG_DEBUG(" " + suggestion);
     
     return result;
 }
