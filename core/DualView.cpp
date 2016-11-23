@@ -1646,34 +1646,91 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
     // Convert to lower //
     str = StringToLower(str);
 
+    LOG_WRITE("Gettings suggetsions for: " + str);
+
     std::vector<std::string> result;
     
-    // We want to provide suggestions for modifiers, tags and combines
     Leviathan::StringIterator itr(str);
 
     std::string currentpart;
-    std::unique_ptr<std::string> currentword;
-
-    // Used to prepend the valid part to suggestions
     std::string prefix;
 
+    bool modifierallowed = true;
+    bool tagallowed = true;
+
+    // Consume all the valid parts from the front //
     while(!itr.IsOutOfBounds()){
 
-        currentword = itr.GetUntilNextCharacterOrAll<std::string>(' ');
+        auto currentword = itr.GetUntilNextCharacterOrAll<std::string>(' ');
 
         if(!currentword)
             continue;
 
-        currentpart += *currentword;
+        currentpart += currentpart.empty() ? *currentword : " " + *currentword;
 
-        // If it is a valid tag component clear it //
-        if(IsStrValidTagPart(currentpart)){
+        if(false){
 
-            prefix += currentpart + " ";
+        thingwasvalidlabel:
+            LOG_WRITE("Part was valid: " + currentpart);
+            prefix += prefix.empty() ? currentpart : " " + currentpart;
             currentpart.clear();
             continue;
         }
+
+        if(tagallowed){
+            auto byname = _Database->SelectTagByNameOrAlias(currentpart);
+            if(byname){
+
+                tagallowed = false;
+                modifierallowed = false;
+                goto thingwasvalidlabel;
+            }
+        }
+
+        if(modifierallowed){
+            
+            auto mod = _Database->SelectTagModifierByNameOrAliasAG(currentpart);
+            if(mod){
+
+                modifierallowed = false;
+                tagallowed = true;
+                goto thingwasvalidlabel;
+            }
+        }
+
+        auto rule = _Database->SelectTagBreakRuleByStr(currentpart);
+
+        if(rule){
+
+            std::string tagname;
+            std::shared_ptr<Tag> tag;
+            auto modifiers = rule->DoBreak(str, tagname, tag);
+
+            if(tag || !modifiers.empty()){
+
+                // Rule matched
+                modifierallowed = false;
+                tagallowed = true;
+                goto thingwasvalidlabel;
+            }
+        }
+
+        auto alias = _Database->SelectTagSuperAlias(currentpart);
+        if(!alias.empty()){
+            modifierallowed = false;
+            tagallowed = true;
+            goto thingwasvalidlabel;
+        }
+
+        // TODO: check combined with
     }
+
+    // Add space after prefix //
+    if(!prefix.empty())
+        prefix += " ";
+    
+    LOG_WRITE("Finished parsing and valid prefix is: " + prefix);
+    LOG_WRITE("Unparsed part is: " + currentpart);
     
     // If there's nothing left in currentpart the tag would be successfully parsed
     // So just make sure that it is and at it to the result
@@ -1693,20 +1750,50 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
         }
 
         // Also we want to get longer tags that start with the same thing //
-        if(currentword)
-            RetrieveTagsMatching(result, *currentword);
+        //if(currentword)
+        //    RetrieveTagsMatching(result, *currentword);
         
     } else {
 
         // Get suggestions for it //
-        std::vector<std::string> tmpholder;
-        RetrieveTagsMatching(tmpholder, currentpart);
+        {
+            LOG_WRITE("Finding suggestions: " + currentpart);
+            
+            std::vector<std::string> tmpholder;
+            RetrieveTagsMatching(tmpholder, currentpart);
 
-        result.reserve(result.size() + tmpholder.size());
+            result.reserve(result.size() + tmpholder.size());
 
-        for(const auto& gotmatch : tmpholder){
+            for(const auto& gotmatch : tmpholder){
 
-            result.push_back(prefix + gotmatch);
+                LOG_WRITE("Found suggestion: " + gotmatch + ", prefix: " + prefix);
+                result.push_back(prefix + gotmatch);
+            }
+        }
+
+        // Combines //
+        const auto tail = Leviathan::StringOperations::RemoveFirstWords(currentpart, 1);
+
+        if(tail != currentpart){
+
+            LOG_WRITE("Finding combine suggestions: " + tail);
+
+            const auto tailprefix = prefix + " " + currentpart.substr(0, currentpart.size()
+                - tail.size());
+
+            std::vector<std::string> tmpholder;
+            RetrieveTagsMatching(tmpholder, tail);
+
+            result.reserve(result.size() + tmpholder.size());
+
+            for(const auto& gotmatch : tmpholder){
+
+                LOG_WRITE("Found combine suggestion: " + gotmatch + ", prefix: " + tailprefix);
+                result.push_back(tailprefix + gotmatch);
+            } 
+        } else {
+
+            
         }
     }
 
@@ -1732,49 +1819,17 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
                 std::abs(str.length() - right.length());
         });
 
+    auto last = std::unique(result.begin(), result.end());
+    result.erase(last, result.end());
+
+
+    LOG_WRITE("Resulting suggestions: " + Convert::ToString(result.size()));
+    for(const auto &suggestion : result)
+        LOG_WRITE(" " + suggestion);
+    
     return result;
 }
-
-bool DualView::IsStrValidTagPart(const std::string &str) const{
-
-    auto byname = _Database->SelectTagByNameOrAlias(str);
-    if(byname)
-        return true;
-
-    auto mod = _Database->SelectTagModifierByNameOrAliasAG(str);
-    if(mod)
-        return true;
-
-    auto rule = _Database->SelectTagBreakRuleByStr(str);
-
-    if(rule){
-
-        std::string tagname;
-        std::shared_ptr<Tag> tag;
-        auto modifiers = rule->DoBreak(str, tagname, tag);
-
-        if(tag || !modifiers.empty()){
-
-            // Rule matched
-            return true;
-        }
-    }
-
-    auto alias = _Database->SelectTagSuperAlias(str);
-    if(!alias.empty())
-        return true;
-
-    // Combined with works if we can remove the first word and the second part is valid //
-    auto withoutfirst = Leviathan::StringOperations::RemoveFirstWords(str, 1);
-
-    if(!withoutfirst.empty() && withoutfirst != str){
-
-        return IsStrValidTagPart(withoutfirst);
-    }
-
-    return false;
-}
-
+// ------------------------------------ //
 void DualView::RetrieveTagsMatching(std::vector<std::string> &result,
     const std::string &str) const
 {
@@ -1792,15 +1847,15 @@ void DualView::RetrieveTagsMatching(std::vector<std::string> &result,
 
     // Combined with works if we can remove the first word
     // But only if we didn't already get good matches
-    if(result.size() - initSize < 2){
+    // if(result.size() - initSize < 2){
         
-        auto withoutfirst = Leviathan::StringOperations::RemoveFirstWords(str, 1);
+    //     auto withoutfirst = Leviathan::StringOperations::RemoveFirstWords(str, 1);
 
-        if(!withoutfirst.empty() && withoutfirst != str){
+    //     if(!withoutfirst.empty() && withoutfirst != str){
 
-            RetrieveTagsMatching(result, withoutfirst);
-        }
-    }
+    //         RetrieveTagsMatching(result, withoutfirst);
+    //     }
+    // } 
 }
 
 

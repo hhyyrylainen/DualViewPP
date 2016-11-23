@@ -189,8 +189,6 @@ public:
     //! containing str
     void RetrieveTagsMatching(std::vector<std::string> &result, const std::string &str) const;
 
-    //! \brief Returns true if str is a valid part of a tag
-    bool IsStrValidTagPart(const std::string &str) const;
 
     
 

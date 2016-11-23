@@ -2576,7 +2576,8 @@ void Database::_SetCurrentDatabaseVersion(Lock &guard, int newversion){
 // ------------------------------------ //
 void Database::_CreateTableStructure(Lock &guard){
 
-    LOG_INFO("Initializing new database");
+    // This gets spammed way too much during testing
+    //LOG_INFO("Initializing new database");
     
     if(sqlite3_exec(SQLiteDb, STR_MAINTABLES_SQL,
             nullptr, nullptr, nullptr) != SQLITE_OK)

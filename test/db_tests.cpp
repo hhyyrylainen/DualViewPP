@@ -960,43 +960,14 @@ TEST_CASE("Tag suggestions", "[db][tags]"){
 
     REQUIRE_NOTHROW(db.Init());
 
-    // SECTION("Single tag completion"){
-        
-    //     auto tag = dv.ParseTagFromString("watermark");
-    //     REQUIRE(tag);
+    SECTION("Single tag completion"){
 
-    //     auto suggestions = dv.GetSuggestionsForTag("water");
-    //     CHECK(suggestions.size() > 0);
-    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "watermark") !=
-    //         suggestions.end());
-        
-    // }
+        auto suggestions = dv.GetSuggestionsForTag("wat");
+        CHECK(suggestions.size() > 0);
 
-    // SECTION("single modifier completion"){
-        
-    //     auto suggestions = dv.GetSuggestionsForTag("bro");
-    //     CHECK(suggestions.size() > 0);
-    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "brown") !=
-    //         suggestions.end());
-    // }
-
-
-    // SECTION("super alias completion"){
-        
-    //     auto suggestions = dv.GetSuggestionsForTag("redhe");
-    //     CHECK(suggestions.size() > 0);
-    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "redhead") !=
-    //         suggestions.end());
-    // }
-
-    // SECTION("break rule completion"){
-
-    //     // TODO: make this more complex
-    //     auto suggestions = dv.GetSuggestionsForTag("hair grab");
-    //     CHECK(suggestions.size() > 0);
-    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "hair grab") !=
-    //         suggestions.end());
-    // }
+        CHECK(std::find(suggestions.begin(), suggestions.end(), "watermark") !=
+            suggestions.end());
+    }
 
     SECTION("Tag with modifiers completion"){
         
@@ -1006,13 +977,65 @@ TEST_CASE("Tag suggestions", "[db][tags]"){
         auto suggestions = dv.GetSuggestionsForTag("large wate");
         CHECK(suggestions.size() > 0);
 
-        for(auto i : suggestions)
-            LOG_WRITE("thing: " + i);
-        
         CHECK(std::find(suggestions.begin(), suggestions.end(), "large watermark") !=
             suggestions.end());
         
     }
+
+    SECTION("Modifier completion"){
+
+        auto suggestions = dv.GetSuggestionsForTag("lar");
+        CHECK(suggestions.size() > 0);
+
+        CHECK(std::find(suggestions.begin(), suggestions.end(), "large") !=
+            suggestions.end());
+    }
+
+    // SECTION("Random tag1"){
+
+    //     auto suggestions = dv.GetSuggestionsForTag("pink wa");
+    //     CHECK(suggestions.size() > 0);
+
+    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "pink watermark") !=
+    //         suggestions.end());
+    // }
+
+    // SECTION("Random tag2"){
+
+    //     auto suggestions = dv.GetSuggestionsForTag("pink ev");
+    //     CHECK(suggestions.size() > 0);
+
+    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "pink eve online") !=
+    //         suggestions.end());
+    // }
+
+    // SECTION("Combines without any letters"){
+
+    //     auto suggestions = dv.GetSuggestionsForTag("captions in");
+    //     CHECK(suggestions.size() > 0);
+
+    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "captions in watermark") !=
+    //         suggestions.end());
+    // }
+
+    // SECTION("Combines with beginning"){
+
+    //     auto suggestions = dv.GetSuggestionsForTag("captions in w");
+    //     CHECK(suggestions.size() > 0);
+
+    //     CHECK(std::find(suggestions.begin(), suggestions.end(), "captions in watermark") !=
+    //         suggestions.end());
+    // }
+
+    // SECTION("Combines with modifiers"){
+        
+    //     auto suggestions = dv.GetSuggestionsForTag("white captions in black");
+    //     CHECK(suggestions.size() > 0);
+
+    //     CHECK(std::find(suggestions.begin(), suggestions.end(),
+    //             "white captions in black watermark") !=
+    //         suggestions.end());
+    // }
 
 }
 
