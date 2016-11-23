@@ -183,7 +183,8 @@ public:
     //! \brief Parses a tag and returns a list of suggestions
     //!
     //! If the str is a valid tag the first suggestion == str
-    std::vector<std::string> GetSuggestionsForTag(std::string str) const;
+    std::vector<std::string> GetSuggestionsForTag(std::string str, size_t maxcount = 100)
+        const;
 
     //! \brief Retrieves tag names, modifiers, aliases, super aliases, and common modifiers
     //! containing str

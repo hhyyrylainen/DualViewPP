@@ -294,7 +294,7 @@ public:
 
     //! \brief Selects tags containing pattern
     std::vector<std::shared_ptr<Tag>> SelectTagsWildcard(const std::string &pattern,
-        int max = 50);
+        int64_t max = 50);
 
     //! \brief Selects a tag based on an alias name
     std::shared_ptr<Tag> SelectTagByAlias(Lock &guard, const std::string &alias);

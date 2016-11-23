@@ -1643,10 +1643,12 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const{
 
 #else
 #define SUGG_DEBUG(x) {}
+
 #endif
 
-std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
-
+std::vector<std::string> DualView::GetSuggestionsForTag(std::string str,
+    size_t maxcount /*= 100*/) const
+{
     // Strip whitespace //
     Leviathan::StringOperations::RemovePreceedingTrailingSpaces(str);
 
@@ -1791,10 +1793,8 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
             const auto tailprefix = prefix + currentpart.substr(0, currentpart.size()
                 - tail.size());
 
-            std::vector<std::string> tmpholder;
-            //RetrieveTagsMatching(tmpholder, tail);
-
-            tmpholder = GetSuggestionsForTag(tail);
+            std::vector<std::string> tmpholder = GetSuggestionsForTag(tail,
+                std::max(maxcount - result.size(), maxcount / 4));
 
             result.reserve(result.size() + tmpholder.size());
 
@@ -1834,6 +1834,8 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str) const{
     auto last = std::unique(result.begin(), result.end());
     result.erase(last, result.end());
 
+    if(result.size() > maxcount)
+        result.resize(maxcount);
 
     SUGG_DEBUG("Resulting suggestions: " + Convert::ToString(result.size()));
     for(const auto &suggestion : result)
@@ -1856,18 +1858,6 @@ void DualView::RetrieveTagsMatching(std::vector<std::string> &result,
     _Database->SelectTagBreakRulesByStrWildcard(result, str);
 
     _Database->SelectTagSuperAliasWildcard(result, str);
-
-    // Combined with works if we can remove the first word
-    // But only if we didn't already get good matches
-    // if(result.size() - initSize < 2){
-        
-    //     auto withoutfirst = Leviathan::StringOperations::RemoveFirstWords(str, 1);
-
-    //     if(!withoutfirst.empty() && withoutfirst != str){
-
-    //         RetrieveTagsMatching(result, withoutfirst);
-    //     }
-    // } 
 }
 
 

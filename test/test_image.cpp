@@ -213,7 +213,7 @@ TEST_CASE("Thumbnail is created in a different folder", "[image][expensive]"){
 
     while(!thumb->IsLoaded()){
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
     REQUIRE(thumb->IsValid());
@@ -221,6 +221,7 @@ TEST_CASE("Thumbnail is created in a different folder", "[image][expensive]"){
     auto path = boost::filesystem::path(dualview.GetThumbnailFolder()) /
         boost::filesystem::path(img->GetHash() + ".jpg");
     INFO("Path is: " << path);
+    INFO("NOTE: there seems to be a file creation race condition in this test. ");
     REQUIRE(boost::filesystem::exists(path));
 
 }

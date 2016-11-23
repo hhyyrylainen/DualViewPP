@@ -1097,21 +1097,19 @@ std::shared_ptr<Tag> Database::SelectTagByName(Lock &guard, const std::string &n
 }
 
 std::vector<std::shared_ptr<Tag>> Database::SelectTagsWildcard(const std::string &pattern,
-    int max /*= 50*/)
+    int64_t max /*= 50*/)
 {
     GUARD_LOCK();
 
     std::vector<std::shared_ptr<Tag>> result;
-    int found = 0;
 
-    const char str[] = "SELECT * FROM tags WHERE name LIKE ?;";
+    const char str[] = "SELECT * FROM tags WHERE name LIKE ? ORDER BY name LIMIT ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup("%" + pattern + "%");
+    auto statementinuse = statementobj.Setup("%" + pattern + "%", max);
     
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW &&
-        ++found <= max)
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW)
     {
         result.push_back(_LoadTagFromRow(guard, statementobj));
     }
