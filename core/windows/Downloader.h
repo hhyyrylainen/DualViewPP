@@ -74,7 +74,7 @@ protected:
     Gtk::LevelBar* DLProgress;
 
     // Download thread //
-    std::atomic<bool> RunDownloadThread;
+    std::atomic<bool> RunDownloadThread = { false };
 
     std::thread DownloadThread;
     std::condition_variable NotifyDownloadThread;
