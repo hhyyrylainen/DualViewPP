@@ -2096,6 +2096,8 @@ void Database::SelectTagBreakRulesByStrWildcard(std::vector<std::string> &breakr
 void Database::SelectTagNamesWildcard(std::vector<std::string> &result,
     const std::string &pattern)
 {
+    GUARD_LOCK();
+
     const char str[] = "SELECT name FROM tags WHERE name LIKE ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -2111,6 +2113,8 @@ void Database::SelectTagNamesWildcard(std::vector<std::string> &result,
 void Database::SelectTagAliasesWildcard(std::vector<std::string> &result,
     const std::string &pattern)
 {
+    GUARD_LOCK();
+
     const char str[] = "SELECT name FROM tag_aliases WHERE name LIKE ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -2126,6 +2130,8 @@ void Database::SelectTagAliasesWildcard(std::vector<std::string> &result,
 void Database::SelectTagModifierNamesWildcard(std::vector<std::string> &result,
     const std::string &pattern)
 {
+    GUARD_LOCK();
+
     const char str[] = "SELECT name FROM tag_modifiers WHERE name LIKE ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -2141,6 +2147,8 @@ void Database::SelectTagModifierNamesWildcard(std::vector<std::string> &result,
 void Database::SelectTagSuperAliasWildcard(std::vector<std::string> &result,
     const std::string &pattern)
 {
+    GUARD_LOCK();
+
     const char str[] = "SELECT alias FROM tag_super_aliases WHERE alias LIKE ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -2240,6 +2248,8 @@ void Database::CombineAllPossibleAppliedTags(Lock &guard){
 }
 
 int64_t Database::CountAppliedTags(){
+
+    GUARD_LOCK();
 
     const char str[] = "SELECT COUNT(*) FROM applied_tag;";
 
