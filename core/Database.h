@@ -155,6 +155,9 @@ public:
     //! \brief Retrieves a Collection based on the name
     std::shared_ptr<Collection> SelectCollectionByName(Lock &guard, const std::string &name);
     CREATE_NON_LOCKING_WRAPPER(SelectCollectionByName);
+
+    std::vector<std::string> SelectCollectionNamesByWildcard(const std::string &pattern,
+        int64_t max = 50);
     
     //! \brief Retrieves a Collection based on the id
     std::shared_ptr<Collection> SelectCollectionByID(DBID id);

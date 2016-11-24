@@ -30,7 +30,8 @@ public:
     //! \param onselected Called when an entry is selected with the suggestion text,
     //! if returns true the entry is accepted and the current text is cleared. Passing in
     //! null here will use the default Gtk action for the completion
-    void Init(Gtk::Entry* entry, std::function<bool (const Glib::ustring &str)> onselected);
+    void Init(Gtk::Entry* entry, std::function<bool (const Glib::ustring &str)> onselected,
+        std::function<std::vector<std::string> (std::string str, size_t max)> getsuggestions);
     
     
 protected:
@@ -41,12 +42,19 @@ protected:
     //! \brief Updates the suggestions
     void _OnTextUpdated();
 
+    //! \brief For completing any part
+    bool DoesCompletionMatch(const Glib::ustring& key,
+        const Gtk::TreeModel::const_iterator& iter);
+
 protected:
 
     const size_t SuggestionsToShow;
-    const size_t CompleteAfterCharacthers;
+    const size_t CompleteAfterCharacters;
 
     std::function<bool (const Glib::ustring &str)> OnSelected;
+
+    //! Called to get the completion data
+    std::function<std::vector<std::string> (std::string str, size_t max)> GetSuggestions;
 
     Gtk::Entry* EntryWithSuggestions = nullptr;
 

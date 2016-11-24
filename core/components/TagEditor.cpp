@@ -65,7 +65,9 @@ void TagEditor::_CommonCtor(){
     //Add an EntryCompletion:
     // Setup auto complete
     TagEntryCompletion.Init(&TagEntry, std::bind(&TagEditor::_OnSuggestionSelected, this,
-            std::placeholders::_1));
+            std::placeholders::_1),
+        std::bind(&DualView::GetSuggestionsForTag, &DualView::Get(), std::placeholders::_1,
+            std::placeholders::_2));
 
     TagEntry.set_placeholder_text("input new tag here");
     TagEntry.signal_activate().connect(sigc::mem_fun(*this, &TagEditor::_OnInsertTag));

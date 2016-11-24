@@ -5,12 +5,14 @@
 
 #include "Common.h"
 
+#include "leviathan/Common/StringOperations.h"
+
 using namespace DV;
 // ------------------------------------ //
 
 EasyEntryCompletion::EasyEntryCompletion(size_t suggestionstoshow /*= 50*/,
     size_t mincharsbeforecomplete /*= 3*/) :
-    SuggestionsToShow(suggestionstoshow), CompleteAfterCharacthers(mincharsbeforecomplete)
+    SuggestionsToShow(suggestionstoshow), CompleteAfterCharacters(mincharsbeforecomplete)
 {
 
 }
@@ -21,11 +23,17 @@ EasyEntryCompletion::~EasyEntryCompletion(){
 }
 // ------------------------------------ //
 void EasyEntryCompletion::Init(Gtk::Entry* entry,
-    std::function<bool (const Glib::ustring &str)> onselected)
+    std::function<bool (const Glib::ustring &str)> onselected,
+    std::function<std::vector<std::string> (std::string str, size_t max)> getsuggestions)
 {
     EntryWithSuggestions = entry;
 
     LEVIATHAN_ASSERT(EntryWithSuggestions, "EasyEntryCompletion: got nullptr entry");
+
+    GetSuggestions = getsuggestions;
+
+    LEVIATHAN_ASSERT(EntryWithSuggestions, "EasyEntryCompletion: got null suggestion "
+        "retrieve function");
 
     OnSelected = onselected;
     
@@ -49,6 +57,9 @@ void EasyEntryCompletion::Init(Gtk::Entry* entry,
     // This messes with auto completion
     //TagCompletion->set_inline_selection();
 
+    // Set match function //
+    Completion->set_match_func(sigc::mem_fun(*this,
+            &EasyEntryCompletion::DoesCompletionMatch));
     
     EntryWithSuggestions->signal_changed().connect(sigc::mem_fun(*this,
             &EasyEntryCompletion::_OnTextUpdated));
@@ -74,15 +85,43 @@ bool EasyEntryCompletion::_OnMatchSelected(const Gtk::TreeModel::iterator &iter)
 void EasyEntryCompletion::_OnTextUpdated(){
 
     // No completion if less than 3 characters
-    if(EntryWithSuggestions->get_text_length() < 3)
+    if(EntryWithSuggestions->get_text_length() < CompleteAfterCharacters)
         return;    
 
     auto isalive = GetAliveMarker();
     auto text = EntryWithSuggestions->get_text();
-    
-    DualView::Get().QueueDBThreadFunction([this, isalive, text](){
 
-            auto result = DualView::Get().GetSuggestionsForTag(text);
+    DualView::Get().QueueDBThreadFunction([this, isalive, text, suggest { GetSuggestions },
+            count { SuggestionsToShow }]()
+        {
+            const std::string str = DualView::StringToLower(text);
+            
+            auto result = suggest(str, count);
+
+            // Sort the result //
+            std::sort(result.begin(), result.end(), [&str](
+                    const std::string &left, const std::string &right) -> bool
+                {
+                    if(left == str && (right != str)){
+
+                        // Exact match first //
+                        return true;
+                    }
+            
+                    if(Leviathan::StringOperations::StringStartsWith(
+                            DualView::StringToLower(left), str) && 
+                        !Leviathan::StringOperations::StringStartsWith(
+                            DualView::StringToLower(right), str))
+                    {
+                        // Matching prefix with pattern first
+                        return true;
+                    }
+
+                    // Sort which one is closer in length to str first
+                    return std::abs(str.length() - left.length()) <
+                        std::abs(str.length() - right.length());
+                });
+
             
             DualView::Get().InvokeFunction([this, isalive, result{std::move(result)}](){
 
@@ -99,6 +138,14 @@ void EasyEntryCompletion::_OnTextUpdated(){
                 });
         });    
 }
-
+// ------------------------------------ //
+bool EasyEntryCompletion::DoesCompletionMatch(const Glib::ustring& key,
+    const Gtk::TreeModel::const_iterator& iter)
+{
+    Gtk::TreeModel::Row row = *(iter);
+    return static_cast<Glib::ustring>(row[
+            CompletionColumnTypes.m_tag_text]).lowercase().find(key.lowercase())
+        != Glib::ustring::npos;
+}
 
 

@@ -83,6 +83,9 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     BUILDER_GET_WIDGET(PageScanProgress);
 
     BUILDER_GET_WIDGET(TargetCollectionName);
+    CollectionNameCompletion.Init(TargetCollectionName, nullptr,
+        std::bind(&Database::SelectCollectionNamesByWildcard, &DualView::Get().GetDatabase(),
+            std::placeholders::_1, std::placeholders::_2));
 
     BUILDER_GET_WIDGET(MainStatusLabel);
 

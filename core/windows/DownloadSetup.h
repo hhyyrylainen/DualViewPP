@@ -5,6 +5,8 @@
 
 #include "core/Plugin.h"
 
+#include "core/components/EasyEntryCompletion.h"
+
 #include "leviathan/Common/BaseNotifiable.h"
 
 #include <gtkmm.h>
@@ -160,6 +162,7 @@ private:
 
 
     Gtk::Entry* TargetCollectionName;
+    EasyEntryCompletion CollectionNameCompletion;
 
     // Tag editing / Image list view
     SuperContainer* ImageSelection;

@@ -500,6 +500,29 @@ std::shared_ptr<Collection> Database::SelectCollectionByName(Lock &guard,
     return nullptr;
 }
 
+std::vector<std::string> Database::SelectCollectionNamesByWildcard(const std::string &pattern,
+    int64_t max /*= 50*/)
+{
+    GUARD_LOCK();
+
+    std::vector<std::string> result;
+    
+    const char str[] = "SELECT name FROM collections WHERE name LIKE ?1 "
+        "ORDER BY NAME LIMIT ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup("%" + pattern + "%", max);
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        // Found a value //
+        result.push_back(statementobj.GetColumnAsString(0));
+    }
+    
+    return result;
+}
+
 int64_t Database::SelectCollectionLargestShowOrder(const Collection &collection){
 
     if(!collection.IsInDatabase())
