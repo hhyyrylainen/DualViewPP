@@ -19,6 +19,10 @@ public:
     //! If the file doesn't exist it will be created on save with default settings
     Settings(const std::string &file);
 
+    //! Disallow copy
+    Settings(const Settings&) = delete;
+    Settings& operator=(const Settings&) = delete;
+
     ~Settings();
 
     //! \brief Verifies that the settings folders exists, if they don't creates them
