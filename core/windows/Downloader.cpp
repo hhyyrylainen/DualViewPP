@@ -404,47 +404,44 @@ struct DV::DownloadProgressState{
         case STATE::ENDED:
         {
             // Queue import on a worker thread //
-            LOG_INFO("TODO: control how many import tasks can be queued");
+            Loader->_SetDLThreadStatus("Starting Import", false, 0);
 
-            DualView::Get().QueueWorkerFunction([gallery { Gallery},
-                    images { DownloadedImages} ]()
-                {
-                    TagCollection tags;
+            TagCollection tags;
 
-                    if(!gallery->GetTagsString().empty()){
+            if(!Gallery->GetTagsString().empty()){
 
-                        tags.ReplaceWithText(gallery->GetTagsString(), ";");
-                    }
+                tags.ReplaceWithText(Gallery->GetTagsString(), ";");
+            }
                     
-                    const auto result = DualView::Get().DualView::AddToCollection(images, true,
-                        gallery->GetTargetGalleryName(), tags /*, progresscallback*/);
-
-                    LEVIATHAN_ASSERT(result, "Downloader's import failed");
-
-                    LOG_INFO("Downloader: imported " + Convert::ToString(images.size()) +
-                        " images to '" + gallery->GetTargetGalleryName() + "'");
-
-                    // Add to folder //
-                    VirtualPath path(gallery->GetTargetPath());
-
-                    if(!path.IsRootPath() && !gallery->GetTargetGalleryName().empty() &&
-                        gallery->GetTargetGalleryName() !=
-                        DualView::Get().GetUncategorized()->GetName())
-                    {
-                        DualView::Get().AddCollectionToFolder(
-                            DualView::Get().GetFolderFromPath(path),
-                            DualView::Get().GetDatabase().SelectCollectionByNameAG(
-                                gallery->GetTargetGalleryName()));
-
-                        LOG_INFO("Downloader: moved target collection '" +
-                            gallery->GetTargetGalleryName() + "' to: " +
-                            static_cast<std::string>(path));
-                    }
-                        
+            const auto result = DualView::Get().DualView::AddToCollection(DownloadedImages,
+                true, Gallery->GetTargetGalleryName(), tags, [&](float progress)
+                {
+                    Loader->_SetDLThreadStatus("Importing Gallery: " +
+                        Gallery->GetTargetGalleryName(), true, progress);
                 });
-            
 
-            
+            LEVIATHAN_ASSERT(result, "Downloader's import failed");
+
+            LOG_INFO("Downloader: imported " + Convert::ToString(DownloadedImages.size()) +
+                " images to '" + Gallery->GetTargetGalleryName() + "'");
+
+            // Add to folder //
+            VirtualPath path(Gallery->GetTargetPath());
+
+            if(!path.IsRootPath() && !Gallery->GetTargetGalleryName().empty() &&
+                Gallery->GetTargetGalleryName() !=
+                DualView::Get().GetUncategorized()->GetName())
+            {
+                DualView::Get().AddCollectionToFolder(
+                    DualView::Get().GetFolderFromPath(path),
+                    DualView::Get().GetDatabase().SelectCollectionByNameAG(
+                        Gallery->GetTargetGalleryName()));
+
+                LOG_INFO("Downloader: moved target collection '" +
+                    Gallery->GetTargetGalleryName() + "' to: " +
+                    static_cast<std::string>(path));
+            }
+                        
             Loader->_SetDLThreadStatus("Finished Downloading: " +
                 Gallery->GetTargetGalleryName(), false, 1.0f);
             
