@@ -2,6 +2,8 @@
 
 #include "BaseWindow.h"
 
+#include "core/components/EasyEntryCompletion.h"
+
 #include "core/IsAlive.h"
 
 #include <gtkmm.h>
@@ -91,6 +93,7 @@ protected:
     FolderSelector* TargetFolder;
 
     Gtk::Entry* CollectionName;
+    EasyEntryCompletion CollectionNameCompletion;
     
     Gtk::Label* StatusLabel;
     Gtk::CheckButton* SelectOnlyOneImage;

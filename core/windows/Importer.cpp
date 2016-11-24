@@ -106,6 +106,9 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     
     builder->get_widget("CollectionName", CollectionName);
     LEVIATHAN_ASSERT(CollectionName, "Invalid .glade file");
+    CollectionNameCompletion.Init(CollectionName, nullptr,
+        std::bind(&Database::SelectCollectionNamesByWildcard, &DualView::Get().GetDatabase(),
+            std::placeholders::_1, std::placeholders::_2));
 
     Gtk::Button* CopyToCollection;
     builder->get_widget("CopyToCollection", CopyToCollection);
