@@ -63,37 +63,12 @@ void TagEditor::_CommonCtor(){
     child_property_expand(TagsTreeView) = true;
 
     //Add an EntryCompletion:
-    TagCompletion = Gtk::EntryCompletion::create();
-    TagEntry.set_completion(TagCompletion);
-
-    // Create an empty liststore for completions
-    CompletionRows = Gtk::ListStore::create(CompletionColumns);
-    TagCompletion->set_model(CompletionRows);
-
-    TagCompletion->signal_match_selected().connect(sigc::mem_fun(*this,
-            &TagEditor::_OnMatchSelected), false);
-
-
-    // For more complex comparisons, use a filter match callback, like this.
-    // See the comment below for more details:
-    //completion->set_match_func( sigc::mem_fun(*this,
-    //&ExampleWindow::on_completion_match) );
-
-    //Tell the completion what model column to use to
-    //- look for a match (when we use the default matching, instead of
-    //  set_match_func().
-    //- display text in the entry when a match is found.
-    TagCompletion->set_text_column(CompletionColumns.m_tag_text);
-
-    // Doesn't seem to work
-    //TagCompletion->set_inline_completion();
-    // This messes with auto completion
-    //TagCompletion->set_inline_selection();
+    // Setup auto complete
+    TagEntryCompletion.Init(&TagEntry, std::bind(&TagEditor::_OnSuggestionSelected, this,
+            std::placeholders::_1));
 
     TagEntry.set_placeholder_text("input new tag here");
     TagEntry.signal_activate().connect(sigc::mem_fun(*this, &TagEditor::_OnInsertTag));
-
-    TagEntry.signal_changed().connect(sigc::mem_fun(*this, &TagEditor::_TextUpdated));
 
     add(TagEntry);
 
@@ -273,44 +248,14 @@ bool TagEditor::_OnKeyPress(GdkEventKey* key_event){
     return false;
 }
 // ------------------------------------ //
-void TagEditor::_TextUpdated(){
+bool TagEditor::_OnSuggestionSelected(const Glib::ustring &str){
 
-    // No completion if less than 3 characters
-    if(TagEntry.get_text_length() < 3)
-        return;    
-
-    auto isalive = GetAliveMarker();
-    auto text = TagEntry.get_text();
-    
-    DualView::Get().QueueDBThreadFunction([this, isalive, text](){
-
-            auto result = DualView::Get().GetSuggestionsForTag(text);
-            
-            DualView::Get().InvokeFunction([this, isalive, result{std::move(result)}](){
-
-                    INVOKE_CHECK_ALIVE_MARKER(isalive);
-
-                    CompletionRows->clear();
-                    
-                    // Fill the autocomplete
-                    for(const auto& str : result){
-                        
-                        Gtk::TreeModel::Row row = *(CompletionRows->append());
-                        row[CompletionColumns.m_tag_text] = str;
-                    }
-                    
-                });
-        });
-}
-
-bool TagEditor::_OnMatchSelected(const Gtk::TreeModel::iterator &iter){
-
-    Gtk::TreeModel::Row row = *(iter);
-    if(AddTag(static_cast<Glib::ustring>(row[CompletionColumns.m_tag_text]))){
+    if(AddTag(str)){
 
         return true;
     }
     
     return false;
 }
+ 
 

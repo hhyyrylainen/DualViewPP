@@ -1028,6 +1028,10 @@ TEST_CASE("Tag suggestions", "[db][tags]"){
             suggestions.end());
     }
 
+    // When there are tags like "humanoid figure" and "figure head" completion shouldn't
+    // include "humanoid figure head"
+    CHECK(false);
+
 }
 
 

@@ -71,6 +71,7 @@ add_library(Core
   components/FolderSelector.h components/FolderSelector.cpp
 
   components/FolderNavigatorHelper.h components/FolderNavigatorHelper.cpp
+  components/EasyEntryCompletion.h components/EasyEntryCompletion.cpp
   
   # Resources
   resources/DatabaseResource.h resources/DatabaseResource.cpp

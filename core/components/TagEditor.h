@@ -1,14 +1,16 @@
 #pragma once
 
+#include "EasyEntryCompletion.h"
+
 #include "core/resources/Tags.h"
-#include "core/IsAlive.h"
 
 #include <gtkmm.h>
 
 namespace DV{
 
 //! \brief Components that implements editing of TagCollection
-class TagEditor : public Gtk::Box, public IsAlive{
+//! \todo Allow sorting by columns
+class TagEditor : public Gtk::Box{
 
     class ModelColumns : public Gtk::TreeModel::ColumnRecord
     {
@@ -19,16 +21,6 @@ class TagEditor : public Gtk::Box, public IsAlive{
 
         Gtk::TreeModelColumn<Glib::ustring> m_tag_as_text;
         Gtk::TreeModelColumn<int> m_in_how_many_containers;
-    };
-
-    class TagCompletionColumns : public Gtk::TreeModel::ColumnRecord
-    {
-    public:
-
-        TagCompletionColumns()
-        { add(m_tag_text); }
-
-        Gtk::TreeModelColumn<Glib::ustring> m_tag_text;
     };
 
 public:
@@ -92,11 +84,8 @@ protected:
     //! Detects when delete is pressed
     bool _OnKeyPress(GdkEventKey* key_event);
 
-    //! Called when text is changed to update auto completes
-    void _TextUpdated();
-
-    //! When an autocomplete entry is selected
-    bool _OnMatchSelected(const Gtk::TreeModel::iterator &iter);
+    //! Called when a suggestion is selected
+    bool _OnSuggestionSelected(const Glib::ustring &str);
 
 protected:
 
@@ -119,10 +108,7 @@ protected:
 
     // Tag entry Gtk::Entry and auto completion
     Gtk::Entry TagEntry;
-    Glib::RefPtr<Gtk::EntryCompletion> TagCompletion;
-    TagCompletionColumns CompletionColumns;
-    Glib::RefPtr<Gtk::ListStore> CompletionRows;
-
+    EasyEntryCompletion TagEntryCompletion;
 
     //! This is directly set by SetEditable. Contains the value our owner wants
     bool ShouldBeEditable = true;
