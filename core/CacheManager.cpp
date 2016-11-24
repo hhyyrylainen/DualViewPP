@@ -471,7 +471,7 @@ std::string CacheManager::GetFinalImagePath(const std::string &path){
 std::string CacheManager::GetDatabaseImagePath(const std::string &path){
 
 
-    const auto settings = DualView::Get().GetSettings();
+    const auto& settings = DualView::Get().GetSettings();
 
     if(Leviathan::StringOperations::StringStartsWith(path, settings.GetPrivateCollection())){
 

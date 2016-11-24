@@ -38,7 +38,7 @@ NetGallery::NetGallery(Database &db, Lock &dblock, PreparedStatement &statement,
 
     TagsString = statement.GetColumnAsString(6);
 }
-    
+
 NetGallery::~NetGallery(){
 
     DBResourceDestruct();

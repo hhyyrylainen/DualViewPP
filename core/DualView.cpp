@@ -1658,7 +1658,7 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str,
     // Convert to lower //
     str = StringToLower(str);
 
-    SUGG_DEBUG("Gettings suggetsions for: " + str);
+    SUGG_DEBUG("Gettings suggestions for: " + str);
 
     std::vector<std::string> result;
     
@@ -1762,8 +1762,7 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str,
         }
 
         // Also we want to get longer tags that start with the same thing //
-        //if(currentword)
-        //    RetrieveTagsMatching(result, *currentword);
+        RetrieveTagsMatching(result, str);
         
     } else {
 
