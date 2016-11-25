@@ -14,6 +14,7 @@ add_executable(Test
   tests.cpp
   test_image.cpp
   test_collection.cpp
+  test_helpers.cpp
 
   gtk_tests.cpp
 

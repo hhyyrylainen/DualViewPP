@@ -560,9 +560,9 @@ private:
     //
     // Private insert stuff
     //
-    void InsertTagImage(Image &image, DBID appliedtagid);
+    void InsertTagImage(Lock &guard, Image &image, DBID appliedtagid);
 
-    void InsertTagCollection(Collection &image, DBID appliedtagid);
+    void InsertTagCollection(Lock &guard, Collection &image, DBID appliedtagid);
     
     //
     // Utility stuff

@@ -35,6 +35,7 @@ add_library(Core
 
   Database.h Database.cpp
   SQLHelpers.h SQLHelpers.cpp
+  UtilityHelpers.h UtilityHelpers.cpp
   PreparedStatement.h PreparedStatement.cpp
   SingleLoad.h 
   CacheManager.h CacheManager.cpp

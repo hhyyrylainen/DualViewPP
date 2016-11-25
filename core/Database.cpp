@@ -246,12 +246,15 @@ void Database::InsertImage(Image &image){
 
 bool Database::UpdateImage(const Image &image){
 
+    GUARD_LOCK();
+
     // Don't forget to call CacheManager::GetDatabaseImagePath when saving the path
     return false;
 }
 
 bool Database::DeleteImage(Image &image){
 
+    GUARD_LOCK();
     return false;
 }
 
@@ -372,7 +375,7 @@ void Database::InsertImageTag(std::weak_ptr<Image> image,
 
     if(existing){
 
-        InsertTagImage(*imageLock, existing->GetID());
+        InsertTagImage(guard, *imageLock, existing->GetID());
         return;
     }
 
@@ -382,10 +385,10 @@ void Database::InsertImageTag(std::weak_ptr<Image> image,
         throw InvalidSQL("Failed to create AppliedTag for adding to resource", 0, "");
     }
 
-    InsertTagImage(*imageLock, tag.GetID());
+    InsertTagImage(guard, *imageLock, tag.GetID());
 }
 
-void Database::InsertTagImage(Image &image, DBID appliedtagid){
+void Database::InsertTagImage(Lock &guard, Image &image, DBID appliedtagid){
 
     const char str[] = "INSERT INTO image_tag (image, tag) VALUES (?, ?);";
 
@@ -455,11 +458,13 @@ std::shared_ptr<Collection> Database::InsertCollection(Lock &guard, const std::s
 
 bool Database::UpdateCollection(const Collection &collection){
 
+    GUARD_LOCK();
     return false;
 }
 
 bool Database::DeleteCollection(Collection &collection){
 
+    GUARD_LOCK();
     return false;
 }
 
@@ -485,7 +490,7 @@ std::shared_ptr<Collection> Database::SelectCollectionByID(DBID id){
 std::shared_ptr<Collection> Database::SelectCollectionByName(Lock &guard,
     const std::string &name)
 {
-     const char str[] = "SELECT * FROM collections WHERE name = ?1;";
+    const char str[] = "SELECT * FROM collections WHERE name = ?1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -566,8 +571,9 @@ int64_t Database::SelectCollectionImageCount(const Collection &collection){
     return 0;
 }
 // ------------------------------------ //
-std::shared_ptr<TagCollection> Database::LoadCollectionTags(const std::shared_ptr<Collection> &collection){
-
+std::shared_ptr<TagCollection> Database::LoadCollectionTags(
+    const std::shared_ptr<Collection> &collection)
+{
     if(!collection || !collection->IsInDatabase())
         return nullptr;
 
@@ -633,7 +639,7 @@ void Database::InsertCollectionTag(std::weak_ptr<Collection> collection,
 
     if(existing){
 
-        InsertTagCollection(*collectionLock, existing->GetID());
+        InsertTagCollection(guard, *collectionLock, existing->GetID());
         return;
     }
 
@@ -643,10 +649,10 @@ void Database::InsertCollectionTag(std::weak_ptr<Collection> collection,
         throw InvalidSQL("Failed to create AppliedTag for adding to resource", 0, "");
     }
 
-    InsertTagCollection(*collectionLock, tag.GetID());
+    InsertTagCollection(guard, *collectionLock, tag.GetID());
 }
 
-void Database::InsertTagCollection(Collection &collection, DBID appliedtagid){
+void Database::InsertTagCollection(Lock &guard, Collection &collection, DBID appliedtagid){
 
     const char str[] = "INSERT INTO collection_tag (collection, tag) VALUES (?, ?);";
 
@@ -912,6 +918,7 @@ std::shared_ptr<Folder> Database::InsertFolder(std::string name, bool isprivate,
 
 bool Database::UpdateFolder(Folder &folder){
 
+    GUARD_LOCK();
     return false;
 }
 // ------------------------------------ //
@@ -1170,6 +1177,8 @@ std::shared_ptr<Tag> Database::SelectTagByNameOrAlias(const std::string &name){
 }
 
 std::string Database::SelectTagSuperAlias(const std::string &name){
+
+    GUARD_LOCK();
 
     const char str[] = "SELECT expanded FROM tag_super_aliases WHERE alias = ?;";
 
@@ -1924,7 +1933,7 @@ std::vector<std::shared_ptr<TagModifier>> Database::SelectModifiersForBreakRule(
 
 void Database::UpdateTagBreakRule(const TagBreakRule &rule){
 
-    
+    GUARD_LOCK();
 }
 
 //

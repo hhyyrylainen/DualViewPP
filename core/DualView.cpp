@@ -26,6 +26,8 @@
 #include "DownloadManager.h"
 #include "Exceptions.h"
 
+#include "UtilityHelpers.h"
+
 #include "Common/StringOperations.h"
 #include "Iterators/StringIterator.h"
 
@@ -476,6 +478,7 @@ void DualView::_OnLoadingFinished(){
 
     // For testing SuperViewer uncomment this to quickly open images
     //OpenImageViewer("/home/hhyyrylainen/690806.jpg");
+    //OpenImporter();
 }
 // ------------------------------------ //
 void DualView::_ProcessCmdQueue(){
@@ -1716,7 +1719,7 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str,
 
             std::string tagname;
             std::shared_ptr<Tag> tag;
-            auto modifiers = rule->DoBreak(str, tagname, tag);
+            auto modifiers = rule->DoBreak(currentpart, tagname, tag);
 
             if(tag || !modifiers.empty()){
 
@@ -1809,36 +1812,16 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str,
     }
 
     // Sort the most relevant results first //
-    std::sort(result.begin(), result.end(), [&str](
-            const std::string &left, const std::string &right) -> bool
-        {
-            if(left == str && (right != str)){
-
-                // Exact match first //
-                return true;
-            }
-            
-            if(Leviathan::StringOperations::StringStartsWith(left, str) && 
-                !Leviathan::StringOperations::StringStartsWith(right, str))
-            {
-                // Matching prefix with pattern first
-                return true;
-            }
-
-            // Sort which one is closer in length to str first
-            return std::abs(str.length() - left.length()) <
-                std::abs(str.length() - right.length());
-        });
-
-    auto last = std::unique(result.begin(), result.end());
-    result.erase(last, result.end());
-
+    DV::SortSuggestions(result.begin(), result.end(), str);
+    
+    result.erase(std::unique(result.begin(), result.end()), result.end());
+    
     if(result.size() > maxcount)
         result.resize(maxcount);
 
     SUGG_DEBUG("Resulting suggestions: " + Convert::ToString(result.size()));
-    for(const auto &suggestion : result)
-        SUGG_DEBUG(" " + suggestion);
+    for(auto iter = result.begin(); iter != result.end(); ++iter)
+        SUGG_DEBUG(" " + *iter);
     
     return result;
 }
@@ -1846,8 +1829,6 @@ std::vector<std::string> DualView::GetSuggestionsForTag(std::string str,
 void DualView::RetrieveTagsMatching(std::vector<std::string> &result,
     const std::string &str) const
 {
-    const auto initSize = result.size();
-    
     _Database->SelectTagNamesWildcard(result, str);
     
     _Database->SelectTagAliasesWildcard(result, str);

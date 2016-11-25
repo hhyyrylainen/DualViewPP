@@ -2,6 +2,7 @@
 #include "EasyEntryCompletion.h"
 
 #include "core/DualView.h"
+#include "core/UtilityHelpers.h"
 
 #include "Common.h"
 
@@ -94,43 +95,23 @@ void EasyEntryCompletion::_OnTextUpdated(){
     DualView::Get().QueueDBThreadFunction([this, isalive, text, suggest { GetSuggestions },
             count { SuggestionsToShow }]()
         {
+            LOG_INFO("Getting suggestions for text: " + text);
             const std::string str = DualView::StringToLower(text);
-            
+
             auto result = suggest(str, count);
 
-            // Sort the result //
-            std::sort(result.begin(), result.end(), [&str](
-                    const std::string &left, const std::string &right) -> bool
-                {
-                    if(left == str && (right != str)){
-
-                        // Exact match first //
-                        return true;
-                    }
+            DV::SortSuggestions(result.begin(), result.end(), str);
             
-                    if(Leviathan::StringOperations::StringStartsWith(
-                            DualView::StringToLower(left), str) && 
-                        !Leviathan::StringOperations::StringStartsWith(
-                            DualView::StringToLower(right), str))
-                    {
-                        // Matching prefix with pattern first
-                        return true;
-                    }
-
-                    // Sort which one is closer in length to str first
-                    return std::abs(str.length() - left.length()) <
-                        std::abs(str.length() - right.length());
-                });
-
-            
-            DualView::Get().InvokeFunction([this, isalive, result{std::move(result)}](){
+            DualView::Get().InvokeFunction([this, isalive,
+                    data{ std::move(result) }
+                ](){
 
                     INVOKE_CHECK_ALIVE_MARKER(isalive);
 
                     CompletionRows->clear();
                     
                     // Fill the autocomplete
-                    for(const auto& str : result){
+                    for(const auto& str : data){
                         
                         Gtk::TreeModel::Row row = *(CompletionRows->append());
                         row[CompletionColumnTypes.m_tag_text] = str;
