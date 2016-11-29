@@ -32,6 +32,7 @@ class CacheManager;
 class CurlWrapper;
 class Database;
 class DownloadManager;
+class ChangeEvents;
 
 class Settings;
 
@@ -262,6 +263,11 @@ public:
         
         return *_PluginManager;
     }
+
+    inline ChangeEvents& GetEvents() const{
+
+        return *_ChangeEvents;
+    }
     
     //! \brief Returns true if called on the main thread
     //!
@@ -448,6 +454,9 @@ private:
 
     //! Database holds all the data related to images
     std::unique_ptr<Database> _Database;
+
+    //! Events for database events that aren't related to actual objects
+    std::unique_ptr<ChangeEvents> _ChangeEvents;
 
     //! Download manager drives all network related activity
     std::unique_ptr<DownloadManager> _DownloadManager;

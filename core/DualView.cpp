@@ -14,6 +14,7 @@
 
 #include "core/CacheManager.h"
 #include "core/Database.h"
+#include "core/ChangeEvents.h"
 #include "core/CurlWrapper.h"
 
 #include "resources/Collection.h"
@@ -135,6 +136,8 @@ DualView::~DualView(){
     
     // Close database //
     _Database.reset();
+
+    _ChangeEvents.reset();
 
     Staticinstance = nullptr;
 }
@@ -399,7 +402,10 @@ bool DualView::_DoInitThreadAction(){
     _CacheManager = std::make_unique<CacheManager>();
 
     // Load database //
-    //_Database = std::make_unique<Database>(true);
+    // Database events
+    _ChangeEvents = std::make_unique<ChangeEvents>();
+    
+    // Database object
     _Database = std::make_unique<Database>(_Settings->GetDatabaseFile());
 
     try{
