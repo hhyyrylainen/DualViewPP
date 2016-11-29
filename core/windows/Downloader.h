@@ -2,6 +2,8 @@
 
 #include "core/IsAlive.h"
 
+#include "leviathan/Common/BaseNotifiable.h"
+
 #include <gtkmm.h>
 
 #include <atomic>
@@ -18,7 +20,7 @@ struct DownloadProgressState;
 
 //! \brief Window that has all the download objects
 //! and also implements the download algorithm
-class Downloader : public Gtk::Window, public IsAlive{
+class Downloader : public Gtk::Window, public IsAlive, public Leviathan::BaseNotifiableAll{
     
     friend DownloadProgressState;
     
@@ -39,6 +41,10 @@ public:
     //! \brief Waits until download thread has quit
     void WaitForDownloadThread();
 
+    //! \brief Checks for new galleries
+    void OnNotified(Lock &ownlock, Leviathan::BaseNotifierAll* parent, Lock &parentlock)
+        override;
+    
 protected:
 
     //! \brief Toggles the download thread, callback for the button

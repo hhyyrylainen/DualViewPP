@@ -12,6 +12,7 @@
 #include "core/Database.h"
 #include "core/Settings.h"
 #include "core/DownloadManager.h"
+#include "core/ChangeEvents.h"
 
 #include "leviathan/Common/StringOperations.h"
 
@@ -48,6 +49,11 @@ Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     BUILDER_GET_WIDGET(DLStatusLabel);
     BUILDER_GET_WIDGET(DLSpinner);
     BUILDER_GET_WIDGET(DLProgress);
+
+    // Listen for new download galleries //
+    GUARD_LOCK();
+    DualView::Get().GetEvents().RegisterForEvent(CHANGED_EVENT::COLLECTION_CREATED,
+        this, guard);
 }
 
 Downloader::~Downloader(){
@@ -68,37 +74,54 @@ bool Downloader::_OnClose(GdkEventAny* event){
     return true;
 }
 
+void Downloader::OnNotified(Lock &ownlock, Leviathan::BaseNotifierAll* parent,
+    Lock &parentlock)
+{
+    _OnShown();
+}
+
 void Downloader::_OnShown(){
+
+    auto alive = GetAliveMarker();
+
+    DualView::Get().QueueDBThreadFunction([=](){
     
-    // Load items if not already loaded //
-    const auto itemids = DualView::Get().GetDatabase().SelectNetGalleryIDs(true);
+            // Load items if not already loaded //
+            const auto itemids = DualView::Get().GetDatabase().SelectNetGalleryIDs(true);
 
+            DualView::Get().InvokeFunction([=](){
 
-    for(auto id : itemids){
+                    INVOKE_CHECK_ALIVE_MARKER(alive);
+                    
+                    for(auto id : itemids){
 
-        // Skip already added ones //
-        bool added = false;
+                        // Skip already added ones //
+                        bool added = false;
 
-        for(const auto &existing : DLList){
+                        for(const auto &existing : DLList){
 
-            if(existing->GetGallery()->GetID() == id){
+                            if(existing->GetGallery()->GetID() == id){
 
-                added = true;
-                break;
-            }
-        }
+                                added = true;
+                                break;
+                            }
+                        }
 
-        if(added)
-            continue;
+                        if(added)
+                            continue;
 
-        AddNetGallery(DualView::Get().GetDatabase().SelectNetGalleryByIDAG(id));
-    }
+                        // TODO: these objects could be created on the database thread
+                        AddNetGallery(
+                            DualView::Get().GetDatabase().SelectNetGalleryByIDAG(id));
+                    }            
+                });
+        });
 }
 
 void Downloader::_OnHidden(){
 
     // Ask user whether downloads should be paused //
-    
+    StopDownloadThread();
 }
 // ------------------------------------ //
 void Downloader::AddNetGallery(std::shared_ptr<NetGallery> gallery){
@@ -158,11 +181,27 @@ void Downloader::StartDownloadThread(){
     RunDownloadThread = true;
     
     DownloadThread = std::thread(&Downloader::_RunDownloadThread, this);
+
+    auto alive = GetAliveMarker();
+
+    DualView::Get().RunOnMainThread([=](){
+
+            INVOKE_CHECK_ALIVE_MARKER(alive);
+            StartDownloadButton->set_label("Stop Download Thread");
+        });
 }
 
 void Downloader::StopDownloadThread(){
-
+    
     RunDownloadThread = false;
+
+    auto alive = GetAliveMarker();
+
+    DualView::Get().RunOnMainThread([=](){
+
+            INVOKE_CHECK_ALIVE_MARKER(alive);
+            StartDownloadButton->set_label("Start Download");
+        });
 }
 
 void Downloader::WaitForDownloadThread(){
@@ -511,13 +550,11 @@ void Downloader::_ToggleDownloadThread(){
     if(RunDownloadThread){
         
         StopDownloadThread();
-        StartDownloadButton->set_label("Start Download");
         DLStatusLabel->set_text("Not downloading");
         
     } else {
 
         StartDownloadThread();
-        StartDownloadButton->set_label("Stop Download Thread");
         DLStatusLabel->set_text("Downloader thread waiting for work");
     }
 }

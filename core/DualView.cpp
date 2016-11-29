@@ -274,6 +274,9 @@ void DualView::_OnInstanceLoaded(){
     // Start loading thread //
     LoadThread = std::thread(std::bind(&DualView::_RunInitThread, this));
 
+    // Database events are needed here for widgets to register themselves
+    _ChangeEvents = std::make_unique<ChangeEvents>();
+
     // Get rest of the widgets while load thread is already running //
     Gtk::Button* OpenImageFile = nullptr;
     MainBuilder->get_widget("OpenImageFile", OpenImageFile);
@@ -401,10 +404,7 @@ bool DualView::_DoInitThreadAction(){
     // Load ImageMagick library //
     _CacheManager = std::make_unique<CacheManager>();
 
-    // Load database //
-    // Database events
-    _ChangeEvents = std::make_unique<ChangeEvents>();
-    
+    // Load database //    
     // Database object
     _Database = std::make_unique<Database>(_Settings->GetDatabaseFile());
 
