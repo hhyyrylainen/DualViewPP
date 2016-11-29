@@ -385,6 +385,8 @@ struct DV::DownloadProgressState{
         }
         case STATE::WAITING_FOR_HASHES:
         {
+            Widget->SetProgress(1.0f);
+            
             for(const auto image : DownloadedImages){
 
                 if(!image->IsReady()){
