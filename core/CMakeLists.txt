@@ -34,6 +34,7 @@ add_library(Core
   CurlWrapper.h CurlWrapper.cpp
 
   Database.h Database.cpp
+  ChangeEvents.h ChangeEvents.cpp
   SQLHelpers.h SQLHelpers.cpp
   UtilityHelpers.h UtilityHelpers.cpp
   PreparedStatement.h PreparedStatement.cpp
