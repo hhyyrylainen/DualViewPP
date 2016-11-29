@@ -14,6 +14,9 @@
 #include "core/TimeHelpers.h"
 #include "core/CacheManager.h"
 
+#include "core/DualView.h"
+#include "core/ChangeEvents.h"
+
 #include "generated/maintables.sql.h"
 #include "generated/defaulttablevalues.sql.h"
 #include "generated/defaulttags.sql.h"
@@ -452,6 +455,10 @@ std::shared_ptr<Collection> Database::InsertCollection(Lock &guard, const std::s
 
         LOG_ERROR("Failed to add a new Collection to the root folder");
     }
+
+    guard.unlock();
+    DualView::Get().GetEvents().FireEvent(CHANGED_EVENT::COLLECTION_CREATED);
+    guard.lock();
     
     return created;
 }
@@ -1999,6 +2006,9 @@ bool Database::InsertNetGallery(std::shared_ptr<NetGallery> gallery){
     statementobj.StepAll(statementinuse);
 
     gallery->OnAdopted(sqlite3_last_insert_rowid(SQLiteDb), *this);
+
+    guard.unlock();
+    DualView::Get().GetEvents().FireEvent(CHANGED_EVENT::DOWNLOAD_GALLERY_CREATED);
     return true;
 }
 
