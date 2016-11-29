@@ -29,12 +29,12 @@ TEST_CASE("Change events work correctly", "[db][events]"){
 
         {
             GUARD_LOCK_OTHER(obj1);
-            events.RegisterForEvent(CHANGED_EVENT::DOWNLOAD_GALLERY_CREATED, &obj1, guard);
+            events.RegisterForEvent(CHANGED_EVENT::NET_GALLERY_CREATED, &obj1, guard);
         }
 
         CHECK(!obj1.Notified);
 
-        events.FireEvent(CHANGED_EVENT::DOWNLOAD_GALLERY_CREATED);
+        events.FireEvent(CHANGED_EVENT::NET_GALLERY_CREATED);
 
         CHECK(obj1.Notified);
         CHECK(!obj2.Notified);
@@ -45,7 +45,7 @@ TEST_CASE("Change events work correctly", "[db][events]"){
 
         {
             GUARD_LOCK_OTHER(obj1);
-            events.RegisterForEvent(CHANGED_EVENT::DOWNLOAD_GALLERY_CREATED, &obj1, guard);
+            events.RegisterForEvent(CHANGED_EVENT::NET_GALLERY_CREATED, &obj1, guard);
         }
 
         {
@@ -55,10 +55,10 @@ TEST_CASE("Change events work correctly", "[db][events]"){
 
         {
             GUARD_LOCK_OTHER(obj3);
-            events.RegisterForEvent(CHANGED_EVENT::DOWNLOAD_GALLERY_CREATED, &obj3, guard);
+            events.RegisterForEvent(CHANGED_EVENT::NET_GALLERY_CREATED, &obj3, guard);
         }
 
-        events.FireEvent(CHANGED_EVENT::DOWNLOAD_GALLERY_CREATED);
+        events.FireEvent(CHANGED_EVENT::NET_GALLERY_CREATED);
 
         CHECK(obj1.Notified);
         CHECK(!obj2.Notified);

@@ -2008,7 +2008,7 @@ bool Database::InsertNetGallery(std::shared_ptr<NetGallery> gallery){
     gallery->OnAdopted(sqlite3_last_insert_rowid(SQLiteDb), *this);
 
     guard.unlock();
-    DualView::Get().GetEvents().FireEvent(CHANGED_EVENT::DOWNLOAD_GALLERY_CREATED);
+    DualView::Get().GetEvents().FireEvent(CHANGED_EVENT::NET_GALLERY_CREATED);
     return true;
 }
 

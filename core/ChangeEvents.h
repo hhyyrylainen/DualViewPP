@@ -9,7 +9,7 @@ namespace DV{
 enum class CHANGED_EVENT : uint32_t {
 
     //! Fired when a DownloadGallery is inserted to the database
-    DOWNLOAD_GALLERY_CREATED = 0,
+    NET_GALLERY_CREATED = 0,
 
     //! Fired when a new Collection is inserted
     COLLECTION_CREATED,
