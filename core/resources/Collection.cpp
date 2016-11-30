@@ -247,7 +247,7 @@ std::shared_ptr<Image> Collection::GetNextImage(std::shared_ptr<Image> current,
     
     const auto order = InDatabase->SelectImageShowOrderInCollectionAG(*this, *current);
 
-    auto previous = InDatabase->SelectPreviousImageInCollectionByShowOrder(*this, order);
+    auto previous = InDatabase->SelectNextImageInCollectionByShowOrder(*this, order);
 
     if(!previous && wrap)
         previous = InDatabase->SelectFirstImageInCollectionAG(*this);
@@ -263,7 +263,7 @@ std::shared_ptr<Image> Collection::GetPreviousImage(std::shared_ptr<Image> curre
     
     const auto order = InDatabase->SelectImageShowOrderInCollectionAG(*this, *current);
 
-    auto next = InDatabase->SelectNextImageInCollectionByShowOrder(*this, order);
+    auto next = InDatabase->SelectPreviousImageInCollectionByShowOrder(*this, order);
 
     if(!next && wrap)
         next = InDatabase->SelectFirstImageInCollectionAG(*this);
