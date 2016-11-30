@@ -266,7 +266,7 @@ std::shared_ptr<Image> Collection::GetPreviousImage(std::shared_ptr<Image> curre
     auto next = InDatabase->SelectPreviousImageInCollectionByShowOrder(*this, order);
 
     if(!next && wrap)
-        next = InDatabase->SelectFirstImageInCollectionAG(*this);
+        next = InDatabase->SelectLastImageInCollectionAG(*this);
 
     return next;
 }
