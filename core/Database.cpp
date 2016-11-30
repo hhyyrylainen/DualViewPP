@@ -739,12 +739,11 @@ bool Database::DeleteImageFromCollection(Collection &collection, Image &image){
     return changes == 1;
 }
 
-int64_t Database::SelectImageShowOrderInCollection(Collection &collection, Image &image){
-
+int64_t Database::SelectImageShowOrderInCollection(Lock &guard, const Collection &collection,
+    const Image &image)
+{
     if(!collection.IsInDatabase() || !image.IsInDatabase())
         return -1;
-
-    GUARD_LOCK();
 
     const char str[] = "SELECT show_order FROM collection_image WHERE collection = ? AND "
         "image = ?;";
@@ -759,6 +758,29 @@ int64_t Database::SelectImageShowOrderInCollection(Collection &collection, Image
     }
 
     return -1;
+}
+
+std::shared_ptr<Image> Database::SelectImageInCollectionByShowOrder(Lock &guard,
+    const Collection &collection, int64_t showorder)
+{
+    if(!collection.IsInDatabase())
+        return nullptr;
+
+    const char str[] = "SELECT image FROM collection_image WHERE collection = ? AND "
+        "show_order = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID(), showorder);
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+        if(statementobj.GetObjectIDFromColumn(id, 0))
+            return SelectImageByID(guard, id); 
+    }
+    
+    return nullptr;
 }
 
 std::shared_ptr<Image> Database::SelectCollectionPreviewImage(const Collection &collection){
@@ -802,6 +824,121 @@ std::shared_ptr<Image> Database::SelectFirstImageInCollection(Lock &guard,
 
         if(statementobj.GetObjectIDFromColumn(id, 0))
             return SelectImageByID(guard, id);
+    }
+
+    return nullptr;
+}
+
+std::shared_ptr<Image> Database::SelectLastImageInCollection(Lock &guard,
+    const Collection &collection)
+{
+    const char str[] = "SELECT image FROM collection_image WHERE collection = ? "
+        "ORDER BY show_order DESC LIMIT 1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID());
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+
+        if(statementobj.GetObjectIDFromColumn(id, 0))
+            return SelectImageByID(guard, id);
+    }
+
+    return nullptr;
+}
+
+int64_t Database::SelectImageShowIndexInCollection(const Collection &collection,
+    const Image &image)
+{
+    GUARD_LOCK();
+
+    const char str[] = "SELECT COUNT(*) FROM collection_image WHERE collection = ?1 "
+        "AND show_order < ( SELECT show_order FROM collection_image WHERE collection = ?1 AND "
+        "image = ?2 );";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID(), image.GetID());
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return statementobj.GetColumnAsInt64(0);
+    }
+
+    // Image wasn't in collection //
+    return -1;
+}
+
+std::shared_ptr<Image> Database::SelectImageInCollectionByShowIndex(Lock &guard,
+    const Collection &collection, int64_t index)
+{
+    const char str[] = "SELECT * FROM collection_image WHERE collection = ? ORDER BY "
+        "show_order LIMIT 1 OFFSET ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID(), index);
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+
+        if(statementobj.GetObjectIDFromColumn(id, 0))
+            return SelectImageByID(guard, id);
+        
+    }
+    
+    return nullptr;
+}
+
+std::shared_ptr<Image> Database::SelectNextImageInCollectionByShowOrder(
+    const Collection &collection, int64_t showorder)
+{
+    GUARD_LOCK();
+
+    const char str[] = "SELECT image FROM collection_image WHERE collection = ?1 " 
+        "AND show_order - ?2 > 0 ORDER BY ABS(show_order - ?2) LIMIT 1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID(), showorder);
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+
+        if(statementobj.GetObjectIDFromColumn(id, 0)){
+
+            return SelectImageByID(guard, id);
+        }
+    }
+
+    return nullptr;
+}
+
+std::shared_ptr<Image> Database::SelectPreviousImageInCollectionByShowOrder(
+    const Collection &collection, int64_t showorder)
+{
+    GUARD_LOCK();
+
+    const char str[] = "SELECT image FROM collection_image WHERE collection = ?1 " 
+        "AND show_order - ?2 < 0 ORDER BY ABS(show_order - ?2) LIMIT 1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID(), showorder);
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+
+        if(statementobj.GetObjectIDFromColumn(id, 0)){
+
+            return SelectImageByID(guard, id);
+        }
     }
 
     return nullptr;

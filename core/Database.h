@@ -202,8 +202,17 @@ public:
     bool DeleteImageFromCollection(Collection &collection, Image &image);
 
     //! \brief Returns the show_order image has in collection. Or -1
-    int64_t SelectImageShowOrderInCollection(Collection &collection, Image &image);
+    int64_t SelectImageShowOrderInCollection(Lock &guard, const Collection &collection,
+        const Image &image);
+    CREATE_NON_LOCKING_WRAPPER(SelectImageShowOrderInCollection);
 
+    //! \brief Returns the image with the show order
+    //! \note If for some reason there are multiples with the same show_order one of them
+    //! is returned
+    std::shared_ptr<Image> SelectImageInCollectionByShowOrder(Lock &guard,
+        const Collection &collection, int64_t showorder);
+    CREATE_NON_LOCKING_WRAPPER(SelectImageInCollectionByShowOrder);
+    
     //! \brief Returns the preview image for a collection
     std::shared_ptr<Image> SelectCollectionPreviewImage(const Collection &collection);
 
@@ -212,16 +221,32 @@ public:
         const Collection &collection);
     CREATE_NON_LOCKING_WRAPPER(SelectFirstImageInCollection);
 
+    //! \brief Returns the last image in a collection, or null if empty
+    std::shared_ptr<Image> SelectLastImageInCollection(Lock &guard,
+        const Collection &collection);
+    CREATE_NON_LOCKING_WRAPPER(SelectLastImageInCollection);
+
+    //! \brief Counts the index image has in a collection based on the show_orders
+    int64_t SelectImageShowIndexInCollection(const Collection &collection,
+        const Image &image);
+
+    //! \brief Returns the image with the show_order index 
+    //! \note If for some reason there are multiples with the same show_order one of them
+    //! is returned
+    std::shared_ptr<Image> SelectImageInCollectionByShowIndex(Lock &guard,
+        const Collection &collection, int64_t index);
+    CREATE_NON_LOCKING_WRAPPER(SelectImageInCollectionByShowIndex);
+
+    //! \brief Selects the image that has the next show order
+    std::shared_ptr<Image> SelectNextImageInCollectionByShowOrder(const Collection &collection,
+        int64_t showorder);
+
+    //! \brief Selects the image that has the previous show order
+    std::shared_ptr<Image> SelectPreviousImageInCollectionByShowOrder(
+        const Collection &collection, int64_t showorder);
+
     //! \brief Returns all images in a collection
     std::vector<std::shared_ptr<Image>> SelectImagesInCollection(const Collection &collection);
-
-    // Statistics functions //
-    size_t CountExistingTags();
-
-    //! \brief Helper callback for standard operations
-    //! \warning The user parameter has to be a pointer to Database::GrabResultHolder
-    static int SqliteExecGrabResult(void* user, int columns, char** columnsastext,
-        char** columnname);
 
     //
     // Folder
@@ -481,6 +506,15 @@ public:
     
     //! \brief Tries to escape quotes in a string for insertion to sql statements
     static std::string EscapeSql(std::string str);
+
+    //! \brief Helper callback for standard operations
+    //! \warning The user parameter has to be a pointer to Database::GrabResultHolder
+    static int SqliteExecGrabResult(void* user, int columns, char** columnsastext,
+        char** columnname);
+
+    // Statistics functions //
+    size_t CountExistingTags();
+
 
 protected:
 

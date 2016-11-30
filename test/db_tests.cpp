@@ -229,6 +229,63 @@ TEST_CASE("Directly using database for collection and image inserts", "[db]"){
         CHECK(collection->GetImageShowOrder(image3) == 5);
         CHECK(collection->GetImageShowOrder(image4) == -1);
     }
+
+    SECTION("Image show order"){
+
+        SECTION("Image index and ImageListScroll support"){
+            
+            auto collection = db.InsertCollectionAG("test collection", false);
+            REQUIRE(collection);
+
+            auto image1 = db.InsertTestImage("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg",
+                "II+O7pSQgH8BG_gWrc+bAetVgxJNrJNX4zhA4oWV+V0=");
+
+            auto image2 = db.InsertTestImage("img2.jpg",
+                "II++bAetVgxJNrJNX4zhA4oWV+V0=");
+
+            auto image3 = db.InsertTestImage("randomstuff.jpg",
+                "randomstuff");
+
+            REQUIRE(image1);
+            REQUIRE(image2);
+            REQUIRE(image3);
+
+            CHECK(collection->AddImage(image1));
+            CHECK(collection->AddImage(image2));
+            CHECK(collection->AddImage(image3));
+
+            CHECK(collection->GetImageCount() == 3);
+            CHECK(collection->GetLastShowOrder() == 3);
+
+            CHECK(db.SelectImageShowIndexInCollection(*collection, *image1) == 0);
+            CHECK(db.SelectImageShowIndexInCollection(*collection, *image2) == 1);
+            CHECK(db.SelectImageShowIndexInCollection(*collection, *image3) == 2);
+
+            CHECK(!db.SelectImageInCollectionByShowOrderAG(*collection, 0));
+            CHECK(*db.SelectImageInCollectionByShowOrderAG(*collection, 1) == *image1);
+            CHECK(*db.SelectImageInCollectionByShowOrderAG(*collection, 2) == *image2);
+            CHECK(*db.SelectImageInCollectionByShowOrderAG(*collection, 3) == *image3);
+            
+            CHECK(*db.SelectFirstImageInCollectionAG(*collection) == *image1);
+            CHECK(*db.SelectLastImageInCollectionAG(*collection) == *image3);
+
+
+            CHECK(*db.SelectNextImageInCollectionByShowOrder(*collection, 0) == *image1);
+            CHECK(*db.SelectNextImageInCollectionByShowOrder(*collection, 1) == *image2);
+            CHECK(*db.SelectNextImageInCollectionByShowOrder(*collection, 2) == *image3);
+            CHECK(!db.SelectNextImageInCollectionByShowOrder(*collection, 3));
+
+
+            CHECK(!db.SelectPreviousImageInCollectionByShowOrder(*collection, 0));
+            CHECK(!db.SelectPreviousImageInCollectionByShowOrder(*collection, 1));
+            CHECK(*db.SelectPreviousImageInCollectionByShowOrder(*collection, 2) == *image1);
+            CHECK(*db.SelectPreviousImageInCollectionByShowOrder(*collection, 3) == *image2);
+            CHECK(*db.SelectPreviousImageInCollectionByShowOrder(*collection, 4) == *image3);
+            
+
+            
+        }
+    }
 }
 
 

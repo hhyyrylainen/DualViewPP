@@ -4,6 +4,8 @@
 #include "DatabaseResource.h"
 #include "Tags.h"
 
+#include "core/components/ImageListScroll.h"
+
 #include "core/TimeHelpers.h"
 
 #include "leviathan/Common/Types.h"
@@ -21,6 +23,7 @@ class Database;
 class PreparedStatement;
 
 class Collection : public DatabaseResource, public ResourceWithPreview,
+                     public ImageListScroll,
                      public std::enable_shared_from_this<Collection>
 {
 public:
@@ -62,21 +65,21 @@ public:
     bool RemoveImage(std::shared_ptr<Image> image);
 
     //! \brief Gets the largest show_order used in the collection
-    int64_t GetLastShowOrder();
+    int64_t GetLastShowOrder() const;
 
     //! \brief Returns the image count
-    int64_t GetImageCount();
+    int64_t GetImageCount() const;
 
     //! \brief Returns image's show_order in this collection. Or -1
-    int64_t GetImageShowOrder(std::shared_ptr<Image> image);
+    int64_t GetImageShowOrder(std::shared_ptr<Image> image) const;
 
     //! \brief Returns the preview icon for this Collection
     //!
     //! It is either the first image or a specifically set image
-    std::shared_ptr<Image> GetPreviewIcon();
+    std::shared_ptr<Image> GetPreviewIcon() const;
 
     //! \brief Returns all the images in the collection
-    std::vector<std::shared_ptr<Image>> GetImages();
+    std::vector<std::shared_ptr<Image>> GetImages() const;
 
     inline auto GetIsPrivate() const{
 
@@ -96,6 +99,22 @@ public:
         override;
     bool IsSame(const ResourceWithPreview &other) override;
     bool UpdateWidgetWithValues(ListItem &control) override;
+
+    // ImageListScroll implementation //
+    std::shared_ptr<Image> GetNextImage(std::shared_ptr<Image> current, bool wrap = true)
+        override;
+
+    std::shared_ptr<Image> GetPreviousImage(std::shared_ptr<Image> current, bool wrap = true)
+        override;
+
+    bool HasCount() const override;
+    size_t GetCount() const override;
+    bool SupportsRandomAccess() const override;
+
+    std::shared_ptr<Image> GetImageAt(size_t index) const override;
+    size_t GetImageIndex(Image& image) const override;
+
+    std::string GetDescriptionStr() const override;
 
 protected:
 

@@ -117,7 +117,7 @@ std::shared_ptr<TagCollection> Collection::GetTags(){
     return Tags;
 }
 
-int64_t Collection::GetLastShowOrder(){
+int64_t Collection::GetLastShowOrder() const{
 
     if(!IsInDatabase())
         return 0;
@@ -150,7 +150,7 @@ bool Collection::RemoveImage(std::shared_ptr<Image> image){
     return InDatabase->DeleteImageFromCollection(*this, *image);
 }
 
-int64_t Collection::GetImageCount(){
+int64_t Collection::GetImageCount() const{
 
     if(!IsInDatabase())
         return 0;
@@ -158,15 +158,15 @@ int64_t Collection::GetImageCount(){
     return InDatabase->SelectCollectionImageCount(*this);
 }
 
-int64_t Collection::GetImageShowOrder(std::shared_ptr<Image> image){
+int64_t Collection::GetImageShowOrder(std::shared_ptr<Image> image) const{
 
     if(!image || !IsInDatabase())
         return -1;
 
-    return InDatabase->SelectImageShowOrderInCollection(*this, *image);
+    return InDatabase->SelectImageShowOrderInCollectionAG(*this, *image);
 }
 
-std::shared_ptr<Image> Collection::GetPreviewIcon(){
+std::shared_ptr<Image> Collection::GetPreviewIcon() const{
 
     if(!IsInDatabase())
         return nullptr;
@@ -174,7 +174,7 @@ std::shared_ptr<Image> Collection::GetPreviewIcon(){
     return InDatabase->SelectCollectionPreviewImage(*this);
 }
 
-std::vector<std::shared_ptr<Image>> Collection::GetImages(){
+std::vector<std::shared_ptr<Image>> Collection::GetImages() const{
 
     if(!IsInDatabase())
         return {};
@@ -237,3 +237,72 @@ void Collection::_FillWidget(CollectionListItem &widget){
     widget.SetCollection(shared_from_this());
     widget.Deselect();    
 }
+// ------------------------------------ //
+// Implementation of ImageListScroll
+std::shared_ptr<Image> Collection::GetNextImage(std::shared_ptr<Image> current,
+    bool wrap /*= true*/)
+{
+    if(!current || !IsInDatabase())
+        return nullptr;
+    
+    const auto order = InDatabase->SelectImageShowOrderInCollectionAG(*this, *current);
+
+    auto previous = InDatabase->SelectPreviousImageInCollectionByShowOrder(*this, order);
+
+    if(!previous && wrap)
+        previous = InDatabase->SelectFirstImageInCollectionAG(*this);
+
+    return previous;
+}
+
+std::shared_ptr<Image> Collection::GetPreviousImage(std::shared_ptr<Image> current,
+    bool wrap /*= true*/)
+{
+    if(!current || !IsInDatabase())
+        return nullptr;
+    
+    const auto order = InDatabase->SelectImageShowOrderInCollectionAG(*this, *current);
+
+    auto next = InDatabase->SelectNextImageInCollectionByShowOrder(*this, order);
+
+    if(!next && wrap)
+        next = InDatabase->SelectFirstImageInCollectionAG(*this);
+
+    return next;
+}
+// ------------------------------------ //
+bool Collection::HasCount() const{
+
+    return true;
+}
+
+size_t Collection::GetCount() const{
+    
+    return GetImageCount();
+}
+
+bool Collection::SupportsRandomAccess() const{
+
+    return true;
+}
+
+std::shared_ptr<Image> Collection::GetImageAt(size_t index) const{
+
+    if(!IsInDatabase())
+        return nullptr;
+
+    return InDatabase->SelectImageInCollectionByShowIndexAG(*this, index);
+}
+
+size_t Collection::GetImageIndex(Image& image) const{
+
+    if(!IsInDatabase())
+        return -1;
+
+    return InDatabase->SelectImageShowIndexInCollection(*this, image);
+}
+// ------------------------------------ //
+std::string Collection::GetDescriptionStr() const{
+    return "collection '" + Name + "'";
+}
+

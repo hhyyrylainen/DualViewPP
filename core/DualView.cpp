@@ -157,6 +157,8 @@ DualView::DualView(bool tests, const std::string &dbfile){
 
     _Settings = std::make_unique<Settings>("test_settings.levof");
 
+    _ChangeEvents = std::make_unique<ChangeEvents>();
+
     if(!dbfile.empty())
         _Database = std::make_unique<Database>(dbfile);
 
@@ -178,8 +180,10 @@ DualView::DualView(bool tests, bool memorysettings){
 
     _Settings = std::make_unique<Settings>("memory");
 
+    _ChangeEvents = std::make_unique<ChangeEvents>();
+    
     _Database = std::make_unique<Database>(true);
-
+    
     _StartWorkerThreads();
 }
 
@@ -189,6 +193,8 @@ DualView::DualView(std::string tests, std::unique_ptr<Database> &&db /*= nullptr
 
     if(db)
         _Database = std::move(db);
+
+    _ChangeEvents = std::make_unique<ChangeEvents>();
 
     LEVIATHAN_ASSERT(tests == "empty", "DualView test constructor called with not empty");
 
@@ -271,11 +277,12 @@ void DualView::_OnInstanceLoaded(){
     Application->add_window(*WelcomeWindow);
     WelcomeWindow->show();
 
+    // Database events are needed here for widgets to register themselves
+    // and the load thread needs this when database Init is called
+    _ChangeEvents = std::make_unique<ChangeEvents>();
+
     // Start loading thread //
     LoadThread = std::thread(std::bind(&DualView::_RunInitThread, this));
-
-    // Database events are needed here for widgets to register themselves
-    _ChangeEvents = std::make_unique<ChangeEvents>();
 
     // Get rest of the widgets while load thread is already running //
     Gtk::Button* OpenImageFile = nullptr;
