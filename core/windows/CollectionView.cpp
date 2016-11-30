@@ -32,6 +32,11 @@ CollectionView::CollectionView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> bu
     LEVIATHAN_ASSERT(UpFolder, "Invalid .glade file");
 
     RegisterNavigator(*PathEntry, *UpFolder);
+
+    BUILDER_GET_WIDGET(SearchBox);
+    SearchBox->signal_search_changed().connect(sigc::mem_fun(*this,
+            &CollectionView::OnSearchChanged));
+    
 }
 
 CollectionView::~CollectionView(){
@@ -60,13 +65,20 @@ void CollectionView::_OnHidden(){
     
 }
 // ------------------------------------ //
+void CollectionView::OnSearchChanged(){
+
+    OnFolderChanged();
+}
+        
 void CollectionView::OnFolderChanged(){
 
+    DualView::IsOnMainThreadAssert();
+    
     PathEntry->set_text(CurrentPath.GetPathString());
 
     // Load items //
     auto isalive = GetAliveMarker();
-    std::string matchingpattern = "";
+    std::string matchingpattern = SearchBox->get_text();
 
     DualView::Get().QueueDBThreadFunction([this, isalive, matchingpattern](){
 

@@ -30,6 +30,8 @@ private:
     void _OnHidden();
 
     void OnFolderChanged() override;
+
+    void OnSearchChanged();
     
 private:
 
@@ -37,6 +39,8 @@ private:
 
     Gtk::Entry* PathEntry;
     Gtk::Button* UpFolder;
+
+    Gtk::SearchEntry* SearchBox;
 };
 
 }

@@ -483,7 +483,7 @@
             <property name="margin_left">1</property>
             <property name="margin_right">3</property>
             <child>
-              <object class="GtkSearchEntry">
+              <object class="GtkSearchEntry" id="SearchBox">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="primary_icon_name">edit-find-symbolic</property>
