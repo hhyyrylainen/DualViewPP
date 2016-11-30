@@ -52,7 +52,7 @@ Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     // Listen for new download galleries //
     GUARD_LOCK();
-    DualView::Get().GetEvents().RegisterForEvent(CHANGED_EVENT::COLLECTION_CREATED,
+    DualView::Get().GetEvents().RegisterForEvent(CHANGED_EVENT::NET_GALLERY_CREATED,
         this, guard);
 }
 
