@@ -101,6 +101,9 @@ public:
 
     //! \brief Opens the current image in a new window
     void OpenImageInNewWindow();
+
+    //! \brief Adds a notify event that gets called after SetImage is called
+    void RegisterSetImageNotify(std::function<void ()> callback);
     
     
 protected:
@@ -169,6 +172,7 @@ private:
 
     //! The image to show
     std::shared_ptr<Image> DisplayedResource;
+    std::function<void ()> ImageChangeCallback;
     
     //! Currently shown image resource
     std::shared_ptr<LoadedImage> DisplayImage;

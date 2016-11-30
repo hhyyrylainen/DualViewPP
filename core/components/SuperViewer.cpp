@@ -127,6 +127,9 @@ void SuperViewer::SetImage(std::shared_ptr<Image> displayedResource){
     IsAutoFit = true;
     
     queue_draw();
+
+    if(ImageChangeCallback)
+        ImageChangeCallback();
 }
 
 void SuperViewer::SetBackground(Glib::RefPtr<Gdk::Pixbuf> background){
@@ -150,6 +153,9 @@ void SuperViewer::SetImage(std::shared_ptr<LoadedImage> alreadyloaded){
     IsAutoFit = true;
 
     queue_draw();
+
+    if(ImageChangeCallback)
+        ImageChangeCallback();
 }
 
 void SuperViewer::RemoveImage(){
@@ -162,6 +168,9 @@ void SuperViewer::RemoveImage(){
     IsImageReady = false;
 
     queue_draw();
+
+    if(ImageChangeCallback)
+        ImageChangeCallback();
 }
 // ------------------------------------ //
 bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
@@ -489,6 +498,10 @@ void SuperViewer::SetImageList(std::shared_ptr<ImageListScroll> list){
     ScrollableImages = list;
 }
 
+void SuperViewer::RegisterSetImageNotify(std::function<void ()> callback){
+
+    ImageChangeCallback = callback;
+}
 // ------------------------------------ //
 void SuperViewer::_AddRedrawTimer(int32_t ms){
 
