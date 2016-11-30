@@ -5,6 +5,8 @@
 
 #include "core/DualView.h"
 
+#include "core/components/ImageListScroll.h"
+
 using namespace DV;
 // ------------------------------------ //
 //#define PRINT_EXTRA_DEBUG
@@ -96,6 +98,8 @@ void SuperViewer::_CommonCtor(){
     if((int)Events & (int)ENABLED_EVENTS::MOVE_KEYS){
 
         add_events(Gdk::KEY_PRESS_MASK);
+        
+        set_can_focus(true);
 
         signal_key_press_event().connect(sigc::mem_fun(*this, &SuperViewer::_OnKeyPressed));
     }
@@ -460,20 +464,29 @@ void SuperViewer::OpenImageInNewWindow(){
     if(!DisplayedResource)
         return;
 
-    DualView::Get().OpenImageViewer(DisplayedResource);
+    DualView::Get().OpenImageViewer(DisplayedResource, ScrollableImages);
 }
 // ------------------------------------ //
 bool SuperViewer::MoveInCollection(bool forwards, bool wrap /*= true*/){
 
-    return false;
+    if(!ScrollableImages)
+        return false;
 
-    // if (ContainedInCollection == null || ViewedResource == null)
-    //     return;
+    LOG_INFO("SuperViewer: moving in collection");
 
-    // var next = ContainedInCollection.GetNextImage(ViewedResource, direction);
+    auto nextimage = forwards ? ScrollableImages->GetNextImage(DisplayedResource, wrap) :
+        ScrollableImages->GetPreviousImage(DisplayedResource, wrap);
 
-    // if (next != null)
-    //     ViewedResource = next;
+    if(!nextimage)
+        return false;
+
+    SetImage(nextimage);
+    return true;
+}
+
+void SuperViewer::SetImageList(std::shared_ptr<ImageListScroll> list){
+
+    ScrollableImages = list;
 }
 
 // ------------------------------------ //
@@ -631,13 +644,11 @@ bool SuperViewer::_OnKeyPressed(GdkEventKey* event){
     switch(event->keyval){
     case GDK_KEY_Left:
     {
-        LOG_WRITE("Left");
         MoveInCollection(false, true);
         return true;
     }
     case GDK_KEY_Right:
     {
-        LOG_WRITE("Right");
         MoveInCollection(true, true);
         return true;
     }

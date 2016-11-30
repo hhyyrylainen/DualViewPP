@@ -905,12 +905,13 @@ bool DualView::OpenImageViewer(const std::string &file){
 
     LOG_INFO("Opening single image for viewing: " + file);
 
-    OpenImageViewer(Image::Create(file));
+    OpenImageViewer(Image::Create(file), nullptr);
     return true;
 }
 
-void DualView::OpenImageViewer(std::shared_ptr<Image> image){
-
+void DualView::OpenImageViewer(std::shared_ptr<Image> image,
+    std::shared_ptr<ImageListScroll> scroll)
+{
     AssertIfNotMainThread();
 
     auto builder = Gtk::Builder::create_from_file(
@@ -929,7 +930,7 @@ void DualView::OpenImageViewer(std::shared_ptr<Image> image){
     _AddOpenWindow(wrapped, *window);
     wrapped->show();
     
-    wrapped->Open(image);
+    wrapped->Open(image, scroll);
 }
 
 void DualView::OpenSingleCollectionView(std::shared_ptr<Collection> collection){

@@ -34,6 +34,10 @@ CollectionListItem::CollectionListItem(const std::shared_ptr<ItemSelectable> &se
     ContextMenu.set_accel_path("<CollectionList-Item>/Right");
 
     ItemView.signal_activate().connect(sigc::mem_fun(*this, &CollectionListItem::_DoPopup));
+
+    // Set scroll
+    if(showncollection)
+        ImageIcon.SetImageList(showncollection);
 }
 // ------------------------------------ //
 void CollectionListItem::SetCollection(std::shared_ptr<Collection> collection){
@@ -42,6 +46,7 @@ void CollectionListItem::SetCollection(std::shared_ptr<Collection> collection){
 
     _SetImage(collection->GetPreviewIcon());
     _SetName(collection->GetName());
+    ImageIcon.SetImageList(collection);
 }
 // ------------------------------------ //
 void CollectionListItem::_DoPopup(){

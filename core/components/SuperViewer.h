@@ -12,6 +12,8 @@
 
 namespace DV{
 
+class ImageListScroll;
+
 //! If the widget size is below this value the viewer will go into thumbnail mode
 constexpr auto SUPER_THUMBNAIL_WIDTH_THRESHOLD = 250;
 //! If the widget size is below this value the viewer will go into thumbnail mode
@@ -75,6 +77,9 @@ public:
     //! \param forwards If true moves forwards, if false moves backwards
     //! \param wrap If true will continue from the first image if the end is reached
     bool MoveInCollection(bool forwards, bool wrap = true);
+
+    //! \brief Sets the list of images to move between
+    void SetImageList(std::shared_ptr<ImageListScroll> list);
 
     //! \brief Sets the image to show
     void SetImage(std::shared_ptr<Image> displayedResource);
@@ -173,6 +178,9 @@ private:
 
     //! If not empty this is drawn before the image
     Glib::RefPtr<Gdk::Pixbuf> Background;
+
+    //! List of images to move between when browse keys are pressed
+    std::shared_ptr<ImageListScroll> ScrollableImages;
 
     ENABLED_EVENTS Events;
 

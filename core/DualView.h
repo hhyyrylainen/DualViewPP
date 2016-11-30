@@ -26,6 +26,7 @@ class Folder;
 class AppliedTag;
 class Tag;
 class TagModifier;
+class ImageListScroll;
 
 class PluginManager;
 class CacheManager;
@@ -55,7 +56,8 @@ public:
     bool OpenImageViewer(const std::string &file);
 
     //! \brief Opens an image viewer for a file
-    void OpenImageViewer(std::shared_ptr<Image> image);
+    void OpenImageViewer(std::shared_ptr<Image> image,
+        std::shared_ptr<ImageListScroll> scroll);
 
     //! \brief Opens Collection viewer for collection
     void OpenSingleCollectionView(std::shared_ptr<Collection> collection);

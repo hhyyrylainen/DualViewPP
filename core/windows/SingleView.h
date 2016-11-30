@@ -13,6 +13,8 @@ class SuperViewer;
 class TagEditor;
 class Image;
 
+class ImageListScroll;
+
 //! \brief Window that shows a single image
 //! \note Whenever this receives an event OnTagsUpdated is called
 class SingleView : public BaseWindow, public Gtk::Window, public IsAlive,
@@ -24,7 +26,7 @@ public:
     ~SingleView();
     
     //! \brief Opens a window with an existing resource
-    void Open(std::shared_ptr<Image> image);
+    void Open(std::shared_ptr<Image> image, std::shared_ptr<ImageListScroll> scroll);
 
     //! \brief Updates the shown tags
     void OnTagsUpdated(Lock &guard);

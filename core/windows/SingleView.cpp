@@ -72,7 +72,7 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     //(Gdk::ModifierType)0);
 
     EditTagsButton.add_accelerator("clicked", get_accel_group(), GDK_KEY_T,
-        (Gdk::ModifierType)0, Gtk::ACCEL_VISIBLE);
+        Gdk::CONTROL_MASK, Gtk::ACCEL_VISIBLE);
 
 }
 
@@ -83,7 +83,7 @@ SingleView::~SingleView(){
     LOG_INFO("SingleView window destructed");
 }
 // ------------------------------------ //    
-void SingleView::Open(std::shared_ptr<Image> image){
+void SingleView::Open(std::shared_ptr<Image> image, std::shared_ptr<ImageListScroll> scroll){
 
     // Detach old image, if there is one //
     GUARD_LOCK();
@@ -91,6 +91,7 @@ void SingleView::Open(std::shared_ptr<Image> image){
     ReleaseParentHooks(guard);
 
     ImageView->SetImage(image);
+    ImageView->SetImageList(scroll);
     OnTagsUpdated(guard);
 }
 // ------------------------------------ //
