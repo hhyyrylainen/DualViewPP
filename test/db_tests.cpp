@@ -1087,7 +1087,64 @@ TEST_CASE("Tag suggestions", "[db][tags]"){
 
     // When there are tags like "humanoid figure" and "figure head" completion shouldn't
     // include "humanoid figure head"
-    CHECK(false);
+    SECTION("Multi word tag doesn't complete extra stuff"){
+
+        db.InsertTag("humanoid figure", "", TAG_CATEGORY::DESCRIBE_CHARACTER_OBJECT, false);
+        db.InsertTag("figure head", "", TAG_CATEGORY::DESCRIBE_CHARACTER_OBJECT, false);
+        db.InsertTag("head officer", "", TAG_CATEGORY::DESCRIBE_CHARACTER_OBJECT, false);
+
+        SECTION("first word"){
+            
+            auto suggestions = dv.GetSuggestionsForTag("humano");
+
+            CHECK(std::find(suggestions.begin(), suggestions.end(), "humanoid figure") !=
+                suggestions.end());
+
+            CHECK(std::find(suggestions.begin(), suggestions.end(), "figure head") ==
+                suggestions.end());
+
+            CHECK(std::find(suggestions.begin(), suggestions.end(), "head officer") ==
+                suggestions.end());
+        }
+
+        SECTION("Second word figure"){
+
+            auto suggestions = dv.GetSuggestionsForTag("humanoid fig");
+
+            CHECK(std::find(suggestions.begin(), suggestions.end(), "humanoid figure") !=
+                suggestions.end());
+
+            CHECK(std::find(suggestions.begin(), suggestions.end(), "figure head") ==
+                suggestions.end());
+
+            CHECK(std::find(suggestions.begin(), suggestions.end(), "head officer") ==
+                suggestions.end());
+
+            // This is most likely what is wrong
+            CHECK(std::find(suggestions.begin(), suggestions.end(), "humanoid figure head") ==
+                suggestions.end());
+        }
+
+        SECTION("Second word head"){
+
+            auto suggestions = dv.GetSuggestionsForTag("figure hea");
+
+            CHECK(std::find(suggestions.begin(), suggestions.end(), "humanoid figure") ==
+                suggestions.end());
+
+            CHECK(std::find(suggestions.begin(), suggestions.end(), "figure head") !=
+                suggestions.end());
+
+            CHECK(std::find(suggestions.begin(), suggestions.end(), "head officer") ==
+                suggestions.end());
+
+            // This is most likely what is wrong
+            CHECK(std::find(suggestions.begin(), suggestions.end(), "figure head officer") ==
+                suggestions.end());
+        }
+    }
+
+
 
 }
 
