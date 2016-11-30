@@ -34,6 +34,9 @@ public:
     //! \brief Sets tag editor visible or hides it
     void ToggleTagEditor();
 
+    //! \brief Called to update the current image number in Collection
+    void UpdateImageNumber();
+
     //! \brief Called when the shown image changes properties
     void OnNotified(Lock &ownlock, Leviathan::BaseNotifierAll* parent, Lock &parentlock)
         override;
@@ -45,6 +48,7 @@ protected:
 private:
 
     SuperViewer* ImageView;
+    std::shared_ptr<ImageListScroll> InCollection;
 
     TagEditor* ImageTags;
     

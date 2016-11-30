@@ -6,6 +6,7 @@
 
 #include "core/components/SuperViewer.h"
 #include "core/components/TagEditor.h"
+#include "core/components/ImageListScroll.h"
 
 #include "Exceptions.h"
 #include "DualView.h"
@@ -90,8 +91,16 @@ void SingleView::Open(std::shared_ptr<Image> image, std::shared_ptr<ImageListScr
     
     ReleaseParentHooks(guard);
 
+    InCollection = scroll;
+
     ImageView->SetImage(image);
     ImageView->SetImageList(scroll);
+    ImageView->RegisterSetImageNotify([&]()
+        {
+            UpdateImageNumber();
+        });
+
+    UpdateImageNumber();
     OnTagsUpdated(guard);
 }
 // ------------------------------------ //
@@ -152,6 +161,43 @@ void SingleView::OnTagsUpdated(Lock &guard){
                     });
             });
     }
+}
+
+void SingleView::UpdateImageNumber(){
+
+    DualView::IsOnMainThreadAssert();
+
+    auto img = ImageView->GetImage();
+
+    std::string title;
+
+    if(!InCollection || !img){
+
+        title = img ? img->GetName() : std::string("no image open");
+        
+    } else {
+
+        // img is valig here
+        const auto desc = InCollection->GetDescriptionStr();
+        
+        if(InCollection->SupportsRandomAccess() && InCollection->HasCount()){
+
+            std::stringstream stream;
+            stream << (InCollection->GetImageIndex(*img) + 1) << "/" <<
+                InCollection->GetCount() << " in " << desc << " image: " << img->GetName();
+            
+            title = stream.str();
+            
+        } else {
+
+            std::stringstream stream;
+            stream << "image in " << desc << " image: " << img->GetName();
+            
+            title = stream.str();
+        }
+    }
+
+    set_title(title + " | DualView++");
 }
 // ------------------------------------ //
 void SingleView::_OnClose(){
