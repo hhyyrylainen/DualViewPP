@@ -129,7 +129,7 @@ Tag::~Tag(){
 
 void Tag::AddAlias(const std::string alias){
 
-    if (alias.empty())
+    if(alias.empty())
         return;
         
     if(!IsInDatabase())
@@ -144,6 +144,17 @@ void Tag::RemoveAlias(const std::string alias){
         throw Leviathan::InvalidState("Tag not loaded from database");
 
     InDatabase->DeleteTagAlias(*this, alias);
+}
+
+void Tag::AddImpliedTag(std::shared_ptr<Tag> imply){
+
+    if(!imply)
+        return;
+        
+    if(!IsInDatabase())
+        return;
+
+    InDatabase->InsertTagImply(*this, *imply);
 }
 
 std::vector<std::shared_ptr<Tag>> Tag::GetImpliedTags() const{

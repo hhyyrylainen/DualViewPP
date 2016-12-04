@@ -140,6 +140,8 @@ public:
 
     std::vector<std::shared_ptr<Tag>> GetImpliedTags() const;
 
+    void AddImpliedTag(std::shared_ptr<Tag> imply);
+
 
 protected:
 
