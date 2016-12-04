@@ -15,6 +15,8 @@
 #include "Database.h"
 #include "Common.h"
 
+#include "leviathan/Common/StringOperations.h"
+
 #include <boost/filesystem.hpp>
 
 using namespace DV;
@@ -152,7 +154,8 @@ void Importer::FindContent(const std::string &path, bool recursive /*= false*/){
     }
 
     // Set the target collection //
-    LOG_INFO("TODO: set the target collection");
+    if(CollectionName->get_text().empty())
+        CollectionName->set_text(Leviathan::StringOperations::RemovePath(path));
 
     // Loop contents //
     if(recursive){
@@ -240,7 +243,6 @@ void Importer::UpdateReadyStatus(){
     if(DoingImport){
 
         StatusLabel->set_text("Import in progress...");
-        // TODO: set things not sensitive, so they are read only
         set_sensitive(false);
         return;
     }
@@ -356,6 +358,9 @@ void Importer::_OnImportFinished(bool success){
     ReportedProgress = 1.f;
     _OnImportProgress();
 
+    // Wait for the thread, to avoid asserting
+    ImportThread.join();
+
     // Remove images if succeeded //
     if(success){
 
@@ -396,15 +401,26 @@ void Importer::_OnImportFinished(bool success){
         
     } else {
 
-        LOG_INFO("TODO: popup error box");
+        auto dialog = Gtk::MessageDialog(*this,
+            "Failed to import selected images",
+            false,
+            Gtk::MESSAGE_ERROR,
+            Gtk::BUTTONS_OK,
+            true 
+        );
+
+        dialog.set_secondary_text("Please check the log for more specific errors.");
+        dialog.run();
+
+        // Unlock
+        DoingImport = false;
+        UpdateReadyStatus();
+        
+        return;
     }
     
     // Reset variables //
     SelectedImages.clear();
-    
-    
-    // Wait for the thread, to avoid asserting
-    ImportThread.join();
     
     // Unlock
     DoingImport = false;
