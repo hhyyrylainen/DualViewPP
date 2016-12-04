@@ -448,6 +448,22 @@ TEST_CASE("Directly using database for tag creating", "[db][tags]"){
 
         CHECK(!db.SelectTagByAliasAG("test"));
     }
+
+
+    SECTION("Tag with imply"){
+
+        auto tag = db.InsertTag("test tag", "tag for testing", TAG_CATEGORY::META, false);
+
+        REQUIRE(tag);
+
+        tag->AddImpliedTag(db.SelectTagByNameAG("captions"));
+
+        auto implied = tag->GetImpliedTags();
+
+        REQUIRE(implied.size() == 1);
+
+        CHECK(implied[0]->GetName() == "captions");
+    }
     
 }
 

@@ -7,6 +7,8 @@
 #include "core/DualView.h"
 #include "core/Database.h"
 
+#include "leviathan/Common/StringOperations.h"
+
 using namespace DV;
 // ------------------------------------ //
 TagManager::TagManager(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
@@ -170,9 +172,34 @@ void TagManager::CreateNewTag(){
     TAG_CATEGORY category = static_cast<TAG_CATEGORY>(static_cast<int32_t>(categoryNumber));
     bool isprivate = NewTagPrivate->get_active();
 
+    std::vector<std::string> newaliases;
+    Leviathan::StringOperations::CutLines<std::string>(
+        NewTagAliases->get_buffer()->get_text(), newaliases);
+
+    std::vector<std::string> newimplies;
+    Leviathan::StringOperations::CutLines<std::string>(
+        NewTagImplies->get_buffer()->get_text(), newimplies);
+
     auto isalive = GetAliveMarker();
     
     DualView::Get().QueueDBThreadFunction([=](){
+
+            // Find implies //
+            std::vector<std::shared_ptr<Tag>> implytags;
+
+            for(const auto& imply : newimplies){
+
+                auto foundtag = DualView::Get().GetDatabase().SelectTagByNameOrAlias(imply);
+
+                if(!foundtag){
+
+                    LOG_ERROR("Failed to create new tag, because implied tag doesn't exist: "
+                        + imply);
+                    return;
+                }
+
+                implytags.push_back(foundtag);
+            }
 
             try{
                 
@@ -181,14 +208,20 @@ void TagManager::CreateNewTag(){
 
                 if(!tag)
                     throw InvalidSQL("got null back from database", 1, "");
+
+                // Aliases //
+                for(const auto& alias : newaliases)
+                    tag->AddAlias(alias);
+                
+                // Implies //
+                for(const auto& imply : implytags)
+                    tag->AddImpliedTag(imply);
                 
             } catch(const InvalidSQL &e){
 
                 LOG_ERROR("Failed to create new tag: " + std::string(e.what()));
                 return;
             }
-
-            LOG_WRITE("TODO: implies");
             
             DualView::Get().InvokeFunction([this, isalive](){
 
