@@ -239,6 +239,19 @@ void DownloadJob::DoDownload(DownloadManager &manager){
         
         // Download finished successfully
 
+        // Check HTTP result code
+        long httpcode = 0;
+        
+        curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &httpcode);
+        
+        if(httpcode != 200){
+
+            LOG_ERROR("received HTTP error code: " + Convert::ToString(httpcode) +
+                " from url" + URL);
+            HandleError();
+            return;
+        }
+
         // Get content type
         char* contentptr = nullptr;
         
@@ -247,6 +260,8 @@ void DownloadJob::DoDownload(DownloadManager &manager){
         {
             DownloadedContentType = std::string(contentptr);
         }
+
+
         
         HandleContent();
         return;
