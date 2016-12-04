@@ -612,9 +612,14 @@ void DownloadSetup::_UpdateWidgetStates(){
         SelectAllImagesButton->set_sensitive(true);
         
     } else {
+
+        // We want to be able to change the folder and edit tags while scanning //
+        if(State != STATE::SCANNING_PAGES){
+
+            TargetFolder->set_sensitive(false);
+            CollectionTagEditor->set_sensitive(false);
+        }
         
-        TargetFolder->set_sensitive(false);
-        CollectionTagEditor->set_sensitive(false);
         CurrentImageEditor->set_sensitive(false);
         CurrentImage->set_sensitive(false);
         OKButton->set_sensitive(false);
