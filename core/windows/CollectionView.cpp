@@ -97,22 +97,23 @@ void CollectionView::OnFolderChanged(){
             loadedresources->insert(std::end(*loadedresources), std::begin(collections),
                 std::end(collections));
 
-            DualView::Get().InvokeFunction([this, isalive, loadedresources](){
+            auto changefolder = std::make_shared<ItemSelectable>();
+
+            changefolder->AddFolderSelect([this](ListItem &item){
+
+                    FolderListItem* asfolder = dynamic_cast<FolderListItem*>(&item);
+
+                    if(!asfolder)
+                        return;
+
+                    MoveToSubfolder(asfolder->GetFolder()->GetName());
+                });
+
+            DualView::Get().InvokeFunction([this, isalive, loadedresources, changefolder](){
 
                     INVOKE_CHECK_ALIVE_MARKER(isalive);
 
-                    auto changefolder = std::make_shared<ItemSelectable>();
-
-                    changefolder->AddFolderSelect([this](ListItem &item){
-
-                            FolderListItem* asfolder = dynamic_cast<FolderListItem*>(&item);
-
-                            if(!asfolder)
-                                return;
-
-                            MoveToSubfolder(asfolder->GetFolder()->GetName());
-                        });
-
+                    // TODO: try to optimize this somehow
                     Container->SetShownItems(loadedresources->begin(), loadedresources->end(),
                         changefolder);
                 });
