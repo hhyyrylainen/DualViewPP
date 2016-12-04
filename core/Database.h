@@ -347,6 +347,10 @@ public:
     //! \brief Deletes a tag alias if it is an alias for tag
     void DeleteTagAlias(const Tag &tag, const std::string &alias);
 
+    //! \brief Adds an alias to a tag
+    //! \returns True if added, false if the alias is already in use
+    bool InsertTagImply(Tag &tag, const Tag &implied);
+
     //! \brief Returns the tags implied by tag
     std::vector<std::shared_ptr<Tag>> SelectTagImpliesAsTag(const Tag &tag);
 
