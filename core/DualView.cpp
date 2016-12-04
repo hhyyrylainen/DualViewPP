@@ -855,7 +855,12 @@ bool DualView::MoveFileToCollectionFolder(std::shared_ptr<Image> img,
     try{
         if(move){
 
-            boost::filesystem::rename(img->GetResourcePath(), finalPath);
+            if(!MoveFile(img->GetResourcePath(), finalPath)){
+
+                LOG_ERROR("Failed to move file to collection: " + img->GetResourcePath()
+                    + " -> " + finalPath);
+                return false;
+            }
         
         } else {
 
@@ -877,6 +882,42 @@ bool DualView::MoveFileToCollectionFolder(std::shared_ptr<Image> img,
         _CacheManager->NotifyMovedFile(img->GetResourcePath(), finalPath);
 
     img->SetResourcePath(finalPath);
+    return true;
+}
+
+bool DualView::MoveFile(const std::string &original, const std::string &targetname){
+
+    // First try renaming //
+    try{
+        boost::filesystem::rename(original, targetname);
+
+        // Renaming succeeded //
+        return true;
+
+    } catch(const boost::filesystem::filesystem_error &){
+
+    }
+
+    // Rename failed, we need to copy the file and delete the original //
+    try{
+
+        boost::filesystem::copy_file(original, targetname);
+
+        // Make sure copy worked before deleting original //
+        if(boost::filesystem::file_size(original) != boost::filesystem::file_size(targetname)){
+
+            LOG_ERROR("File copy: new file is of different size");
+            return false;
+        }
+
+        boost::filesystem::remove(original);
+            
+    } catch(const boost::filesystem::filesystem_error &){
+        
+        // Failed //
+        throw;
+    }
+    
     return true;
 }
 // ------------------------------------ //

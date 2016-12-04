@@ -138,6 +138,15 @@ public:
     bool MoveFileToCollectionFolder(std::shared_ptr<Image> img,
         std::shared_ptr<Collection> collection, bool move);
 
+    //! \brief Function for moving files.
+    //!
+    //! This is used because boost::filesystem::rename doesn't work for files on different
+    //! hard drives
+    //! \note targetname will be overwritten if it exists already
+    //! \returns False if cannot move
+    //! \exception boost::filesystem::filesystem_error When something is badly wrong
+    static bool MoveFile(const std::string &original, const std::string &targetname);
+
     //! \brief Returns true if file extension is in SUPPORTED_EXTENSIONS
     static bool IsFileContent(const std::string &file);
 
