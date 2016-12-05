@@ -717,6 +717,24 @@ bool Database::InsertImageToCollection(Collection &collection, Image &image,
     return changes == 1;
 }
 
+bool Database::SelectIsImageInAnyColllection(const Image &image){
+
+    GUARD_LOCK();
+
+    const char str[] = "SELECT 1 FROM collection_image WHERE image = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(image.GetID());
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return true;
+    }
+
+    return false;
+}
+
 bool Database::DeleteImageFromCollection(Collection &collection, Image &image){
 
     if(!collection.IsInDatabase() || !image.IsInDatabase())
@@ -734,7 +752,7 @@ bool Database::DeleteImageFromCollection(Collection &collection, Image &image){
 
     const auto changes = sqlite3_changes(SQLiteDb);
 
-    LEVIATHAN_ASSERT(changes <= 1, "InsertImageToCollection changed more than one row");
+    LEVIATHAN_ASSERT(changes <= 1, "DeleteImageFromCollection changed more than one row");
 
     return changes == 1;
 }

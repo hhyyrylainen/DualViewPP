@@ -12,6 +12,7 @@ namespace DV{
 class SuperContainer;
 class Collection;
 class TagEditor;
+class Image;
 
 //! \brief Window that shows a single Collection
 class SingleCollection : public BaseWindow, public Gtk::Window, public IsAlive,
@@ -34,6 +35,9 @@ public:
     //! \brief Called when an image is added or removed from the collection
     void OnNotified(Lock &ownlock, Leviathan::BaseNotifierAll* parent, Lock &parentlock)
         override;
+
+    //! \brief Returns all selected images
+    std::vector<std::shared_ptr<Image>> GetSelected() const;
     
 protected:
 

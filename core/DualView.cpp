@@ -1310,7 +1310,23 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
 
     return true;
 }
+// ------------------------------------ //
+void DualView::RemoveImageFromCollection(std::shared_ptr<Image> resource,
+    std::shared_ptr<Collection> collection)
+{
+    if(!resource || !collection)
+        return;
+    
+    _Database->DeleteImageFromCollection(*collection, *resource);
 
+    // Add to uncategorized //
+    if(!_Database->SelectIsImageInAnyColllection(*resource)){
+
+        LOG_INFO("Adding removed image to Uncategorized");
+        GetUncategorized()->AddImage(resource);
+    }
+}
+// ------------------------------------ //
 std::shared_ptr<Collection> DualView::GetOrCreateCollection(const std::string &name,
     bool isprivate)
 {

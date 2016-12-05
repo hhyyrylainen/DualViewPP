@@ -197,6 +197,11 @@ public:
     //! random
     bool InsertImageToCollection(Collection &collection, Image &image, int64_t showorder);
 
+    //! \brief Returns true if image is in some collection.
+    //!
+    //! If false it should be added to one otherwise it cannot be viewed
+    bool SelectIsImageInAnyColllection(const Image &image);
+
     //! \brief Removes an image from the collection
     //! \returns True if removed. False if the image wasn't in the collection
     bool DeleteImageFromCollection(Collection &collection, Image &image);

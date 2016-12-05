@@ -136,34 +136,52 @@ void SingleCollection::ToggleTagEditor(){
     }
 }
 
-void SingleCollection::_OnDeleteSelected(){
-    
-    GUARD_LOCK();
-
-    std::vector<std::shared_ptr<ResourceWithPreview>> items;
-    ImageContainer->GetSelectedItems(items);
-    
-    
-    
-    
-    ReloadImages(guard);
-}
-
-void SingleCollection::_OnOpenSelectedInImporter(){
+std::vector<std::shared_ptr<Image>> SingleCollection::GetSelected() const{
 
     std::vector<std::shared_ptr<ResourceWithPreview>> items;
     ImageContainer->GetSelectedItems(items);
 
     std::vector<std::shared_ptr<Image>> imgs;
+    imgs.reserve(items.size());
 
-    for(const auto &i : items){
+    for(const auto& i : items){
 
         auto casted = std::dynamic_pointer_cast<Image>(i);
 
         if(casted)
             imgs.push_back(casted);
     }
+
+    return imgs;
+}
+
+void SingleCollection::_OnDeleteSelected(){
     
-    DualView::Get().OpenImporter(imgs);
+    auto isalive = GetAliveMarker();
+    const auto images = GetSelected();
+    const auto collection = ShownCollection;
+
+    if(!collection)
+        return;
+        
+    DualView::Get().QueueDBThreadFunction([=](){
+
+            for(const auto& image : images)
+                DualView::Get().RemoveImageFromCollection(image, collection);
+
+            DualView::Get().InvokeFunction([=](){
+
+                    INVOKE_CHECK_ALIVE_MARKER(isalive);
+
+                    GUARD_LOCK();
+
+                    ReloadImages(guard);
+                });
+        });
+}
+
+void SingleCollection::_OnOpenSelectedInImporter(){
+
+    DualView::Get().OpenImporter(GetSelected());
 }
 

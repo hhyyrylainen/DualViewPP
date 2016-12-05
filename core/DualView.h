@@ -168,6 +168,10 @@ public:
         std::string collectionname, const TagCollection &addcollectiontags,
         std::function<void(float)> progresscallback = nullptr);
 
+    //! \brief Removes an Image from Collection and makes sure it is at least in Uncategorized
+    void RemoveImageFromCollection(std::shared_ptr<Image> resource,
+        std::shared_ptr<Collection> collection);
+
     //! \brief Retrieves a Collection from the database by name
     std::shared_ptr<Collection> GetOrCreateCollection(const std::string &name, bool isprivate);
 
