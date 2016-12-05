@@ -318,6 +318,31 @@ bool Importer::StartImporting(bool move){
     // Set progress //
     ReportedProgress = 0.01f;
     _OnImportProgress();
+
+    // Require confirmation if adding to uncategorized //
+    if(CollectionName->get_text().empty()){
+
+        auto dialog = Gtk::MessageDialog(*this,
+            "Import to Uncategorized?",
+            false,
+            Gtk::MESSAGE_QUESTION,
+            Gtk::BUTTONS_YES_NO,
+            true 
+        );
+
+        dialog.set_secondary_text("Importing to Uncategorized makes finding images "
+            "later more difficult.");
+        int result = dialog.run();
+
+        if(result != Gtk::RESPONSE_YES){
+
+            ReportedProgress = 1.f;
+            _OnImportProgress();
+            DoingImport = false;
+            return false;
+        }
+    }
+    
     
     // Run import in a new thread //
     ImportThread = std::thread(&Importer::_RunImportThread, this, CollectionName->get_text(),
@@ -394,7 +419,8 @@ void Importer::_OnImportFinished(bool success){
         CollectionTags->Clear();
         CollectionTagsEditor->ReadSetTags();
 
-        CollectionName->set_text("");
+        if(ImagesToImport.empty())
+            CollectionName->set_text("");
 
         // Reset target folder //
         TargetFolder->GoToRoot();
