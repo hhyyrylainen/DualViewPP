@@ -35,6 +35,9 @@ public:
     //! If the path refers to a folder no subdirectories are searched, unless recursive is true
     void FindContent(const std::string &path, bool recursive = false);
 
+    //! \brief Adds existing database images to this Importer
+    void AddExisting(const std::vector<std::shared_ptr<Image>> &images);
+
     //! \brief Updates the status label based on selected images
     void UpdateReadyStatus();
 

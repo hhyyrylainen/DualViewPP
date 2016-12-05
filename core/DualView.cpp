@@ -305,7 +305,7 @@ void DualView::_OnInstanceLoaded(){
     LEVIATHAN_ASSERT(OpenImporter, "Invalid .glade file");
 
     OpenImporter->signal_clicked().connect(
-        sigc::mem_fun(*this, &DualView::OpenImporter));
+        sigc::mem_fun<void>(*this, &DualView::OpenImporter));
 
     Gtk::Button* OpenTags = nullptr;
     MainBuilder->get_widget("OpenTags", OpenTags);
@@ -1014,6 +1014,31 @@ void DualView::OpenImporter(){
     }
 
     LOG_INFO("Opened Importer window");
+
+    std::shared_ptr<Importer> wrapped(window);
+    _AddOpenWindow(wrapped, *window);
+    wrapped->show();
+}
+
+void DualView::OpenImporter(const std::vector<std::shared_ptr<Image>> &images){
+
+    AssertIfNotMainThread();
+
+    auto builder = Gtk::Builder::create_from_file(
+        "../gui/importer.glade");
+
+    Importer* window;
+    builder->get_widget_derived("FileImporter", window);
+
+    if(!window){
+
+        LOG_ERROR("Importer window GUI layout is invalid");
+        return;
+    }
+
+    window->AddExisting(images);
+
+    LOG_INFO("Opened Importer window with images");
 
     std::shared_ptr<Importer> wrapped(window);
     _AddOpenWindow(wrapped, *window);

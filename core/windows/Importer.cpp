@@ -214,6 +214,16 @@ void Importer::_UpdateImageList(){
         std::make_shared<ItemSelectable>(
             std::bind(&Importer::OnItemSelected, this, std::placeholders::_1)));
 }
+
+void Importer::AddExisting(const std::vector<std::shared_ptr<Image>> &images){
+
+    ImagesToImport.reserve(ImagesToImport.size() + images.size());
+
+    for(const auto &image : images)
+        ImagesToImport.push_back(image);
+    
+    _UpdateImageList();
+}
 // ------------------------------------ //    
 bool Importer::_OnClosed(GdkEventAny* event){
 

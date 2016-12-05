@@ -71,6 +71,9 @@ public:
     //! \brief Opens an empty Importer
     void OpenImporter();
 
+    //! \brief Opens an Importer with specified database images
+    void OpenImporter(const std::vector<std::shared_ptr<Image>> &images);
+
     //! \brief Opens the Downloader
     void OpenDownloader();
 

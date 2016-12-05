@@ -37,6 +37,9 @@ public:
     
 protected:
 
+    void _OnDeleteSelected();
+    void _OnOpenSelectedInImporter();
+
     void _OnClose() override;
     
 private:
@@ -45,6 +48,8 @@ private:
     
     TagEditor* CollectionTags;
     Gtk::ToolButton* OpenTagEdit;
+    Gtk::ToolButton* DeleteSelected;
+    Gtk::ToolButton* OpenSelectedImporter;
     
     Gtk::Label* StatusLabel;
 

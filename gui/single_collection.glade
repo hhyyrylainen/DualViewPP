@@ -58,7 +58,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkToolButton">
+              <object class="GtkToolButton" id="DeleteSelected">
                 <property name="visible">True</property>
                 <property name="sensitive">False</property>
                 <property name="can_focus">False</property>
@@ -66,6 +66,21 @@
                 <property name="label" translatable="yes">Delete Selected</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-delete</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkToolButton" id="OpenSelectedImporter">
+                <property name="visible">True</property>
+                <property name="sensitive">False</property>
+                <property name="can_focus">False</property>
+                <property name="is_important">True</property>
+                <property name="label" translatable="yes">Open Selected in Importer</property>
+                <property name="use_underline">True</property>
+                <property name="stock_id">gtk-save-as</property>
               </object>
               <packing>
                 <property name="expand">False</property>

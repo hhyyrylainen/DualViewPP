@@ -32,6 +32,16 @@ SingleCollection::SingleCollection(_GtkWindow* window, Glib::RefPtr<Gtk::Builder
 
     OpenTagEdit->signal_clicked().connect(sigc::mem_fun(*this,
             &SingleCollection::ToggleTagEditor));
+
+    BUILDER_GET_WIDGET(DeleteSelected);
+
+    DeleteSelected->signal_clicked().connect(sigc::mem_fun(*this,
+            &SingleCollection::_OnDeleteSelected));
+    
+    BUILDER_GET_WIDGET(OpenSelectedImporter);
+
+    OpenSelectedImporter->signal_clicked().connect(sigc::mem_fun(*this,
+            &SingleCollection::_OnOpenSelectedInImporter));
 }
 
 SingleCollection::~SingleCollection(){
@@ -90,7 +100,15 @@ void SingleCollection::ReloadImages(Lock &guard){
 
                     INVOKE_CHECK_ALIVE_MARKER(isalive);
 
-                    ImageContainer->SetShownItems(images.begin(), images.end());
+                    ImageContainer->SetShownItems(images.begin(), images.end(),
+                        std::make_shared<ItemSelectable>([=](ListItem &item){
+
+                                bool hasselected = ImageContainer->CountSelectedItems() > 0;
+
+                                // Enable buttons //
+                                DeleteSelected->set_sensitive(hasselected);
+                                OpenSelectedImporter->set_sensitive(hasselected);
+                            }));
                         
                     StatusLabel->set_text("Collection \"" + collection->GetName() +
                         "\" Has " + Convert::ToString(images.size()) + " Images");
@@ -116,5 +134,36 @@ void SingleCollection::ToggleTagEditor(){
         CollectionTags->SetEditedTags({
                 ShownCollection ? ShownCollection->GetTags() : nullptr });
     }
+}
+
+void SingleCollection::_OnDeleteSelected(){
+    
+    GUARD_LOCK();
+
+    std::vector<std::shared_ptr<ResourceWithPreview>> items;
+    ImageContainer->GetSelectedItems(items);
+    
+    
+    
+    
+    ReloadImages(guard);
+}
+
+void SingleCollection::_OnOpenSelectedInImporter(){
+
+    std::vector<std::shared_ptr<ResourceWithPreview>> items;
+    ImageContainer->GetSelectedItems(items);
+
+    std::vector<std::shared_ptr<Image>> imgs;
+
+    for(const auto &i : items){
+
+        auto casted = std::dynamic_pointer_cast<Image>(i);
+
+        if(casted)
+            imgs.push_back(casted);
+    }
+    
+    DualView::Get().OpenImporter(imgs);
 }
 
