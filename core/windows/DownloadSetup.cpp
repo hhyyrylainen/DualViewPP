@@ -412,6 +412,35 @@ void DownloadSetup::OnURLChanged(){
                             UrlCheckFinished(false, "URL scanning failed");
                             return;
                         }
+
+                        // Set tags //
+                        ScanResult& result = scan->GetResult();
+                        if(!result.PageTags.empty()){
+
+                            LOG_INFO("DownloadSetup parsing tags, count: " +
+                                Convert::ToString(result.PageTags.size()));
+
+                            for(const auto& ptag : result.PageTags){
+
+                                try{
+                                
+                                    const auto tag = DualView::Get().ParseTagFromString(ptag);
+
+                                    if(!tag)
+                                        throw Leviathan::InvalidArgument("");
+
+                                    CollectionTags->Add(tag);
+                                
+                                } catch(const Leviathan::InvalidArgument&){
+
+                                    LOG_WARNING("DownloadSetup: unknown tag: " + ptag);
+                                    continue;
+                                }
+                            }
+                        }
+
+                        // Force rereading properties //
+                        CollectionTagEditor->ReadSetTags();
                 
                         DetectedSettings->set_text("All Good");
                         UrlCheckFinished(true, "");
