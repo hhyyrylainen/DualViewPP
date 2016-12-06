@@ -167,7 +167,7 @@ bool InternetImage::SaveFileToDisk(Lock &guard){
 // ------------------------------------ //
 // DownloadLoadedImage
 DownloadLoadedImage::DownloadLoadedImage(bool thumb) :
-    LoadedImage("DownloadLoaedImage"), Thumb(thumb)
+    LoadedImage("DownloadLoadedImage"), Thumb(thumb)
 {
     
 }

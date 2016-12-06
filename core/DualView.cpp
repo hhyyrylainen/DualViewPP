@@ -39,6 +39,7 @@
 
 #include <cryptopp/sha.h>
 
+
 #include "third_party/base64.h"
 
 using namespace DV;
@@ -247,7 +248,7 @@ void DualView::_OnInstanceLoaded(){
     if(!_Logger){
         
         std::cerr << "Logger creation failed" << std::endl;
-        abort();
+        throw Leviathan::InvalidState("Log opening failed");
         return;
     }
     

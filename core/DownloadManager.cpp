@@ -303,6 +303,7 @@ void PageScanJob::HandleContent(){
     LOG_INFO("PageScanJob scanning links with: " + std::string(scanner->GetName()));
 
     Result = scanner->ScanSite(DownloadBytes, URL, DownloadedContentType);
+    
 
     // Copy result //
     Result.PrintInfo();

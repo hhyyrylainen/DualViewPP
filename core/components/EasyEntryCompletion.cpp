@@ -33,7 +33,7 @@ void EasyEntryCompletion::Init(Gtk::Entry* entry,
 
     GetSuggestions = getsuggestions;
 
-    LEVIATHAN_ASSERT(EntryWithSuggestions, "EasyEntryCompletion: got null suggestion "
+    LEVIATHAN_ASSERT(GetSuggestions, "EasyEntryCompletion: got null suggestion "
         "retrieve function");
 
     OnSelected = onselected;
