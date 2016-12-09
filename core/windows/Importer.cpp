@@ -466,6 +466,21 @@ void Importer::_OnImportFinished(bool success){
 
         // Reset target folder //
         TargetFolder->GoToRoot();
+
+        // Delete empty folders //
+        for(auto iter = FoldersToDelete.begin(); iter != FoldersToDelete.end(); ){
+
+            if(boost::filesystem::is_empty(*iter) && boost::filesystem::is_directory(*iter)){
+
+                LOG_INFO("Importer: deleting empty folder: " + *iter);
+                boost::filesystem::remove(*iter);
+                iter = FoldersToDelete.erase(iter);
+                
+            } else {
+
+                ++iter;
+            }
+        }
         
     } else {
 
