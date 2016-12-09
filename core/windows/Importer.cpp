@@ -132,6 +132,19 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     // Create the collection tag holder
     CollectionTags = std::make_shared<TagCollection>();
     CollectionTagsEditor->SetEditedTags({ CollectionTags });
+
+
+    BUILDER_GET_WIDGET(DeselectCurrentImage);
+    DeselectCurrentImage->signal_clicked().connect(sigc::mem_fun(*this,
+            &Importer::_OnDeselectCurrent));
+    
+    BUILDER_GET_WIDGET(BrowseForward);
+    BrowseForward->signal_clicked().connect(sigc::mem_fun(*this,
+            &Importer::_OnSelectNext));
+
+    BUILDER_GET_WIDGET(BrowseBack);
+    BrowseBack->signal_clicked().connect(sigc::mem_fun(*this,
+            &Importer::_OnSelectPrevious));
 }
 
 Importer::~Importer(){
@@ -314,8 +327,27 @@ void Importer::OnItemSelected(ListItem &item){
     UpdateReadyStatus();
 }
 // ------------------------------------ //
-bool Importer::StartImporting(bool move){
+void Importer::_OnDeselectCurrent(){
 
+    ImageList->DeselectFirstItem();
+    UpdateReadyStatus();
+}
+
+void Importer::_OnSelectNext(){
+    
+    ImageList->SelectNextItem();
+    UpdateReadyStatus();
+}
+
+void Importer::_OnSelectPrevious(){
+
+    ImageList->SelectPreviousItem();
+    UpdateReadyStatus();
+}
+
+// ------------------------------------ //
+bool Importer::StartImporting(bool move){
+    
     bool expected = false;
     if(!DoingImport.compare_exchange_weak(expected, true,
             std::memory_order_release, std::memory_order_relaxed))

@@ -179,6 +179,9 @@ public:
     //! \brief Deselects all items except the specified one
     void DeselectAllExcept(const ListItem* item);
 
+    //! \brief Deselects the first selected item
+    void DeselectFirstItem();
+
     //! \brief Selects the first item
     void SelectFirstItem();
 

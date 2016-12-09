@@ -193,6 +193,22 @@ void SuperContainer::DeselectAllExcept(const ListItem* item){
     }
 }
 
+void SuperContainer::DeselectFirstItem(){
+
+    for(auto& position : Positions){
+
+        // Stop once empty position is reached //
+        if(!position.WidgetToPosition)
+            break;
+
+        if(position.WidgetToPosition->Widget->IsSelected()){
+
+            position.WidgetToPosition->Widget->Deselect();
+            return;
+        }
+    }
+}
+
 void SuperContainer::SelectFirstItem(){
 
     for(auto& position : Positions){

@@ -324,7 +324,7 @@
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
                                 <child>
-                                  <object class="GtkButton">
+                                  <object class="GtkButton" id="DeselectCurrentImage">
                                     <property name="label" translatable="yes">Deselect</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
@@ -337,13 +337,14 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkButton">
+                                  <object class="GtkButton" id="BrowseBack">
                                     <property name="label">gtk-go-back</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="receives_default">True</property>
                                     <property name="use_stock">True</property>
                                     <property name="always_show_image">True</property>
+                                    <accelerator key="Left" signal="clicked" modifiers="GDK_MOD1_MASK"/>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>
@@ -352,7 +353,7 @@
                                   </packing>
                                 </child>
                                 <child>
-                                  <object class="GtkButton">
+                                  <object class="GtkButton" id="BrowseForward">
                                     <property name="label">gtk-go-forward</property>
                                     <property name="visible">True</property>
                                     <property name="can_focus">True</property>
@@ -360,6 +361,7 @@
                                     <property name="use_stock">True</property>
                                     <property name="image_position">right</property>
                                     <property name="always_show_image">True</property>
+                                    <accelerator key="Right" signal="clicked" modifiers="GDK_MOD1_MASK"/>
                                   </object>
                                   <packing>
                                     <property name="expand">False</property>

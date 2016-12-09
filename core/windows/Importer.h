@@ -85,6 +85,10 @@ protected:
     
     void OnItemSelected(ListItem &item);
 
+    void _OnDeselectCurrent();
+    void _OnSelectNext();
+    void _OnSelectPrevious();
+
 protected:
 
     SuperViewer* PreviewImage;
@@ -103,7 +107,14 @@ protected:
     Gtk::CheckButton* RemoveAfterAdding;
     Gtk::CheckButton* DeleteImportFoldersIfEmpty;
 
+    // Selection move buttons
+    Gtk::Button* DeselectCurrentImage;
+    Gtk::Button* BrowseForward;
+    Gtk::Button* BrowseBack;
+
     Gtk::LevelBar* ProgressBar;
+
+
     
     std::atomic<bool> DoingImport = { false };
     std::thread ImportThread;
