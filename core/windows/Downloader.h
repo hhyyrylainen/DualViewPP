@@ -20,6 +20,8 @@ struct DownloadProgressState;
 
 //! \brief Window that has all the download objects
 //! and also implements the download algorithm
+//! \todo Improve handling of failed downloads. Right now this will probably redownload
+//! all images after failing
 class Downloader : public Gtk::Window, public IsAlive, public Leviathan::BaseNotifiableAll{
     
     friend DownloadProgressState;

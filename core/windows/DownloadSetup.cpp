@@ -96,6 +96,22 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     SelectAllImagesButton->signal_clicked().connect(sigc::mem_fun(*this,
             &DownloadSetup::SelectAllImages));
 
+    BUILDER_GET_WIDGET(ImageSelectPageAll);
+    ImageSelectPageAll->signal_clicked().connect(sigc::mem_fun(*this,
+            &DownloadSetup::SelectAllImages));
+
+    BUILDER_GET_WIDGET(DeselectImages);
+    DeselectImages->signal_clicked().connect(sigc::mem_fun(*this,
+            &DownloadSetup::DeselectAllImages));
+
+    BUILDER_GET_WIDGET(BrowseForward);
+    BrowseForward->signal_clicked().connect(sigc::mem_fun(*this,
+            &DownloadSetup::SelectNextImage));
+
+    BUILDER_GET_WIDGET(BrowseBack);
+    BrowseBack->signal_clicked().connect(sigc::mem_fun(*this,
+            &DownloadSetup::SelectPreviousImage));
+
     // Set all the editor controls read only
     _UpdateWidgetStates();
 }
@@ -342,11 +358,28 @@ std::vector<std::shared_ptr<InternetImage>> DownloadSetup::GetSelectedImages(){
 
     return result;
 }
-
+// ------------------------------------ //
 void DownloadSetup::SelectAllImages(){
 
+    LOG_INFO("DownloadSetup: selecting all");
     ImageSelection->SelectAllItems();
     UpdateEditedImages();
+}
+
+void DownloadSetup::DeselectAllImages(){
+
+    ImageSelection->DeselectAllItems();
+    UpdateEditedImages();
+}
+
+void DownloadSetup::SelectNextImage(){
+
+    LOG_INFO("next image");
+}
+
+void DownloadSetup::SelectPreviousImage(){
+
+    LOG_INFO("previous image");
 }
 // ------------------------------------ //
 void DownloadSetup::OnURLChanged(){
@@ -380,7 +413,7 @@ void DownloadSetup::OnURLChanged(){
 
     try{
         
-        auto scan = std::make_shared<PageScanJob>(str);
+        auto scan = std::make_shared<PageScanJob>(str, true);
 
         auto alive = GetAliveMarker();
         
@@ -527,7 +560,7 @@ void DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
 
         LOG_INFO("DownloadSetup scan finished, result:");
         data->Scans.PrintInfo();
-        DualView::Get().InvokeFunction(finished);                     
+        DualView::Get().InvokeFunction(finished); 
         return;
     }
 
@@ -556,9 +589,9 @@ void DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
             setup->PageScanProgress->set_value(progress);
         });
 
-                
+    
     try{
-        auto scan = std::make_shared<PageScanJob>(str, data->MainReferrer);
+        auto scan = std::make_shared<PageScanJob>(str, false, data->MainReferrer);
         // Queue next call //
         scan->SetFinishCallback(std::bind(&DV::QueueNextThing, data, setup, alive, scan));
 
@@ -639,6 +672,10 @@ void DownloadSetup::_UpdateWidgetStates(){
         ImageSelection->set_sensitive(true);
         TargetCollectionName->set_sensitive(true);
         SelectAllImagesButton->set_sensitive(true);
+        DeselectImages->set_sensitive(true);
+        ImageSelectPageAll->set_sensitive(true);
+        BrowseForward->set_sensitive(true);
+        BrowseBack->set_sensitive(true);
         
     } else {
 
@@ -655,6 +692,10 @@ void DownloadSetup::_UpdateWidgetStates(){
         ImageSelection->set_sensitive(false);
         TargetCollectionName->set_sensitive(false);
         SelectAllImagesButton->set_sensitive(false);
+        DeselectImages->set_sensitive(false);
+        ImageSelectPageAll->set_sensitive(false);
+        BrowseForward->set_sensitive(false);
+        BrowseBack->set_sensitive(false);
     }
 
     switch(State){

@@ -85,6 +85,15 @@ public:
 
     //! \brief Selects all found images
     void SelectAllImages();
+
+    //! \brief Deselects all found images
+    void DeselectAllImages();
+
+    //! \brief Moves to next image
+    void SelectNextImage();
+
+    //! \brief Moves to previous image
+    void SelectPreviousImage();
     
 protected:
 
@@ -167,6 +176,12 @@ private:
     // Tag editing / Image list view
     SuperContainer* ImageSelection;
     Gtk::CheckButton* SelectOnlyOneImage;
+    Gtk::Button* DeselectImages;
+    Gtk::Button* ImageSelectPageAll;
+
+    Gtk::Button* BrowseForward;
+    Gtk::Button* BrowseBack;
+        
 
     Gtk::Button* SelectAllImagesButton;
     
