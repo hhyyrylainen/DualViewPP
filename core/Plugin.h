@@ -107,6 +107,16 @@ public:
     std::string PageTitle;
 };
 
+//! \brief Data for IWebsiteScanner::ScanSite
+struct SiteToScan{
+
+    const std::string &Body;
+    const std::string &URL;
+    const std::string &ContentType;
+
+    bool InitialPage;
+};
+
 //! \brief Implementation of a website scanner
 class IWebsiteScanner{
 public:
@@ -127,8 +137,7 @@ public:
 
     //! \brief Scans a webpage
     //! \param contenttype Content type sent by the server. Probably equals "test/html"
-    virtual ScanResult ScanSite(const std::string &body, const std::string &url,
-        const std::string &contenttype) = 0;
+    virtual ScanResult ScanSite(const SiteToScan &params) = 0;
 };
 
 //! \brief Description of a plugin

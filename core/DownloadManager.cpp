@@ -280,8 +280,9 @@ void DownloadJob::DoDownload(DownloadManager &manager){
 }
 // ------------------------------------ //
 // PageScanJob
-PageScanJob::PageScanJob(const std::string &url, const std::string &referrer /*= ""*/) :
-    DownloadJob(url, referrer)
+PageScanJob::PageScanJob(const std::string &url, bool initialpage,
+    const std::string &referrer /*= ""*/) :
+    DownloadJob(url, referrer), InitialPage(initialpage)
 {
     auto scanner = DualView::Get().GetPluginManager().GetScannerForURL(url);
 
@@ -302,12 +303,11 @@ void PageScanJob::HandleContent(){
 
     LOG_INFO("PageScanJob scanning links with: " + std::string(scanner->GetName()));
 
-    Result = scanner->ScanSite(DownloadBytes, URL, DownloadedContentType);
     
-
+    Result = scanner->ScanSite({DownloadBytes, URL, DownloadedContentType, InitialPage});
+    
     // Copy result //
     Result.PrintInfo();
-
     
     OnFinished(true);
 }

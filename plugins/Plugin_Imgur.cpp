@@ -134,19 +134,17 @@ class ImgurScanner final : public IWebsiteScanner{
         return url;
     }
 
-    ScanResult ScanSite(const std::string &body, const std::string &url,
-        const std::string &contenttype) override
+    ScanResult ScanSite(const SiteToScan &params) override
     {
-
         ScanResult result;
 
-        if(contenttype == "application/json"){
+        if(params.ContentType == "application/json"){
 
             LOG_INFO("Parsing imgur json API");
 
             try{
 
-                auto j = json::parse(body);
+                auto j = json::parse(params.Body);
 
                 bool valid = true;
 
@@ -173,8 +171,8 @@ class ImgurScanner final : public IWebsiteScanner{
 
                         // Create link and add //
                         result.AddContentLink(ScanFoundImage(
-                            Leviathan::StringOperations::URLProtocol(url) +
-                            "://i.imgur.com/" + name + extension, url));
+                            Leviathan::StringOperations::URLProtocol(params.URL) +
+                            "://i.imgur.com/" + name + extension, params.URL));
                     }
                 }
 
@@ -191,13 +189,13 @@ class ImgurScanner final : public IWebsiteScanner{
                 return result;
             }
             
-        } else if(contenttype == "text/html"){
+        } else if(params.ContentType == "text/html"){
 
-            ScanHtml(body, url, result);
+            ScanHtml(params.Body, params.URL, result);
             
         } else {
 
-            LOG_ERROR("Imgur downloader got unknown content type: " + contenttype);
+            LOG_ERROR("Imgur downloader got unknown content type: " + params.ContentType);
         }
         
         return result;
