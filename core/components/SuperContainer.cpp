@@ -136,7 +136,7 @@ size_t SuperContainer::CountRows() const{
     
     return count;
 }
-
+// ------------------------------------ //
 size_t SuperContainer::CountSelectedItems() const{
 
     size_t count = 0;
@@ -190,6 +190,83 @@ void SuperContainer::DeselectAllExcept(const ListItem* item){
             continue;
         
         position.WidgetToPosition->Widget->Deselect();
+    }
+}
+
+void SuperContainer::SelectFirstItem(){
+
+    for(auto& position : Positions){
+
+        // Stop once empty position is reached //
+        if(!position.WidgetToPosition)
+            break;
+
+        position.WidgetToPosition->Widget->Select();
+        break;
+    }
+}
+
+void SuperContainer::SelectNextItem(){
+
+    bool select = false;
+    
+    for(auto iter = Positions.begin(); iter != Positions.end(); ++iter){
+
+        auto& position = *iter;
+
+        // Stop once empty position is reached //
+        if(!position.WidgetToPosition)
+            break;
+
+        if(select == true){
+
+            position.WidgetToPosition->Widget->Select();
+            DeselectAllExcept(position.WidgetToPosition->Widget.get());
+            break;
+        }
+
+        if(position.WidgetToPosition->Widget->IsSelected()){
+
+            select = true;
+        }
+    }
+
+    if(!select){
+
+        // None selected //
+        SelectFirstItem();
+    }
+}
+
+void SuperContainer::SelectPreviousItem(){
+
+    bool select = false;
+    
+    for(auto iter = Positions.rbegin(); iter != Positions.rend(); ++iter){
+
+        auto& position = *iter;
+
+        // When reversing we can't stop when the tailing empty slots are reached
+        if(!position.WidgetToPosition)
+            continue;
+
+        if(select == true){
+
+            position.WidgetToPosition->Widget->Select();
+            DeselectAllExcept(position.WidgetToPosition->Widget.get());
+            break;
+        }
+
+        if(position.WidgetToPosition->Widget->IsSelected()){
+
+            select = true;
+        }
+    }
+
+    if(!select){
+
+        // None selected //
+        SelectFirstItem();
     }
 }
 // ------------------------------------ //

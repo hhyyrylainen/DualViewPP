@@ -374,12 +374,12 @@ void DownloadSetup::DeselectAllImages(){
 
 void DownloadSetup::SelectNextImage(){
 
-    LOG_INFO("next image");
+    ImageSelection->SelectNextItem();
 }
 
 void DownloadSetup::SelectPreviousImage(){
 
-    LOG_INFO("previous image");
+    ImageSelection->SelectPreviousItem();
 }
 // ------------------------------------ //
 void DownloadSetup::OnURLChanged(){

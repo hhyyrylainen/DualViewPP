@@ -179,6 +179,19 @@ public:
     //! \brief Deselects all items except the specified one
     void DeselectAllExcept(const ListItem* item);
 
+    //! \brief Selects the first item
+    void SelectFirstItem();
+
+    //! \brief Moves selection to next item
+    //!
+    //! By default keeps one item selected and doesn't loop. If no item is selected selects
+    //! the first item
+    void SelectNextItem();
+
+    //! \brief Moves selection to previous item
+    //! \see SuperContainer::SelectNextItem
+    void SelectPreviousItem();
+
 
     //! \brief Empties this container completely
     void Clear();
