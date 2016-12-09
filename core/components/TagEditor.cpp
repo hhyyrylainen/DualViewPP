@@ -59,6 +59,10 @@ void TagEditor::_CommonCtor(){
     TagsTreeView.get_selection()->set_mode(Gtk::SELECTION_MULTIPLE);
 
     ViewForTags.add(TagsTreeView);
+
+    auto* textcolumn = TagsTreeView.get_column(0);
+    textcolumn->set_expand(true);
+    
     // Expand set this way to stop this container from also expanding
     child_property_expand(TagsTreeView) = true;
 
