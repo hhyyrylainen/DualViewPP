@@ -16,7 +16,7 @@ using namespace DV;
 // ------------------------------------ //
 SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     Gtk::Window(window),
-    EditTagsButton("Edit Tags")
+    EditTagsButton("Edit Tags"), ShowImageInfoButton("View Image Info")
 {
     signal_delete_event().connect(sigc::mem_fun(*this, &BaseWindow::_OnClosed));
 
@@ -59,12 +59,15 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     //ImageToolbar->set_accel_group(get_accel_group());
 
     ImageToolbar->append(EditTagsButton);
-
+    ImageToolbar->append(ShowImageInfoButton);
     
     ImageToolbar->show_all_children();
 
     EditTagsButton.signal_clicked().connect(sigc::mem_fun(*this,
             &SingleView::ToggleTagEditor));
+
+    ShowImageInfoButton.signal_clicked().connect(sigc::mem_fun(*this,
+            &SingleView::ToggleInfo));
 
     // This just doesn't want to work and it seems to be because Toolbar items don't have
     // activate signal
@@ -75,6 +78,17 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     EditTagsButton.add_accelerator("clicked", get_accel_group(), GDK_KEY_T,
         Gdk::CONTROL_MASK, Gtk::ACCEL_VISIBLE);
 
+    ShowImageInfoButton.add_accelerator("clicked", get_accel_group(), GDK_KEY_I,
+        Gdk::CONTROL_MASK, Gtk::ACCEL_VISIBLE);
+
+    BUILDER_GET_WIDGET(ImageProperties);
+    ImageProperties->set_visible(false);
+
+    auto tmpobject = builder->get_object("ImagePropertiesText");
+
+    ImagePropertiesText = Glib::RefPtr<Gtk::TextBuffer>::cast_dynamic(tmpobject);
+
+    LEVIATHAN_ASSERT(ImagePropertiesText, "Invalid .glade file");
 }
 
 SingleView::~SingleView(){
@@ -98,6 +112,12 @@ void SingleView::Open(std::shared_ptr<Image> image, std::shared_ptr<ImageListScr
     ImageView->RegisterSetImageNotify([&]()
         {
             UpdateImageNumber();
+
+            // Update properties //
+            if(ImageProperties->get_visible()){
+        
+                _LoadImageInfo();
+            }
         });
 
     UpdateImageNumber();
@@ -219,4 +239,79 @@ void SingleView::ToggleTagEditor(){
         auto img = ImageView->GetImage();
         ImageTags->SetEditedTags({ img ? img->GetTags() : nullptr});
     }
+}
+
+void SingleView::ToggleInfo(){
+
+    if(ImageProperties->get_visible()){
+
+        // Hide //
+        ImageProperties->hide();
+        
+    } else {
+
+        // Make visible //
+        ImageProperties->show();
+
+        ImagePropertiesText->set_text("reading properties");
+        _LoadImageInfo();
+    }
+}
+
+void SingleView::_LoadImageInfo(){
+
+    DualView::IsOnMainThreadAssert();
+
+    auto alive = GetAliveMarker();
+    auto img = ImageView->GetImage();
+        
+    // Load data //
+    DualView::Get().QueueDBThreadFunction([=](){
+
+            std::string ResourcePath = img->GetResourcePath();
+            std::string ResourceName = img->GetName();
+            std::string Extension = img->GetExtension();
+
+            const auto IsPrivate = img->GetIsPrivate() ? "true" : "false";
+    
+            std::string AddDate = img->GetAddDateStr();
+
+            std::string LastView = img->GetLastViewStr();
+
+            std::string ImportLocation = img->GetFromFile();
+
+            std::string Hash;
+
+            int Height = img->GetHeight();
+            int Width = img->GetWidth();
+            auto id = img->GetID();
+
+            try{
+
+                Hash = img->GetHash();
+                    
+            } catch(const Leviathan::InvalidState&){
+
+                // Hash is not ready //
+                Hash = "not calculated yet";
+            }
+
+            DualView::Get().InvokeFunction([=](){
+
+                    INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                    std::stringstream stream;
+                    stream << "ID: " << id <<
+                        "\nHash: " << Hash <<
+                        "\nName: " << ResourceName <<
+                        "\nExtension: " << Extension << " is private: " << IsPrivate <<
+                        " dimensions: " << Width << "x" << Height <<
+                        "\nPath: " << ResourcePath <<
+                        "\nImported from: " << ImportLocation <<
+                        "\nAdded: " << AddDate <<
+                        "\nLast View: " << LastView;
+                        
+                    ImagePropertiesText->set_text(stream.str());
+                });
+        });
 }

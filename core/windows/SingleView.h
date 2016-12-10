@@ -34,6 +34,9 @@ public:
     //! \brief Sets tag editor visible or hides it
     void ToggleTagEditor();
 
+    //! \brief Toggles whether image info is visible or not
+    void ToggleInfo();
+
     //! \brief Called to update the current image number in Collection
     void UpdateImageNumber();
 
@@ -44,6 +47,8 @@ public:
 protected:
 
     void _OnClose() override;
+
+    void _LoadImageInfo();
     
 private:
 
@@ -55,8 +60,12 @@ private:
     Gtk::Label* TagsLabel;
     Gtk::Label* ImageSize;
 
+    Gtk::Box* ImageProperties;
+    Glib::RefPtr<Gtk::TextBuffer> ImagePropertiesText;
+
     // Toolbar
     Gtk::ToolButton EditTagsButton;
+    Gtk::ToolButton ShowImageInfoButton;
 };
 
 }

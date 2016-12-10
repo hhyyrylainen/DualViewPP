@@ -2,6 +2,9 @@
 <!-- Generated with glade 3.20.0 -->
 <interface>
   <requires lib="gtk+" version="3.20"/>
+  <object class="GtkTextBuffer" id="ImagePropertiesText">
+    <property name="text" translatable="yes">Loading properties</property>
+  </object>
   <object class="GtkWindow" id="SingleView">
     <property name="can_focus">False</property>
     <property name="default_width">700</property>
@@ -60,27 +63,81 @@
           <object class="GtkBox">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
             <child>
-              <object class="GtkDrawingArea" id="ImageView">
+              <object class="GtkBox" id="ImageProperties">
                 <property name="visible">True</property>
-                <property name="app_paintable">True</property>
-                <property name="can_focus">True</property>
-                <property name="has_focus">True</property>
-                <property name="is_focus">True</property>
-                <property name="receives_default">True</property>
+                <property name="can_focus">False</property>
+                <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="label" translatable="yes">Image Properties</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkTextView">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="editable">False</property>
+                    <property name="wrap_mode">word-char</property>
+                    <property name="left_margin">10</property>
+                    <property name="top_margin">2</property>
+                    <property name="bottom_margin">2</property>
+                    <property name="buffer">ImagePropertiesText</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="pack_type">end</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
               </object>
               <packing>
-                <property name="expand">True</property>
+                <property name="expand">False</property>
                 <property name="fill">True</property>
                 <property name="position">0</property>
               </packing>
             </child>
             <child>
-              <object class="GtkBox" id="ImageTags">
+              <object class="GtkBox">
+                <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="orientation">vertical</property>
                 <child>
-                  <placeholder/>
+                  <object class="GtkDrawingArea" id="ImageView">
+                    <property name="visible">True</property>
+                    <property name="app_paintable">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="has_focus">True</property>
+                    <property name="is_focus">True</property>
+                    <property name="receives_default">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkBox" id="ImageTags">
+                    <property name="can_focus">False</property>
+                    <property name="orientation">vertical</property>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
                 </child>
               </object>
               <packing>
