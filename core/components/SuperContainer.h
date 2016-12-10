@@ -195,6 +195,18 @@ public:
     //! \see SuperContainer::SelectNextItem
     void SelectPreviousItem();
 
+    template<class CallbackFuncT>
+        void VisitAllWidgets(const CallbackFuncT &func)
+    {
+        for(auto& position : Positions){
+
+            // Stop once empty position is reached //
+            if(!position.WidgetToPosition)
+                break;
+
+            func(*position.WidgetToPosition->Widget);
+        }
+    }
 
     //! \brief Empties this container completely
     void Clear();

@@ -2,6 +2,7 @@
 #include "ImageListItem.h"
 
 #include "core/resources/Image.h"
+#include "core/resources/Collection.h"
 
 using namespace DV;
 // ------------------------------------ //
@@ -18,4 +19,9 @@ void ImageListItem::SetImage(std::shared_ptr<Image> image){
     CurrentImage = image;
     _SetImage(image);
     _SetName(image->GetName());
+}
+// ------------------------------------ //
+void ImageListItem::SetCollection(std::shared_ptr<Collection> collection){
+
+    ImageIcon.SetImageList(collection);
 }

@@ -5,6 +5,7 @@
 
 #include "core/components/TagEditor.h"
 #include "core/components/SuperContainer.h"
+#include "core/components/ImageListItem.h"
 
 #include "DualView.h"
 #include "Common.h"
@@ -109,6 +110,17 @@ void SingleCollection::ReloadImages(Lock &guard){
                                 DeleteSelected->set_sensitive(hasselected);
                                 OpenSelectedImporter->set_sensitive(hasselected);
                             }));
+
+                    // This is probably really innefficient //
+                    ImageContainer->VisitAllWidgets([&](ListItem &widget){
+
+                            auto* asimage = dynamic_cast<ImageListItem*>(&widget);
+
+                            if(!asimage)
+                                return;
+
+                            asimage->SetCollection(collection);
+                        });
                         
                     StatusLabel->set_text("Collection \"" + collection->GetName() +
                         "\" Has " + Convert::ToString(images.size()) + " Images");
