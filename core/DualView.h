@@ -62,6 +62,12 @@ public:
     //! \brief Opens Collection viewer for collection
     void OpenSingleCollectionView(std::shared_ptr<Collection> collection);
 
+    //! \brief Opens a window that allows adding a Collection to a folder
+    void OpenAddToFolder(std::shared_ptr<Collection> collection);
+
+    //! \brief Opens a window that allows removing a Collection from folder(s)
+    void OpenRemoveFromFolders(std::shared_ptr<Collection> collection);
+
     //! \brief Opens the tag creation window with the text already filled in
     void OpenTagCreator(const std::string &settext);
 
@@ -79,8 +85,7 @@ public:
 
     //! \brief Opens a setup window for a new downloadable gallery
     void OpenDownloadSetup();
-
-
+    
 
     //! \brief Runs folder creator as a modal window
     void RunFolderCreatorAsDialog(const VirtualPath &path, const std::string &prefillnewname,

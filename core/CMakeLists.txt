@@ -58,6 +58,8 @@ add_library(Core
   windows/SingleCollection.h windows/SingleCollection.cpp
   windows/Downloader.h windows/Downloader.cpp
   windows/DownloadSetup.h windows/DownloadSetup.cpp
+  windows/AddToFolder.h windows/AddToFolder.cpp
+  windows/RemoveFromFolders.h windows/RemoveFromFolders.cpp
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp

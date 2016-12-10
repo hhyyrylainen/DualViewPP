@@ -35,6 +35,13 @@ CollectionListItem::CollectionListItem(const std::shared_ptr<ItemSelectable> &se
 
     ItemView.signal_activate().connect(sigc::mem_fun(*this, &CollectionListItem::_DoPopup));
 
+    ItemAddToFolder.signal_activate().connect(sigc::mem_fun(*this, 
+            &CollectionListItem::_OpenAddToFolder));
+
+    ItemRemoveFromFolders.signal_activate().connect(sigc::mem_fun(*this, 
+            &CollectionListItem::_OpenRemoveFromFolders));
+
+
     // Set scroll
     if(showncollection)
         ImageIcon.SetImageList(showncollection);
@@ -61,4 +68,14 @@ bool CollectionListItem::_OnRightClick(GdkEventButton* causedbyevent){
     ContextMenu.popup(causedbyevent->button, causedbyevent->time);
     
     return true;
+}
+// ------------------------------------ //
+void CollectionListItem::_OpenRemoveFromFolders(){
+
+    DualView::Get().OpenRemoveFromFolders(CurrentCollection);
+}
+
+void CollectionListItem::_OpenAddToFolder(){
+    
+    DualView::Get().OpenAddToFolder(CurrentCollection);
 }

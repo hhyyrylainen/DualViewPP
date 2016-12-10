@@ -11,6 +11,8 @@
 #include "windows/SingleCollection.h"
 #include "windows/Downloader.h"
 #include "windows/DownloadSetup.h"
+#include "windows/AddToFolder.h"
+#include "windows/RemoveFromFolders.h"
 
 #include "core/CacheManager.h"
 #include "core/Database.h"
@@ -996,6 +998,24 @@ void DualView::OpenSingleCollectionView(std::shared_ptr<Collection> collection){
     wrapped->show();
     
     wrapped->ShowCollection(collection);
+}
+
+void DualView::OpenAddToFolder(std::shared_ptr<Collection> collection){
+
+    AssertIfNotMainThread();
+
+    auto window = std::make_shared<AddToFolder>(collection);
+    _AddOpenWindow(window, *window);
+    window->show();
+}
+
+void DualView::OpenRemoveFromFolders(std::shared_ptr<Collection> collection){
+    
+    AssertIfNotMainThread();
+
+    auto window = std::make_shared<RemoveFromFolders>(collection);
+    _AddOpenWindow(window, *window);
+    window->show();
 }
 
 void DualView::OpenImporter(){

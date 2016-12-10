@@ -24,6 +24,9 @@ protected:
     void _DoPopup() override;
 
     bool _OnRightClick(GdkEventButton* causedbyevent) override;
+
+    void _OpenRemoveFromFolders();
+    void _OpenAddToFolder();
     
 private:
 
