@@ -12,6 +12,7 @@ using namespace DV;
 
 
 FolderSelector::FolderSelector() :
+    Gtk::Box(Gtk::ORIENTATION_VERTICAL),
     CreateNewFolder(Gtk::StockID("gtk-new")),
     UpFolder(Gtk::StockID("gtk-go-up"))
 {
