@@ -169,6 +169,17 @@ TEST_CASE("VirtualPath operations", "[path]"){
             CHECK(--path.begin() == path.end());
         }
     }
+
+    SECTION("Folder path resolve type prepending"){
+
+        CHECK(static_cast<std::string>((VirtualPath() / VirtualPath(""))) == "Root/");
+
+        CHECK(static_cast<std::string>((VirtualPath("") / VirtualPath())) == "Root/");
+
+        CHECK(static_cast<std::string>((VirtualPath() / VirtualPath())) == "Root/");
+
+        CHECK(static_cast<std::string>((VirtualPath() / VirtualPath())) == "Root/");
+    }
 }
 
 TEST_CASE("Datetime parsing", "[db][time]"){

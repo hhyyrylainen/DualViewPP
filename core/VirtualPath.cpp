@@ -54,12 +54,25 @@ VirtualPath VirtualPath::Combine(const VirtualPath &first, const VirtualPath &se
     if(Leviathan::StringOperations::StringStartsWith<std::string>(second.PathStr, "Root/"))
         return second;
 
-    std::string newPath = first.PathStr;
+    // Combining fails if both are empty //
+    if(first.PathStr.empty() && second.PathStr.empty()){
 
-    if(newPath.empty() || second.PathStr.empty()){
-
-        return second;
+        return VirtualPath("");
     }
+
+    // Check for empty paths //
+    if(first.PathStr.empty()){
+
+        return second.PathStr.back() == '/' ? second.PathStr : second.PathStr + '/';
+    }
+
+    if(second.PathStr.empty()){
+
+        return first.PathStr.back() == '/' ? first.PathStr : first.PathStr + '/';
+    }
+
+    // We need to actually combine something //
+    std::string newPath = first.PathStr;
 
     if(newPath.back() != '/' && second.PathStr.front() != '/')
         newPath += '/';
