@@ -92,8 +92,10 @@ DualView::~DualView(){
         _WaitForWorkerThreads();
         _CacheManager.reset();
         _Settings.reset();
-        
-        Staticinstance = nullptr;
+
+        // Reset staticinstance only if it is still us. This is for running tests
+        if(Staticinstance == this)
+            Staticinstance = nullptr;
         
         if(!SuppressSecondInstance)
             std::cout << "DualView++ Main Instance Notified. Extra instance quitting" <<

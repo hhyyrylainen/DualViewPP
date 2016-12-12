@@ -262,6 +262,7 @@ public:
 
     //! \brief Returns a folder by id
     std::shared_ptr<Folder> SelectFolderByID(Lock &guard, DBID id);
+    CREATE_NON_LOCKING_WRAPPER(SelectFolderByID);
 
     //! \brief Creates a new folder, must have a parent folder
     //! \returns The created folder or null if the name conflicts
@@ -284,6 +285,10 @@ public:
 
     //! \brief Returns true if Collection is in another folder than folder
     bool SelectCollectionIsInAnotherFolder(Lock &guard, const Folder &folder,
+        const Collection &collection);
+
+    //! \brief Returs Folders Collection is in
+    std::vector<DBID> SelectFoldersCollectionIsIn(
         const Collection &collection);
 
     //! \brief Deletes a Collection from the root folder if the collection is in another
@@ -309,6 +314,8 @@ public:
         const Folder &parent);
     CREATE_NON_LOCKING_WRAPPER(SelectFolderByNameAndParent);
 
+    //! \brief Selects all parents of a Folder
+    std::vector<DBID> SelectFolderParents(const Folder &folder);
 
     //
     // Tag
@@ -560,6 +567,10 @@ protected:
     //! \brief Runs a raw sql query.
     //! \note Don't use unless absolutely necessary prefer to use Database::RunSqlAsPrepared
     void _RunSQL(Lock &guard, const std::string &sql);
+
+    //! \brief Throws an InvalidSQL exception, filling it with values from the database
+    //! connection
+    void ThrowCurrentSqlError(Lock &guard);
     
 private:
 
@@ -610,17 +621,10 @@ private:
     //
     // Utility stuff
     //
-    
-    //! \brief Throws an InvalidSQL exception, filling it with values from the database
-    //! connection
-    void ThrowCurrentSqlError(Lock &guard);
 
     //! \brief Creates default tables and also calls _InsertDefaultTags
     void _CreateTableStructure(Lock &guard);
     
-    //! \brief Inserts default inbuilt tags
-    void _InsertDefaultTags(Lock &guard);
-
     //! \brief Verifies that the specified version is compatible with the current version
     bool _VerifyLoadedVersion(Lock &guard, int fileversion);
 

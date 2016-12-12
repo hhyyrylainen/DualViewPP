@@ -91,7 +91,12 @@ Database::Database(bool tests){
 
     LEVIATHAN_ASSERT(tests, "Database test version not constructed with true");
 
-    const auto result = sqlite3_open(":memory:", &SQLiteDb);
+    //const auto result = sqlite3_open(":memory:", &SQLiteDb);
+    const auto result = sqlite3_open_v2(":memory:", &SQLiteDb,
+        SQLITE_OPEN_URI | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE |
+        SQLITE_OPEN_NOMUTEX,
+        nullptr
+    );
 
     if(result != SQLITE_OK || SQLiteDb == nullptr){
 
@@ -1153,6 +1158,28 @@ bool Database::SelectCollectionIsInAnotherFolder(Lock &guard, const Folder &fold
     return false;
 }
 
+std::vector<DBID> Database::SelectFoldersCollectionIsIn(
+    const Collection &collection)
+{
+    GUARD_LOCK();
+
+    std::vector<DBID> result;
+    const char str[] = "SELECT parent FROM folder_collection WHERE child = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID());
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+        if(statementobj.GetObjectIDFromColumn(id, 0))
+            result.push_back(id);
+    }
+
+    return result;
+}
+
 void Database::DeleteCollectionFromRootIfInAnotherFolder(const Collection &collection){
 
     GUARD_LOCK();
@@ -1202,6 +1229,27 @@ std::shared_ptr<Folder> Database::SelectFolderByNameAndParent(Lock &guard,
     }
     
     return nullptr;
+}
+
+std::vector<DBID> Database::SelectFolderParents(const Folder &folder){
+
+    GUARD_LOCK();
+
+    std::vector<DBID> result;
+    const char str[] = "SELECT parent FROM folder_folder WHERE child = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(folder.GetID());
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID id;
+        if(statementobj.GetObjectIDFromColumn(id, 0))
+            result.push_back(id);
+    }
+
+    return result;
 }
 
 std::vector<std::shared_ptr<Folder>> Database::SelectFoldersInFolder(const Folder &folder,
@@ -2798,45 +2846,26 @@ void Database::_SetCurrentDatabaseVersion(Lock &guard, int newversion){
 // ------------------------------------ //
 void Database::_CreateTableStructure(Lock &guard){
 
-    // This gets spammed way too much during testing
-    //LOG_INFO("Initializing new database");
-    
-    if(sqlite3_exec(SQLiteDb, STR_MAINTABLES_SQL,
-            nullptr, nullptr, nullptr) != SQLITE_OK)
-    {
-        ThrowCurrentSqlError(guard);
-    }
+    _RunSQL(guard, "BEGIN TRANSACTION;");
 
-    if(sqlite3_exec(SQLiteDb, STR_DEFAULTTABLEVALUES_SQL,
-            nullptr, nullptr, nullptr) != SQLITE_OK)
-    {
-        ThrowCurrentSqlError(guard);
-    }
+    _RunSQL(guard, STR_MAINTABLES_SQL);
 
-    _InsertDefaultTags(guard);
-    
-    // Insert version last //
-    if(sqlite3_exec(SQLiteDb, ("INSERT INTO version(number) VALUES(" +
-                Convert::ToString(DATABASE_CURRENT_VERSION) + ");").c_str(),
-            nullptr, nullptr, nullptr) != SQLITE_OK)
-    {
-        ThrowCurrentSqlError(guard);
-    }
-}
-    
-void Database::_InsertDefaultTags(Lock &guard){
+    _RunSQL(guard, STR_DEFAULTTABLEVALUES_SQL);
 
-    if(sqlite3_exec(SQLiteDb, STR_DEFAULTTAGS_SQL,
-            nullptr, nullptr, nullptr) != SQLITE_OK)
-    {
-        ThrowCurrentSqlError(guard);
-    }
+    _RunSQL(guard, STR_DEFAULTTAGS_SQL);
 
     // Default collections //
     InsertCollection(guard, "Uncategorized", false);
     InsertCollection(guard, "PrivateRandom", true);
     InsertCollection(guard, "Backgrounds", false);
+    
+    // Insert version last //
+    _RunSQL(guard, "INSERT INTO version (number) VALUES (" +
+        Convert::ToString(DATABASE_CURRENT_VERSION) + ");");
+
+    _RunSQL(guard, "COMMIT TRANSACTION;");
 }
+
 void Database::_RunSQL(Lock &guard, const std::string &sql){
 
     auto result = sqlite3_exec(SQLiteDb, sql.c_str(),

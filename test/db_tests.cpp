@@ -85,17 +85,14 @@ TEST_CASE("Database in memory creation", "[db]"){
     REQUIRE_NOTHROW(Database(true));
 }
 
-TEST_CASE("Disk database can be opened", "[db]"){
+TEST_CASE("Disk database can be opened", "[db][expensive]"){
 
     SECTION("Without ./"){
-        boost::filesystem::remove("test_db.sqlite");
     
         REQUIRE_NOTHROW(Database("test_db.sqlite"));
     }
 
     SECTION("With ./"){
-
-        boost::filesystem::remove("test_db.sqlite");
     
         REQUIRE_NOTHROW(Database("./test_db.sqlite"));
     }
@@ -104,7 +101,7 @@ TEST_CASE("Disk database can be opened", "[db]"){
 TEST_CASE("Basic database retrieves don't throw", "[db]"){
 
     DummyDualView dv;
-    Database db(true);
+    TestDatabase db;
 
     REQUIRE_NOTHROW(db.Init());
 
@@ -121,6 +118,21 @@ TEST_CASE("Normal database setup works", "[db][expensive]"){
 
     // There should be stuff in it //
     CHECK(db.CountExistingTags() > 0);
+}
+
+TEST_CASE("In memory initialization works and version is set", "[db]"){
+
+    DummyDualView dv;
+    TestDatabase db;
+
+    REQUIRE_NOTHROW(db.Init());
+    
+    int version = 0;
+    GUARD_LOCK_OTHER(db);
+    
+    REQUIRE(db.SelectDatabaseVersion(guard, version));
+
+    CHECK(version > 0);
 }
 
 TEST_CASE("Directly using database for collection and image inserts", "[db]"){
@@ -949,7 +961,6 @@ TEST_CASE("Virtual folder Path parsing works", "[folder][path][db]"){
 
     SECTION("Long path"){
 
-        // Probably should add a test for inserting folders
         auto inserted1 = db.InsertFolder("nice folder", false,
             *root);
 
@@ -969,6 +980,25 @@ TEST_CASE("Virtual folder Path parsing works", "[folder][path][db]"){
         CHECK(*folder == *inserted4);
     }
 
+}
+
+TEST_CASE("Reverse folder path from folder works", "[folder][path][db]"){
+
+    std::unique_ptr<Database> dbptr(new TestDatabase());
+    DummyDualView dv(std::move(dbptr));
+    auto& db = static_cast<TestDatabase&>(dv.GetDatabase());
+
+    REQUIRE_NOTHROW(db.Init());
+
+    auto root = dv.GetRootFolder();
+    REQUIRE(root);
+
+    SECTION("Root folder"){
+
+        CHECK(dv.ResolvePathToFolder(root->GetID()).IsRootPath());
+
+        
+    }
 }
 
 TEST_CASE("Specific database applied tag is same", "[tags][db]"){

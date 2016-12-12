@@ -1,4 +1,4 @@
-BEGIN TRANSACTION;
+-- This is run inside the Init transaction
 
 -- Blacklisted tags
 INSERT INTO tag_blacklist (name, reason) VALUES ("fun", "Doesn't really describe what it is");
@@ -220,4 +220,4 @@ INSERT INTO tag_super_aliases (alias, expanded) VALUES ("brunette", "brown hair"
 INSERT INTO tag_super_aliases (alias, expanded) VALUES ("blonde", "blonde hair");
 
 
-END TRANSACTION;
+

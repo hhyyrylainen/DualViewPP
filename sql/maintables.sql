@@ -1,5 +1,6 @@
+-- This is ran within the main init transaction, so these aren't needed
 -- All succeed or all will fail
-BEGIN TRANSACTION;
+--BEGIN TRANSACTION;
 
 -- Version info 
 CREATE TABLE version( number INTEGER );
@@ -329,4 +330,4 @@ CREATE TABLE activated_db_plugins (
 );
 
 
-COMMIT TRANSACTION;
+--COMMIT TRANSACTION;
