@@ -1090,8 +1090,9 @@ bool Database::UpdateFolder(Folder &folder){
 }
 // ------------------------------------ //
 // Folder collection
-bool Database::InsertCollectionToFolder(Lock &guard, Folder &folder, Collection &collection){
-
+bool Database::InsertCollectionToFolder(Lock &guard, Folder &folder,
+    const Collection &collection)
+{
     if(!collection.IsInDatabase() || !folder.IsInDatabase())
         return false;
     
@@ -1105,6 +1106,17 @@ bool Database::InsertCollectionToFolder(Lock &guard, Folder &folder, Collection 
     
     const auto changes = sqlite3_changes(SQLiteDb);
     return changes == 1; 
+}
+
+void Database::DeleteCollectionFromFolder(Folder &folder, const Collection &collection){
+
+    const char str[] = "DELETE FROM folder_collection WHERE parent = ? AND child = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(folder.GetID(), collection.GetID());
+
+    statementobj.StepAll(statementinuse);
 }
 
 std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsInFolder(
@@ -1137,6 +1149,22 @@ std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsInFolder(
     }
     
     return result;
+}
+
+bool Database::SelectCollectionIsInFolder(Lock &guard, const Collection &collection){
+
+    const char str[] = "SELECT 1 FROM folder_collection WHERE child = ? LIMIT 1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID());
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        return true;
+    }
+
+    return false;
 }
 
 bool Database::SelectCollectionIsInAnotherFolder(Lock &guard, const Folder &folder,
@@ -1198,6 +1226,18 @@ void Database::DeleteCollectionFromRootIfInAnotherFolder(const Collection &colle
     auto statementinuse = statementobj.Setup(collection.GetID(), root.GetID());
 
     statementobj.StepAll(statementinuse);
+}
+
+void Database::InsertCollectionToRootIfInNone(const Collection &collection){
+
+    GUARD_LOCK();
+
+    if(SelectCollectionIsInFolder(guard, collection))
+        return;
+
+    auto& root = *SelectRootFolder(guard);
+
+    InsertCollectionToFolder(guard, root, collection);
 }
 
 // ------------------------------------ //

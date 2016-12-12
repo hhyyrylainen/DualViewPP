@@ -189,6 +189,13 @@ public:
     //! the folder is removed from the root folder
     void AddCollectionToFolder(std::shared_ptr<Folder> folder,
         std::shared_ptr<Collection> collection, bool removefromroot = true);
+
+    //! \brief Removes a Collection from a folder
+    //!
+    //! If the Collection is no longer in any folder it will be added to root
+    void RemoveCollectionFromFolder(std::shared_ptr<Collection> collection,
+        std::shared_ptr<Folder> folder);
+        
     
     //
     // Database object retrieve functions

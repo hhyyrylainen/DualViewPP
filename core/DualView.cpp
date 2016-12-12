@@ -1376,6 +1376,18 @@ void DualView::AddCollectionToFolder(std::shared_ptr<Folder> folder,
     
 }
 
+void DualView::RemoveCollectionFromFolder(std::shared_ptr<Collection> collection,
+    std::shared_ptr<Folder> folder)
+{
+    if(!folder || !collection)
+        return;
+    
+    _Database->DeleteCollectionFromFolder(*folder, *collection);
+    
+    // Make sure the Collection is in at least one folder //
+    _Database->InsertCollectionToRootIfInNone(*collection);
+}
+
 // ------------------------------------ //
 // Database load functions
 std::shared_ptr<Folder> DualView::GetRootFolder(){

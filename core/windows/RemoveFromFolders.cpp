@@ -89,14 +89,31 @@ void RemoveFromFolders::_OnApply(){
 
     set_sensitive(false);
 
+    auto alive = GetAliveMarker();
+    auto collection = TargetCollection;
 
     DualView::Get().QueueDBThreadFunction([=](){
 
-            
+            for(const auto& path : pathstoremove){
+
+                auto folder = DualView::Get().GetFolderFromPath(path);
+
+                if(!folder){
+
+                    LOG_ERROR("RemoveFromFolder: path is invalid: " + path);
+                    continue;
+                }
+                
+                DualView::Get().RemoveCollectionFromFolder(collection, folder);
+            }
+
+            DualView::Get().InvokeFunction([=](){
+
+                    INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                    close();         
+                });
         });
-    
-    
-    close();
 }
 // ------------------------------------ //
 void RemoveFromFolders::_OnToggled(const Glib::ustring& path){

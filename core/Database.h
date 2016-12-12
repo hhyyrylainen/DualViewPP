@@ -275,13 +275,18 @@ public:
     //
     // Folder collection
     //
-    bool InsertCollectionToFolder(Lock &guard, Folder &folder, Collection &collection);
+    bool InsertCollectionToFolder(Lock &guard, Folder &folder, const Collection &collection);
     CREATE_NON_LOCKING_WRAPPER(InsertCollectionToFolder);
+
+    void DeleteCollectionFromFolder(Folder &folder, const Collection &collection);
 
     //! \brief Returns Collections that are directly in folder. And their name contains
     //! matching pattern
     std::vector<std::shared_ptr<Collection>> SelectCollectionsInFolder(const Folder &folder,
         const std::string &matchingpattern = "");
+
+    //! \brief Returns true if collection is in a Folder
+    bool SelectCollectionIsInFolder(Lock &guard, const Collection &collection);
 
     //! \brief Returns true if Collection is in another folder than folder
     bool SelectCollectionIsInAnotherFolder(Lock &guard, const Folder &folder,
@@ -294,6 +299,9 @@ public:
     //! \brief Deletes a Collection from the root folder if the collection is in another
     //! folder.
     void DeleteCollectionFromRootIfInAnotherFolder(const Collection &collection);
+
+    //! \brief Adds a Collection to root if it isn't in any folder
+    void InsertCollectionToRootIfInNone(const Collection &collection);
 
     //
     // Folder folder
