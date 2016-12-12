@@ -16,7 +16,8 @@ using namespace DV;
 // ------------------------------------ //
 SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     Gtk::Window(window),
-    EditTagsButton("Edit Tags"), ShowImageInfoButton("View Image Info")
+    EditTagsButton("Edit Tags"), ShowImageInfoButton("View Image Info"),
+    OpenInImporterButton("Open In Importer")
 {
     signal_delete_event().connect(sigc::mem_fun(*this, &BaseWindow::_OnClosed));
 
@@ -60,6 +61,7 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     ImageToolbar->append(EditTagsButton);
     ImageToolbar->append(ShowImageInfoButton);
+    ImageToolbar->append(OpenInImporterButton);
     
     ImageToolbar->show_all_children();
 
@@ -68,6 +70,9 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     ShowImageInfoButton.signal_clicked().connect(sigc::mem_fun(*this,
             &SingleView::ToggleInfo));
+
+    OpenInImporterButton.signal_clicked().connect(sigc::mem_fun(*this,
+            &SingleView::OpenImporter));
 
     // This just doesn't want to work and it seems to be because Toolbar items don't have
     // activate signal
@@ -314,4 +319,9 @@ void SingleView::_LoadImageInfo(){
                     ImagePropertiesText->set_text(stream.str());
                 });
         });
+}
+// ------------------------------------ //
+void SingleView::OpenImporter(){
+
+    DualView::Get().OpenImporter({ ImageView->GetImage() });
 }

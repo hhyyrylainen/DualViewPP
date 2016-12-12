@@ -49,6 +49,8 @@ protected:
     void _OnClose() override;
 
     void _LoadImageInfo();
+
+    void OpenImporter();
     
 private:
 
@@ -66,6 +68,7 @@ private:
     // Toolbar
     Gtk::ToolButton EditTagsButton;
     Gtk::ToolButton ShowImageInfoButton;
+    Gtk::ToolButton OpenInImporterButton;
 };
 
 }
