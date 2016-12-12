@@ -1,6 +1,8 @@
 // ------------------------------------ //
 #include "RemoveFromFolders.h"
 
+#include "core/DualView.h"
+
 using namespace DV;
 // ------------------------------------ //
 
@@ -19,6 +21,8 @@ RemoveFromFolders::RemoveFromFolders(std::shared_ptr<Collection> collection) :
     show_all_children();
 
     set_default_size(600, 750);
+
+    ReadFolders();
 }
 
 RemoveFromFolders::~RemoveFromFolders(){
@@ -29,4 +33,28 @@ RemoveFromFolders::~RemoveFromFolders(){
 void RemoveFromFolders::_OnClose(){
 
     
+}
+// ------------------------------------ //
+void RemoveFromFolders::ReadFolders(){
+
+    DualView::IsOnMainThreadAssert();
+
+    auto collection = TargetCollection;
+    auto alive = GetAliveMarker();
+
+    DualView::Get().QueueDBThreadFunction([=](){
+
+            const auto folders = DualView::Get().GetFoldersCollectionIsIn(collection);
+
+            DualView::Get().InvokeFunction([=](){
+
+                    INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                    for(const auto& path : folders){
+
+                        LOG_WRITE(path);
+                    }
+                });
+        });
+
 }

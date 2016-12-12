@@ -3,6 +3,8 @@
 
 #include "windows/BaseWindow.h"
 
+#include "Common.h"
+
 #include "VirtualPath.h"
 
 #include <condition_variable>
@@ -40,6 +42,8 @@ class Settings;
 class CollectionView;
 class TagManager;
 class Downloader;
+
+struct ResolvePathInfinityBlocker;
 
 //! \brief Main class that contains all the windows and systems
 class DualView {
@@ -193,11 +197,17 @@ public:
 
     std::shared_ptr<Collection> GetUncategorized();
 
+    //! \brief Returns paths for folders which contain collection
+    std::vector<std::string> GetFoldersCollectionIsIn(std::shared_ptr<Collection> collection);
 
     //! \brief Retrieves a Folder from path
     //! \returns Null if the folder doesn't exist
     //! \todo Fix " and ' in the path
     std::shared_ptr<Folder> GetFolderFromPath(const VirtualPath &path);
+
+    //! \brief Returns the first viable path to folder with id
+    //! \note This cannot always properly handle circular parent folders
+    VirtualPath ResolvePathToFolder(DBID id);
 
     //! \brief Parses an AppliedTag from a string. Doesn't add it to the database automatically
     //! \note This will lock the database, so if it already locked this causes a deadlock
@@ -354,6 +364,9 @@ protected:
 
     //! \brief Processer worker queue
     void _RunWorkerThread();
+
+    std::tuple<bool, VirtualPath> ResolvePathHelperRecursive(DBID currentid,
+        const VirtualPath &currentpath, const ResolvePathInfinityBlocker &earlieritems);
     
 private:
 

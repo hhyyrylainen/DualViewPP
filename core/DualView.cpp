@@ -1399,6 +1399,24 @@ std::shared_ptr<Collection> DualView::GetUncategorized(){
 }
 
 // ------------------------------------ //
+std::vector<std::string> DualView::GetFoldersCollectionIsIn(
+    std::shared_ptr<Collection> collection)
+{
+    std::vector<std::string> result;
+
+    if(!collection)
+        return result;
+
+    const auto folderids = _Database->SelectFoldersCollectionIsIn(*collection);
+
+    for(auto id : folderids){
+
+        result.push_back(ResolvePathToFolder(id));
+    }
+
+    return result;
+}
+// ------------------------------------ //
 std::shared_ptr<Folder> DualView::GetFolderFromPath(const VirtualPath &path){
 
     // Root folder //
@@ -1448,6 +1466,74 @@ std::shared_ptr<Folder> DualView::GetFolderFromPath(const VirtualPath &path){
     return currentfolder;
 }
 
+//! Prevents ResolvePathHelperRecursive from going through infinite loops
+struct DV::ResolvePathInfinityBlocker{
+
+    std::vector<DBID> EarlierFolders;
+};
+
+std::tuple<bool, VirtualPath> DualView::ResolvePathHelperRecursive(DBID currentid,
+    const VirtualPath &currentpath, const ResolvePathInfinityBlocker &earlieritems)
+{
+    auto currentfolder = _Database->SelectFolderByIDAG(currentid);
+
+    if(!currentfolder)
+        return std::make_tuple(false, currentpath);
+
+    if(currentfolder->IsRoot()){
+
+        return std::make_tuple(true, VirtualPath() / currentpath);
+    }
+
+    ResolvePathInfinityBlocker infinity;
+    infinity.EarlierFolders = earlieritems.EarlierFolders;
+    infinity.EarlierFolders.push_back(currentid);
+    
+    for(auto parentid : _Database->SelectFolderParents(*currentfolder)){
+
+        // Skip already seen folders //
+        bool found = false;
+
+        for(auto alreadychecked : infinity.EarlierFolders){
+
+            if(alreadychecked == parentid){
+
+                found = true;
+                break;
+            }
+        }
+
+        if(found)
+            continue;
+        
+        const auto result = ResolvePathHelperRecursive(parentid,
+            VirtualPath(currentfolder->GetName()) / currentpath, infinity);
+
+        if(std::get<0>(result)){
+
+            // Found a full path //
+            return result;
+        }
+    }
+    
+    // Didn't find a full path //
+    return std::make_tuple(false, currentpath);
+}
+
+VirtualPath DualView::ResolvePathToFolder(DBID id){
+    
+    ResolvePathInfinityBlocker infinityblocker;
+
+    const auto result = ResolvePathHelperRecursive(id, VirtualPath(""), infinityblocker);
+
+    if(!std::get<0>(result)){
+
+        // Failed //
+        return "Recursive Path: " + static_cast<std::string>(std::get<1>(result));
+    }
+
+    return std::get<1>(result);
+}
 // ------------------------------------ //
 std::shared_ptr<AppliedTag> DualView::ParseTagWithBreakRule(const std::string &str) const{
 
