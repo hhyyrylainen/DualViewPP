@@ -63,12 +63,12 @@ VirtualPath VirtualPath::Combine(const VirtualPath &first, const VirtualPath &se
     // Check for empty paths //
     if(first.PathStr.empty()){
 
-        return second.PathStr.back() == '/' ? second.PathStr : second.PathStr + '/';
+        return second;
     }
 
     if(second.PathStr.empty()){
 
-        return first.PathStr.back() == '/' ? first.PathStr : first.PathStr + '/';
+        return first;
     }
 
     // We need to actually combine something //

@@ -997,7 +997,38 @@ TEST_CASE("Reverse folder path from folder works", "[folder][path][db]"){
 
         CHECK(dv.ResolvePathToFolder(root->GetID()).IsRootPath());
 
-        
+
+    }
+
+    SECTION("Single depth"){
+
+        auto inserted1 = db.InsertFolder("nice folder", false,
+            *root);
+
+        CHECK(static_cast<std::string>(dv.ResolvePathToFolder(inserted1->GetID())) ==
+                "Root/nice folder");
+    }
+
+    SECTION("Deep testing"){
+
+        auto inserted1 = db.InsertFolder("nice folder", false,
+            *root);
+
+        auto inserted2 = db.InsertFolder("subfolder", false,
+            *inserted1);
+
+        CHECK(static_cast<std::string>(dv.ResolvePathToFolder(inserted2->GetID())) ==
+            "Root/nice folder/subfolder");
+    }
+
+    SECTION("Multiple parents"){
+
+        // TODO: add support for this in the database
+    }
+
+    SECTION("Simple loop"){
+
+        // TODO: this too needs support
     }
 }
 
