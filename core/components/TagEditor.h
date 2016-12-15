@@ -83,6 +83,8 @@ protected:
     void _OnCreateNew();
     //! Detects when delete is pressed
     bool _OnKeyPress(GdkEventKey* key_event);
+    bool _RowClicked(GdkEventButton* event);
+    
 
     //! Called when a suggestion is selected
     bool _OnSuggestionSelected(const Glib::ustring &str);

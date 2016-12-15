@@ -56,6 +56,12 @@ void TagEditor::_CommonCtor(){
     TagsTreeView.signal_key_press_event().connect(
         sigc::mem_fun(*this, &TagEditor::_OnKeyPress));
 
+
+    //add_events(Gdk::BUTTON_PRESS_MASK);
+
+    signal_button_press_event().connect(
+        sigc::mem_fun(*this, &TagEditor::_RowClicked));
+    
     TagsTreeView.get_selection()->set_mode(Gtk::SELECTION_MULTIPLE);
 
     ViewForTags.add(TagsTreeView);
@@ -251,6 +257,30 @@ bool TagEditor::_OnKeyPress(GdkEventKey* key_event){
         }
     }
 
+    return false;
+}
+
+bool TagEditor::_RowClicked(GdkEventButton* event){
+
+    // Double click with left mouse //
+    if(event->type == GDK_2BUTTON_PRESS && event->button == 1){
+
+        auto selected = TagsTreeView.get_selection()->get_selected_rows();
+
+        for(const auto& path : selected){
+
+            Gtk::TreeModel::Row row = *(TagsModel->get_iter(path));
+            const auto tag = row[TreeViewColumns.m_tag_as_text];
+            
+            LOG_INFO("Viewing Tag info for: " + tag);
+
+            DualView::Get().OpenTagInfo(static_cast<Glib::ustring>(tag));
+            return true;
+        }
+        
+        return false;
+    }
+    
     return false;
 }
 // ------------------------------------ //
