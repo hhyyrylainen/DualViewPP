@@ -1377,21 +1377,64 @@ std::shared_ptr<Tag> Database::SelectTagByName(Lock &guard, const std::string &n
 }
 
 std::vector<std::shared_ptr<Tag>> Database::SelectTagsWildcard(const std::string &pattern,
-    int64_t max /*= 50*/)
+    int64_t max /*= 50*/, bool aliases /*= true*/)
 {
     GUARD_LOCK();
 
     std::vector<std::shared_ptr<Tag>> result;
 
-    const char str[] = "SELECT * FROM tags WHERE name LIKE ? ORDER BY name LIMIT ?;";
-
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
-
-    auto statementinuse = statementobj.Setup("%" + pattern + "%", max);
-    
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW)
     {
-        result.push_back(_LoadTagFromRow(guard, statementobj));
+        const char str[] = "SELECT * FROM tags WHERE name LIKE ? ORDER BY name LIMIT ?;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup("%" + pattern + "%", max);
+    
+        while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+        
+            result.push_back(_LoadTagFromRow(guard, statementobj));
+        }
+    }
+
+    // Aliases //
+    {
+        const char str[] = "SELECT tags.* FROM tag_aliases LEFT JOIN tags ON "
+            "tags.id = tag_aliases.meant_tag WHERE tag_aliases.name LIKE ?1 "
+            "ORDER BY tag_aliases.name LIMIT ?2;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        // The limit guarantees at least one alias
+        auto statementinuse = statementobj.Setup("%" + pattern + "%",
+            static_cast<int64_t>(1 + (max - result.size())));
+    
+        while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+            // Skip duplicates //
+            DBID id;
+
+            if(!statementobj.GetObjectIDFromColumn(id, 0))
+                continue;
+
+            bool skip = false;
+            
+            for(const auto& tag : result){
+
+                if(tag->GetID() == id){
+
+                    skip = true;
+                    break;
+                }
+            }
+
+            if(skip)
+                continue;
+            
+            result.push_back(_LoadTagFromRow(guard, statementobj));
+
+            if(static_cast<int64_t>(result.size()) > max)
+                break;
+        }
     }
 
     return result;
