@@ -2,6 +2,7 @@
 #include "TagManager.h"
 
 #include "core/resources/Tags.h"
+#include "core/UtilityHelpers.h"
 
 #include "Common.h"
 #include "core/DualView.h"
@@ -19,26 +20,21 @@ TagManager::TagManager(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     signal_unmap().connect(sigc::mem_fun(*this, &TagManager::_OnHidden));
     signal_map().connect(sigc::mem_fun(*this, &TagManager::_OnShown));
     
-    builder->get_widget("NewTagName", NewTagName);
-    LEVIATHAN_ASSERT(NewTagName, "Invalid .glade file");
+    BUILDER_GET_WIDGET(NewTagName);
 
-    builder->get_widget("NewTagCategory", NewTagCategory);
-    LEVIATHAN_ASSERT(NewTagCategory, "Invalid .glade file");
-    
-    builder->get_widget("NewTagDescription", NewTagDescription);
-    LEVIATHAN_ASSERT(NewTagDescription, "Invalid .glade file");
-    
-    builder->get_widget("NewTagAliases", NewTagAliases);
-    LEVIATHAN_ASSERT(NewTagAliases, "Invalid .glade file");
+    NewTagName->signal_changed().connect(sigc::mem_fun(*this, &TagManager::_NewTagChanged));
 
-    builder->get_widget("NewTagImplies", NewTagImplies);
-    LEVIATHAN_ASSERT(NewTagImplies, "Invalid .glade file");
-
-    builder->get_widget("NewTagPrivate", NewTagPrivate);
-    LEVIATHAN_ASSERT(NewTagPrivate, "Invalid .glade file");
+    BUILDER_GET_WIDGET(NewTagCategory);
     
-    builder->get_widget("CreateTagButton", CreateTagButton);
-    LEVIATHAN_ASSERT(CreateTagButton, "Invalid .glade file");
+    BUILDER_GET_WIDGET(NewTagDescription);
+    
+    BUILDER_GET_WIDGET(NewTagAliases);
+
+    BUILDER_GET_WIDGET(NewTagImplies);
+
+    BUILDER_GET_WIDGET(NewTagPrivate);
+    
+    BUILDER_GET_WIDGET(CreateTagButton);
 
     CreateTagButton->signal_clicked().connect(sigc::mem_fun(*this, &TagManager::CreateNewTag));
 
@@ -60,11 +56,12 @@ TagManager::TagManager(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     NewTagCategory->add_attribute(ComboBoxRenderer, "text", TagTypeStoreColumns.m_text);
 
 
-    builder->get_widget("TagSearch", TagSearch);
-    LEVIATHAN_ASSERT(TagSearch, "Invalid .glade file");
+    BUILDER_GET_WIDGET(TagSearch);
 
-    builder->get_widget("FoundTags", FoundTags);
-    LEVIATHAN_ASSERT(FoundTags, "Invalid .glade file");
+    TagSearch->signal_search_changed().connect(sigc::mem_fun(*this,
+            &TagManager::UpdateTagSearch));
+
+    BUILDER_GET_WIDGET(FoundTags);
     
     FoundTagStore = Gtk::ListStore::create(FoundTagStoreColumn);
 
@@ -96,8 +93,9 @@ bool TagManager::_OnClose(GdkEventAny* event){
 // ------------------------------------ //
 void TagManager::_OnShown(){
 
-    // Load items //
-    UpdateTagSearch();
+    // Load items, but only if not already loaded //
+    if(FoundTagStore->children().empty())
+        UpdateTagSearch();
 }
 
 void TagManager::_OnHidden(){
@@ -107,15 +105,19 @@ void TagManager::_OnHidden(){
 void TagManager::UpdateTagSearch(){
 
     auto isalive = GetAliveMarker();
-    std::string search = "";
+    std::string search = TagSearch->get_text();
     
     DualView::Get().QueueDBThreadFunction([=](){
 
             auto tags = DualView::Get().GetDatabase().SelectTagsWildcard(search, 100);
+
+            SortTagSuggestions(tags.begin(), tags.end(), search);
             
             DualView::Get().InvokeFunction([this, isalive, tags{std::move(tags)}](){
 
                     INVOKE_CHECK_ALIVE_MARKER(isalive);
+
+                    FoundTagStore->clear();
 
                     for(const auto& tag : tags){
 
@@ -128,7 +130,12 @@ void TagManager::UpdateTagSearch(){
         });
 }
 
+void TagManager::SetSearchString(const std::string &text){
 
+    TagSearch->set_text(text);
+
+    // The update to the text causes UpdateTagSearch to be called
+}
 // ------------------------------------ //
 void TagManager::SetCreateTag(const std::string &name){
     
@@ -146,6 +153,13 @@ void TagManager::ClearNewTagEntry(){
     NewTagAliases->get_buffer()->set_text("");
 }
 
+void TagManager::_NewTagChanged(){
+
+    if(!NewTagName->get_text().empty()){
+
+        TagSearch->set_text(NewTagName->get_text());
+    }
+}
 // ------------------------------------ //
 void TagManager::CreateNewTag(){
 

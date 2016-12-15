@@ -50,6 +50,9 @@ public:
     //! \brief Updates the list of tags
     void UpdateTagSearch();
 
+    //! \brief Sets the string to search with for tags
+    void SetSearchString(const std::string &text);
+
     //! \brief Fills in the name field of a new tag
     void SetCreateTag(const std::string &name);
 
@@ -63,6 +66,9 @@ private:
 
     void _OnShown();
     void _OnHidden();
+
+    //! Copies text from new tag entry to the search field
+    void _NewTagChanged();
 
     //! \brief Creates a new tag with the currently set values
     void CreateNewTag();
@@ -84,7 +90,7 @@ private:
     Glib::RefPtr<Gtk::ListStore> TagTypeStore;
 
     // Existing tag editing
-    Gtk::Entry* TagSearch;
+    Gtk::SearchEntry* TagSearch;
     Gtk::TreeView* FoundTags;
 
     TagListColumns FoundTagStoreColumn;
