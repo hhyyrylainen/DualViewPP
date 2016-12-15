@@ -145,6 +145,14 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     BUILDER_GET_WIDGET(BrowseBack);
     BrowseBack->signal_clicked().connect(sigc::mem_fun(*this,
             &Importer::_OnSelectPrevious));
+
+
+    Gtk::Button* RemoveSelectedButton;
+    builder->get_widget("RemoveSelectedButton", RemoveSelectedButton);
+    LEVIATHAN_ASSERT(RemoveSelectedButton, "Invalid .glade file");
+
+    RemoveSelectedButton->signal_clicked().connect(sigc::mem_fun(*this,
+            &Importer::_RemoveSelected));
 }
 
 Importer::~Importer(){
@@ -201,6 +209,33 @@ bool Importer::_AddImageToList(const std::string &file){
     if(!DualView::IsFileContent(file))
         return false;
 
+    // Find duplicates //
+    for(const auto& image : ImagesToImport){
+
+        if(image->GetResourcePath() != file)
+            continue;
+
+        LOG_INFO("Importer: adding non-database file twice");
+        
+        auto dialog = Gtk::MessageDialog(*this,
+            "Add the same image again?",
+            false,
+            Gtk::MESSAGE_QUESTION,
+            Gtk::BUTTONS_YES_NO,
+            true 
+        );
+
+        dialog.set_secondary_text("Image at path: " + file +
+            " has already been added to this importer.");
+                
+        int result = dialog.run();
+
+        if(result != Gtk::RESPONSE_YES){
+
+            return false;
+        }
+    }
+
     std::shared_ptr<Image> img;
     
     try{
@@ -215,6 +250,7 @@ bool Importer::_AddImageToList(const std::string &file){
     }
 
     ImagesToImport.push_back(img);
+    ImagesToImportOriginalPaths[img.get()] = file;
     _UpdateImageList();
     
     LOG_INFO("Importer added new image: " + file);
@@ -263,6 +299,8 @@ void Importer::_OnClose(){
 // ------------------------------------ //
 void Importer::UpdateReadyStatus(){
 
+    DualView::IsOnMainThreadAssert();
+
     if(DoingImport){
 
         StatusLabel->set_text("Import in progress...");
@@ -291,6 +329,86 @@ void Importer::UpdateReadyStatus(){
         SelectedImages.push_back(asImage);
     }
 
+    // Check for duplicate hashes //
+    bool hashesready = true;
+    bool changedimages = false;
+
+    for(auto iter = ImagesToImport.begin(); iter != ImagesToImport.end(); ++iter){
+
+        const auto& image = *iter;
+
+        if(!image->IsReady()){
+
+            hashesready = false;
+            continue;
+        }
+
+        for(auto iter2 = ImagesToImport.begin(); iter2 != ImagesToImport.end(); ++iter2){
+
+            if(iter == iter2)
+                continue;
+
+            const auto& image2 = *iter2;
+
+            if(!image2->IsReady()){
+
+                hashesready = false;
+                continue;
+            }
+
+            if(image2->GetHash() == image->GetHash() &&
+                UserHasAnsweredDeleteQuestion.find(image2->GetResourcePath()) ==
+                UserHasAnsweredDeleteQuestion.end() &&
+                image->GetResourcePath() != image2->GetResourcePath())
+            {
+
+                LOG_INFO("Importer: duplicate images detected");
+
+                auto dialog = Gtk::MessageDialog(*this,
+                    "Remove Duplicate Images",
+                    false,
+                    Gtk::MESSAGE_QUESTION,
+                    Gtk::BUTTONS_YES_NO,
+                    true 
+                );
+
+                dialog.set_secondary_text("Images " +
+                    image->GetName() + " at: " + image->GetResourcePath() + "\nand " +
+                    image2->GetName() + " at: " + image2->GetResourcePath() +
+                    "\nare the same. Delete the second one (will also delete from disk)?");
+                
+                int result = dialog.run();
+
+                if(result == Gtk::RESPONSE_YES){
+
+                    boost::filesystem::remove(image2->GetResourcePath());
+                    ImagesToImport.erase(iter2);
+
+                    // Next duplicate will be found on the recursive call //
+                    changedimages = true;
+                    break;
+                    
+                } else {
+
+                    UserHasAnsweredDeleteQuestion[image2->GetResourcePath()] = true;
+                }
+            }
+        }
+
+        if(changedimages)
+            break;
+    }
+
+
+    if(changedimages){
+
+        _UpdateImageList();
+        UpdateReadyStatus();
+        return;
+    }
+    
+    
+
     if(SelectedImages.empty()){
 
         StatusLabel->set_text("No images selected");
@@ -298,8 +416,16 @@ void Importer::UpdateReadyStatus(){
 
     } else {
 
-        StatusLabel->set_text("Ready to import " + Convert::ToString(SelectedImages.size()) +
-            " images");
+        if(hashesready){
+            
+            StatusLabel->set_text("Ready to import " +
+                Convert::ToString(SelectedImages.size()) + " images");
+            
+        } else {
+            
+            StatusLabel->set_text("Image hashes not ready yet. Selected " +
+                Convert::ToString(SelectedImages.size()) + " images");
+        }
 
         PreviewImage->SetImage(SelectedImages.front());
     }
@@ -313,6 +439,9 @@ void Importer::UpdateReadyStatus(){
     }
 
     SelectedImageTags->SetEditedTags(tagstoedit);
+
+    
+    
 }
 
 void Importer::OnItemSelected(ListItem &item){
@@ -345,6 +474,19 @@ void Importer::_OnSelectPrevious(){
     UpdateReadyStatus();
 }
 
+void Importer::_RemoveSelected(){
+
+    ImagesToImport.erase(std::remove_if(ImagesToImport.begin(), ImagesToImport.end(),
+            [this](auto &x)
+            {
+                return std::find(SelectedImages.begin(), SelectedImages.end(), x) !=
+                    SelectedImages.end();
+            }),
+        ImagesToImport.end());
+            
+    _UpdateImageList();
+    UpdateReadyStatus();
+}
 // ------------------------------------ //
 bool Importer::StartImporting(bool move){
     
@@ -384,7 +526,47 @@ bool Importer::StartImporting(bool move){
             return false;
         }
     }
-    
+
+    // If going to move ask to delete already existing images //
+    if(move){
+
+        for(auto iter = SelectedImages.begin(); iter != SelectedImages.end(); ++iter){
+
+            if(!(*iter)->IsInDatabase())
+                continue;
+
+            // Allow deleting original database one //
+
+            auto found = ImagesToImportOriginalPaths.find((*iter).get());
+
+            if(found != ImagesToImportOriginalPaths.end()){
+
+                std::string pathtodelete = found->second;
+
+                if(!boost::filesystem::exists(pathtodelete))
+                    continue;
+
+                auto dialog = Gtk::MessageDialog(*this,
+                    "Delete Existing File?",
+                    false,
+                    Gtk::MESSAGE_QUESTION,
+                    Gtk::BUTTONS_YES_NO,
+                    true 
+                );
+
+                dialog.set_secondary_text("File at: " + pathtodelete +
+                    " \nis already in the database with the name: " + (*iter)->GetName() +
+                    "\nDelete the file?");
+                
+                int result = dialog.run();
+
+                if(result == Gtk::RESPONSE_YES){
+
+                    boost::filesystem::remove(pathtodelete);
+                }
+            }
+        }
+    }
     
     // Run import in a new thread //
     ImportThread = std::thread(&Importer::_RunImportThread, this, CollectionName->get_text(),
@@ -453,6 +635,9 @@ void Importer::_OnImportFinished(bool success){
                             SelectedImages.end();
                     }),
                 ImagesToImport.end());
+
+            // Could clean stuff from ImagesToImportOriginalPaths but it isn't needed
+            
             
             _UpdateImageList();
         }

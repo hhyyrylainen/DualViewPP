@@ -10,6 +10,7 @@
 
 #include <thread>
 #include <atomic>
+#include <unordered_map>
 
 
 namespace DV{
@@ -76,6 +77,7 @@ protected:
     // Button callbacks
     void _OnDeselectAll();
     void _OnSelectAll();
+    void _RemoveSelected();
     void _OnCopyToCollection();
     void _OnMoveToCollection();
     void _OnBrowseForImages();
@@ -131,6 +133,12 @@ protected:
 
     //! List of images that might be marked as selected
     std::vector<std::shared_ptr<Image>> ImagesToImport;
+
+    //! Original paths of images. Used to detect already existing images
+    std::unordered_map<Image*, std::string> ImagesToImportOriginalPaths;
+
+    //! Prevents the importer from asking to delete the same file multiple times
+    std::unordered_map<std::string, bool> UserHasAnsweredDeleteQuestion;
 
     //! List of images that are selected currently, updated in UpdateReadyStatus
     std::vector<std::shared_ptr<Image>> SelectedImages;
