@@ -1,6 +1,8 @@
 // ------------------------------------ //
 #include "UtilityHelpers.h"
 
+#include "core/resources/Tags.h"
+
 using namespace DV;
 // ------------------------------------ //
 bool DV::CompareSuggestionStrings(const std::string &str,
@@ -40,4 +42,10 @@ bool DV::CompareSuggestionStrings(const std::string &str,
 
     // Normal alphabetical order
     return left < right;
+}
+
+bool DV::CompareSuggestionTags(const std::string &str,
+    const std::shared_ptr<Tag> &left, const std::shared_ptr<Tag> &right)
+{
+    return CompareSuggestionStrings(str, left->GetName(), right->GetName());
 }
