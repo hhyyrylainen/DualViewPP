@@ -1107,6 +1107,13 @@ void DualView::OpenTagCreator(const std::string &settext){
     _TagManager->SetCreateTag(settext);
 }
 
+void DualView::OpenTagInfo(const std::string &tagtext){
+
+    OpenTagCreator();
+
+    _TagManager->SetSearchString(tagtext);
+}
+
 void DualView::OpenTagCreator(){
 
     AssertIfNotMainThread();

@@ -75,6 +75,9 @@ public:
     //! \brief Opens the tag creation window with the text already filled in
     void OpenTagCreator(const std::string &settext);
 
+    //! \brief Opens tag info window with the specified tag selected / as the search text
+    void OpenTagInfo(const std::string &tagtext);
+
     //! \brief Opens the tag creation window
     void OpenTagCreator();
 
