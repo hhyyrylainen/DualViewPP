@@ -95,7 +95,8 @@ void EasyEntryCompletion::_OnTextUpdated(){
     DualView::Get().QueueDBThreadFunction([this, isalive, text, suggest { GetSuggestions },
             count { SuggestionsToShow }]()
         {
-            LOG_INFO("Getting suggestions for text: " + text);
+            // Spams way too much
+            //LOG_INFO("Getting suggestions for text: " + text);
             const std::string str = DualView::StringToLower(text);
 
             auto result = suggest(str, count);
