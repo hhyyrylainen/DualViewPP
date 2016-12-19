@@ -29,6 +29,7 @@ int main(int argc, char* argv[]){
     if(!app->register_application()){
 
         std::cerr << "Register failed" << std::endl;
+        std::cout << "Registering application failed. Quitting" << std::endl;
         return 1;
     }
     
