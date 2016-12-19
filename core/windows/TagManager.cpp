@@ -9,6 +9,7 @@
 #include "core/Database.h"
 
 #include "leviathan/Common/StringOperations.h"
+#include "leviathan/Common/ExtraAlgorithms.h"
 
 using namespace DV;
 // ------------------------------------ //
@@ -77,6 +78,29 @@ TagManager::TagManager(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     auto* textcolumn = FoundTags->get_column(1);
     textcolumn->set_expand(true);
     textcolumn->set_sort_column(FoundTagStoreColumn.m_text);
+
+    FoundTags->signal_row_activated().connect(sigc::mem_fun(*this,
+            &TagManager::_OnSelectTagToEdit));
+
+    // Tag update widgets
+    BUILDER_GET_WIDGET(EditTagName);
+    BUILDER_GET_WIDGET(EditTagCategory);
+    BUILDER_GET_WIDGET(EditTagIsPrivate);
+    BUILDER_GET_WIDGET(EditTagDescription);
+    BUILDER_GET_WIDGET(EditTagAliases);
+    BUILDER_GET_WIDGET(EditTagImplies);
+
+    // Add model and renderer to the combobox
+    EditTagCategory->set_model(TagTypeStore);
+    EditTagCategory->set_active(0);
+    
+    EditTagCategory->pack_start(ComboBoxRenderer);
+    EditTagCategory->add_attribute(ComboBoxRenderer, "text", TagTypeStoreColumns.m_text);
+
+    BUILDER_GET_WIDGET(TagEditSave);
+    TagEditSave->signal_clicked().connect(sigc::mem_fun(*this, &TagManager::_ApplyTagEdit));
+    
+    _SetTagEditWidgetsSensitive(false);
 }
 
 TagManager::~TagManager(){
@@ -170,8 +194,6 @@ void TagManager::CreateNewTag(){
 
     const Gtk::TreeModel::Row& row = *rowiter;
 
-    auto model = NewTagCategory->get_model();
-
     const auto categoryNumber = row[TagTypeStoreColumns.m_value];
 
     if(categoryNumber < 0 || categoryNumber > static_cast<int>(
@@ -246,4 +268,276 @@ void TagManager::CreateNewTag(){
                 });
         });
 }
+// ------------------------------------ //
+void TagManager::ClearEditedTag(){
+
+    DualView::IsOnMainThreadAssert();
+
+    _SetTagEditWidgetsSensitive(false);
+    
+    EditedTag = nullptr;
+}
+
+void TagManager::_SetTagEditWidgetsSensitive(bool sensitive){
+
+    EditTagName->set_sensitive(sensitive);
+    EditTagCategory->set_sensitive(sensitive);
+    EditTagIsPrivate->set_sensitive(sensitive);
+    EditTagDescription->set_sensitive(sensitive);
+    EditTagAliases->set_sensitive(sensitive);
+    EditTagImplies->set_sensitive(sensitive);
+
+    TagEditSave->set_sensitive(sensitive);
+}
+
+void TagManager::_ReadEditedTagData(){
+
+    if(!EditedTag)
+        return;
+
+    EditTagName->set_text(EditedTag->GetName());
+
+    
+    NewTagCategory->set_active(0);
+
+    TAG_CATEGORY category = EditedTag->GetCategory();
+    
+    // Find right one //
+    for(auto iter = TagTypeStore->children().begin(); iter != TagTypeStore->children().end();
+        ++iter)
+    {
+        const Gtk::TreeModel::Row& row = *iter;
+
+        const int32_t categoryNumber = row[TagTypeStoreColumns.m_value];
+
+        if(categoryNumber == static_cast<int32_t>(category)){
+
+            // Found the right one //
+            EditTagCategory->set_active(iter);
+            break;
+        }
+    }
+    
+    EditTagIsPrivate->set_active(EditedTag->GetIsPrivate());
+
+    EditTagDescription->get_buffer()->set_text(EditedTag->GetDescription());
+
+    // TODO: these Gets should be on the database thread
+    const auto implies = EditedTag->GetImpliedTags();
+    
+    EditTagAliases->get_buffer()->set_text(Leviathan::StringOperations::StitchTogether<
+        std::string>(EditedTag->GetAliases(), "\n"));
+
+    
+    std::vector<std::string> implystrings;
+
+    implystrings.reserve(implies.size());
+
+    for(const auto& implytag : implies){
+
+        implystrings.push_back(implytag->GetName());
+    }
+    
+    EditTagImplies->get_buffer()->set_text(Leviathan::StringOperations::StitchTogether<
+        std::string>(implystrings, "\n"));
+}
+
+void TagManager::_ApplyTagEdit(){
+
+    if(!EditedTag)
+        return;
+
+    auto targettag = EditedTag;
+
+
+    auto rowiter = EditTagCategory->get_active();
+
+    if(!rowiter)
+        return;
+
+    const Gtk::TreeModel::Row& row = *rowiter;
+
+    const auto categoryNumber = row[TagTypeStoreColumns.m_value];
+
+    if(categoryNumber < 0 || categoryNumber > static_cast<int>(
+            TAG_CATEGORY::QUALITY_HELPFULL_LEVEL))
+    {
+        LOG_ERROR("Invalid category number when editing tag");
+        return;
+    }
+
+    // New properties //
+    const auto editedname = EditTagName->get_text();
+    TAG_CATEGORY category = static_cast<TAG_CATEGORY>(static_cast<int32_t>(categoryNumber));
+    std::vector<std::string> editedimplies;
+    std::vector<std::string> editedaliases;
+    const auto editedisprivate = EditTagIsPrivate->get_active();
+    const auto editeddescription = EditTagDescription->get_buffer()->get_text();
+
+    Leviathan::StringOperations::CutLines<std::string>(
+        EditTagAliases->get_buffer()->get_text(), editedaliases);
+
+
+    Leviathan::StringOperations::CutLines<std::string>(
+        EditTagImplies->get_buffer()->get_text(), editedimplies);
+
+    // Disable editing //
+    _SetTagEditWidgetsSensitive(false);
+
+    auto isalive = GetAliveMarker();
+
+    // Called if changing stuff fails //
+    auto onfail = [=](const std::string &message){
+
+        DualView::Get().InvokeFunction([=](){
+
+                INVOKE_CHECK_ALIVE_MARKER(isalive);
+
+                auto dialog = Gtk::MessageDialog(*this,
+                    "Failed to apply tag changes",
+                    false,
+                    Gtk::MESSAGE_ERROR,
+                    Gtk::BUTTONS_OK,
+                    true 
+                );
+
+                dialog.set_secondary_text("Error applying changes to tag id:" +
+                    Convert::ToString(targettag->GetID()) + " \"" + targettag->GetName() +
+                    "\" error: " + message);
+                
+                dialog.run();
+
+                // Don't mess with things if the EditedTag has been changed
+                if(EditedTag != targettag)
+                    return;
+
+                _ReadEditedTagData();
+
+                _SetTagEditWidgetsSensitive(true);
+            });
+    };
+    
+    DualView::Get().QueueDBThreadFunction([=](){
+
+            try{
+                // Apply new things //
+                if(targettag->GetName() != editedname)
+                    targettag->SetName(editedname);
+
+                if(targettag->GetCategory() != category)
+                    targettag->SetCategory(category);
+
+                if(targettag->GetDescription() != editeddescription)
+                    targettag->SetDescription(editeddescription);
+
+                if(targettag->GetIsPrivate() != editedisprivate)
+                    targettag->SetIsPrivate(editedisprivate);
+
+                // Apply changes to aliases //
+                std::vector<std::string> added;
+                std::vector<std::string> removed;
+
+                Leviathan::FindRemovedElements(targettag->GetAliases(),
+                    editedaliases, added, removed);
+
+                for(const auto& value : added){
+
+                    targettag->AddAlias(value);
+                }
+
+                for(const auto& value : removed){
+
+                    targettag->RemoveAlias(value);
+                }
+
+                targettag->Save();
+
+                added.clear();
+                removed.clear();
+
+                const auto implies = EditedTag->GetImpliedTags();
+                std::vector<std::string> implystrings;
+
+                implystrings.reserve(implies.size());
+
+                for(const auto& implytag : implies){
+
+                    implystrings.push_back(implytag->GetName());
+                }
+
+                Leviathan::FindRemovedElements(implystrings,
+                    editedimplies, added, removed);
+
+                for(const auto& value : added){
+
+                    targettag->AddImpliedTag(
+                        DualView::Get().GetDatabase().SelectTagByNameOrAlias(value));
+                }
+
+                for(const auto& value : removed){
+
+                    targettag->RemoveImpliedTag(
+                        DualView::Get().GetDatabase().SelectTagByNameOrAlias(value));
+                }
+
+            } catch(const InvalidSQL &e){
+
+                LOG_ERROR("TagManager: tag update failed, sql error: " +
+                    std::string(e.what()));
+                onfail(e.what());
+                return;
+            }
+
+            DualView::Get().InvokeFunction([=](){
+
+                    INVOKE_CHECK_ALIVE_MARKER(isalive);
+
+                    // Don't mess with things if the EditedTag has been changed
+                    if(EditedTag != targettag)
+                        return;
+
+                    _ReadEditedTagData();
+
+                    _SetTagEditWidgetsSensitive(true);
+                });
+        });
+}
+
+void TagManager::_OnSelectTagToEdit(const Gtk::TreeModel::Path& path,
+    Gtk::TreeViewColumn* column)
+{
+    const Gtk::TreeModel::Row& row = *FoundTagStore->get_iter(path);
+
+    const int64_t tagid = row[FoundTagStoreColumn.m_id];
+
+    if(EditedTag && tagid == EditedTag->GetID())
+        return;
+
+    ClearEditedTag();
+    
+    auto isalive = GetAliveMarker();
+    
+    DualView::Get().QueueDBThreadFunction([=](){
+
+            auto newtag = DualView::Get().GetDatabase().SelectTagByIDAG(tagid);
+
+            if(!newtag){
+
+                LOG_ERROR("TagManager: failed to find tag by id to edit");
+                return;
+            }
+
+            DualView::Get().InvokeFunction([=](){
+
+                    INVOKE_CHECK_ALIVE_MARKER(isalive);
+
+                    EditedTag = newtag;
+
+                    _ReadEditedTagData();
+
+                    _SetTagEditWidgetsSensitive(true);
+                });
+        });
+}
+
 

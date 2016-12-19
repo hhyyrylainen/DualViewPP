@@ -6,11 +6,12 @@
 
 namespace DV{
 
+class Tag;
+
 //! \brief Window that shows all the tags and allows editing them
 class TagManager : public Gtk::Window, public IsAlive{
 
-    class TagCategoryColumns : public Gtk::TreeModel::ColumnRecord
-    {
+    class TagCategoryColumns : public Gtk::TreeModel::ColumnRecord{
     public:
 
         TagCategoryColumns()
@@ -20,8 +21,7 @@ class TagManager : public Gtk::Window, public IsAlive{
         Gtk::TreeModelColumn<Glib::ustring> m_text;
     };
 
-    class TagListColumns : public Gtk::TreeModel::ColumnRecord
-    {
+    class TagListColumns : public Gtk::TreeModel::ColumnRecord{
     public:
 
         TagListColumns(){
@@ -58,7 +58,9 @@ public:
 
     //! \brief Clears the currently filled in new tag
     void ClearNewTagEntry();
-    
+
+    //! \brief Resets the edited tag
+    void ClearEditedTag();
 
 private:
 
@@ -72,6 +74,17 @@ private:
 
     //! \brief Creates a new tag with the currently set values
     void CreateNewTag();
+
+    //! \brief Sets the currently selected tag as the one to be edited
+    void _OnSelectTagToEdit(const Gtk::TreeModel::Path& path, Gtk::TreeViewColumn* column);
+
+    void _SetTagEditWidgetsSensitive(bool sensitive);
+
+    //! \brief Reads tag data into edit widgets
+    void _ReadEditedTagData();
+
+    //! \brief Applies changed Tag things
+    void _ApplyTagEdit();
     
 private:
 
@@ -88,6 +101,18 @@ private:
 
     TagCategoryColumns TagTypeStoreColumns;
     Glib::RefPtr<Gtk::ListStore> TagTypeStore;
+
+    // Tag update widgets
+    Gtk::Entry* EditTagName;
+    Gtk::ComboBox* EditTagCategory;
+    Gtk::CheckButton* EditTagIsPrivate;
+    Gtk::TextView* EditTagDescription;
+    Gtk::TextView* EditTagAliases;
+    Gtk::TextView* EditTagImplies;
+
+    Gtk::Button* TagEditSave;
+        
+    std::shared_ptr<Tag> EditedTag;
 
     // Existing tag editing
     Gtk::SearchEntry* TagSearch;
