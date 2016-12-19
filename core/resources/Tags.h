@@ -123,10 +123,22 @@ public:
         
         return Category;
     }
+
+    void SetCategory(TAG_CATEGORY category){
+
+        Category = category;
+        OnMarkDirty();
+    }
  
     const auto GetDescription() const{
         
         return Description;
+    }
+
+    void SetDescription(const std::string &newdescription){
+
+        Description = newdescription;
+        OnMarkDirty();
     }
 
     const auto GetIsPrivate() const{
@@ -134,13 +146,24 @@ public:
         return IsPrivate;
     }
 
+    void SetIsPrivate(bool newvalue){
+
+        IsPrivate = newvalue;
+        OnMarkDirty();
+    }
+
     void AddAlias(const std::string alias);
     
     void RemoveAlias(const std::string alias);
 
+    std::vector<std::string> GetAliases() const;
+    
+
     std::vector<std::shared_ptr<Tag>> GetImpliedTags() const;
 
     void AddImpliedTag(std::shared_ptr<Tag> imply);
+
+    void RemoveImpliedTag(std::shared_ptr<Tag> imply);
 
 
 protected:

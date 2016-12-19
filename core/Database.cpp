@@ -1562,6 +1562,26 @@ void Database::DeleteTagAlias(const Tag &tag, const std::string &alias){
     statementobj.StepAll(statementinuse);
 }
 
+std::vector<std::string> Database::SelectTagAliases(const Tag &tag){
+
+    GUARD_LOCK();
+    
+    std::vector<std::string> result;
+
+    const char str[] = "SELECT name FROM tag_aliases WHERE meant_tag = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(tag.GetID()); 
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        result.push_back(statementobj.GetColumnAsString(0));
+    }
+
+    return result;
+}
+
 bool Database::InsertTagImply(Tag &tag, const Tag &implied){
 
     GUARD_LOCK();
@@ -1587,6 +1607,19 @@ bool Database::InsertTagImply(Tag &tag, const Tag &implied){
     
     statementobj.StepAll(statementinuse);
     return true;
+}
+
+void Database::DeleteTagImply(Tag &tag, const Tag &implied){
+
+    GUARD_LOCK();
+
+    const char str[] = "DELETE FROM tag_implies WHERE primary_tag = ? AND to_apply = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(tag.GetID(), implied.GetID()); 
+    
+    statementobj.StepAll(statementinuse);
 }
 
 std::vector<std::shared_ptr<Tag>> Database::SelectTagImpliesAsTag(const Tag &tag){
