@@ -50,7 +50,10 @@ class DownloadSetup : public BaseWindow, public Gtk::Window, public IsAlive{
         URL_OK,
 
         //! Set when going through all the pages
-        SCANNING_PAGES
+        SCANNING_PAGES,
+        
+        //! Set when OK has been pressed
+        ADDING_TO_DB
     };
     
 public:
@@ -77,6 +80,20 @@ public:
     //! \brief Adds an image to the list of found images
     void OnFoundContent(const ScanFoundImage &content);
 
+    //! \brief Returns true if a new image link can be added
+    bool IsValidTargetForImageAdd() const;
+
+    //! \brief Returns true if this has no url and no collection name
+    bool IsValidForNewPageScan() const;
+    
+    //! \brief Adds an external link to this window
+    void AddExternallyFoundLink(const std::string &url, const std::string &referrer);
+
+
+    //! \brief Sets the url
+    void SetNewUrlToDl(const std::string &url);
+        
+    
     
     void SetTargetCollectionName(const std::string &str);
 

@@ -42,11 +42,21 @@ class Settings;
 class CollectionView;
 class TagManager;
 class Downloader;
+class DownloadSetup;
 
 struct ResolvePathInfinityBlocker;
 
 //! \brief Main class that contains all the windows and systems
 class DualView {
+
+    enum class DL_SETUP_TYPE{
+
+        UserOpened,
+        ExternalOpened,
+        //! Locked windows don't receive anything anymore
+        Locked
+    };
+    
 public:
 
     //! \brief Loads the GUI layout files and starts
@@ -91,7 +101,15 @@ public:
     void OpenDownloader();
 
     //! \brief Opens a setup window for a new downloadable gallery
-    void OpenDownloadSetup();
+    //! \param useropened True when the user clicked something and this was opened. If this is
+    //! automatically opened for some other type of action then this is false
+    void OpenDownloadSetup(bool useropened = true);
+
+    //! \brief Opens a download setup for a link that was sent to us from another program
+    void OnNewImageLinkReceived(const std::string &url, const std::string &referrer);
+
+    //! \brief Opens a download setup for a gallery that was sent to us from another program
+    void OnNewGalleryLinkReceived(const std::string &url);
     
 
     //! \brief Runs folder creator as a modal window
@@ -482,6 +500,11 @@ private:
     //! List of open windows
     //! Used to keep the windows allocated while they are open
     std::vector<std::shared_ptr<BaseWindow>> OpenWindows;
+
+    //! List of open download setups, used to pass things around between them
+    //! and open received links in them
+    //! \todo Clean up this list from time to time
+    std::vector<std::tuple<DL_SETUP_TYPE, std::weak_ptr<DownloadSetup>>> OpenDLSetups;
 
     //! Collection window
     std::shared_ptr<CollectionView> _CollectionView;

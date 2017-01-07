@@ -535,15 +535,41 @@ int DualView::_HandleCmdLine(const Glib::RefPtr<Gio::ApplicationCommandLine>
     // First handle already parsed things //
     auto alreadyParsed = command_line->get_options_dict();
 
+    Glib::ustring referrer;
+    if(!alreadyParsed->lookup_value("dl-referrer", referrer)){
+
+        referrer = "";
+    }
+    
+
     Glib::ustring fileUrl;
     if(alreadyParsed->lookup_value("dl-image", fileUrl)){
 
-        QueueCmd([fileUrl](DualView &instance) -> void
+        QueueCmd([=](DualView &instance) -> void
                 {
                     LOG_INFO("File to download: " + std::string(fileUrl.c_str()));
-
-                    
+                    OnNewImageLinkReceived(fileUrl, referrer);
                 });
+    }
+
+    if(alreadyParsed->lookup_value("dl-page", fileUrl)){
+
+        QueueCmd([=](DualView &instance) -> void
+            {
+                LOG_INFO("Page to download: " + std::string(fileUrl.c_str()));
+                OnNewGalleryLinkReceived(fileUrl);
+            });
+    }
+
+    if(alreadyParsed->lookup_value("dl-auto", fileUrl)){
+
+        QueueCmd([=](DualView &instance) -> void
+            {
+                LOG_INFO("Auto detect and download: " + std::string(fileUrl.c_str()));
+                LOG_WRITE("TODO: the auto detect thingy");
+                //referrer;
+                    
+            });
     }
 
     int argc;
@@ -1078,28 +1104,6 @@ void DualView::OpenDownloader(){
     _Downloader->present();
 }
 
-void DualView::OpenDownloadSetup(){
-    AssertIfNotMainThread();
-
-    auto builder = Gtk::Builder::create_from_file(
-        "../gui/download_setup.glade");
-
-    DownloadSetup* window;
-    builder->get_widget_derived("DownloadSetup", window);
-
-    if(!window){
-
-        LOG_ERROR("DownloadSetup window GUI layout is invalid");
-        return;
-    }
-
-    LOG_INFO("Opened DownloadSetup window");
-
-    std::shared_ptr<DownloadSetup> wrapped(window);
-    _AddOpenWindow(wrapped, *window);
-    wrapped->show();
-}
-
 void DualView::OpenTagCreator(const std::string &settext){
 
     OpenTagCreator();
@@ -1175,6 +1179,141 @@ void DualView::RunFolderCreatorAsDialog(const VirtualPath &path,
         dialog.run();
     }
 }
+// ------------------------------------ //
+void DualView::OnNewImageLinkReceived(const std::string &url, const std::string &referrer){
+
+    AssertIfNotMainThread();
+
+    // Find a downloader that can be used
+    std::shared_ptr<DownloadSetup> existing;
+    bool openednew = false;
+
+    while(true){
+        for(const auto& tuple : OpenDLSetups){
+        
+            DL_SETUP_TYPE state;
+            std::weak_ptr<DownloadSetup> dlsetup;
+
+            std::tie(state, dlsetup) = tuple;
+
+            // Check is it good for us //
+            if(state == DL_SETUP_TYPE::Locked || state == DL_SETUP_TYPE::UserOpened)
+                continue;
+
+            auto locked = dlsetup.lock();
+
+            if(!locked)
+                continue;
+        
+            if(!locked->IsValidTargetForImageAdd())
+                continue;
+
+            // Found a good one //
+            existing = locked;
+            break;
+        }
+
+        if(existing){
+
+            // We don't need a new window //
+            existing->AddExternallyFoundLink(url, referrer);
+            return;
+        }
+
+        if(openednew){
+
+            LOG_ERROR("Failed to find a suitable DownloadSetup even after opening a new one");
+            return;
+        }
+
+        openednew = true;
+        
+        // Open a new window and try again //
+        OpenDownloadSetup(false);
+    }
+}
+
+void DualView::OnNewGalleryLinkReceived(const std::string &url){
+
+    AssertIfNotMainThread();
+
+    // Find a downloader that can be used
+    std::shared_ptr<DownloadSetup> existing;
+    bool openednew = false;
+    
+    while(true){
+    
+        for(const auto& tuple : OpenDLSetups){
+        
+            DL_SETUP_TYPE state;
+            std::weak_ptr<DownloadSetup> dlsetup;
+
+            std::tie(state, dlsetup) = tuple;
+
+            // Check is it good for us //
+            if(state == DL_SETUP_TYPE::Locked)
+                continue;
+
+            auto locked = dlsetup.lock();
+
+            if(!locked)
+                continue;
+        
+            if(!locked->IsValidForNewPageScan())
+                continue;
+
+            // Found a good one //
+            existing = locked;
+            break;
+        }
+
+        if(existing){
+
+            // We don't need a new window //
+            existing->SetNewUrlToDl(url);
+            return;
+        }
+
+        if(openednew){
+
+            LOG_ERROR("Failed to find a suitable DownloadSetup even after opening a new one");
+            return;
+        }
+
+        openednew = true;
+        
+        // Open a new window and try again //
+        OpenDownloadSetup(false);
+    }
+}
+
+void DualView::OpenDownloadSetup(bool useropened /*= true*/){
+    
+    AssertIfNotMainThread();
+
+    auto builder = Gtk::Builder::create_from_file(
+        "../gui/download_setup.glade");
+
+    DownloadSetup* window;
+    builder->get_widget_derived("DownloadSetup", window);
+
+    if(!window){
+
+        LOG_ERROR("DownloadSetup window GUI layout is invalid");
+        return;
+    }
+
+    LOG_INFO("Opened DownloadSetup window");
+
+    std::shared_ptr<DownloadSetup> wrapped(window);
+    _AddOpenWindow(wrapped, *window);
+    OpenDLSetups.push_back(std::make_tuple(useropened ? DL_SETUP_TYPE::UserOpened :
+            DL_SETUP_TYPE::ExternalOpened, wrapped));
+    wrapped->show();
+}
+
+
+
 // ------------------------------------ //
 void DualView::RegisterWindow(Gtk::Window &window){
 

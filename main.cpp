@@ -25,6 +25,27 @@ int main(int argc, char* argv[]){
         "Open downloader with the image open",
         "http://file.url.com/img.png"
     );
+    app->add_main_option_entry(
+        Gio::Application::OPTION_TYPE_STRING,
+        "dl-page",
+        '\0',
+        "Open downloader with the page open",
+        "http://file.url.com/"
+    );
+    app->add_main_option_entry(
+        Gio::Application::OPTION_TYPE_STRING,
+        "dl-auto",
+        '\0',
+        "Open downloader with the link with automatic detection",
+        "http://file.url.com/img.png"
+    );
+    app->add_main_option_entry(
+        Gio::Application::OPTION_TYPE_STRING,
+        "dl-referrer",
+        '\0',
+        "An URL that is the referrer for another type of dl-option that was passed in",
+        "http://file.url.com/"
+    );
     
     if(!app->register_application()){
 

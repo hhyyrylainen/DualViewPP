@@ -154,6 +154,7 @@ void DownloadSetup::_OnFinishAccept(){
     dialog.run();
 
     // Restore editing
+    State = STATE::URL_OK;
     set_sensitive(true);
 
     ImageSelection->SetShownItems(ImageObjects.begin(), ImageObjects.end());
@@ -170,6 +171,8 @@ void DownloadSetup::OnUserAcceptSettings(){
 
     if(!IsReadyToDownload())
         return;
+
+    State = STATE::ADDING_TO_DB;
 
     // Create a DownloadCollection and add that to the database
     const auto selected = GetSelectedImages();
@@ -266,7 +269,7 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage &content){
     for(auto& existinglink : ImagesToDownload){
 
         if(existinglink == content){
-            LOG_INFO("TODO: merge tags to the actual iamge object, duplicate now merged only "
+            LOG_INFO("TODO: merge tags to the actual image object, duplicate now merged only "
                 "into ImagesToDownload links");
             existinglink.Merge(content);
             return;
@@ -293,6 +296,42 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage &content){
 
     LOG_INFO("DownloadSetup added new image: " + content.URL + " referrer: " +
         content.Referrer);
+}
+
+bool DownloadSetup::IsValidTargetForImageAdd() const{
+
+    switch(State){
+    case STATE::URL_CHANGED:
+    case STATE::URL_OK:
+        return true;
+    default:
+        return false; 
+    }
+}
+    
+void DownloadSetup::AddExternallyFoundLink(const std::string &url,
+    const std::string &referrer)
+{
+    OnFoundContent(ScanFoundImage(url, referrer));
+
+    // Update image counts and stuff //
+    UpdateReadyStatus();
+}
+
+bool DownloadSetup::IsValidForNewPageScan() const{
+
+    if((State != STATE::URL_CHANGED && State != STATE::URL_OK) || UrlBeingChecked){
+
+        return false;
+    }
+
+    return TargetCollectionName->get_text().empty() && URLEntry->get_text().empty();
+}
+
+void DownloadSetup::SetNewUrlToDl(const std::string &url){
+
+    URLEntry->set_text(url);
+    OnURLChanged();
 }
 // ------------------------------------ //
 void DownloadSetup::OnItemSelected(ListItem &item){
@@ -731,6 +770,11 @@ void DownloadSetup::_UpdateWidgetStates(){
     {
         
 
+    }
+    break;
+    case STATE::ADDING_TO_DB:
+    {
+        
     }
     break;
     
