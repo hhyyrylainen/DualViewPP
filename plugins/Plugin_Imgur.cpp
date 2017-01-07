@@ -141,6 +141,7 @@ class ImgurScanner final : public IWebsiteScanner{
         if(params.ContentType == "application/json"){
 
             LOG_INFO("Parsing imgur json API");
+            LOG_WRITE("TODO: get page title somehow");
 
             try{
 
