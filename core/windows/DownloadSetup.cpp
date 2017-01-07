@@ -176,25 +176,25 @@ void DownloadSetup::OnUserAcceptSettings(){
     SetTargetCollectionName(TargetCollectionName->get_text());
 
     // Ask to add to uncategorized //
-    TargetCollectionName->get_text();
+    if(TargetCollectionName->get_text().empty()){
 
-    auto dialog = Gtk::MessageDialog(*this,
-        "Download to Uncategorized?",
-        false,
-        Gtk::MESSAGE_QUESTION,
-        Gtk::BUTTONS_YES_NO,
-        true 
-    );
+        auto dialog = Gtk::MessageDialog(*this,
+            "Download to Uncategorized?",
+            false,
+            Gtk::MESSAGE_QUESTION,
+            Gtk::BUTTONS_YES_NO,
+            true 
+        );
 
-    dialog.set_secondary_text("Download to Uncategorized makes finding images "
-        "later more difficult.");
-    int result = dialog.run();
+        dialog.set_secondary_text("Download to Uncategorized makes finding images "
+            "later more difficult.");
+        int result = dialog.run();
 
-    if(result != Gtk::RESPONSE_YES){
+        if(result != Gtk::RESPONSE_YES){
 
-        return;
+            return;
+        }
     }
-
 
     
 
