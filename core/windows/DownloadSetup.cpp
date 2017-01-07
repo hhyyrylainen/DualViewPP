@@ -172,6 +172,32 @@ void DownloadSetup::OnUserAcceptSettings(){
     if(!IsReadyToDownload())
         return;
 
+    // Make sure that the url is valid //
+    SetTargetCollectionName(TargetCollectionName->get_text());
+
+    // Ask to add to uncategorized //
+    TargetCollectionName->get_text();
+
+    auto dialog = Gtk::MessageDialog(*this,
+        "Download to Uncategorized?",
+        false,
+        Gtk::MESSAGE_QUESTION,
+        Gtk::BUTTONS_YES_NO,
+        true 
+    );
+
+    dialog.set_secondary_text("Download to Uncategorized makes finding images "
+        "later more difficult.");
+    int result = dialog.run();
+
+    if(result != Gtk::RESPONSE_YES){
+
+        return;
+    }
+
+
+    
+
     State = STATE::ADDING_TO_DB;
 
     // Create a DownloadCollection and add that to the database
@@ -184,10 +210,7 @@ void DownloadSetup::OnUserAcceptSettings(){
 
                 image->SaveFileToDisk();
             }
-        });
-
-    // Make sure that the url is valid //
-    SetTargetCollectionName(TargetCollectionName->get_text());
+        });    
 
     // Store values //
 
@@ -316,6 +339,9 @@ void DownloadSetup::AddExternallyFoundLink(const std::string &url,
 
     // Update image counts and stuff //
     UpdateReadyStatus();
+
+    if(State == STATE::URL_CHANGED)
+        _SetState(STATE::URL_OK);
 }
 
 bool DownloadSetup::IsValidForNewPageScan() const{
