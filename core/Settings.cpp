@@ -108,6 +108,11 @@ void Settings::Save(){
 
         downloadsDelays->AddVariable(std::make_shared<NamedVariableList>("Debug",
                 new BoolBlock(CurlDebug)));
+
+        downloadsDelays->AddVariable(std::make_shared<NamedVariableList>("MaxRetries",
+                new BoolBlock(MaxDLRetries)));
+
+        
     
         downloads->AddVariableList(std::move(downloadsDelays));
 
@@ -279,6 +284,11 @@ void Settings::_Load(){
             Leviathan::ObjectFileProcessor::LoadValueFromNamedVars(curl->GetVariables(),
                 "Debug", CurlDebug, CurlDebug,
                 log, "Settings: Load:");
+
+            Leviathan::ObjectFileProcessor::LoadValueFromNamedVars(curl->GetVariables(),
+                "MaxRetries", MaxDLRetries, MaxDLRetries,
+                log, "Settings: Load:");
+
             
         } else {
 

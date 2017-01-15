@@ -95,6 +95,11 @@ public:
         return PluginFolder;
     }
 
+    auto GetMaxDLRetries() const{
+
+        return MaxDLRetries;
+    }
+
     //! \brief Returns true if loadversion is compatible with SETTINGS_VERSION
     static bool IsVersionCompatible(int loadversion);
 
@@ -143,6 +148,9 @@ protected:
 
     //! True if curl should print debug output
     bool CurlDebug = false;
+
+    //! Maximum number of failed downloads per image when downloading
+    int32_t MaxDLRetries = 5;
 
     //! List of plugins that need to be loaded
     std::vector<std::string> PluginsToLoad = { "Plugin_Imgur" };

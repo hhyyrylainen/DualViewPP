@@ -347,9 +347,21 @@ struct DV::DownloadProgressState{
 
                 if(imagedl->HasFailed()){
 
-                    LOG_ERROR("Downloading failed for URL: " + imagedl->GetURL());
-                    Loader->_SetDLThreadStatus("Failed to download: " + imagedl->GetURL(),
+                    ++DLRetries;
+
+                    if(DLRetries > DualView::Get().GetSettings().GetMaxDLRetries()){
+
+                        Loader->_SetDLThreadStatus("Max retries reached for failed dl: "
+                            + imagedl->GetURL(),
+                            false, -1);
+                        return false;
+                    }
+
+                    LOG_ERROR("Downloading failed (retrying) for URL: " + imagedl->GetURL());
+                    Loader->_SetDLThreadStatus("Failed to download, retry number " +
+                        Convert::ToString(DLRetries) + ", url: " + imagedl->GetURL(),
                         false, -1);
+                    
                     return false;
                 }
                 
@@ -378,6 +390,7 @@ struct DV::DownloadProgressState{
 
             // Download if the target file doesn't exist yet //
             const auto currentdl = ImageList[CurrentDownload];
+            DLRetries = 0;
             
             const auto cachefile = DownloadManager::GetCachePathForURL(
                 currentdl->GetFileURL());
@@ -503,6 +516,10 @@ struct DV::DownloadProgressState{
     std::atomic<bool> ImageListReady = { false };
     std::vector<std::shared_ptr<NetFile>> ImageList;
     size_t CurrentDownload = 0;
+
+
+    //! Download retries used
+    int DLRetries = 0;
 
     std::vector<std::shared_ptr<Image>> DownloadedImages;
 
