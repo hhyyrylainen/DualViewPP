@@ -85,6 +85,9 @@ public:
 
     //! \brief Returns true if this has no url and no collection name
     bool IsValidForNewPageScan() const;
+
+    //! \brief Sets this invalid for both IsValidTargetForImageAdd and IsValidForNewPageScan
+    void SetLockActive();
     
     //! \brief Adds an external link to this window
     void AddExternallyFoundLink(const std::string &url, const std::string &referrer);
@@ -195,6 +198,10 @@ private:
     Gtk::CheckButton* SelectOnlyOneImage;
     Gtk::Button* DeselectImages;
     Gtk::Button* ImageSelectPageAll;
+
+    Gtk::CheckButton* RemoveAfterAdding;
+    Gtk::Switch* LockFromAdding;
+    
 
     Gtk::Button* BrowseForward;
     Gtk::Button* BrowseBack;

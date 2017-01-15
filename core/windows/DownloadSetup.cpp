@@ -112,6 +112,11 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     BrowseBack->signal_clicked().connect(sigc::mem_fun(*this,
             &DownloadSetup::SelectPreviousImage));
 
+
+    BUILDER_GET_WIDGET(RemoveAfterAdding);
+
+    BUILDER_GET_WIDGET(LockFromAdding);
+    
     // Set all the editor controls read only
     _UpdateWidgetStates();
 }
@@ -249,22 +254,25 @@ void DownloadSetup::OnUserAcceptSettings(){
         });
     
     // Remove the added from the list //
-    for(size_t i = 0; i < ImageObjects.size(); ){
+    if(RemoveAfterAdding->get_active()){
+        
+        for(size_t i = 0; i < ImageObjects.size(); ){
 
-        bool removed = false;
+            bool removed = false;
 
-        for(const auto& added : selected){
-            if(ImageObjects[i].get() == added.get()){
+            for(const auto& added : selected){
+                if(ImageObjects[i].get() == added.get()){
 
-                ImageObjects.erase(ImageObjects.begin() + i);
-                ImagesToDownload.erase(ImagesToDownload.begin() + i);
-                removed = true;
-                break;
+                    ImageObjects.erase(ImageObjects.begin() + i);
+                    ImagesToDownload.erase(ImagesToDownload.begin() + i);
+                    removed = true;
+                    break;
+                }
             }
-        }
 
-        if(!removed)
-            ++i;
+            if(!removed)
+                ++i;
+        }
     }
 
     // Start waiting for things //
@@ -326,7 +334,7 @@ bool DownloadSetup::IsValidTargetForImageAdd() const{
     switch(State){
     case STATE::URL_CHANGED:
     case STATE::URL_OK:
-        return true;
+        return !LockFromAdding->get_active();
     default:
         return false; 
     }
@@ -351,13 +359,24 @@ bool DownloadSetup::IsValidForNewPageScan() const{
         return false;
     }
 
-    return TargetCollectionName->get_text().empty() && URLEntry->get_text().empty();
+    if(!(TargetCollectionName->get_text().empty() && URLEntry->get_text().empty())){
+        return false;
+    }
+
+    return !LockFromAdding->get_active();
 }
 
 void DownloadSetup::SetNewUrlToDl(const std::string &url){
 
     URLEntry->set_text(url);
     OnURLChanged();
+}
+
+void DownloadSetup::SetLockActive(){
+
+    DualView::IsOnMainThreadAssert();
+    
+    LockFromAdding->set_active(true);
 }
 // ------------------------------------ //
 void DownloadSetup::OnItemSelected(ListItem &item){
@@ -427,8 +446,15 @@ std::vector<std::shared_ptr<InternetImage>> DownloadSetup::GetSelectedImages(){
 void DownloadSetup::SelectAllImages(){
 
     LOG_INFO("DownloadSetup: selecting all");
+
+    // Fix selecting all when "select only one" is active
+    const auto oldonlyone = SelectOnlyOneImage->get_active();
+    SelectOnlyOneImage->set_active(false);
+    
     ImageSelection->SelectAllItems();
     UpdateEditedImages();
+
+    SelectOnlyOneImage->set_active(oldonlyone);
 }
 
 void DownloadSetup::DeselectAllImages(){
@@ -812,7 +838,6 @@ void DownloadSetup::UpdateReadyStatus(){
     
     const auto selected = ImageSelection->CountSelectedItems();
     const auto total = ImageObjects.size();
-
         
     bool ready = IsReadyToDownload(); 
         

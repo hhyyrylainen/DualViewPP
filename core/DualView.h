@@ -47,16 +47,7 @@ class DownloadSetup;
 struct ResolvePathInfinityBlocker;
 
 //! \brief Main class that contains all the windows and systems
-class DualView {
-
-    enum class DL_SETUP_TYPE{
-
-        UserOpened,
-        ExternalOpened,
-        //! Locked windows don't receive anything anymore
-        Locked
-    };
-    
+class DualView {    
 public:
 
     //! \brief Loads the GUI layout files and starts
@@ -180,6 +171,9 @@ public:
     //! \exception boost::filesystem::filesystem_error When something is badly wrong
     static bool MoveFile(const std::string &original, const std::string &targetname);
 
+    //! \brief Returns true if string is in SUPPORTED_EXTENSIONS
+    static bool IsExtensionContent(const std::string &extension);
+    
     //! \brief Returns true if file extension is in SUPPORTED_EXTENSIONS
     static bool IsFileContent(const std::string &file);
 
@@ -504,7 +498,7 @@ private:
     //! List of open download setups, used to pass things around between them
     //! and open received links in them
     //! \todo Clean up this list from time to time
-    std::vector<std::tuple<DL_SETUP_TYPE, std::weak_ptr<DownloadSetup>>> OpenDLSetups;
+    std::vector<std::weak_ptr<DownloadSetup>> OpenDLSetups;
 
     //! Collection window
     std::shared_ptr<CollectionView> _CollectionView;

@@ -566,9 +566,21 @@ int DualView::_HandleCmdLine(const Glib::RefPtr<Gio::ApplicationCommandLine>
         QueueCmd([=](DualView &instance) -> void
             {
                 LOG_INFO("Auto detect and download: " + std::string(fileUrl.c_str()));
-                LOG_WRITE("TODO: the auto detect thingy");
-                //referrer;
-                    
+
+                // If the file has a content extension then open as an image
+                const auto extension = Leviathan::StringOperations::GetExtension(
+                    DownloadManager::ExtractFileName(fileUrl.c_str()));
+                
+                if(IsExtensionContent("." + extension)){
+
+                    LOG_INFO("Detected as an image");
+                    OnNewImageLinkReceived(fileUrl, referrer);
+                    return;
+                }
+
+                // Otherwise open as a page
+                LOG_INFO("Detected as a gallery page");
+                OnNewGalleryLinkReceived(fileUrl);
             });
     }
 
@@ -952,17 +964,22 @@ bool DualView::MoveFile(const std::string &original, const std::string &targetna
     return true;
 }
 // ------------------------------------ //
-bool DualView::IsFileContent(const std::string &file){
+bool DualView::IsExtensionContent(const std::string &extension){
 
-    std::string extension = StringToLower(boost::filesystem::path(file).extension().string());
-    
     for(const auto& type : SUPPORTED_EXTENSIONS){
 
         if(std::get<0>(type) == extension)
             return true;
     }
 
-    return false;
+    return false;    
+}
+
+bool DualView::IsFileContent(const std::string &file){
+
+    std::string extension = StringToLower(boost::filesystem::path(file).extension().string());
+    
+    return IsExtensionContent(extension);
 }
 
 std::string DualView::StringToLower(const std::string &str){
@@ -1189,17 +1206,9 @@ void DualView::OnNewImageLinkReceived(const std::string &url, const std::string 
     bool openednew = false;
 
     while(true){
-        for(const auto& tuple : OpenDLSetups){
+        for(const auto& dlsetup : OpenDLSetups){
         
-            DL_SETUP_TYPE state;
-            std::weak_ptr<DownloadSetup> dlsetup;
-
-            std::tie(state, dlsetup) = tuple;
-
             // Check is it good for us //
-            if(state == DL_SETUP_TYPE::Locked || state == DL_SETUP_TYPE::UserOpened)
-                continue;
-
             auto locked = dlsetup.lock();
 
             if(!locked)
@@ -1243,17 +1252,9 @@ void DualView::OnNewGalleryLinkReceived(const std::string &url){
     
     while(true){
     
-        for(const auto& tuple : OpenDLSetups){
+        for(const auto& dlsetup : OpenDLSetups){
         
-            DL_SETUP_TYPE state;
-            std::weak_ptr<DownloadSetup> dlsetup;
-
-            std::tie(state, dlsetup) = tuple;
-
             // Check is it good for us //
-            if(state == DL_SETUP_TYPE::Locked)
-                continue;
-
             auto locked = dlsetup.lock();
 
             if(!locked)
@@ -1307,8 +1308,11 @@ void DualView::OpenDownloadSetup(bool useropened /*= true*/){
 
     std::shared_ptr<DownloadSetup> wrapped(window);
     _AddOpenWindow(wrapped, *window);
-    OpenDLSetups.push_back(std::make_tuple(useropened ? DL_SETUP_TYPE::UserOpened :
-            DL_SETUP_TYPE::ExternalOpened, wrapped));
+    OpenDLSetups.push_back(wrapped);
+
+    if(useropened)
+        wrapped->SetLockActive();
+    
     wrapped->show();
 }
 
