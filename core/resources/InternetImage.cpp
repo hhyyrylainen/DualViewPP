@@ -190,7 +190,17 @@ void DownloadLoadedImage::OnSuccess(std::shared_ptr<DownloadLoadedImage> thisobj
             auto image = std::make_shared<std::vector<Magick::Image>>();
 
             // Load image //
-            readImages(image.get(), *datablob);
+            try{
+                
+                readImages(image.get(), *datablob);
+                
+            } catch(const Magick::Error &e){
+
+                // Loading failed //
+                thisobject->OnFail(thisobject, "Downloaded image is invalid, error: " +
+                    std::string(e.what()));
+                return;
+            }
 
             if(image->empty()){
 

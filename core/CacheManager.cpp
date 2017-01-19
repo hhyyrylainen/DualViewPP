@@ -517,7 +517,16 @@ void LoadedImage::LoadImage(const std::string &file,
         throw Leviathan::InvalidArgument("Allocating image vector failed");
 
     // Load image //
-    readImages(createdImage.get(), file);
+    try{
+                
+        readImages(createdImage.get(), file);
+                
+    } catch(const Magick::Error &e){
+
+        // Loading failed //
+        throw Leviathan::InvalidArgument("Loaded image is invalid/unsupported: " + 
+            std::string(e.what()));
+    }
 
     if(createdImage->empty())
         throw Leviathan::InvalidArgument("Loaded image is empty");
@@ -554,6 +563,8 @@ void LoadedImage::DoLoad(){
 
         FromPath = "Error Loading: " + std::string(e.what());
         Status = IMAGE_LOAD_STATUS::Error;
+
+        LOG_ERROR("Image failed to open from: " + FromPath + " error: " + e.what());
     }
 }
 
