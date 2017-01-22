@@ -123,6 +123,9 @@ void SingleView::Open(std::shared_ptr<Image> image, std::shared_ptr<ImageListScr
         
                 _LoadImageInfo();
             }
+
+            GUARD_LOCK();
+            OnTagsUpdated(guard);
         });
 
     UpdateImageNumber();
@@ -199,30 +202,46 @@ void SingleView::UpdateImageNumber(){
     if(!InCollection || !img){
 
         title = img ? img->GetName() : std::string("no image open");
+        set_title(title + " | DualView++");
         
     } else {
 
         // img is valig here
         const auto desc = InCollection->GetDescriptionStr();
+        auto collectionBrowse = InCollection;
+
+        auto alive = GetAliveMarker();
+
+        DualView::Get().QueueDBThreadFunction([=](){
+
+                std::string title;
+
+                if(InCollection->SupportsRandomAccess() && InCollection->HasCount()){
+            
+                    std::stringstream stream;
+                    stream << (InCollection->GetImageIndex(*img) + 1) << "/" <<
+                        InCollection->GetCount() << " in " << desc << " image: " <<
+                        img->GetName();
+            
+                    title = stream.str();
+            
+                } else {
+
+                    std::stringstream stream;
+                    stream << "image in " << desc << " image: " << img->GetName();
+            
+                    title = stream.str();
+                }
+
+                DualView::Get().InvokeFunction([=](){
+                        set_title(title + " | DualView++");
+                    });
+            });
         
-        if(InCollection->SupportsRandomAccess() && InCollection->HasCount()){
 
-            std::stringstream stream;
-            stream << (InCollection->GetImageIndex(*img) + 1) << "/" <<
-                InCollection->GetCount() << " in " << desc << " image: " << img->GetName();
-            
-            title = stream.str();
-            
-        } else {
-
-            std::stringstream stream;
-            stream << "image in " << desc << " image: " << img->GetName();
-            
-            title = stream.str();
-        }
     }
 
-    set_title(title + " | DualView++");
+
 }
 // ------------------------------------ //
 void SingleView::_OnClose(){
