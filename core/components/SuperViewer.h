@@ -121,6 +121,7 @@ protected:
     void _AddUnloadTimer();
 
     //! \brief Unloads the image immediately
+    //! \note This can be called after the destructor if this was shown while being destroyed
     void _OnUnMapped();
 
     //! \brief Draws the CachedDrawnImage with all the current settings

@@ -111,7 +111,8 @@ void SuperViewer::_CommonCtor(){
 SuperViewer::~SuperViewer(){
 
     PRINT_INFO("Super destructed");
-    
+
+    DisplayedResource.reset();
 }
 // ------------------------------------ //
 void SuperViewer::SetImage(std::shared_ptr<Image> displayedResource){
@@ -557,14 +558,21 @@ bool SuperViewer::_OnUnloadTimer(){
     }
 
     // Unload it //
-    CachedDrawnImage.reset();
+    if(CachedDrawnImage)
+        CachedDrawnImage.reset();
     HasUnloadTimer = false;
     return false;
 }
+
 void SuperViewer::_OnUnMapped(){
 
     HasBeenDrawn = false;
-    CachedDrawnImage.reset();
+
+    // Prevents this being called after destructor
+    if(DisplayedResource){
+
+        CachedDrawnImage.reset();
+    }
 }
 // ------------------------------------ //
 

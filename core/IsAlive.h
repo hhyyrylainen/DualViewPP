@@ -38,4 +38,12 @@ private:
 #define INVOKE_CHECK_ALIVE_MARKER(x) { if(!IsAlive::IsStillAlive(x)){ \
     LOG_WARNING("Object no longer alive in Invoked function"); return; } }
 
+
+//! Invokes a specific function really easily
+#define INVOKE_FUNCTION_WITH_ALIVE_CHECK(funcname) { auto alive = this->GetAliveMarker();\
+ DualView::Get().InvokeFunction([=](){\
+ INVOKE_CHECK_ALIVE_MARKER(alive); \
+ this->funcname();\
+     });}
+
 }

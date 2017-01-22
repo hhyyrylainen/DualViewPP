@@ -14,27 +14,56 @@ void FolderNavigatorHelper::GoToRoot(){
 
 void FolderNavigatorHelper::GoToPath(const VirtualPath &path){
 
-    CurrentFolder = DualView::Get().GetFolderFromPath(path);
-    CurrentPath = path;
+    auto alive = GetAliveMarker();
 
-    if(!CurrentFolder)
-        GoToRoot();
+    DualView::Get().QueueDBThreadFunction([=](){
 
-    OnFolderChanged();
+            auto folder = DualView::Get().GetFolderFromPath(path);
+            
+            DualView::Get().InvokeFunction([=](){
+
+                    INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                    CurrentFolder = folder;
+                    CurrentPath = path;
+
+                    if(!CurrentFolder)
+                        GoToRoot();
+
+                    OnFolderChanged();                    
+                });
+        });
 }
 // ------------------------------------ //
-bool FolderNavigatorHelper::TryGoToPath(const VirtualPath &path){
+std::future<bool> FolderNavigatorHelper::TryGoToPath(const VirtualPath &path){
 
-    auto folder = DualView::Get().GetFolderFromPath(path);
+    auto result = std::make_shared<std::promise<bool>>();
+    auto alive = GetAliveMarker();
 
-    if(!folder)
-        return false;
+    DualView::Get().QueueDBThreadFunction([=](){
 
-    CurrentFolder = folder;
-    CurrentPath = path;
+            auto folder = DualView::Get().GetFolderFromPath(path);
 
-    OnFolderChanged();
-    return true;
+            if(!folder){
+
+                result->set_value(false);
+                return;
+            }
+            
+            DualView::Get().InvokeFunction([=](){
+
+                    INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                    CurrentFolder = folder;
+                    CurrentPath = path;
+
+                    OnFolderChanged();
+
+                    result->set_value(true);
+                });
+        });
+
+    return result->get_future();
 }
 // ------------------------------------ //
 void FolderNavigatorHelper::MoveToSubfolder(const std::string &subfoldername){
@@ -57,10 +86,26 @@ void FolderNavigatorHelper::_OnPathEntered(){
     if(!NavigatorPathEntry)
         return;
 
-    if(!TryGoToPath(VirtualPath(NavigatorPathEntry->get_text(), false))){
+    auto checkready = std::make_shared<std::future<bool>>(
+            TryGoToPath(VirtualPath(NavigatorPathEntry->get_text(),
+                    false)));
 
-        LOG_ERROR("FolderNavigator: TODO: error sound");
-    }
+    DualView::Get().QueueConditional([=]() -> bool{
+
+            const auto ready = checkready->wait_for(std::chrono::seconds(0));
+
+            if(ready == std::future_status::timeout)
+                return false;
+            
+            const bool result = checkready->get();
+
+            if(!result){
+                // DualView::Get().InvokeFunction();
+                LOG_ERROR("FolderNavigator: TODO: error sound");
+            }
+
+            return true;
+        });
 }
 
 void FolderNavigatorHelper::RegisterNavigator(Gtk::Entry &pathentry, Gtk::Button &upfolder){

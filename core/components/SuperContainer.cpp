@@ -1,6 +1,7 @@
 // ------------------------------------ //
 #include "SuperContainer.h"
 
+#include "core/DualView.h"
 #include "Common.h"
 
 using namespace DV;
@@ -40,6 +41,8 @@ SuperContainer::~SuperContainer(){
 }
 // ------------------------------------ //
 void SuperContainer::Clear(){
+
+    DualView::IsOnMainThreadAssert();
 
     // This will delete all the widgets //
     Positions.clear();

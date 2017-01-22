@@ -1,17 +1,19 @@
 #pragma once
 
 #include "core/VirtualPath.h"
+#include "core/IsAlive.h"
 
 #include <gtkmm.h>
 #include <string>
 #include <memory>
+#include <future>
 
 namespace DV{
 
 class Folder;
 
 //! \brief Contains common functions for navigating between folders
-class FolderNavigatorHelper{
+class FolderNavigatorHelper : public IsAlive{
 public:
 
     FolderNavigatorHelper() = default;
@@ -24,7 +26,7 @@ public:
 
     //! \brief Tries to go to the specified path, if invalid does nothing
     //! \returns True on success
-    bool TryGoToPath(const VirtualPath &path);
+    std::future<bool> TryGoToPath(const VirtualPath &path);
 
     //! \brief Goes to a subfolder
     void MoveToSubfolder(const std::string &subfoldername);

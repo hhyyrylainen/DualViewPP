@@ -50,8 +50,19 @@ CollectionListItem::CollectionListItem(const std::shared_ptr<ItemSelectable> &se
 void CollectionListItem::SetCollection(std::shared_ptr<Collection> collection){
 
     CurrentCollection = collection;
+    auto alive = GetAliveMarker();
 
-    _SetImage(collection->GetPreviewIcon());
+    DualView::Get().QueueDBThreadFunction([=](){
+
+            auto preview = collection->GetPreviewIcon();
+            
+            DualView::Get().InvokeFunction([=](){
+
+                    INVOKE_CHECK_ALIVE_MARKER(alive);
+                    _SetImage(preview);
+                });
+        });
+
     _SetName(collection->GetName());
     ImageIcon.SetImageList(collection);
 }

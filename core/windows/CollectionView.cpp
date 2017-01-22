@@ -56,6 +56,7 @@ bool CollectionView::_OnClose(GdkEventAny* event){
 // ------------------------------------ //
 void CollectionView::_OnShown(){
 
+ 
     GoToRoot();
 }
 
@@ -72,6 +73,13 @@ void CollectionView::OnSearchChanged(){
         
 void CollectionView::OnFolderChanged(){
 
+    if(!DualView::IsOnMainThread()){
+
+        // Invoke on the main thread //
+        INVOKE_FUNCTION_WITH_ALIVE_CHECK(OnFolderChanged);
+        return;
+    }
+
     DualView::IsOnMainThreadAssert();
     
     PathEntry->set_text(CurrentPath.GetPathString());
@@ -80,13 +88,23 @@ void CollectionView::OnFolderChanged(){
     auto isalive = GetAliveMarker();
     std::string matchingpattern = SearchBox->get_text();
 
-    DualView::Get().QueueDBThreadFunction([this, isalive, matchingpattern](){
+    auto folder = CurrentFolder;
+
+    if(!folder){
+
+        Container->Clear();
+        return;
+    }
+
+    const VirtualPath startFolder = CurrentPath;
+
+    DualView::Get().QueueDBThreadFunction([=](){
 
             const auto collections = DualView::Get().GetDatabase().SelectCollectionsInFolder(
-                *CurrentFolder, matchingpattern);
+                *folder, matchingpattern);
 
             const auto folders = DualView::Get().GetDatabase().SelectFoldersInFolder(
-                *CurrentFolder, matchingpattern);
+                *folder, matchingpattern);
             
             auto loadedresources =
                 std::make_shared<std::vector<std::shared_ptr<ResourceWithPreview>>>();
@@ -99,21 +117,23 @@ void CollectionView::OnFolderChanged(){
 
             auto changefolder = std::make_shared<ItemSelectable>();
 
-            changefolder->AddFolderSelect([this](ListItem &item){
+            changefolder->AddFolderSelect([this, startFolder](ListItem &item){
 
                     FolderListItem* asfolder = dynamic_cast<FolderListItem*>(&item);
 
                     if(!asfolder)
                         return;
-
-                    MoveToSubfolder(asfolder->GetFolder()->GetName());
+                    
+                    // This works even if the user clicks multiple folders quickly and
+                    // appending the names would create an invalid path
+                    GoToPath(startFolder /
+                        VirtualPath(asfolder->GetFolder()->GetName()));
                 });
 
             DualView::Get().InvokeFunction([this, isalive, loadedresources, changefolder](){
 
                     INVOKE_CHECK_ALIVE_MARKER(isalive);
 
-                    // TODO: try to optimize this somehow
                     Container->SetShownItems(loadedresources->begin(), loadedresources->end(),
                         changefolder);
                 });

@@ -2,6 +2,7 @@
 
 #include "SuperViewer.h"
 #include "core/resources/Image.h"
+#include "core/IsAlive.h"
 
 #include <gtkmm.h>
 
@@ -11,7 +12,7 @@
 namespace DV{
 
 //! \brief Base class for all widget types that are used with a SuperContainer
-class ListItem : public Gtk::Frame{
+class ListItem : public Gtk::Frame, public IsAlive{
 public:
 
     //! \param showimage The image to show

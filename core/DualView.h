@@ -43,6 +43,7 @@ class CollectionView;
 class TagManager;
 class Downloader;
 class DownloadSetup;
+class DebugWindow;
 
 struct ResolvePathInfinityBlocker;
 
@@ -134,6 +135,10 @@ public:
 
     //! \brief Queues a function to be ran on a worker thread
     void QueueWorkerFunction(std::function<void()> func);
+
+    //! \brief Queues a function to be ran on a worker thread repeatedly until it returns true
+    //! indicating that it has succeeded
+    void QueueConditional(std::function<bool()> func);
 
     //! \brief Queues a function to be ran on the main thread
     void InvokeFunction(std::function<void()> func);
@@ -387,6 +392,9 @@ protected:
     //! \brief Processer worker queue
     void _RunWorkerThread();
 
+    //! \brief Conditional worker thread
+    void _RunConditionalThread();
+
     std::tuple<bool, VirtualPath> ResolvePathHelperRecursive(DBID currentid,
         const VirtualPath &currentpath, const ResolvePathInfinityBlocker &earlieritems);
     
@@ -396,6 +404,8 @@ private:
     void OpenImageFile_OnClick();
 
     void OpenCollection_OnClick();
+
+    void OpenDebug_OnClick();
 
     //! Once an instance is loaded init can start properly
     void _OnInstanceLoaded();
@@ -509,6 +519,9 @@ private:
     //! Downloader window
     std::shared_ptr<Downloader> _Downloader;
 
+    //! Debug buttons window
+    std::shared_ptr<DebugWindow> _DebugWindow;
+
     //! Plugin manager. For loading extra functionality
     std::unique_ptr<PluginManager> _PluginManager;
 
@@ -554,6 +567,13 @@ private:
     std::condition_variable WorkerThreadNotify;
     std::list<std::unique_ptr<std::function<void()>>> WorkerFuncQueue;
     std::mutex WorkerFuncQueueMutex;
+
+    //! Conditional worker
+    std::thread ConditionalWorker1;
+
+    std::condition_variable ConditionalWorkerThreadNotify;
+    std::vector<std::shared_ptr<std::function<bool()>>> ConditionalFuncQueue;
+    std::mutex ConditionalFuncQueueMutex;
 
 
     static DualView* Staticinstance;

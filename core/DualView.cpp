@@ -13,6 +13,7 @@
 #include "windows/DownloadSetup.h"
 #include "windows/AddToFolder.h"
 #include "windows/RemoveFromFolders.h"
+#include "windows/DebugWindow.h"
 
 #include "core/CacheManager.h"
 #include "core/Database.h"
@@ -112,6 +113,7 @@ DualView::~DualView(){
     _CollectionView.reset();
     _TagManager.reset();
     _Downloader.reset();
+    _DebugWindow.reset();
 
     // Downloads should have already stopped so this should be quick to delete //
     _DownloadManager.reset();
@@ -305,6 +307,15 @@ void DualView::_OnInstanceLoaded(){
     OpenCollection->signal_clicked().connect(
         sigc::mem_fun(*this, &DualView::OpenCollection_OnClick));
 
+
+    Gtk::ToolButton* OpenDebug = nullptr;
+
+    MainBuilder->get_widget("OpenDebug", OpenDebug);
+    LEVIATHAN_ASSERT(OpenDebug, "Invalid .glade file");
+
+    OpenDebug->signal_clicked().connect(
+        sigc::mem_fun(*this, &DualView::OpenDebug_OnClick));
+
     Gtk::Button* OpenImporter = nullptr;
     MainBuilder->get_widget("OpenImporter", OpenImporter);
     LEVIATHAN_ASSERT(OpenImporter, "Invalid .glade file");
@@ -350,6 +361,16 @@ void DualView::_OnInstanceLoaded(){
 
     // Store the window //
     _Downloader = std::shared_ptr<Downloader>(tmpDownloader);
+
+
+    //_CollectionView
+    DebugWindow* tmpDebug = nullptr;
+    MainBuilder->get_widget_derived("DebugWindow", tmpDebug);
+    LEVIATHAN_ASSERT(tmpDebug, "Invalid .glade file");
+
+    // Store the window //
+    _DebugWindow = std::shared_ptr<DebugWindow>(tmpDebug);
+    
 
     // Initialize accelerator keys here
     //Gtk::AccelMap::add_entry("<CollectionList-Item>/Right/Help", GDK_KEY_H,
@@ -497,6 +518,9 @@ void DualView::_OnLoadingFinished(){
     // For testing SuperViewer uncomment this to quickly open images
     //OpenImageViewer("/home/hhyyrylainen/690806.jpg");
     //OpenImporter();
+
+
+
 }
 // ------------------------------------ //
 void DualView::_ProcessCmdQueue(){
@@ -731,6 +755,15 @@ void DualView::QueueWorkerFunction(std::function<void()> func){
     WorkerThreadNotify.notify_one();
 }
 
+void DualView::QueueConditional(std::function<bool()> func){
+
+    std::lock_guard<std::mutex> lock(ConditionalFuncQueueMutex);
+
+    ConditionalFuncQueue.push_back(std::make_shared<std::function<bool()>>(func));
+
+    ConditionalWorkerThreadNotify.notify_one();
+}
+
 void DualView::_RunDatabaseThread(){
 
     std::unique_lock<std::mutex> lock(DatabaseFuncQueueMutex);
@@ -776,6 +809,42 @@ void DualView::_RunWorkerThread(){
             
             lock.lock();
         }
+    }
+}
+
+void DualView::_RunConditionalThread(){
+
+    std::unique_lock<std::mutex> lock(ConditionalFuncQueueMutex);
+
+    while(!QuitWorkerThreads){
+
+        if(ConditionalFuncQueue.empty())
+            ConditionalWorkerThreadNotify.wait(lock);
+
+        for(size_t i = 0; i < ConditionalFuncQueue.size(); ){
+                
+            const auto func = ConditionalFuncQueue[i];
+
+            lock.unlock();
+
+            const auto result = func->operator ()();
+
+            lock.lock();
+
+            if(result){
+
+                // Remove //
+                ConditionalFuncQueue.erase(ConditionalFuncQueue.begin() + i);
+                    
+            } else {
+
+                ++i;
+            }
+        }
+
+        // Don't constantly check whether functions are ready to run
+        if(!ConditionalFuncQueue.empty() && !QuitWorkerThreads)
+            ConditionalWorkerThreadNotify.wait_for(lock, std::chrono::milliseconds(12));
     }
 }
 // ------------------------------------ //
@@ -825,6 +894,7 @@ void DualView::_StartWorkerThreads(){
 
     HashCalculationThread = std::thread(std::bind(&DualView::_RunHashCalculateThread, this));
     Worker1Thread = std::thread(std::bind(&DualView::_RunWorkerThread, this));
+    ConditionalWorker1 = std::thread(std::bind(&DualView::_RunConditionalThread, this));
 }
 
 void DualView::_WaitForWorkerThreads(){
@@ -835,6 +905,7 @@ void DualView::_WaitForWorkerThreads(){
     HashCalculationThreadNotify.notify_all();
     DatabaseThreadNotify.notify_all();
     WorkerThreadNotify.notify_all();
+    ConditionalWorkerThreadNotify.notify_all();
 
     if(HashCalculationThread.joinable())
         HashCalculationThread.join();
@@ -847,6 +918,9 @@ void DualView::_WaitForWorkerThreads(){
 
     if(Worker1Thread.joinable())
         Worker1Thread.join();
+
+    if(ConditionalWorker1.joinable())
+        ConditionalWorker1.join();
 }
 // ------------------------------------ //
 std::string DualView::GetPathToCollection(bool isprivate) const{
@@ -2291,6 +2365,13 @@ void DualView::OpenCollection_OnClick(){
     Application->add_window(*_CollectionView);
     _CollectionView->show();
     _CollectionView->present();
+}
+
+void DualView::OpenDebug_OnClick(){
+
+    Application->add_window(*_DebugWindow);
+    _DebugWindow->show();
+    _DebugWindow->present();
 }
 // ------------------------------------ //
 std::string DualView::MakePathUniqueAndShort(const std::string &path){
