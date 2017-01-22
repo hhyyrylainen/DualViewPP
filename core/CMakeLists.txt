@@ -60,6 +60,7 @@ add_library(Core
   windows/DownloadSetup.h windows/DownloadSetup.cpp
   windows/AddToFolder.h windows/AddToFolder.cpp
   windows/RemoveFromFolders.h windows/RemoveFromFolders.cpp
+  windows/DebugWindow.h windows/DebugWindow.cpp
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp
