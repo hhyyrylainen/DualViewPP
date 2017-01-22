@@ -40,6 +40,15 @@ public:
         return DownloadBytes;
     }
 
+    //! Resets the state to allow retrying this download
+    void Retry(){
+
+        DownloadBytes.clear();
+        HasFinished = false;
+        HasSucceeded = true;
+        Progress = 0;
+    }
+
     bool IsReady() const{
 
         return HasFinished;

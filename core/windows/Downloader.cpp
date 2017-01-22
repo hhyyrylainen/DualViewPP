@@ -361,6 +361,12 @@ struct DV::DownloadProgressState{
                     Loader->_SetDLThreadStatus("Failed to download, retry number " +
                         Convert::ToString(DLRetries) + ", url: " + imagedl->GetURL(),
                         false, -1);
+
+                    // Retry //
+                    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                    
+                    imagedl->Retry();
+                    DualView::Get().GetDownloadManager().QueueDownload(imagedl);
                     
                     return false;
                 }
