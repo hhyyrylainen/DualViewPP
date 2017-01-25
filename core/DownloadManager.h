@@ -28,9 +28,8 @@ public:
 
     //! \brief Called from curl when the download has progressed
     //! \returns True if download should be canceled
-    //! \todo Timeout
+    //! \todo Actually implement timeout
     virtual bool OnDownloadProgress(float dlprogress, float uploadprogress);
-
 
     //! \brief Sets a finish callback for this job
     void SetFinishCallback(const std::function<void (DownloadJob&, bool)> &callback);

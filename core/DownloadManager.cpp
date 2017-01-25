@@ -109,7 +109,7 @@ std::string DownloadManager::ExtractFileName(const std::string &url){
         CurlWrapper curl;
         int outlength;
         
-        auto unescaped = curl_easy_unescape(curl.Get(), name.c_str(), name.length() ,
+        auto unescaped = curl_easy_unescape(curl.Get(), name.c_str(), name.length(),
             &outlength);
 
         name = std::string(unescaped, outlength);

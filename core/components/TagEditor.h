@@ -68,6 +68,7 @@ public:
     void SetEditable(bool editable);
 
     //! \brief Reads currently set tags from the TagCollections
+    //! \todo Make this use a background thread
     void ReadSetTags();
 
 protected:
