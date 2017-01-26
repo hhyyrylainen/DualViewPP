@@ -325,7 +325,9 @@ std::shared_ptr<TagCollection> Database::LoadImageTags(const std::shared_ptr<Ima
     
     auto tags = std::make_shared<DatabaseTagCollection>(
         std::bind(&Database::SelectImageTags, this, weak, std::placeholders::_1),
-        std::bind(&Database::InsertImageTag, this, weak, std::placeholders::_1),
+        [=](AppliedTag &tag){
+            InsertImageTagAG(weak, tag);
+        },
         std::bind(&Database::DeleteImageTag, this, weak, std::placeholders::_1)
     );
     
@@ -369,7 +371,7 @@ void Database::SelectImageTags(std::weak_ptr<Image> image,
     }
 }
 
-void Database::InsertImageTag(std::weak_ptr<Image> image,
+void Database::InsertImageTag(Lock &guard, std::weak_ptr<Image> image,
     AppliedTag &tag)
 {
     auto imageLock = image.lock();
@@ -377,8 +379,6 @@ void Database::InsertImageTag(std::weak_ptr<Image> image,
     if(!imageLock)
         return;
     
-    GUARD_LOCK();
-
     auto existing = SelectExistingAppliedTag(guard, tag);
 
     if(existing){
@@ -2876,7 +2876,7 @@ bool Database::_UpdateDatabase(Lock &guard, const int oldversion){
     if(oldversion < 14){
 
         LOG_ERROR("Migrations from version 13 and older aren't copied to DualView++ "
-            "and it's not possible to load a database that old");
+            "and thus not possible to load a database that old");
         
         return false;
     }
@@ -2940,14 +2940,20 @@ bool Database::_UpdateDatabase(Lock &guard, const int oldversion){
         _SetCurrentDatabaseVersion(guard, 17);
         return true;
     }
+    case 17:
+    {
+        // There was a bug where online image tags weren't applied to the images so we need
+        // to apply those
+        _UpdateApplyDownloadTagStrings(guard);
+        _SetCurrentDatabaseVersion(guard, 18);
+        return true;
+    }
     default:
     {
         LOG_ERROR("Unknown database version to update from: " + Convert::ToString(oldversion));
         return false;
     }
     }
-
-    return true;
 }
 
 void Database::_SetCurrentDatabaseVersion(Lock &guard, int newversion){
@@ -2957,6 +2963,80 @@ void Database::_SetCurrentDatabaseVersion(Lock &guard, int newversion){
             nullptr, nullptr, nullptr) != SQLITE_OK)
     {
         ThrowCurrentSqlError(guard);
+    }
+}
+
+void Database::_UpdateApplyDownloadTagStrings(Lock &guard){
+    
+    const char str[] = "SELECT pictures.id, net_files.tags_string FROM net_files "
+        "INNER JOIN pictures ON net_files.file_url = pictures.from_file WHERE "
+        "net_files.tags_string IS NOT NULL AND LENGTH(net_files.tags_string) > 0;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(); 
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        DBID imgid;
+
+        if(!statementobj.GetObjectIDFromColumn(imgid, 0)){
+
+            LOG_ERROR("Invalid DB update id received");
+            continue;
+        }
+
+        const auto tags = statementobj.GetColumnAsString(1);
+
+        if(tags.empty()){
+
+            LOG_WARNING("DB update skipping applying empty tag string");
+            continue;
+        }
+
+        // Load the image //
+        auto image = SelectImageByID(guard, imgid);
+
+        if(!image){
+
+            LOG_ERROR("DB update didn't find image a tag string should be applied to");
+            continue;
+        }
+
+        // Apply it //
+        std::vector<std::string> tagparts;
+        Leviathan::StringOperations::CutString<std::string>(tags, ";", tagparts);
+    
+        for(auto& line : tagparts){
+
+            if(line.empty())
+                continue;
+
+            guard.unlock();
+
+            std::shared_ptr<AppliedTag> tag;
+            
+            try{
+                
+                tag = DualView::Get().ParseTagFromString(line);
+                
+            } catch(const Leviathan::Exception &e){
+
+                LOG_ERROR("DB Update applying tag failed. Invalid tag: " + line);
+                continue;
+            }
+            
+            guard.lock();
+
+            if(!tag)
+                continue;
+
+            InsertImageTag(guard, image, *tag);
+
+            LOG_INFO("Applied tag " + tag->ToAccurateString() + " to " + image->GetName());
+        }
+        
+        LOG_INFO("Applied DB download tag string to image id: " + std::to_string(imgid));
     }
 }
 // ------------------------------------ //

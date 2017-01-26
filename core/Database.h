@@ -35,7 +35,7 @@ class TagModifier;
 class TagBreakRule;
 
 //! \brief The version number of the database
-constexpr auto DATABASE_CURRENT_VERSION = 17;
+constexpr auto DATABASE_CURRENT_VERSION = 18;
 
 //! \brief All database manipulation happens through this class
 //!
@@ -125,8 +125,9 @@ public:
         std::vector<std::shared_ptr<AppliedTag>> &tags);
 
     //! \brief Adds a tag to an image
-    void InsertImageTag(std::weak_ptr<Image> image,
+    void InsertImageTag(Lock &guard, std::weak_ptr<Image> image,
         AppliedTag &tag);
+    CREATE_NON_LOCKING_WRAPPER(InsertImageTag);
 
     //! \brief Removes a tag from an image
     void DeleteImageTag(std::weak_ptr<Image> image,
@@ -651,6 +652,12 @@ private:
 
     //! \brief Sets the database version. Should only be called from _UpdateDatabase
     void _SetCurrentDatabaseVersion(Lock &guard, int newversion);
+
+    //! \brief Helper for updates. Might be useful integrity checks later
+    //! \note This can only be ran while doing a database update because the database
+    //! needs to parse tags and to do that it needs to be unlocked and it might mess with
+    //! the result that is being iterated
+    void _UpdateApplyDownloadTagStrings(Lock &guard);
     
 protected:
 

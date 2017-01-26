@@ -9,6 +9,8 @@
 #include "core/resources/Image.h"
 #include "core/resources/Folder.h"
 
+#include "leviathan/Common/StringOperations.h"
+
 #include <sqlite3.h>
 #include <boost/filesystem.hpp>
 
@@ -24,6 +26,38 @@ TEST_CASE("String length counting", "[db]"){
     const char str[] = "SELECT COUNT(*) FROM tags;";
 
     REQUIRE(sizeof(str) == strlen(str) + 1);
+}
+
+TEST_CASE("Tag cutting", "[db][tags]"){
+
+    SECTION("Two parts"){
+        
+        std::vector<std::string> tagparts;
+        Leviathan::StringOperations::CutString<std::string>("two;tags", ";", tagparts);
+    
+        REQUIRE(tagparts.size() == 2);
+        CHECK(tagparts[0] == "two");
+        CHECK(tagparts[1] == "tags");
+    }
+
+    SECTION("Single part"){
+        
+        std::vector<std::string> tagparts;
+        Leviathan::StringOperations::CutString<std::string>("a tag;", ";", tagparts);
+    
+        REQUIRE(tagparts.size() == 1);
+        CHECK(tagparts[0] == "a tag");
+    }
+
+    SECTION("Single part with no ;"){
+        
+        std::vector<std::string> tagparts;
+        Leviathan::StringOperations::CutString<std::string>("tag", ";", tagparts);
+    
+        REQUIRE(tagparts.size() == 1);
+        CHECK(tagparts[0] == "tag");
+    }
+    
 }
 
 int SqliteHelperCallback(void* user, int columns, char** columnsastext, char** columnname){
@@ -867,7 +901,7 @@ TEST_CASE("TagCollection works like it should", "[db][tags]"){
 
         auto tagtoinsert = dv.ParseTagFromString("watermark");
 
-        db.InsertImageTag(img, *tagtoinsert);
+        db.InsertImageTagAG(img, *tagtoinsert);
         CHECK(db.CountAppliedTags() == 1);
         {
             GUARD_LOCK_OTHER(db);
