@@ -6,7 +6,7 @@ option(CREATE_DL_PLUGINS "Set to OFF to skip building web download tools" ON)
 
 option(USE_GPROF "Set to ON to use gprof profiling" OFF)
 
-set(DUALVIEW_VERSION_STR "0.0.1")
+set(DUALVIEW_VERSION_STR "0.1.0")
 
 if(CMAKE_BUILD_TYPE STREQUAL "")
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
