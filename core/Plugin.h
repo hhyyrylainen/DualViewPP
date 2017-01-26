@@ -30,7 +30,7 @@ struct ScanFoundImage{
 
     std::string URL;
     std::string Referrer;
-    //std::vector<std::string> Tags
+    std::vector<std::string> Tags;
 };
 
 //! \brief Result data for IWebsiteScanner
@@ -136,8 +136,14 @@ public:
     virtual std::string RewriteURL(const std::string &url) = 0;
 
     //! \brief Scans a webpage
-    //! \param contenttype Content type sent by the server. Probably equals "test/html"
+    //! \param contenttype Content type sent by the server. Probably equals "text/html"
+    //! but it may have junk after it so maybe use std::string::find("text/html") ... for
+    //! checking
     virtual ScanResult ScanSite(const SiteToScan &params) = 0;
+
+    //! \brief Returns true if this scanner considers the link to be a page that contains
+    //! only a single image and is not actually a gallery
+    virtual bool IsUrlNotGallery(const std::string &url) = 0;
 };
 
 //! \brief Description of a plugin

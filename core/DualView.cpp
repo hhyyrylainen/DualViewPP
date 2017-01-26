@@ -1320,6 +1320,15 @@ void DualView::OnNewGalleryLinkReceived(const std::string &url){
 
     AssertIfNotMainThread();
 
+    auto scanner = _PluginManager->GetScannerForURL(url);
+
+    if(scanner && scanner->IsUrlNotGallery(url)){
+
+        LOG_INFO("New gallery link is actually a content page");
+        OnNewImagePageLinkReceived(url);
+        return;
+    }
+
     // Find a downloader that can be used
     std::shared_ptr<DownloadSetup> existing;
     bool openednew = false;
@@ -1346,6 +1355,50 @@ void DualView::OnNewGalleryLinkReceived(const std::string &url){
 
             // We don't need a new window //
             existing->SetNewUrlToDl(url);
+            return;
+        }
+
+        if(openednew){
+
+            LOG_ERROR("Failed to find a suitable DownloadSetup even after opening a new one");
+            return;
+        }
+
+        openednew = true;
+        
+        // Open a new window and try again //
+        OpenDownloadSetup(false);
+    }
+}
+
+void DualView::OnNewImagePageLinkReceived(const std::string &url){
+
+    // Find a downloader that can be used
+    std::shared_ptr<DownloadSetup> existing;
+    bool openednew = false;
+    
+    while(true){
+    
+        for(const auto& dlsetup : OpenDLSetups){
+        
+            // Check is it good for us //
+            auto locked = dlsetup.lock();
+
+            if(!locked)
+                continue;
+        
+            if(!locked->IsValidTargetForScanLink())
+                continue;
+
+            // Found a good one //
+            existing = locked;
+            break;
+        }
+
+        if(existing){
+
+            // We don't need a new window //
+            existing->AddExternalScanLink(url);
             return;
         }
 

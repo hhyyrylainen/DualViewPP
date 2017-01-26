@@ -201,6 +201,11 @@ class ImgurScanner final : public IWebsiteScanner{
         
         return result;
     }
+
+    bool IsUrlNotGallery(const std::string &url) override{
+
+        return false;
+    }
 };
 
 

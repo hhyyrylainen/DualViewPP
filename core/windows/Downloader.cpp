@@ -309,6 +309,17 @@ struct DV::DownloadProgressState{
             Widget->LockSelected(false);
     }
 
+    //! \brief Applies tags to a created image
+    void ApplyTags(std::shared_ptr<Image> img){
+
+        // Add tags //
+        auto tags = img->GetTags();
+
+        LEVIATHAN_ASSERT(tags, "New image is missing TagCollection");
+
+        tags->AddTextTags(CurrentDLTags, ";");
+    }
+
     //! \returns True once done
     bool Tick(std::shared_ptr<DownloadProgressState> us){
 
@@ -370,10 +381,15 @@ struct DV::DownloadProgressState{
                     
                     return false;
                 }
+
+                auto newImage = Image::Create(imagedl->GetLocalFile(),
+                    DownloadManager::ExtractFileName(imagedl->GetURL()),
+                    imagedl->GetURL());
                 
-                DownloadedImages.push_back(Image::Create(imagedl->GetLocalFile(),
-                        DownloadManager::ExtractFileName(imagedl->GetURL()),
-                        imagedl->GetURL()));
+                DownloadedImages.push_back(newImage);
+
+                ApplyTags(newImage);
+                
                 
                 LOG_INFO("Successfully downloaded: " + imagedl->GetURL());
                 LOG_INFO("Local path: " + imagedl->GetLocalFile());
@@ -397,6 +413,8 @@ struct DV::DownloadProgressState{
             // Download if the target file doesn't exist yet //
             const auto currentdl = ImageList[CurrentDownload];
             DLRetries = 0;
+
+            CurrentDLTags = currentdl->GetTagsString();
             
             const auto cachefile = DownloadManager::GetCachePathForURL(
                 currentdl->GetFileURL());
@@ -425,8 +443,12 @@ struct DV::DownloadProgressState{
                     finalpath = path;
                 }
 
-               DownloadedImages.push_back(Image::Create(finalpath,
-                       currentdl->GetPreferredName(), currentdl->GetFileURL()));
+                auto newImage = Image::Create(finalpath,
+                    currentdl->GetPreferredName(), currentdl->GetFileURL());
+                
+                DownloadedImages.push_back(newImage);
+
+                ApplyTags(newImage);
 
             } else {
 
@@ -522,6 +544,9 @@ struct DV::DownloadProgressState{
     std::atomic<bool> ImageListReady = { false };
     std::vector<std::shared_ptr<NetFile>> ImageList;
     size_t CurrentDownload = 0;
+
+    //! Tags of the NetFile at index CurrentDownload. Used to apply tags
+    std::string CurrentDLTags;
 
 
     //! Download retries used

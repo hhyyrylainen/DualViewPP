@@ -666,12 +666,18 @@ size_t TagCollection::GetTagCount(){
 void TagCollection::ReplaceWithText(const std::string &text, const std::string &separator){
 
     CheckIsLoaded();
+    Clear();
+
+    AddTextTags(text, separator);
+}
+
+void TagCollection::AddTextTags(const std::string &text, const std::string &separator){
+
+    CheckIsLoaded();
 
     std::vector<std::string> tagparts;
     Leviathan::StringOperations::CutString<std::string>(text, separator, tagparts);
     
-    Clear();
-
     for(auto& line : tagparts){
 
         if(line.empty())

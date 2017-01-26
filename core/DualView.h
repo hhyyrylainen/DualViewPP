@@ -102,6 +102,10 @@ public:
 
     //! \brief Opens a download setup for a gallery that was sent to us from another program
     void OnNewGalleryLinkReceived(const std::string &url);
+
+    //! \brief Opens a download setup for a page that contains a single image and not
+    //! a gallery
+    void OnNewImagePageLinkReceived(const std::string &url);
     
 
     //! \brief Runs folder creator as a modal window

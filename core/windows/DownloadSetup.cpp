@@ -87,6 +87,9 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
         std::bind(&Database::SelectCollectionNamesByWildcard, &DualView::Get().GetDatabase(),
             std::placeholders::_1, std::placeholders::_2));
 
+    TargetCollectionName->signal_changed().connect(sigc::mem_fun(*this,
+            &DownloadSetup::UpdateReadyStatus));
+
     BUILDER_GET_WIDGET(MainStatusLabel);
 
     BUILDER_GET_WIDGET(SelectOnlyOneImage);
@@ -319,6 +322,33 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage &content){
         return;
     }
 
+    // Tags //
+    if(!content.Tags.empty()){
+
+        auto tagCollection = ImageObjects.back()->GetTags();
+
+        LEVIATHAN_ASSERT(tagCollection, "new InternetImage has no tag collection");
+        LOG_INFO("DownloadSetup: adding found tags to image");
+        
+        for(const auto& tag : content.Tags){
+            
+            try{
+                                
+                const auto parsedtag = DualView::Get().ParseTagFromString(tag);
+
+                if(!parsedtag)
+                    throw Leviathan::InvalidArgument("");
+
+                tagCollection->Add(parsedtag);
+                
+            } catch(const Leviathan::InvalidArgument&){
+
+                LOG_WARNING("DownloadSetup: unknown tag: " + tag);
+                continue;
+            }
+        }
+    }
+
     ImagesToDownload.push_back(content);
     
     // Add it to the selectable content //
@@ -370,6 +400,37 @@ void DownloadSetup::SetNewUrlToDl(const std::string &url){
 
     URLEntry->set_text(url);
     OnURLChanged();
+}
+
+bool DownloadSetup::IsValidTargetForScanLink() const{
+
+    switch(State){
+    case STATE::URL_CHANGED:
+    case STATE::URL_OK:
+        return !LockFromAdding->get_active();
+    default:
+        return false; 
+    }
+}
+
+void DownloadSetup::AddExternalScanLink(const std::string &url){
+
+    DualView::IsOnMainThreadAssert();
+
+    switch(State){
+    case STATE::URL_CHANGED:
+    case STATE::URL_OK:
+        break;
+    default:
+        return; 
+    }
+
+    PagesToScan.push_back(url);
+
+    if(State == STATE::URL_CHANGED)
+        _SetState(STATE::URL_OK);
+    
+    _UpdateWidgetStates();
 }
 
 void DownloadSetup::SetLockActive(){
@@ -502,33 +563,42 @@ void DownloadSetup::OnURLChanged(){
         URLEntry->set_text(str.c_str());
     }
 
+    // Detect single image page
+    bool singleImagePage = false;
+    
+    if(scanner->IsUrlNotGallery(str)){
+
+        singleImagePage = true;
+    }
+
     try{
         
         auto scan = std::make_shared<PageScanJob>(str, true);
 
         auto alive = GetAliveMarker();
         
-        scan->SetFinishCallback([this, alive, scan, str](DownloadJob &job, bool success){
+        scan->SetFinishCallback([=](DownloadJob &job, bool success){
 
-                // Store the pages //
-                if(success){
-                    
-                    ScanResult& result = scan->GetResult();
-
-                    // Add the main page //
-                    AddSubpage(str);
-
-                    for(const auto &page : result.PageLinks)
-                        AddSubpage(page);
-
-                    // Set the title //
-                    if(!result.PageTitle.empty())
-                        SetTargetCollectionName(result.PageTitle);
-                }
-
-                DualView::Get().InvokeFunction([this, alive, success, scan](){
+                DualView::Get().InvokeFunction([=](){
 
                         INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                        // Store the pages //
+                        if(success){
+                    
+                            ScanResult& result = scan->GetResult();
+
+                            // Add the main page //
+                            AddSubpage(str);
+
+                            for(const auto &page : result.PageLinks)
+                                AddSubpage(page);
+
+                            // Set the title //
+                            if(!result.PageTitle.empty())
+                                SetTargetCollectionName(result.PageTitle);
+                        }
+
 
                         // Finished //
                         if(!success){
@@ -539,7 +609,7 @@ void DownloadSetup::OnURLChanged(){
 
                         // Set tags //
                         ScanResult& result = scan->GetResult();
-                        if(!result.PageTags.empty()){
+                        if(!result.PageTags.empty() && !singleImagePage){
 
                             LOG_INFO("DownloadSetup parsing tags, count: " +
                                 Convert::ToString(result.PageTags.size()));
@@ -588,6 +658,15 @@ void DownloadSetup::OnInvalidateURL(){
     if(UrlBeingChecked)
         return;
 
+    // Don't invalidate if empty //
+    if(URLEntry->get_text().empty()){
+
+        // Enable editing if content has been found already //
+        if(!ImagesToDownload.empty())
+            _SetState(STATE::URL_OK);
+        return;
+    }
+
     _SetState(STATE::URL_CHANGED);
     DetectedSettings->set_text("URL changed, accept it to update.");
 }
@@ -601,7 +680,10 @@ void DownloadSetup::UrlCheckFinished(bool wasvalid, const std::string &message){
     if(!wasvalid){
 
         DetectedSettings->set_text("Invalid URL: " + message);
-        _SetState(STATE::URL_CHANGED);
+
+        // If we already have images then we shouldn't lock stuff
+        if(PagesToScan.empty() && ImagesToDownload.empty())
+            _SetState(STATE::URL_CHANGED);
         return;
     }
 

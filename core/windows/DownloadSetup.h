@@ -86,17 +86,22 @@ public:
     //! \brief Returns true if this has no url and no collection name
     bool IsValidForNewPageScan() const;
 
+    //! \brief Returns true if a valid target for adding content links
+    //!
+    //! AddExternalScanLink
+    bool IsValidTargetForScanLink() const;
+
     //! \brief Sets this invalid for both IsValidTargetForImageAdd and IsValidForNewPageScan
     void SetLockActive();
     
     //! \brief Adds an external link to this window
     void AddExternallyFoundLink(const std::string &url, const std::string &referrer);
 
-
     //! \brief Sets the url
     void SetNewUrlToDl(const std::string &url);
-        
     
+
+    void AddExternalScanLink(const std::string &url);
     
     void SetTargetCollectionName(const std::string &str);
 
