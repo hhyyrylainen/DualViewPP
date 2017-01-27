@@ -96,8 +96,6 @@ void CollectionView::OnFolderChanged(){
         return;
     }
 
-    const VirtualPath startFolder = CurrentPath;
-
     DualView::Get().QueueDBThreadFunction([=](){
 
             const auto collections = DualView::Get().GetDatabase().SelectCollectionsInFolder(
@@ -117,16 +115,16 @@ void CollectionView::OnFolderChanged(){
 
             auto changefolder = std::make_shared<ItemSelectable>();
 
-            changefolder->AddFolderSelect([this, startFolder](ListItem &item){
+            changefolder->AddFolderSelect([this](ListItem &item){
 
                     FolderListItem* asfolder = dynamic_cast<FolderListItem*>(&item);
 
                     if(!asfolder)
                         return;
-                    
-                    // This works even if the user clicks multiple folders quickly and
-                    // appending the names would create an invalid path
-                    GoToPath(startFolder /
+
+                    // This callback isn't recreated when changing folders so we need to use
+                    // CurrentPath here
+                    GoToPath(CurrentPath /
                         VirtualPath(asfolder->GetFolder()->GetName()));
                 });
 
