@@ -312,6 +312,9 @@ struct DV::DownloadProgressState{
     //! \brief Applies tags to a created image
     void ApplyTags(std::shared_ptr<Image> img){
 
+        if(CurrentDLTags.empty())
+            return;
+
         // Add tags //
         auto tags = img->GetTags();
 
