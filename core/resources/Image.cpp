@@ -248,6 +248,8 @@ void Image::BecomeDuplicateOf(const Image &other){
     Height = other.Height;
     Width = other.Width;
 
+    std::shared_ptr<TagCollection> currentTags = Tags;
+
     // If the other is from the database we need to load a new TagCollection object
     // because we need a pointer to us to make sure that the weak_ptr doesn't die in the bound
     // parameters
@@ -258,6 +260,10 @@ void Image::BecomeDuplicateOf(const Image &other){
     } else {
         Tags = other.Tags;
     }
+
+    // Apply tags //
+    if(currentTags && currentTags->HasTags())
+        Tags->Add(*currentTags);
     
     IsReadyToAdd = true;
 }
