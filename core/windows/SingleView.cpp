@@ -216,10 +216,10 @@ void SingleView::UpdateImageNumber(){
 
                 std::string title;
 
-                if(InCollection->SupportsRandomAccess() && InCollection->HasCount()){
+                if(collectionBrowse->SupportsRandomAccess() && collectionBrowse->HasCount()){
             
                     std::stringstream stream;
-                    stream << (InCollection->GetImageIndex(*img) + 1) << "/" <<
+                    stream << (collectionBrowse->GetImageIndex(*img) + 1) << "/" <<
                         InCollection->GetCount() << " in " << desc << " image: " <<
                         img->GetName();
             
