@@ -20,7 +20,11 @@ static const auto IUContentLink = std::regex(".*i.imgur.com\\/.+",
     std::regex::ECMAScript | std::regex::icase);
 
 
-static const auto ImgurIDCapture = std::regex(R"(.*imgur.com\/gallery\/(\w+).*)",
+//! This seems to be an alternative format to ImgurIDCapture
+static const auto ImgurIDCaptureGallery = std::regex(R"(.*imgur.com\/gallery\/(\w+).*)",
+    std::regex::ECMAScript | std::regex::icase);
+
+static const auto ImgurIDCapture = std::regex(R"(.*imgur.com\/a\/(\w+).*)",
     std::regex::ECMAScript | std::regex::icase);
 
 class ImgurScanner final : public IWebsiteScanner{
@@ -112,6 +116,14 @@ class ImgurScanner final : public IWebsiteScanner{
         return true;
     }
 
+    //! Helper for RewriteURL
+    std::string GetAjaxURL(const std::string &url, const std::ssub_match &match) const{
+
+        return Leviathan::StringOperations::URLProtocol(url) +
+            "://imgur.com/ajaxalbums/getimages/" + match.str() +
+            "/hit.json"; 
+    }
+
     std::string RewriteURL(const std::string &url) override{
 
         std::smatch matches;
@@ -121,11 +133,15 @@ class ImgurScanner final : public IWebsiteScanner{
             // The second match is the one we want
             if(matches.size() == 2){
                 
-                std::ssub_match base_sub_match = matches[1];
+                return GetAjaxURL(url, matches[1]);
+            }
+            
+        } else if(std::regex_match(url, matches, ImgurIDCaptureGallery)){
 
-                return Leviathan::StringOperations::URLProtocol(url) +
-                    "://imgur.com/ajaxalbums/getimages/" + base_sub_match.str() +
-                    "/hit.json";
+            // The second match is the one we want
+            if(matches.size() == 2){
+                
+                return GetAjaxURL(url, matches[1]);
             }
         }
 
@@ -190,7 +206,7 @@ class ImgurScanner final : public IWebsiteScanner{
                 return result;
             }
             
-        } else if(params.ContentType == "text/html"){
+        } else if(params.ContentType.find("text/html") != std::string::npos){
 
             ScanHtml(params.Body, params.URL, result);
             
