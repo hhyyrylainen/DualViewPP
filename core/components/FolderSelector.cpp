@@ -66,7 +66,11 @@ FolderSelector::~FolderSelector(){
 // ------------------------------------ //
 void FolderSelector::OnFolderChanged(){
 
-    LEVIATHAN_ASSERT(CurrentFolder, "SelectedFolder is null in FolderSelector");
+    if(!CurrentFolder){
+        
+        LOG_ERROR("SelectedFolder is null in FolderSelector");
+        return;
+    }
     
     std::vector<std::shared_ptr<Folder>> folders =
         DualView::Get().GetDatabase().SelectFoldersInFolder(*CurrentFolder);
