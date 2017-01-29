@@ -150,8 +150,8 @@ class ImgurScanner final : public IWebsiteScanner{
         return url;
     }
 
-    ScanResult ScanSite(const SiteToScan &params) override
-    {
+    ScanResult ScanSite(const SiteToScan &params) override{
+        
         ScanResult result;
 
         if(params.ContentType == "application/json"){
