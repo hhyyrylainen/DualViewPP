@@ -39,6 +39,7 @@ public:
     ~Collection();
 
     //! \brief Return Name with illegal characters replaced with spaces
+    //! \todo Make work with utf8 strings better
     std::string GetNameForFolder() const;
 
     //! \brief Returns or loads a tag collection for this Collection

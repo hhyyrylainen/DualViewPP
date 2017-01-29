@@ -27,7 +27,8 @@ Collection::Collection(const std::string &name) :
     ModifyDate(AddDate),
     LastView(AddDate)
 {
-
+    // Remove extra spaces
+    Leviathan::StringOperations::RemovePreceedingTrailingSpaces(Name);
 }
 
 Collection::Collection(Database &db, Lock &dblock, PreparedStatement &statement, int64_t id) :
@@ -72,6 +73,9 @@ std::string Collection::GetNameForFolder() const{
         if((*iter) <= 0x1F)
             (*iter) = ' ';
     }
+
+    // Remove preceeding and trailing spaces
+    Leviathan::StringOperations::RemovePreceedingTrailingSpaces(sanitized);
 
     // Also may not be only dots //
     if(sanitized.find_first_not_of('.') == std::string::npos){
