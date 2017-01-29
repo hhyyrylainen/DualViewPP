@@ -69,4 +69,14 @@ TEST_CASE("Suggestions sort works correctly", "[sort][suggestion][db][helper]"){
         TestCompRequirements("random string 1", "random string 2", "random string 3",
             "random");
     }
+
+    SECTION("Name prefix stuff"){
+
+        const auto matchStr = "rebel";
+        
+        CHECK(CompareSuggestionStrings(matchStr, "short rebel", "a really long rebel"));
+
+        
+        
+    }
 }

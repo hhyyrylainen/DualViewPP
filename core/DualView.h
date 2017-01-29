@@ -186,9 +186,6 @@ public:
     //! \brief Returns true if file extension is in SUPPORTED_EXTENSIONS
     static bool IsFileContent(const std::string &file);
 
-    //! \brief Converts a unicode string to lower
-    //! \todo Cache the boost::locale::generator
-    static std::string StringToLower(const std::string &str);
     
     //
     // Database insert and modify functions

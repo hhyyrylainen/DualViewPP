@@ -97,7 +97,7 @@ void EasyEntryCompletion::_OnTextUpdated(){
         {
             // Spams way too much
             //LOG_INFO("Getting suggestions for text: " + text);
-            const std::string str = DualView::StringToLower(text);
+            const std::string str = DV::StringToLower(text);
 
             auto result = suggest(str, count);
 

@@ -6,8 +6,11 @@
 using namespace DV;
 // ------------------------------------ //
 bool DV::CompareSuggestionStrings(const std::string &str,
-    const std::string &left, const std::string &right)
+    const std::string &leftInput, const std::string &rightInput)
 {
+    const auto left = StringToLower(leftInput);
+    const auto right = StringToLower(rightInput);
+    
     // Safety check to guarantee self comparisons
     if(left == right)
         return false;
@@ -16,6 +19,12 @@ bool DV::CompareSuggestionStrings(const std::string &str,
 
         // Exact match first //
         return true;
+    }
+
+    if(right == str && (left != str)){
+
+        // Other is exact match //
+        return false;
     }
     
     if(Leviathan::StringOperations::StringStartsWith(left, str) && 
@@ -30,14 +39,26 @@ bool DV::CompareSuggestionStrings(const std::string &str,
         !Leviathan::StringOperations::StringStartsWith(left, str))
     {
         return false;
-    }    
-            
+    }
+
+    // We need to cast to signed integers to not overflow and mess up these length calculations
+    const auto leftLen = static_cast<int64_t>(left.length());
+    const auto rightLen = static_cast<int64_t>(right.length());
+    const auto strLen = static_cast<int64_t>(str.length());
+
     // Sort which one is closer in length to str first
-    if(std::abs(str.length() - left.length()) <
-        std::abs(str.length() - right.length()))
+    if(std::abs(strLen - leftLen) <
+        std::abs(strLen - rightLen))
     {
         // Closer in length to user input
         return true;
+    }
+
+    if(std::abs(strLen - rightLen) <
+        std::abs(strLen - leftLen))
+    {
+        // Other is closer
+        return false;
     }
 
     // Normal alphabetical order

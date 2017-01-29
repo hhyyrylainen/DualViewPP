@@ -38,7 +38,6 @@
 #include <iostream>
 #include <chrono>
 #include <boost/filesystem.hpp>
-#include <boost/locale.hpp>
 
 #include <cryptopp/sha.h>
 
@@ -1054,12 +1053,6 @@ bool DualView::IsFileContent(const std::string &file){
     std::string extension = StringToLower(boost::filesystem::path(file).extension().string());
     
     return IsExtensionContent(extension);
-}
-
-std::string DualView::StringToLower(const std::string &str){
-
-    boost::locale::generator gen;
-    return boost::locale::to_lower(str, gen(""));
 }
 // ------------------------------------ //
 bool DualView::OpenImageViewer(const std::string &file){

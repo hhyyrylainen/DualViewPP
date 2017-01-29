@@ -4,11 +4,20 @@
 
 #include <algorithm>
 #include <string>
+#include <boost/locale.hpp>
 
 
 namespace DV{
 
 class Tag;
+
+//! \brief Converts a unicode string to lower
+//! \todo Cache the boost::locale::generator or make this otherwise more efficient
+inline std::string StringToLower(const std::string &str){
+
+    static boost::locale::generator gen;
+    return boost::locale::to_lower(str, gen(""));
+}
 
 //! \brief Sort function for SortSuggestions
 bool CompareSuggestionStrings(const std::string &str,
@@ -22,14 +31,14 @@ bool CompareSuggestionTags(const std::string &str,
 template<class IterType>
     void SortSuggestions(IterType begin, IterType end, const std::string &str)
 {
-    std::sort(begin, end, std::bind(&DV::CompareSuggestionStrings, str,
+    std::sort(begin, end, std::bind(&DV::CompareSuggestionStrings, StringToLower(str),
             std::placeholders::_1, std::placeholders::_2));
 }
 
 template<class IterType>
     void SortTagSuggestions(IterType begin, IterType end, const std::string &str)
 {
-    std::sort(begin, end, std::bind(&DV::CompareSuggestionTags, str,
+    std::sort(begin, end, std::bind(&DV::CompareSuggestionTags, StringToLower(str),
             std::placeholders::_1, std::placeholders::_2));
 }
 
