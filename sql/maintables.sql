@@ -9,7 +9,7 @@ CREATE TABLE version( number INTEGER );
 CREATE TABLE pictures ( 
     id INTEGER PRIMARY KEY AUTOINCREMENT, 
     -- Path from which this image can be loaded
-    relative_path TEXT UNIQUE,
+    relative_path TEXT,
     -- When importing the size is determined
     width INTEGER, 
     height INTEGER, 

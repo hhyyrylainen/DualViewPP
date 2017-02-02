@@ -35,7 +35,7 @@ class TagModifier;
 class TagBreakRule;
 
 //! \brief The version number of the database
-constexpr auto DATABASE_CURRENT_VERSION = 18;
+constexpr auto DATABASE_CURRENT_VERSION = 19;
 
 //! \brief All database manipulation happens through this class
 //!

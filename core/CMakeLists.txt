@@ -24,6 +24,7 @@ add_sql_generated("defaulttags.sql")
 add_sql_generated("migration_14_15.sql")
 add_sql_generated("migration_15_16.sql")
 add_sql_generated("migration_16_17.sql")
+add_sql_generated("migration_18_19.sql")
 
 add_library(Core
 

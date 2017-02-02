@@ -24,6 +24,7 @@
 #include "generated/migration_14_15.sql.h"
 #include "generated/migration_15_16.sql.h"
 #include "generated/migration_16_17.sql.h"
+#include "generated/migration_18_19.sql.h"
 
 #include "core/CurlWrapper.h"
 
@@ -2946,6 +2947,12 @@ bool Database::_UpdateDatabase(Lock &guard, const int oldversion){
         // to apply those
         _UpdateApplyDownloadTagStrings(guard);
         _SetCurrentDatabaseVersion(guard, 18);
+        return true;
+    }
+    case 18:
+    {
+        _RunSQL(guard, STR_MIGRATION_18_19_SQL);
+        _SetCurrentDatabaseVersion(guard, 19);
         return true;
     }
     default:
