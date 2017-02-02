@@ -5,6 +5,26 @@
 
 using namespace DV;
 // ------------------------------------ //
+
+class LocaleHolder{
+public:
+    LocaleHolder(){
+
+        boost::locale::generator gen;
+        locale = gen("");
+    }
+
+    std::locale locale;
+};
+
+static LocaleHolder CreatedLocale;
+
+std::string DV::StringToLower(const std::string &str){
+
+    return boost::locale::to_lower(str, CreatedLocale.locale);
+}
+
+// ------------------------------------ //
 bool DV::CompareSuggestionStrings(const std::string &str,
     const std::string &leftInput, const std::string &rightInput)
 {

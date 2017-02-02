@@ -11,13 +11,11 @@ namespace DV{
 
 class Tag;
 
+
+
 //! \brief Converts a unicode string to lower
 //! \todo Cache the boost::locale::generator or make this otherwise more efficient
-inline std::string StringToLower(const std::string &str){
-
-    static boost::locale::generator gen;
-    return boost::locale::to_lower(str, gen(""));
-}
+std::string StringToLower(const std::string &str);
 
 //! \brief Sort function for SortSuggestions
 bool CompareSuggestionStrings(const std::string &str,
