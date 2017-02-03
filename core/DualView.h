@@ -121,12 +121,6 @@ public:
     //! \note This usually gets called twice when closing windows
     void WindowClosed(std::shared_ptr<WindowClosedEvent> event);
 
-    //! \brief Add cmd to a queue to be ran on the main thread.
-    //! \note Won't notify the main thread. So it must be notified
-    //! through another function
-    //! \todo Add that notify function
-    void QueueCmd(std::function<void (DualView&)> cmd);
-
     //! \brief Adds an image to hash calculation queue
     //!
     //! After the image is added its hash will be calculated on a worker thread.
@@ -379,9 +373,6 @@ protected:
     //! other windows open.
     void _AddOpenWindow(std::shared_ptr<BaseWindow> window, Gtk::Window &gtk);
 
-    //! \brief Handles all queued commandline arguments
-    void _ProcessCmdQueue();
-
     //! \brief Processes hash calculation queue
     //! \todo Make this return images that are duplicates of currently loaded images,
     //! that are loaded but aren't in the database
@@ -490,10 +481,6 @@ private:
     //! Queued functions to run on the main thread
     std::list<std::function<void ()>> InvokeQueue;
     std::mutex InvokeQueueMutex;
-
-    //! Command line commands are stored here while the application
-    //! is loading
-    std::list<std::function<void (DualView&)>> QueuedCmds;
 
     //! Mutex for accessing QueuedCmds
     std::mutex QueuedCmdsMutex;

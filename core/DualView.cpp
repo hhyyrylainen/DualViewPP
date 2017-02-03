@@ -232,17 +232,6 @@ void DualView::_OnInstanceLoaded(){
 
     if(IsInitialized){
 
-        {
-            std::lock_guard<std::mutex> lock(QueuedCmdsMutex);
-            if(QueuedCmds.empty()){
-
-                // Pointless call to this function
-                LOG_INFO("Skipping second initialization");
-                return;
-            }
-        }
-        
-        _ProcessCmdQueue();
         return;
     }
 
@@ -511,44 +500,15 @@ void DualView::_OnLoadingFinished(){
 
     // Run command line //
     LoadCompletelyFinished = true;
-    
-    _ProcessCmdQueue();
 
+    _ProcessInvokeQueue();
+    
     // For testing SuperViewer uncomment this to quickly open images
     //OpenImageViewer("/home/hhyyrylainen/690806.jpg");
     //OpenImporter();
 
 
 
-}
-// ------------------------------------ //
-void DualView::_ProcessCmdQueue(){
-
-    // Skip if not properly loaded yet //
-    if(!LoadCompletelyFinished){
-
-        LOG_INFO("Skipping _ProcessCmdQueue as not completely loaded yet");
-        return;
-    }
-
-    AssertIfNotMainThread();
-
-    std::lock_guard<std::mutex> lock(QueuedCmdsMutex);
-
-    while(!QueuedCmds.empty()){
-
-        LOG_INFO("Running queued command");
-
-        QueuedCmds.front()(*this);
-        QueuedCmds.pop_front();
-    }
-}
-
-void DualView::QueueCmd(std::function<void (DualView&)> cmd){
-
-    std::lock_guard<std::mutex> lock(QueuedCmdsMutex);
-
-    QueuedCmds.push_back(cmd);
 }
 // ------------------------------------ //
 int DualView::_HandleCmdLine(const Glib::RefPtr<Gio::ApplicationCommandLine>
@@ -568,7 +528,7 @@ int DualView::_HandleCmdLine(const Glib::RefPtr<Gio::ApplicationCommandLine>
     Glib::ustring fileUrl;
     if(alreadyParsed->lookup_value("dl-image", fileUrl)){
 
-        QueueCmd([=](DualView &instance) -> void
+        InvokeFunction([=]() -> void
                 {
                     LOG_INFO("File to download: " + std::string(fileUrl.c_str()));
                     OnNewImageLinkReceived(fileUrl, referrer);
@@ -577,7 +537,7 @@ int DualView::_HandleCmdLine(const Glib::RefPtr<Gio::ApplicationCommandLine>
 
     if(alreadyParsed->lookup_value("dl-page", fileUrl)){
 
-        QueueCmd([=](DualView &instance) -> void
+        InvokeFunction([=]() -> void
             {
                 LOG_INFO("Page to download: " + std::string(fileUrl.c_str()));
                 OnNewGalleryLinkReceived(fileUrl);
@@ -586,7 +546,7 @@ int DualView::_HandleCmdLine(const Glib::RefPtr<Gio::ApplicationCommandLine>
 
     if(alreadyParsed->lookup_value("dl-auto", fileUrl)){
 
-        QueueCmd([=](DualView &instance) -> void
+        InvokeFunction([=]() -> void
             {
                 LOG_INFO("Auto detect and download: " + std::string(fileUrl.c_str()));
 
@@ -870,6 +830,10 @@ void DualView::RunOnMainThread(const std::function<void()> &func){
 }
 
 void DualView::_ProcessInvokeQueue(){
+
+    // Wait until completely loaded before invoking
+    if(!LoadCompletelyFinished)
+        return;
 
     std::unique_lock<std::mutex> lock(InvokeQueueMutex);
 
