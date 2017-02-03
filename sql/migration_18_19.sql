@@ -34,7 +34,7 @@ INSERT INTO pictures SELECT * FROM pictures_old;
 
 DROP TABLE pictures_old;
 
-
+-- This should actually be output and checked with a regex
 PRAGMA foreign_key_check;
 
 COMMIT TRANSACTION;
