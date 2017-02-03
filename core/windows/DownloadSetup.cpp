@@ -328,25 +328,43 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage &content){
         auto tagCollection = ImageObjects.back()->GetTags();
 
         LEVIATHAN_ASSERT(tagCollection, "new InternetImage has no tag collection");
-        LOG_INFO("DownloadSetup: adding found tags to image");
-        
-        for(const auto& tag : content.Tags){
-            
-            try{
-                                
-                const auto parsedtag = DualView::Get().ParseTagFromString(tag);
 
-                if(!parsedtag)
-                    throw Leviathan::InvalidArgument("");
+        auto alive = GetAliveMarker();
 
-                tagCollection->Add(parsedtag);
+        DualView::Get().QueueDBThreadFunction([=, tagStr { content.Tags } ](){
+
+                std::vector<std::shared_ptr<AppliedTag>> parsedTags;
                 
-            } catch(const Leviathan::InvalidArgument&){
+                for(const auto& tag : tagStr){
+            
+                    try{
+                        const auto parsedtag = DualView::Get().ParseTagFromString(tag);
 
-                LOG_WARNING("DownloadSetup: unknown tag: " + tag);
-                continue;
-            }
-        }
+                        if(!parsedtag)
+                            throw Leviathan::InvalidArgument("");
+
+                        parsedTags.push_back(parsedtag);
+                
+                    } catch(const Leviathan::InvalidArgument&){
+
+                        LOG_WARNING("DownloadSetup: unknown tag: " + tag);
+                        continue;
+                    }
+                }
+                
+                if(parsedTags.empty())
+                    return;
+
+                DualView::Get().InvokeFunction([=](){
+
+                        INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                        LOG_INFO("DownloadSetup: adding found tags to image");
+
+                        for(const auto& parsedTag : parsedTags)
+                            tagCollection->Add(parsedTag);
+                    });
+            });
     }
 
     ImagesToDownload.push_back(content);
