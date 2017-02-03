@@ -121,7 +121,13 @@ public:
     //! \note This usually gets called twice when closing windows
     void WindowClosed(std::shared_ptr<WindowClosedEvent> event);
 
-    //! \brief Adds an image to hash calculation queue
+    //! \brief Queues a function to be ran on the main thread
+    //! \note This is the main way to make sure Gtk objects are only accessed from the main
+    //! thread
+    void InvokeFunction(std::function<void()> func);
+
+    
+    //! \brief Adds an image to the hash calculation queue
     //!
     //! After the image is added its hash will be calculated on a worker thread.
     //! If the image was already in the database it the passed in image will be made
@@ -138,9 +144,6 @@ public:
     //! indicating that it has succeeded
     void QueueConditional(std::function<bool()> func);
 
-    //! \brief Queues a function to be ran on the main thread
-    void InvokeFunction(std::function<void()> func);
-
     //! \brief Makes sure function is ran on the main thread.
     //!
     //! Either by queueing it or running it immediately if the main thread calls this function
@@ -156,7 +159,7 @@ public:
 
     //! \brief Calculates a sha hash of a string and base64 encodes it
     //!
-    //! Also any characthers not valid in paths will be replaced
+    //! Also any characters not valid in paths will be replaced
     static std::string CalculateBase64EncodedHash(const std::string &str);
     
     //! \brief Moves an image to the folder determined from the collection's name
@@ -373,6 +376,9 @@ protected:
     //! other windows open.
     void _AddOpenWindow(std::shared_ptr<BaseWindow> window, Gtk::Window &gtk);
 
+    //! \brief Processes InvokeQueue
+    void _ProcessInvokeQueue();
+    
     //! \brief Processes hash calculation queue
     //! \todo Make this return images that are duplicates of currently loaded images,
     //! that are loaded but aren't in the database
@@ -413,15 +419,12 @@ private:
     void _OnSignalOpen(const std::vector<Glib::RefPtr<Gio::File>> &files,
         const Glib::ustring &stuff);
 
-    //! \brief Processes InvokeQueue
-    void _ProcessInvokeQueue();
-
     //! \brief Starts the background worker threads
     virtual void _StartWorkerThreads();
 
     //! \brief Waits for worker threads to quit.
     //!
-    //! Must hbe called before destructing, otherwise the background threads will
+    //! Must be called before destructing, otherwise the background threads will
     //! assert
     virtual void _WaitForWorkerThreads();
     
