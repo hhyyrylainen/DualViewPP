@@ -92,7 +92,7 @@ public:
     //!
     //! Also sets the id in the image object
     //! \exception InvalidSQL if the image violates unique constraints (same hash)
-    void InsertImage(Image &image);
+    void InsertImage(Lock &guard, Image &image);
 
     //! \brief Updates an images properties in the database
     //! \returns False if the update fails
@@ -121,16 +121,15 @@ public:
     std::shared_ptr<TagCollection> LoadImageTags(const std::shared_ptr<Image> &image);
 
     //! \brief Retrieves all tags added to an image
-    void SelectImageTags(std::weak_ptr<Image> image,
+    void SelectImageTags(Lock &guard, std::weak_ptr<Image> image,
         std::vector<std::shared_ptr<AppliedTag>> &tags);
 
     //! \brief Adds a tag to an image
     void InsertImageTag(Lock &guard, std::weak_ptr<Image> image,
         AppliedTag &tag);
-    CREATE_NON_LOCKING_WRAPPER(InsertImageTag);
 
     //! \brief Removes a tag from an image
-    void DeleteImageTag(std::weak_ptr<Image> image,
+    void DeleteImageTag(Lock &guard, std::weak_ptr<Image> image,
         AppliedTag &tag);
 
     //
@@ -176,15 +175,15 @@ public:
         const std::shared_ptr<Collection> &collection);
 
     //! \brief Retrieves all tags added to an collection
-    void SelectCollectionTags(std::weak_ptr<Collection> collection,
+    void SelectCollectionTags(Lock &guard, std::weak_ptr<Collection> collection,
         std::vector<std::shared_ptr<AppliedTag>> &tags);
 
     //! \brief Adds a tag to an collection
-    void InsertCollectionTag(std::weak_ptr<Collection> collection,
+    void InsertCollectionTag(Lock &guard, std::weak_ptr<Collection> collection,
         AppliedTag &tag);
 
     //! \brief Removes a tag from an collection
-    void DeleteCollectionTag(std::weak_ptr<Collection> collection,
+    void DeleteCollectionTag(Lock &guard, std::weak_ptr<Collection> collection,
         AppliedTag &tag);
 
     //
@@ -544,6 +543,18 @@ public:
     static int SqliteExecGrabResult(void* user, int columns, char** columnsastext,
         char** columnname);
 
+
+    // Statement grouping //
+
+    //! \brief Begins a transaction that queues all database actions until a CommitTransaction
+    //! call.
+    //!
+    //! The database must be locked until the transaction is committed
+    //! \see CommitTransaction
+    void BeginTransaction(Lock &guardLocked);
+    
+    void CommitTransaction(Lock &guardLocked);
+    
     // Statistics functions //
     size_t CountExistingTags();
 
@@ -681,6 +692,24 @@ protected:
     
     //! Makes sure each NetGallery is only loaded once
     SingleLoad<NetGallery, int64_t> LoadedNetGalleries;
+};
+
+//! \brief Helper class that automatically commits a transaction when it destructs
+class DoDBTransaction{
+public:
+
+    DoDBTransaction(Database &db, Lock &dblock);
+
+    DoDBTransaction(DoDBTransaction&& other) = delete;
+    DoDBTransaction(const DoDBTransaction &other) = delete;
+    DoDBTransaction& operator =(const DoDBTransaction &other) = delete;
+        
+    ~DoDBTransaction();
+
+private:
+
+    Database &DB;
+    Lock &Locked;
 };
 
 }

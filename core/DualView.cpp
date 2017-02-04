@@ -1506,7 +1506,7 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
                 }
                 
                 if(resource->GetTags()->HasTags())
-                    existingimage->GetTags()->AddTags(*resource->GetTags());
+                    existingimage->GetTags()->Add(*resource->GetTags());
 
                 actualresource = existingimage;
                 
@@ -1524,8 +1524,13 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
                 if(resource->GetTags()->HasTags())
                     tagstoapply = resource->GetTags();
 
+                
+                GUARD_LOCK_OTHER(_Database);
+
+                DoDBTransaction transaction(*_Database, guard);
+
                 try{
-                    _Database->InsertImage(*resource);
+                    _Database->InsertImage(guard, *resource);
                 
                 } catch (const InvalidSQL &e){
                 
@@ -1538,7 +1543,7 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
 
                 // Apply tags //
                 if(tagstoapply)
-                    resource->GetTags()->AddTags(*tagstoapply);
+                    resource->GetTags()->Add(*tagstoapply, guard);
 
                 actualresource = resource;
             }

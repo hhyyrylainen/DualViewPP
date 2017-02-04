@@ -41,4 +41,5 @@ protected:
 void ThrowErrorFromDB(sqlite3* sqlite, int code = 0,
     const std::string &extramessage = "");
 
+
 }

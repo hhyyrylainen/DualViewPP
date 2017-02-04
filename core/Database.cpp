@@ -228,12 +228,10 @@ bool Database::SelectDatabaseVersion(Lock &guard, int &result){
 }
 // ------------------------------------ //
 // Image
-void Database::InsertImage(Image &image){
+void Database::InsertImage(Lock &guard, Image &image){
 
     LEVIATHAN_ASSERT(image.IsReady(), "InsertImage: image not ready");
 
-    GUARD_LOCK();
-    
     const char str[] = "INSERT INTO pictures (relative_path, width, height, name, extension, "
         "add_date, last_view, is_private, from_file, file_hash) VALUES "
         "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
@@ -325,17 +323,18 @@ std::shared_ptr<TagCollection> Database::LoadImageTags(const std::shared_ptr<Ima
     std::weak_ptr<Image> weak = image;
     
     auto tags = std::make_shared<DatabaseTagCollection>(
-        std::bind(&Database::SelectImageTags, this, weak, std::placeholders::_1),
-        [=](AppliedTag &tag){
-            InsertImageTagAG(weak, tag);
-        },
-        std::bind(&Database::DeleteImageTag, this, weak, std::placeholders::_1)
+        std::bind(&Database::SelectImageTags, this, std::placeholders::_1, weak,
+            std::placeholders::_2),
+        std::bind(&Database::InsertImageTag, this, std::placeholders::_1, weak,
+            std::placeholders::_2),
+        std::bind(&Database::DeleteImageTag, this, std::placeholders::_1, weak,
+            std::placeholders::_2), *this
     );
     
     return tags;
 }
 
-void Database::SelectImageTags(std::weak_ptr<Image> image,
+void Database::SelectImageTags(Lock &guard, std::weak_ptr<Image> image,
     std::vector<std::shared_ptr<AppliedTag>> &tags)
 {
     auto imageLock = image.lock();
@@ -343,8 +342,6 @@ void Database::SelectImageTags(std::weak_ptr<Image> image,
     if(!imageLock)
         return;
     
-    GUARD_LOCK();
-
     const char str[] = "SELECT tag FROM image_tag WHERE image = ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -408,15 +405,13 @@ void Database::InsertTagImage(Lock &guard, Image &image, DBID appliedtagid){
     statementobj.StepAll(statementinuse);
 }
 
-void Database::DeleteImageTag(std::weak_ptr<Image> image,
+void Database::DeleteImageTag(Lock &guard, std::weak_ptr<Image> image,
     AppliedTag &tag)
 {
     auto imageLock = image.lock();
 
     if(!imageLock)
         return;
-    
-    GUARD_LOCK();
 
     const char str[] = "DELETE FROM image_tag WHERE image = ? AND tag = ?;";
 
@@ -593,23 +588,24 @@ std::shared_ptr<TagCollection> Database::LoadCollectionTags(
     std::weak_ptr<Collection> weak = collection;
     
     auto tags = std::make_shared<DatabaseTagCollection>(
-        std::bind(&Database::SelectCollectionTags, this, weak, std::placeholders::_1),
-        std::bind(&Database::InsertCollectionTag, this, weak, std::placeholders::_1),
-        std::bind(&Database::DeleteCollectionTag, this, weak, std::placeholders::_1)
+        std::bind(&Database::SelectCollectionTags, this, std::placeholders::_1, weak,
+            std::placeholders::_2),
+        std::bind(&Database::InsertCollectionTag, this, std::placeholders::_1, weak,
+            std::placeholders::_2),
+        std::bind(&Database::DeleteCollectionTag, this, std::placeholders::_1, weak,
+            std::placeholders::_2), *this
     );
     
     return tags;
 }
 
-void Database::SelectCollectionTags(std::weak_ptr<Collection> collection,
+void Database::SelectCollectionTags(Lock &guard, std::weak_ptr<Collection> collection,
     std::vector<std::shared_ptr<AppliedTag>> &tags)
 {
     auto collectionLock = collection.lock();
 
     if(!collectionLock)
         return;
-    
-    GUARD_LOCK();
 
     const char str[] = "SELECT tag FROM collection_tag WHERE collection = ?;";
 
@@ -638,7 +634,7 @@ void Database::SelectCollectionTags(std::weak_ptr<Collection> collection,
     }
 }
 
-void Database::InsertCollectionTag(std::weak_ptr<Collection> collection,
+void Database::InsertCollectionTag(Lock &guard, std::weak_ptr<Collection> collection,
     AppliedTag &tag)
 {
     auto collectionLock = collection.lock();
@@ -646,8 +642,6 @@ void Database::InsertCollectionTag(std::weak_ptr<Collection> collection,
     if(!collectionLock)
         return;
     
-    GUARD_LOCK();
-
     auto existing = SelectExistingAppliedTag(guard, tag);
 
     if(existing){
@@ -676,15 +670,13 @@ void Database::InsertTagCollection(Lock &guard, Collection &collection, DBID app
     statementobj.StepAll(statementinuse);
 }
 
-void Database::DeleteCollectionTag(std::weak_ptr<Collection> collection,
+void Database::DeleteCollectionTag(Lock &guard, std::weak_ptr<Collection> collection,
     AppliedTag &tag)
 {
     auto collectionLock = collection.lock();
 
     if(!collectionLock)
         return;
-    
-    GUARD_LOCK();
 
     const char str[] = "DELETE FROM collection_tag WHERE collection = ? AND tag = ?;";
 
@@ -3118,4 +3110,27 @@ std::string Database::EscapeSql(std::string str){
     str = Leviathan::StringOperations::Replace<std::string>(str, "\"", "\"\"");
 
     return str;
+}
+
+// Transaction stuff
+void Database::BeginTransaction(Lock &guard){
+
+    RunSQLAsPrepared(guard, "BEGIN TRANSACTION;");
+}
+    
+void Database::CommitTransaction(Lock &guard){
+
+    RunSQLAsPrepared(guard, "COMMIT TRANSACTION;");
+}
+
+// ------------------------------------ //
+// DoDBTransaction
+DoDBTransaction::DoDBTransaction(Database &db, Lock &dblock) : DB(db), Locked(dblock){
+
+    DB.BeginTransaction(Locked);
+}
+
+DoDBTransaction::~DoDBTransaction(){
+
+    DB.CommitTransaction(Locked);
 }

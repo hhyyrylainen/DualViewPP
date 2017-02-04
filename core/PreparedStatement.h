@@ -35,7 +35,8 @@ public:
         
         ~SetupStatementForUse(){
 
-            Statement.Reset();
+            if(!DontReset)
+                Statement.Reset();
         }
 
         PreparedStatement& Statement;

@@ -901,7 +901,12 @@ TEST_CASE("TagCollection works like it should", "[db][tags]"){
 
         auto tagtoinsert = dv.ParseTagFromString("watermark");
 
-        db.InsertImageTagAG(img, *tagtoinsert);
+        {
+            GUARD_LOCK_OTHER(db);
+        
+            db.InsertImageTag(guard, img, *tagtoinsert);
+        }
+        
         CHECK(db.CountAppliedTags() == 1);
         {
             GUARD_LOCK_OTHER(db);

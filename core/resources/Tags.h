@@ -382,14 +382,19 @@ public:
     //! \brief Adds a tag to this collection
     bool Add(std::shared_ptr<Tag> tag);
 
+
     //! \brief Adds a tag to this collection
     bool Add(std::shared_ptr<AppliedTag> tag);
+
+    //! \brief Adds a tag to this collection. Uses existing db lock
+    bool Add(std::shared_ptr<AppliedTag> tag, Lock &dblock);
+        
 
     //! \brief Adds tags from other to this collection
     void Add(const TagCollection &other);
 
-    //! \brief Adds all tags from other
-    void AddTags(const TagCollection &other);
+    //! \brief Adds all tags from other. Uses existing db lock
+    void Add(const TagCollection &other, Lock &dblock);
 
     //! \brief Replaces all tags with a multiline tag string
     void ReplaceWithText(std::string text);
@@ -438,10 +443,25 @@ public:
         _OnCheckTagsLoaded();
     }
 
+    inline void CheckIsLoaded(Lock &dblock){
+
+        if(TagLoadCheckDone)
+            return;
+
+        TagLoadCheckDone = true;
+        _OnCheckTagsLoaded(dblock);
+    }
+
 protected:
 
     //! Called when retrieving tags, or the tags need to be loaded for some other reason
     virtual void _OnCheckTagsLoaded(){
+    }
+
+    //! Called when retrieving tags, or the tags need to be loaded for
+    //! some other reason. This version is used when db is already
+    //! locked
+    virtual void _OnCheckTagsLoaded(Lock &dblock){
     }
 
     //! Callback for easily making child classes
@@ -451,6 +471,11 @@ protected:
 
     //! Callback for child classes
     virtual void _TagAdded(AppliedTag &tag){
+
+    }
+
+    //! Callback for child classes. This version is used when db is already locked
+    virtual void _TagAdded(AppliedTag &tag, Lock &dblock){
 
     }
 
@@ -467,56 +492,43 @@ class DatabaseTagCollection : public TagCollection{
 public:
 
     DatabaseTagCollection(
-        std::function<void (std::vector<std::shared_ptr<AppliedTag>>&)> loadtags,
-        std::function<void (AppliedTag &tag)> onadd,
-        std::function<void (AppliedTag &tag)> onremove) :
+        std::function<void (Lock &dblock, std::vector<std::shared_ptr<AppliedTag>>&)> loadtags,
+        std::function<void (Lock &dblock, AppliedTag &tag)> onadd,
+        std::function<void (Lock &dblock, AppliedTag &tag)> onremove, Database &db) :
         OnAddTag(onadd),
         OnRemoveTag(onremove),
-        LoadTags(loadtags)
+        LoadTags(loadtags),
+        LoadedDB(db)
     {
     }
 
     //! \brief Reloads tags from the database
-    void RefreshTags() override{
-
-        TagsLoaded = true;
-
-        Tags.clear();
-        LoadTags(Tags);
-    }
+    void RefreshTags() override;
     
 protected:
 
     //! Applies the change to the database
-    void _TagRemoved(AppliedTag &tag) override{
-        
-        OnRemoveTag(tag);
-    }
+    void _TagRemoved(AppliedTag &tag) override;
 
     //! Applies the change to the database
-    void _TagAdded(AppliedTag &tag) override{
-        
-        OnAddTag(tag);
-    }
+    void _TagAdded(AppliedTag &tag) override;
+
+    void _TagAdded(AppliedTag &tag, Lock &dblock) override;
 
     //! Used to load tags from the database
-    void _OnCheckTagsLoaded() override{
+    void _OnCheckTagsLoaded() override;
 
-        if(TagsLoaded)
-            return;
-
-        TagsLoaded = true;
-
-        // Load tags from the database //
-        LoadTags(Tags);
-    }
+    void _OnCheckTagsLoaded(Lock &dblock) override;
 
 protected:
 
-    std::function<void (AppliedTag &tag)> OnAddTag;
-    std::function<void (AppliedTag &tag)> OnRemoveTag;
+    std::function<void (Lock &dblock, AppliedTag &tag)> OnAddTag;
+    std::function<void (Lock &dblock, AppliedTag &tag)> OnRemoveTag;
 
-    std::function<void (std::vector<std::shared_ptr<AppliedTag>>&)> LoadTags;
+    std::function<void (Lock &dblock, std::vector<std::shared_ptr<AppliedTag>>&)> LoadTags;
+
+    Database &LoadedDB;
+    
     bool TagsLoaded = false;
 };
 

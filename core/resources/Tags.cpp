@@ -617,12 +617,7 @@ bool TagCollection::Add(std::shared_ptr<Tag> tag){
         
     auto toadd = std::make_shared<AppliedTag>(tag);
 
-    if(HasTag(*toadd))
-        return false;
-
-    Tags.push_back(toadd);
-    _TagAdded(*toadd);
-    return true;
+    return Add(toadd);
 }
 
 bool TagCollection::Add(std::shared_ptr<AppliedTag> tag)
@@ -638,22 +633,37 @@ bool TagCollection::Add(std::shared_ptr<AppliedTag> tag)
     return true;
 }
 
-void TagCollection::Add(const TagCollection &other){
-        
-    for(const auto& tag : other){
-            
-        Add(tag);
-    }
+bool TagCollection::Add(std::shared_ptr<AppliedTag> tag, Lock &dblock){
+
+    if(!tag || HasTag(*tag))
+        return false;
+
+    if(!tag->GetTag())
+        return false;
+
+    Tags.push_back(tag);
+    _TagAdded(*tag, dblock);
+    return true;
 }
 
-void TagCollection::AddTags(const TagCollection &other){
-
+void TagCollection::Add(const TagCollection &other){
+        
     CheckIsLoaded();
 
     for(const auto& tag : other){
             
         Add(tag);
-    }        
+    } 
+}
+
+void TagCollection::Add(const TagCollection &other, Lock &dblock){
+    
+    CheckIsLoaded(dblock);
+
+    for(const auto& tag : other){
+            
+        Add(tag, dblock);
+    } 
 }
 
 size_t TagCollection::GetTagCount(){
@@ -729,4 +739,59 @@ std::string TagCollection::TagsAsString(const std::string &separator){
 
     return Leviathan::StringOperations::StitchTogether(strs, separator);
 }
+
+
+// ------------------------------------ //
+// DatabaseTagCollection
+void DatabaseTagCollection::RefreshTags(){
+
+    TagsLoaded = true;
+
+    Tags.clear();
+
+    GUARD_LOCK_OTHER(LoadedDB);
+        
+    LoadTags(guard, Tags);
+}
+
+void DatabaseTagCollection::_OnCheckTagsLoaded(){
+
+    if(TagsLoaded)
+        return;
+
+    TagsLoaded = true;
+
+    // Load tags from the database //
+    GUARD_LOCK_OTHER(LoadedDB);
+    LoadTags(guard, Tags);
+}
+
+void DatabaseTagCollection::_OnCheckTagsLoaded(Lock &dblock){
+
+    if(TagsLoaded)
+        return;
+
+    TagsLoaded = true;
+
+    // Load tags from the database //
+    LoadTags(dblock, Tags);
+}
+// ------------------------------------ //
+void DatabaseTagCollection::_TagRemoved(AppliedTag &tag){
+
+    GUARD_LOCK_OTHER(LoadedDB);
+    OnRemoveTag(guard, tag);
+}
+
+void DatabaseTagCollection::_TagAdded(AppliedTag &tag){
+
+    GUARD_LOCK_OTHER(LoadedDB);
+    OnAddTag(guard, tag);
+}
+
+void DatabaseTagCollection::_TagAdded(AppliedTag &tag, Lock &dblock){
+
+    OnAddTag(dblock, tag);
+}
+
 

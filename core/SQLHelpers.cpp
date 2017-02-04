@@ -44,3 +44,6 @@ void InvalidSQL::PrintToLog() const noexcept{
 
     LOG_WRITE(FinalMessage);
 }
+
+
+

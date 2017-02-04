@@ -108,7 +108,7 @@ bool Collection::AddTags(const TagCollection &tags){
     if(!currenttags)
         return false;
 
-    currenttags->AddTags(tags);
+    currenttags->Add(tags);
     return true;
 }
 
