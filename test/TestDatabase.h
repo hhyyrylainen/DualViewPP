@@ -21,7 +21,12 @@ public:
     std::shared_ptr<Image> InsertTestImage(const std::string &file, const std::string &hash){
 
         GUARD_LOCK();
-
+        return InsertTestImage(guard, file, hash);
+    }
+    
+    std::shared_ptr<Image> InsertTestImage(Lock &guard,
+        const std::string &file, const std::string &hash)
+    {
         const char str[] = "INSERT INTO pictures (relative_path, name, extension, file_hash, "
             "width, height, add_date, last_view) VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
 

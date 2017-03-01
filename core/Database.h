@@ -164,10 +164,12 @@ public:
 
     //! \brief Returns the largest value used for an image in the collection
     //! If the collection is empty returns 0
-    int64_t SelectCollectionLargestShowOrder(const Collection &collection);
+    int64_t SelectCollectionLargestShowOrder(Lock &guard, const Collection &collection);
+    CREATE_NON_LOCKING_WRAPPER(SelectCollectionLargestShowOrder);
 
     //! \brief Returns the number of images in a collection
-    int64_t SelectCollectionImageCount(const Collection &collection);
+    int64_t SelectCollectionImageCount(Lock &guard, const Collection &collection);
+    CREATE_NON_LOCKING_WRAPPER(SelectCollectionImageCount);
 
     //! \brief Loads a TagCollection for the specified collection.
     //! \returns Null if the collection is not in the database
@@ -195,16 +197,18 @@ public:
     //! \param showorder The order number of the image in the collection. If the same one is
     //! already in use the order in which the two images that have the same show_order is
     //! random
-    bool InsertImageToCollection(Collection &collection, Image &image, int64_t showorder);
+    bool InsertImageToCollection(Lock &guard, Collection &collection, Image &image,
+        int64_t showorder);
+    CREATE_NON_LOCKING_WRAPPER(InsertImageToCollection);
 
     //! \brief Returns true if image is in some collection.
     //!
     //! If false it should be added to one otherwise it cannot be viewed
-    bool SelectIsImageInAnyColllection(const Image &image);
+    bool SelectIsImageInAnyCollection(Lock &guard, const Image &image);
 
     //! \brief Removes an image from the collection
     //! \returns True if removed. False if the image wasn't in the collection
-    bool DeleteImageFromCollection(Collection &collection, Image &image);
+    bool DeleteImageFromCollection(Lock &guard, Collection &collection, Image &image);
 
     //! \brief Returns the show_order image has in collection. Or -1
     int64_t SelectImageShowOrderInCollection(Lock &guard, const Collection &collection,

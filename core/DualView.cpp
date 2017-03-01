@@ -958,9 +958,14 @@ bool DualView::MoveFileToCollectionFolder(std::shared_ptr<Image> img,
         "Move to collection, final path doesn't exist after copy");
     
     // Notify image cache that the file was moved //
-    if(move)
-        _CacheManager->NotifyMovedFile(img->GetResourcePath(), finalPath);
+    if(move){
 
+        LOG_INFO("Moved file to collection. From: " + img->GetResourcePath() +
+            ", Target: " + finalPath);
+        
+        _CacheManager->NotifyMovedFile(img->GetResourcePath(), finalPath);
+    }
+    
     img->SetResourcePath(finalPath);
     return true;
 }
@@ -1469,16 +1474,23 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
     }
 
     LEVIATHAN_ASSERT(addtocollection, "Failed to get collection object");
+
+    GUARD_LOCK_OTHER(_Database);
+
+    auto transaction = std::make_unique<DoDBTransaction>(*_Database, guard);
     
     if(canapplytags)
-        addtocollection->AddTags(addcollectiontags);
+        addtocollection->AddTags(addcollectiontags, guard);
 
     size_t currentitem = 0;
     const auto maxitems = resources.size();
 
-    auto order = addtocollection->GetLastShowOrder();
+    auto order = addtocollection->GetLastShowOrder(guard);
 
     std::vector<std::string> filestodelete;
+
+    // Some lambdas to run after success. used to simplify this
+    std::vector<std::function<void()>> onSuccessFunctions;
 
     // Save resources to database if not loaded from the database //
 
@@ -1490,7 +1502,7 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
             
             // If the image hash is in the collection then we shouldn't be here //
             // But just in case we should check to make absolutely sure
-            auto existingimage = _Database->SelectImageByHashAG(resource->GetHash());
+            auto existingimage = _Database->SelectImageByHash(guard, resource->GetHash());
 
             if(existingimage){
 
@@ -1499,19 +1511,25 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
                 // Delete original file if moving //
                 if(move){
 
-                    LOG_INFO("Deleting moved (duplicate) file: " +
-                        resource->GetResourcePath());
+                    const auto path = resource->GetResourcePath();
                     
-                    boost::filesystem::remove(resource->GetResourcePath());
+                    onSuccessFunctions.push_back([path](){
+
+                            LOG_INFO("Deleting moved (duplicate) file: " +
+                                path);
+                    
+                            boost::filesystem::remove(path);
+                        });
                 }
                 
-                if(resource->GetTags()->HasTags())
-                    existingimage->GetTags()->Add(*resource->GetTags());
+                if(resource->GetTags()->HasTags(guard))
+                    existingimage->GetTags()->Add(*resource->GetTags(), guard);
 
                 actualresource = existingimage;
                 
             } else {
 
+                // TODO: unmove if fails to add
                 if (!MoveFileToCollectionFolder(resource, addtocollection, move)){
                 
                     LOG_ERROR("Failed to move file to collection's folder");
@@ -1521,13 +1539,8 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
                 std::shared_ptr<TagCollection> tagstoapply;
 
                 // Store tags for applying //
-                if(resource->GetTags()->HasTags())
+                if(resource->GetTags()->HasTags(guard))
                     tagstoapply = resource->GetTags();
-
-                
-                GUARD_LOCK_OTHER(_Database);
-
-                DoDBTransaction transaction(*_Database, guard);
 
                 try{
                     _Database->InsertImage(guard, *resource);
@@ -1555,14 +1568,14 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
             // Remove from uncategorized if not adding to that //
             if(addtocollection != uncategorized){
                 
-                uncategorized->RemoveImage(actualresource);
+                uncategorized->RemoveImage(actualresource, guard);
             }
         }
 
         LEVIATHAN_ASSERT(actualresource, "actualresource not set in DualView import image");
 
         // Associate with collection //
-        addtocollection->AddImage(actualresource, ++order);
+        addtocollection->AddImage(actualresource, ++order, guard);
 
         currentitem++;
 
@@ -1570,9 +1583,23 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
             progresscallback(currentitem / (float)maxitems);
     }
 
+    // Commit transaction //
+    // by reseting the smart pointer
+    transaction.reset();
+
+    for(const auto& func : onSuccessFunctions){
+
+        func();
+    }
+
+    // We no longer use the database
+    guard.unlock();
+
+
+
     // These are duplicate files of already existing ones
     bool exists = false;
-
+    
     do{
         
         exists = false;
@@ -1603,14 +1630,18 @@ void DualView::RemoveImageFromCollection(std::shared_ptr<Image> resource,
 {
     if(!resource || !collection)
         return;
+
+    GUARD_LOCK_OTHER(_Database);
+
+    DoDBTransaction transaction(*_Database, guard);
     
-    _Database->DeleteImageFromCollection(*collection, *resource);
+    _Database->DeleteImageFromCollection(guard, *collection, *resource);
 
     // Add to uncategorized //
-    if(!_Database->SelectIsImageInAnyColllection(*resource)){
+    if(!_Database->SelectIsImageInAnyCollection(guard, *resource)){
 
         LOG_INFO("Adding removed image to Uncategorized");
-        GetUncategorized()->AddImage(resource);
+        GetUncategorized()->AddImage(resource, guard);
     }
 }
 // ------------------------------------ //

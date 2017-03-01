@@ -417,6 +417,12 @@ public:
         return !Tags.empty();
     }
 
+    bool HasTags(Lock &databaselock){
+
+        CheckIsLoaded(databaselock);
+        return !Tags.empty();
+    }
+
     const auto begin() const{
 
         return Tags.begin();

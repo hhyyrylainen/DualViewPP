@@ -218,7 +218,7 @@ TEST_CASE("Directly using database for collection and image inserts", "[db]"){
 
         REQUIRE(image);
 
-        CHECK(db.InsertImageToCollection(*collection, *image, 1));
+        CHECK(db.InsertImageToCollectionAG(*collection, *image, 1));
 
         CHECK(collection->GetImageCount() == 1);
         CHECK(collection->GetLastShowOrder() == 1);
@@ -229,7 +229,7 @@ TEST_CASE("Directly using database for collection and image inserts", "[db]"){
 
         REQUIRE(image2);
 
-        CHECK(db.InsertImageToCollection(*collection, *image2,
+        CHECK(db.InsertImageToCollectionAG(*collection, *image2,
                 collection->GetLastShowOrder() + 1));
 
         CHECK(collection->GetImageCount() == 2);
@@ -249,31 +249,33 @@ TEST_CASE("Directly using database for collection and image inserts", "[db]"){
 
         REQUIRE(image);
 
-        CHECK(collection->AddImage(image));
+        GUARD_LOCK_OTHER(db);
 
-        CHECK(collection->GetImageCount() == 1);
+        CHECK(collection->AddImage(image, guard));
 
-        CHECK(!collection->AddImage(image2));
-        CHECK(collection->GetImageCount() == 1);
+        CHECK(collection->GetImageCount(guard) == 1);
 
-        auto image3 = db.InsertTestImage("img2.jpg",
+        CHECK(!collection->AddImage(image2, guard));
+        CHECK(collection->GetImageCount(guard) == 1);
+
+        auto image3 = db.InsertTestImage(guard, "img2.jpg",
             "II++bAetVgxJNrJNX4zhA4oWV+V0=");
 
         REQUIRE(image3);
 
-        CHECK(collection->AddImage(image3, 5));
-        CHECK(collection->GetImageCount() == 2);
+        CHECK(collection->AddImage(image3, 5, guard));
+        CHECK(collection->GetImageCount(guard) == 2);
 
-        auto image4 = db.InsertTestImage("randomstuff.jpg",
+        auto image4 = db.InsertTestImage(guard, "randomstuff.jpg",
             "randomstuff");
 
         REQUIRE(image4);
 
-        CHECK(collection->GetLastShowOrder() == 5);
-        CHECK(collection->GetImageShowOrder(image) == 1);
-        CHECK(collection->GetImageShowOrder(image2) == 1);
-        CHECK(collection->GetImageShowOrder(image3) == 5);
-        CHECK(collection->GetImageShowOrder(image4) == -1);
+        CHECK(collection->GetLastShowOrder(guard) == 5);
+        CHECK(collection->GetImageShowOrder(image, guard) == 1);
+        CHECK(collection->GetImageShowOrder(image2, guard) == 1);
+        CHECK(collection->GetImageShowOrder(image3, guard) == 5);
+        CHECK(collection->GetImageShowOrder(image4, guard) == -1);
     }
 
     SECTION("Image show order"){

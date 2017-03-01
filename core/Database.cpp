@@ -536,12 +536,10 @@ std::vector<std::string> Database::SelectCollectionNamesByWildcard(const std::st
     return result;
 }
 
-int64_t Database::SelectCollectionLargestShowOrder(const Collection &collection){
+int64_t Database::SelectCollectionLargestShowOrder(Lock &guard, const Collection &collection){
 
     if(!collection.IsInDatabase())
         return 0;
-    
-    GUARD_LOCK();
 
     const char str[] = "SELECT show_order FROM collection_image WHERE collection = ?1 "
         "ORDER BY show_order DESC LIMIT 1;";
@@ -558,13 +556,11 @@ int64_t Database::SelectCollectionLargestShowOrder(const Collection &collection)
     return 0;
 }
 
-int64_t Database::SelectCollectionImageCount(const Collection &collection){
+int64_t Database::SelectCollectionImageCount(Lock &guard, const Collection &collection){
 
     if(!collection.IsInDatabase())
         return 0;
     
-    GUARD_LOCK();
-
     const char str[] = "SELECT COUNT(*) FROM collection_image WHERE collection = ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -691,13 +687,11 @@ void Database::DeleteCollectionTag(Lock &guard, std::weak_ptr<Collection> collec
 }
 // ------------------------------------ //
 // Collection image 
-bool Database::InsertImageToCollection(Collection &collection, Image &image,
+bool Database::InsertImageToCollection(Lock &guard, Collection &collection, Image &image,
     int64_t showorder)
 {
     if(!collection.IsInDatabase() || !image.IsInDatabase())
         return false;
-    
-    GUARD_LOCK();
 
     const char str[] = "INSERT INTO collection_image (collection, image, show_order) VALUES "
         "(?1, ?2, ?3);";
@@ -715,9 +709,7 @@ bool Database::InsertImageToCollection(Collection &collection, Image &image,
     return changes == 1;
 }
 
-bool Database::SelectIsImageInAnyColllection(const Image &image){
-
-    GUARD_LOCK();
+bool Database::SelectIsImageInAnyCollection(Lock &guard, const Image &image){
 
     const char str[] = "SELECT 1 FROM collection_image WHERE image = ?;";
 
@@ -733,12 +725,10 @@ bool Database::SelectIsImageInAnyColllection(const Image &image){
     return false;
 }
 
-bool Database::DeleteImageFromCollection(Collection &collection, Image &image){
+bool Database::DeleteImageFromCollection(Lock &guard, Collection &collection, Image &image){
 
     if(!collection.IsInDatabase() || !image.IsInDatabase())
         return false;
-    
-    GUARD_LOCK();
 
     const char str[] = "DELETE FROM collection_image WHERE collection = ?1 AND image = ?2;";
 
