@@ -1,5 +1,5 @@
 #!/bin/sh
 #cscope -b -q
-find . -iname "*.h" -o -iname "*.cpp" -not -path "./build/*" > cscope.files
+find . -not -path "./build/*" -type f -iname "*.h" -o -iname "*.cpp"  > cscope.files
 cscope -b
 
