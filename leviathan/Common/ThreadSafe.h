@@ -97,6 +97,9 @@ namespace Leviathan{
 #define UNIQUE_LOCK_OBJECT_OTHER(x) auto lockit = (Leviathan::Locker::Object(x));
 #define UNIQUE_LOCK_THIS() auto lockit = (Leviathan::Locker::Object(this));
 #endif
+
+//! Asserts if lock isn't locked / doesn't own mutex
+#define REQUIRE_LOCKED(x) LEVIATHAN_ASSERT(x.owns_lock(), "Mutex doesn't own lock");
     
 	//! \brief Allows the inherited object to be locked
     //! \note Not allowed to be used as a pointer type

@@ -134,7 +134,36 @@ void DownloadSetup::_OnClose(){
     
 }
 // ------------------------------------ //
-void DownloadSetup::_OnFinishAccept(){
+void DownloadSetup::_OnFinishAccept(bool success){
+
+    // Restore cursor
+    auto window = get_window();
+    if(window)
+        window->set_cursor();
+
+    if(!ImageObjects.empty()){
+        // Restore editing
+        State = STATE::URL_OK;
+        set_sensitive(true);
+
+        ImageSelection->SetShownItems(ImageObjects.begin(), ImageObjects.end());
+        UpdateEditedImages();
+    }
+
+    if(!success){
+
+        auto dialog = Gtk::MessageDialog(*this,
+            "Error Adding Images",
+            false,
+            Gtk::MESSAGE_ERROR,
+            Gtk::BUTTONS_OK,
+            true 
+        );
+    
+        dialog.set_secondary_text("TODO: add the error message here");
+        dialog.run();
+        return;
+    }
 
     // If there are leftover images allow adding those to another collection
     if(ImageObjects.empty()){
@@ -151,22 +180,10 @@ void DownloadSetup::_OnFinishAccept(){
         Gtk::BUTTONS_OK,
         true 
     );
-
-    // Restore cursor
-    auto window = get_window();
-    if(window)
-        window->set_cursor();
     
     dialog.set_secondary_text("You can either select the remaining images and add them also. "
         "Or you can close this window to discard the rest of the images");
     dialog.run();
-
-    // Restore editing
-    State = STATE::URL_OK;
-    set_sensitive(true);
-
-    ImageSelection->SetShownItems(ImageObjects.begin(), ImageObjects.end());
-    UpdateEditedImages();
 }
 
 void DownloadSetup::OnUserAcceptSettings(){
@@ -233,8 +250,10 @@ void DownloadSetup::OnUserAcceptSettings(){
 
     const auto alive = GetAliveMarker();
 
+    const bool remove = RemoveAfterAdding->get_active();
+
     DualView::Get().QueueWorkerFunction([us { this }, alive,
-            selected, collectionTags, collectionPath,
+            selected, collectionTags, collectionPath, remove,
             url { CurrentlyCheckedURL }, name { TargetCollectionName->get_text() } ]()
         {
             auto gallery = std::make_shared<NetGallery>(url, name);
@@ -246,13 +265,21 @@ void DownloadSetup::OnUserAcceptSettings(){
             // (which also allows the DownloadManager to pick it up)
             auto& database = DualView::Get().GetDatabase();
 
-            {
-                GUARD_LOCK_OTHER(database);
+            bool success = true;
 
+            try{
+                GUARD_LOCK_OTHER(database);
+                
                 DoDBTransaction transaction(database, guard);
-            
+                
                 database.InsertNetGallery(guard, gallery);
                 gallery->AddFilesToDownload(selected, guard);
+                
+            } catch(const DV::InvalidSQL &e){
+
+                LOG_ERROR("Failed to add NetGallery download: ");
+                e.PrintToLog();
+                success = false;
             }
 
             // We are done
@@ -260,32 +287,35 @@ void DownloadSetup::OnUserAcceptSettings(){
 
                     INVOKE_CHECK_ALIVE_MARKER(alive);
 
-                    us->DownloadSetup::_OnFinishAccept();
+                    // Remove the added from the list //
+                    if(remove){
+        
+                        for(size_t i = 0; i < us->ImageObjects.size(); ){
+
+                            bool removed = false;
+
+                            for(const auto& added : selected){
+                                if(us->ImageObjects[i].get() == added.get()){
+
+                                    us->ImageObjects.erase(us->ImageObjects.begin() + i);
+                                    
+                                    us->ImagesToDownload.erase(
+                                        us->ImagesToDownload.begin() + i);
+                                    
+                                    removed = true;
+                                    break;
+                                }
+                            }
+
+                            if(!removed)
+                                ++i;
+                        }
+                    }
+
+                    us->DownloadSetup::_OnFinishAccept(success);
                 });
         });
     
-    // Remove the added from the list //
-    if(RemoveAfterAdding->get_active()){
-        
-        for(size_t i = 0; i < ImageObjects.size(); ){
-
-            bool removed = false;
-
-            for(const auto& added : selected){
-                if(ImageObjects[i].get() == added.get()){
-
-                    ImageObjects.erase(ImageObjects.begin() + i);
-                    ImagesToDownload.erase(ImagesToDownload.begin() + i);
-                    removed = true;
-                    break;
-                }
-            }
-
-            if(!removed)
-                ++i;
-        }
-    }
-
     // Start waiting for things //
     set_sensitive(false);
     auto window = get_window();

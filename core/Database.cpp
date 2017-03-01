@@ -457,10 +457,10 @@ std::shared_ptr<Collection> Database::InsertCollection(Lock &guard, const std::s
         LOG_ERROR("Failed to add a new Collection to the root folder");
     }
 
-    guard.unlock();
-    DualView::Get().GetEvents().FireEvent(CHANGED_EVENT::COLLECTION_CREATED);
-    guard.lock();
-    
+    DualView::Get().QueueDBThreadFunction([](){
+            DualView::Get().GetEvents().FireEvent(CHANGED_EVENT::COLLECTION_CREATED);
+        });
+
     return created;
 }
 
@@ -2334,8 +2334,9 @@ bool Database::InsertNetGallery(Lock &guard, std::shared_ptr<NetGallery> gallery
 
     gallery->OnAdopted(sqlite3_last_insert_rowid(SQLiteDb), *this);
 
-    guard.unlock();
-    DualView::Get().GetEvents().FireEvent(CHANGED_EVENT::NET_GALLERY_CREATED);
+    DualView::Get().QueueDBThreadFunction([](){
+            DualView::Get().GetEvents().FireEvent(CHANGED_EVENT::NET_GALLERY_CREATED);
+        });
     return true;
 }
 

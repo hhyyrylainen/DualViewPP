@@ -142,7 +142,7 @@ protected:
     //! Updates the images whose tags are edited
     void UpdateEditedImages();
 
-    void _OnFinishAccept();
+    void _OnFinishAccept(bool success);
     
 private:
 
