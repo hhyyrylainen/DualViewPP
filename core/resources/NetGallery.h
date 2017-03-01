@@ -134,7 +134,8 @@ public:
 
     //! \brief Adds all images to this gallery
     //! \note Doesn't check for duplicates
-    void AddFilesToDownload(const std::vector<std::shared_ptr<InternetImage>> &images);
+    void AddFilesToDownload(const std::vector<std::shared_ptr<InternetImage>> &images,
+        Lock &databaselock);
     
 protected:
 

@@ -244,8 +244,16 @@ void DownloadSetup::OnUserAcceptSettings(){
 
             // Save the net gallery to the databse
             // (which also allows the DownloadManager to pick it up)
-            DualView::Get().GetDatabase().InsertNetGallery(gallery);
-            gallery->AddFilesToDownload(selected);
+            auto& database = DualView::Get().GetDatabase();
+
+            {
+                GUARD_LOCK_OTHER(database);
+
+                DoDBTransaction transaction(database, guard);
+            
+                database.InsertNetGallery(guard, gallery);
+                gallery->AddFilesToDownload(selected, guard);
+            }
 
             // We are done
             DualView::Get().InvokeFunction([=](){

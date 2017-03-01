@@ -488,7 +488,7 @@ public:
         
     //! \brief Adds a new NetGallery to the database
     //! \returns True if added, false if it is already added
-    bool InsertNetGallery(std::shared_ptr<NetGallery> gallery);
+    bool InsertNetGallery(Lock &guard, std::shared_ptr<NetGallery> gallery);
 
     void UpdateNetGallery(NetGallery &gallery);
 
@@ -504,7 +504,7 @@ public:
     std::shared_ptr<NetFile> SelectNetFileByID(Lock &guard, DBID id);
 
     //! \brief Adds a new NetFile to the database
-    void InsertNetFile(NetFile &netfile, NetGallery &gallery);
+    void InsertNetFile(Lock &guard, NetFile &netfile, NetGallery &gallery);
 
     void UpdateNetFile(NetFile &netfile);
 

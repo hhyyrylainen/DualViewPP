@@ -44,8 +44,9 @@ NetGallery::~NetGallery(){
     DBResourceDestruct();
 }
 // ------------------------------------ //
-void NetGallery::AddFilesToDownload(const std::vector<std::shared_ptr<InternetImage>> &images){
-
+void NetGallery::AddFilesToDownload(const std::vector<std::shared_ptr<InternetImage>> &images,
+    Lock &databaselock)
+{
     if(!IsInDatabase())
         throw Leviathan::InvalidState("NetGallery not in database");
 
@@ -53,13 +54,18 @@ void NetGallery::AddFilesToDownload(const std::vector<std::shared_ptr<InternetIm
 
         std::string tags = "";
 
-        if(image->GetTags()->HasTags()){
+        auto tagsObj = image->GetTags();
 
-            tags = image->GetTags()->TagsAsString(";");
+        // Make sure it is loaded so that the HasTags call doesn't try to relock the database
+        tagsObj->CheckIsLoaded(databaselock);
+
+        if(tagsObj->HasTags()){
+            
+            tags = tagsObj->TagsAsString(";");
         }
 
         NetFile file(image->GetURL(), image->GetReferrer(), image->GetName(), tags);
-        InDatabase->InsertNetFile(file, *this);
+        InDatabase->InsertNetFile(databaselock, file, *this);
     }
 }
 // ------------------------------------ //

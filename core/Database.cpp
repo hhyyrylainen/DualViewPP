@@ -2326,12 +2326,10 @@ std::shared_ptr<NetGallery> Database::SelectNetGalleryByID(Lock &guard, DBID id)
     return nullptr;
 }
 
-bool Database::InsertNetGallery(std::shared_ptr<NetGallery> gallery){
+bool Database::InsertNetGallery(Lock &guard, std::shared_ptr<NetGallery> gallery){
 
     if(gallery->IsInDatabase())
         return false;
-
-    GUARD_LOCK();
 
     const char str[] = "INSERT INTO net_gallery (gallery_url, target_path, gallery_name, "
         "currently_scanned, is_downloaded, tags_string) VALUES (?, ?, ?, ?, ?, ?);";
@@ -2410,9 +2408,7 @@ std::shared_ptr<NetFile> Database::SelectNetFileByID(Lock &guard, DBID id){
     return nullptr;
 }
 
-void Database::InsertNetFile(NetFile &netfile, NetGallery &gallery){
-
-    GUARD_LOCK();
+void Database::InsertNetFile(Lock &guard, NetFile &netfile, NetGallery &gallery){
 
     if(!gallery.IsInDatabase())
         return;

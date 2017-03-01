@@ -110,8 +110,7 @@ void Settings::Save(){
                 new BoolBlock(CurlDebug)));
 
         downloadsDelays->AddVariable(std::make_shared<NamedVariableList>("MaxRetries",
-                new BoolBlock(MaxDLRetries)));
-
+                new IntBlock(MaxDLRetries)));
         
     
         downloads->AddVariableList(std::move(downloadsDelays));
