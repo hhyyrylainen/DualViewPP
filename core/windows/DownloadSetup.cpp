@@ -945,6 +945,7 @@ void DownloadSetup::_UpdateWidgetStates(){
         ImageSelectPageAll->set_sensitive(true);
         BrowseForward->set_sensitive(true);
         BrowseBack->set_sensitive(true);
+        RemoveSelected->set_sensitive(true);
         
     } else {
 
@@ -965,6 +966,7 @@ void DownloadSetup::_UpdateWidgetStates(){
         ImageSelectPageAll->set_sensitive(false);
         BrowseForward->set_sensitive(false);
         BrowseBack->set_sensitive(false);
+        RemoveSelected->set_sensitive(false);
     }
 
     switch(State){
