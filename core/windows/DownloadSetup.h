@@ -119,6 +119,9 @@ public:
 
     //! \brief Moves to previous image
     void SelectPreviousImage();
+
+    //! \brief Removes currently selected images
+    void RemoveSelectedImages();
     
 protected:
 
@@ -212,7 +215,7 @@ private:
     Gtk::CheckButton* RemoveAfterAdding;
     Gtk::Switch* LockFromAdding;
     
-
+    Gtk::Button* RemoveSelected;
     Gtk::Button* BrowseForward;
     Gtk::Button* BrowseBack;
         

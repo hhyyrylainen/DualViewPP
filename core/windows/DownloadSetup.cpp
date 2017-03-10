@@ -120,6 +120,10 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     QuickSwapPages->signal_clicked().connect(sigc::mem_fun(*this,
             &DownloadSetup::_DoQuickSwapPages));
 
+    BUILDER_GET_WIDGET(RemoveSelected);
+    RemoveSelected->signal_clicked().connect(sigc::mem_fun(*this,
+            &DownloadSetup::RemoveSelectedImages));
+    
 
     BUILDER_GET_WIDGET(WindowTabs);
 
@@ -595,6 +599,35 @@ void DownloadSetup::SelectNextImage(){
 void DownloadSetup::SelectPreviousImage(){
 
     ImageSelection->SelectPreviousItem();
+}
+
+void DownloadSetup::RemoveSelectedImages(){
+
+    const auto selected = GetSelectedImages();
+
+    for(size_t i = 0; i < ImageObjects.size(); ){
+
+        bool removed = false;
+
+        for(const auto& added : selected){
+            if(ImageObjects[i].get() == added.get()){
+
+                ImageObjects.erase(ImageObjects.begin() + i);
+                                    
+                ImagesToDownload.erase(
+                    ImagesToDownload.begin() + i);
+                                    
+                removed = true;
+                break;
+            }
+        }
+
+        if(!removed)
+            ++i;
+    }
+    
+    ImageSelection->SetShownItems(ImageObjects.begin(), ImageObjects.end());
+    UpdateEditedImages();
 }
 // ------------------------------------ //
 void DownloadSetup::OnURLChanged(){
