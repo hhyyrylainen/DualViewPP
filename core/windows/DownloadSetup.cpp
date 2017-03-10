@@ -26,7 +26,7 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     Gtk::Window(window)
 {
     signal_delete_event().connect(sigc::mem_fun(*this, &BaseWindow::_OnClosed));
-    
+
     builder->get_widget_derived("ImageDLSelector", ImageSelection);
     LEVIATHAN_ASSERT(ImageSelection, "Invalid .glade file");
 
@@ -46,7 +46,7 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
         SuperViewer::ENABLED_EVENTS::ALL, false);
 
 #endif // DV_BUILDER_WORKAROUND
-    LEVIATHAN_ASSERT(CurrentImage, "Invalid .glade file");    
+    LEVIATHAN_ASSERT(CurrentImage, "Invalid .glade file"); 
 
     builder->get_widget_derived("CurrentImageEditor", CurrentImageEditor);
     LEVIATHAN_ASSERT(CurrentImageEditor, "Invalid .glade file");
@@ -69,7 +69,7 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
 
     OKButton->signal_clicked().connect(sigc::mem_fun(*this,
             &DownloadSetup::OnUserAcceptSettings));
-
+    
     BUILDER_GET_WIDGET(PageRangeLabel);
 
     BUILDER_GET_WIDGET(ScanPages);
@@ -115,6 +115,13 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     BrowseBack->signal_clicked().connect(sigc::mem_fun(*this,
             &DownloadSetup::SelectPreviousImage));
 
+    Gtk::Button* QuickSwapPages;
+    BUILDER_GET_WIDGET(QuickSwapPages);
+    QuickSwapPages->signal_clicked().connect(sigc::mem_fun(*this,
+            &DownloadSetup::_DoQuickSwapPages));
+
+
+    BUILDER_GET_WIDGET(WindowTabs);
 
     BUILDER_GET_WIDGET(RemoveAfterAdding);
 
@@ -994,5 +1001,17 @@ bool DownloadSetup::IsReadyToDownload() const{
     const auto total = ImageObjects.size();
 
     return selected > 0 && selected <= total;
+}
+
+void DownloadSetup::_DoQuickSwapPages(){
+
+    if(WindowTabs->get_current_page() == 0){
+
+        WindowTabs->set_current_page(1);
+            
+    } else {
+
+        WindowTabs->set_current_page(0);
+    }
 }
 

@@ -139,6 +139,9 @@ protected:
 
     void UpdateReadyStatus();
 
+    //! \brief Switches between image slect and main page
+    void _DoQuickSwapPages();
+
     //! Updates the images whose tags are edited
     void UpdateEditedImages();
 
@@ -180,6 +183,8 @@ private:
 
     TagEditor* CurrentImageEditor;
     SuperViewer* CurrentImage;
+
+    Gtk::Notebook* WindowTabs;
 
     // Url entry
     Gtk::Entry* URLEntry;
