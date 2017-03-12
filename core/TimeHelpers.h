@@ -102,13 +102,16 @@ public:
     //! Parses any time thing known to man
     static auto ParseTime(const std::string &str){
 
-        try{
+        // Cannot be iso-8601 format without a 'T' in the string
+        if(str.find_first_of('T') != std::string::npos){
+            try{
 
-            return parse8601(str);
+                return parse8601(str);
 
-        } catch(const std::exception&){
+            } catch(const std::exception&){
 
-            // Wasn't according to the iso standard...
+                // Wasn't according to the iso standard...
+            }
         }
 
         // Try a simple time parsing
