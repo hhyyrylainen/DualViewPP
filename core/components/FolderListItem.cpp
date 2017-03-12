@@ -32,3 +32,23 @@ void FolderListItem::_DoPopup(){
     // Folder opened //
     Selectable->CustomPopup(*this);
 }
+// ------------------------------------ //
+void FolderListItem::SetItemSize(LIST_ITEM_SIZE newsize){
+
+    ListItem::SetItemSize(newsize);
+
+    switch(newsize){
+    case LIST_ITEM_SIZE::NORMAL:
+    {
+        Container.set_homogeneous(true);
+        break;
+    }
+    case LIST_ITEM_SIZE::SMALL:
+    {
+        Container.set_homogeneous(false);
+        break;
+    }
+    }
+}
+
+

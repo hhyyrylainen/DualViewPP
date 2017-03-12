@@ -27,6 +27,9 @@ public:
     //! Used to handle opening folders
     void _DoPopup() override;
 
+    //! Changes layout depending on size
+    void SetItemSize(LIST_ITEM_SIZE newsize) override;
+
 private:
 
     std::shared_ptr<Folder> CurrentFolder;
