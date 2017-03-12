@@ -68,7 +68,7 @@ void CollectionView::_OnHidden(){
 // ------------------------------------ //
 void CollectionView::OnSearchChanged(){
 
-    OnFolderChanged();
+    _UpdateShownItems();
 }
         
 void CollectionView::OnFolderChanged(){
@@ -85,6 +85,19 @@ void CollectionView::OnFolderChanged(){
     PathEntry->set_text(CurrentPath.GetPathString());
 
     // Load items //
+    if(SearchBox->get_text().empty()){
+        
+        _UpdateShownItems();
+        
+    } else {
+
+        // This calls _UpdateShownItems from the change callback (OnSearchChanged)
+        SearchBox->set_text("");
+    }
+}
+
+void CollectionView::_UpdateShownItems(){
+
     auto isalive = GetAliveMarker();
     std::string matchingpattern = SearchBox->get_text();
 

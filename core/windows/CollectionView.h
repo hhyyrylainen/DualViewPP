@@ -32,6 +32,9 @@ private:
     void OnFolderChanged() override;
 
     void OnSearchChanged();
+
+    //! \brief Common contents fill for OnFolderChanged and OnSearchChanged
+    void _UpdateShownItems();
     
 private:
 
