@@ -143,9 +143,9 @@ void InternetImage::_CheckFileDownload(){
                     us->FullImage->OnSuccess(us->FullImage,
                         us->FileDL->GetDownloadedBytes());
 
-                // Save the bytes to disk (if over 10KB) //
-                if(!us->WasAlreadyCached && us->FileDL->GetDownloadedBytes().size() > 10000 &&
-                    us->AutoSaveCache)
+                // Save the bytes to disk (if over 40KB) //
+                if(!us->WasAlreadyCached && us->FileDL->GetDownloadedBytes().size() > 40000 &&
+                    us->AutoSaveCache && us->FullImage)
                 {
                     LOG_INFO("InternetImage: caching image to: " + us->ResourcePath);
                     us->SaveFileToDisk(guard);
