@@ -911,7 +911,7 @@
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">Not ready to download 0 images from None</property>
             <attributes>
-              <attribute name="font-desc" value="&lt;syötä arvo&gt; 15"/>
+              <attribute name="font-desc" value="DejaVu Sans 12"/>
             </attributes>
           </object>
           <packing>
