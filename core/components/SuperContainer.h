@@ -80,14 +80,26 @@ public:
     //! \brief Replaces all items with the ones in the iterator range
     //!
     //! Will also sort existing items that should be kept
+    //! \params keepPosition if True the first visible item will be kept visible
+    //! (if it is removed the view is scrolled back to the top). If false the scroll offset
+    //! is not changed, This is not perfect as it only compares ResourceWithPreview pointers
     template<class Iterator>
         void SetShownItems(Iterator begin, Iterator end,
-            const std::shared_ptr<ItemSelectable> &selectable = nullptr)
+            const std::shared_ptr<ItemSelectable> &selectable = nullptr,
+        bool keepPosition = true)
     {
         if(Positions.empty()){
 
             // Update initial width
             LastWidthReflow = get_width();
+        }
+
+        std::shared_ptr<ResourceWithPreview> firstVisibleThing;
+
+        if(keepPosition && !Positions.empty()){
+
+            const auto currentScroll = get_vadjustment()->get_value();
+            firstVisibleThing = GetFirstVisibleResource(currentScroll);
         }
         
         _SetKeepFalse();
@@ -138,6 +150,14 @@ public:
         }
 
         UpdatePositioning();
+
+        if(keepPosition && firstVisibleThing){
+
+            // Restore offset //
+            const auto widgetOffset = GetResourceOffset(firstVisibleThing);
+
+            get_vadjustment()->set_value(widgetOffset);
+        }
     }
 
     //! \brief Adds a new item at the end, doesn't sort the items
@@ -233,6 +253,12 @@ public:
 
         return WidestRow;
     }
+
+    //! \brief Finds the first widget visible after scrollOffset, or null
+    std::shared_ptr<ResourceWithPreview> GetFirstVisibleResource(double scrollOffset) const;
+
+    //! \brief Returns the offset of the widget that has resource, or 0
+    double GetResourceOffset(std::shared_ptr<ResourceWithPreview> resource) const;
 
     // Callbacks for contained items //
 

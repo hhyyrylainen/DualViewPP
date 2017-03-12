@@ -289,6 +289,33 @@ void SuperContainer::SelectPreviousItem(){
     }
 }
 // ------------------------------------ //
+std::shared_ptr<ResourceWithPreview> SuperContainer::GetFirstVisibleResource(
+    double scrollOffset) const
+{
+    for(const auto& position : Positions){
+
+        if(((position.X + 5) > scrollOffset) && position.WidgetToPosition){
+
+            return position.WidgetToPosition->CreatedFrom;
+        }
+    }
+
+    return nullptr;
+}
+
+double SuperContainer::GetResourceOffset(std::shared_ptr<ResourceWithPreview> resource) const{
+
+    for(const auto& position : Positions){
+
+        if(position.WidgetToPosition && position.WidgetToPosition->CreatedFrom == resource){
+
+            return position.Y;
+        }
+    }
+
+    return 0;
+}
+// ------------------------------------ //
 void SuperContainer::Reflow(size_t index){
 
     if(Positions.empty() || index >= Positions.size())
@@ -428,7 +455,7 @@ void SuperContainer::SetItemSize(LIST_ITEM_SIZE newsize){
     // Resize all elements //
     for(const auto& position : Positions){
 
-        if(position.WidgetToPosition && position.WidgetToPosition->Widget){
+        if(position.WidgetToPosition){
 
             _SetWidgetSize(*position.WidgetToPosition);
         }
