@@ -62,6 +62,12 @@ public:
     //! \brief Returns the image shown in ImageIcon
     std::shared_ptr<Image> GetPrimaryImage() const;
 
+    //! \brief Returns the default label text
+    auto GetName() const{
+
+        return NameLabel.get_text();
+    }
+
 protected:
 
     //! \brief Sets text for NameLabel
