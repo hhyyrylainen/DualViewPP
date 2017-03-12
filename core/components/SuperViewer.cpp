@@ -303,8 +303,13 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
             } else {
 
                 // Disable redraw timer //
-                if(CurrentTimer >= 0)
+                if(CurrentTimer >= 0){
+                    
                     _AddRedrawTimer(-1);
+
+                    // Draw twice to avoid weird scrolling bug //
+                    queue_draw();
+                }
             }
         
             // Draw positioned image //
