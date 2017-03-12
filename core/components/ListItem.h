@@ -50,6 +50,15 @@ public:
         return CurrentlySelected;
     }
 
+    //! \brief Sets new size.
+    //! \note The parent container needs to call this or be otherwise notified
+    //! that this has changed, otherwise the size won't actually change.
+    //! This is virtual so that FolderListItem can change to non-homogeneous layout
+    virtual void SetItemSize(LIST_ITEM_SIZE newsize){
+
+        ItemSize = newsize;
+    }
+
     //! \brief Returns the image shown in ImageIcon
     std::shared_ptr<Image> GetPrimaryImage() const;
 
@@ -94,11 +103,11 @@ protected:
     Gtk::Overlay TextAreaOverlay;
     Gtk::Label NameLabel;
 
-    //! If true will always be the same size
-    bool ConstantSize = false;
-
     //! If this is selectable this indicates whether the user has selected this item or not
     bool CurrentlySelected = false;
+
+    //! The size of this item
+    LIST_ITEM_SIZE ItemSize = LIST_ITEM_SIZE::NORMAL;
 
     //! If false doesn't listen for mouse clicks
     //! When true updates selected state when clicked

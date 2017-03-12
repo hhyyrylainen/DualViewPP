@@ -14,9 +14,6 @@ namespace DV{
 constexpr auto DUALVIEW_VERSION = "@DUALVIEW_VERSION_STR@";
 constexpr auto MAIN_THREAD_MAGIC = 42;
 
-// For clang??
-//using size_t = std::size_t;
-
 //! List of all image types that are supported and their mimetypes
 constexpr auto SUPPORTED_EXTENSIONS = {
     std::make_tuple(".gif", "image/gif"),
@@ -82,6 +79,16 @@ constexpr auto TAG_CATEGORY_STR = {
         "ACTION"),
     std::make_tuple(TAG_CATEGORY::QUALITY_HELPFULL_LEVEL,
         "QUALITY_HELPFULL_LEVEL"),
+};
+
+//! Size of items inside a SuperContainer
+enum class LIST_ITEM_SIZE {
+
+    //! Default size
+    NORMAL,
+
+    //! Small items, used for FolderSelector
+    SMALL
 };
 
 }

@@ -79,10 +79,6 @@ void ListItem::_SetImage(std::shared_ptr<Image> image){
 // Gtk overrides
 Gtk::SizeRequestMode ListItem::get_request_mode_vfunc() const{
 
-    if(ConstantSize)
-        return Gtk::SIZE_REQUEST_CONSTANT_SIZE;
-    
-    //return Gtk::SIZE_REQUEST_CONSTANT_SIZE;
     return Gtk::SIZE_REQUEST_HEIGHT_FOR_WIDTH;
 }
 
@@ -91,14 +87,20 @@ void ListItem::get_preferred_width_vfunc(int& minimum_width, int& natural_width)
     int box_width_min, box_width_natural;
     //Container.get_preferred_width(box_width_min, box_width_natural);
     Events.get_preferred_width(box_width_min, box_width_natural);
-    
-    if(ConstantSize){
 
-        minimum_width = natural_width = 96;
-
-    } else {
+    switch(ItemSize){
+    case LIST_ITEM_SIZE::NORMAL:
+    {
         minimum_width = 64;
         natural_width = 128;
+        break;
+    }
+    case LIST_ITEM_SIZE::SMALL:
+    {
+        minimum_width = 64;
+        natural_width = 82;
+        break;
+    }
     }
 }
 
@@ -108,14 +110,19 @@ void ListItem::get_preferred_height_vfunc(int& minimum_height, int& natural_heig
     //Container.get_preferred_height(box_height_min, box_height_natural);
     Events.get_preferred_height(box_height_min, box_height_natural);
 
-    if(ConstantSize){
-
-        minimum_height = natural_height = 146;
-
-    } else {
-
+    switch(ItemSize){
+    case LIST_ITEM_SIZE::NORMAL:
+    {
         minimum_height = 64;
         natural_height = 126;
+        break;
+    }
+    case LIST_ITEM_SIZE::SMALL:
+    {
+        minimum_height = 64;
+        natural_height = 92;
+        break;
+    }
     }
 }
 

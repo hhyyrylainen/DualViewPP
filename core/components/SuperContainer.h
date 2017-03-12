@@ -223,6 +223,9 @@ public:
 
     //! \brief Returns the number of lines the shown items take
     size_t CountRows() const;
+
+    //! \brief Sets the sizes of contained ListItems
+    void SetItemSize(LIST_ITEM_SIZE newsize);
     
     //! \brief Returns the width of the widest row, in pixels
     //! \note UpdatePositioning needs to be called before this is updated
@@ -316,6 +319,8 @@ private:
 
     //! Used to skip size changes that don't change width
     int LastWidthReflow = 0;
+
+    LIST_ITEM_SIZE SelectedItemSize = LIST_ITEM_SIZE::NORMAL;
 
     //! The calculated positions for widgets
     //! All the empty positions must be in a row starting from the last one, so that all

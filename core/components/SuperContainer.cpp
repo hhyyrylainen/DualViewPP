@@ -401,6 +401,8 @@ void SuperContainer::_SetWidgetSize(Element &widget){
     int width_min, width_natural;
     int height_min, height_natural;
 
+    widget.Widget->SetItemSize(SelectedItemSize);
+
     Container.add(*widget.Widget);
     widget.Widget->show();
     
@@ -411,6 +413,29 @@ void SuperContainer::_SetWidgetSize(Element &widget){
     widget.Height = height_natural;
         
     widget.Widget->set_size_request(widget.Width, widget.Height);
+}
+
+void SuperContainer::SetItemSize(LIST_ITEM_SIZE newsize){
+
+    if(SelectedItemSize == newsize)
+        return;
+
+    SelectedItemSize = newsize;
+
+    if(Positions.empty())
+        return;
+
+    // Resize all elements //
+    for(const auto& position : Positions){
+
+        if(position.WidgetToPosition && position.WidgetToPosition->Widget){
+
+            _SetWidgetSize(*position.WidgetToPosition);
+        }
+    }
+    
+    LayoutDirty = true;
+    UpdatePositioning();
 }
 // ------------------------------------ //
 void SuperContainer::_SetKeepFalse(){

@@ -30,6 +30,8 @@ FolderSelector::FolderSelector(_GtkBox* widget, Glib::RefPtr<Gtk::Builder> build
 
 void FolderSelector::_CommonCtor(){
 
+    FolderContents.SetItemSize(LIST_ITEM_SIZE::SMALL);
+
     CreateNewFolder.set_always_show_image();
     UpFolder.set_always_show_image();
     UpFolder.set_margin_right(15);
