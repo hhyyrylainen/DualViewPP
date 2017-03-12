@@ -403,6 +403,9 @@ SuperViewer::Point SuperViewer::CalculateImageRenderTopLeft(size_t width, size_t
 
 void SuperViewer::DoAutoFit(){
 
+    if(!DisplayImage || !DisplayImage->IsImageObjectLoaded())
+        return;
+
     BaseOffset = Point(0, 0);
     ImageZoom = 1.0f;
 
