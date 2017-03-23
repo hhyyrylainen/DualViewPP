@@ -235,7 +235,8 @@ public:
 
     //! \brief Loads an image and looks up the size then unloads it
     //! \returns False if the image cannot be opened
-    static bool GetImageSize(const std::string &image, int &width, int &height);
+    static bool GetImageSize(const std::string &image, int &width, int &height,
+        std::string &extension);
 
     //! \brief Returns the actual path for loading an image. This takes the database directory
     //! in account

@@ -203,10 +203,12 @@ void Image::_DoHashCalculation(){
     LEVIATHAN_ASSERT(!ResourcePath.empty(), "Image: ResourcePath is empty");
 
     // Load the image size //
-    if(!CacheManager::GetImageSize(ResourcePath, Width, Height)){
+    if(!CacheManager::GetImageSize(ResourcePath, Width, Height, Extension)){
 
         LOG_ERROR("Failed to get image size from: " + ResourcePath);
     }
+
+    LEVIATHAN_ASSERT(!Extension.empty(), "File extension is empty");
     
     IsHashValid = true;
 

@@ -282,9 +282,13 @@ void CacheManager::_LoadThumbnail(LoadedImage &thumb, const std::string &hash) c
 
     if(extension.empty()){
 
+        LOG_WARNING("Creating thumbnail for image with empty extension");
+
+        // TODO: make a database upgrade guaranteeing all images have
+        // an extensions and then remove this
+
         // Failed //
-        thumb.OnLoadFail("Filename has no extension");
-        return;
+        // thumb.OnLoadFail("Filename has no extension"); return;
     }
     
     const auto target = boost::filesystem::path(DualView::Get().GetThumbnailFolder()) /
@@ -411,11 +415,20 @@ std::string CacheManager::CreateResizeSizeForImage(const Magick::Image &image, i
     return stream.str();
 }
 
-bool CacheManager::GetImageSize(const std::string &image, int &width, int &height){
-
+bool CacheManager::GetImageSize(const std::string &image, int &width, int &height,
+    std::string &extension)
+{
     try{
 
         Magick::Image img(image);
+
+        const auto fileExtension = boost::filesystem::extension(image);
+
+        if(fileExtension.empty()){
+
+            extension = img.magick();
+            LEVIATHAN_ASSERT(!extension.empty(), "extension and magick format is empty");
+        }
 
         width = img.columns();
         height = img.rows();
