@@ -126,8 +126,10 @@ void SuperViewer::SetImage(std::shared_ptr<Image> displayedResource){
 
     // And reset display settings //
     IsAutoFit = true;
-    
-    queue_draw();
+
+    // Redraw a bit later to give the image time to load
+    _AddRedrawTimer(100);
+    //queue_draw();
 
     if(ImageChangeCallback)
         ImageChangeCallback();
