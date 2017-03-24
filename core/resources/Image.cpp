@@ -206,6 +206,12 @@ void Image::_DoHashCalculation(){
     if(!CacheManager::GetImageSize(ResourcePath, Width, Height, Extension)){
 
         LOG_ERROR("Failed to get image size from: " + ResourcePath);
+
+        // This image needs to be destroyed
+        Hash = "invalid";
+        IsHashValid = false;
+        IsValid = false;
+        return;
     }
 
     LEVIATHAN_ASSERT(!Extension.empty(), "File extension is empty");

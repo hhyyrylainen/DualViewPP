@@ -112,6 +112,12 @@ public:
         return IsReadyToAdd;
     }
 
+    //! \brief Returns true if there hasn't been an error with this image
+    inline auto GetIsValid() const{
+        
+        return IsValid;
+    }
+
     //! \brief Returns a shared_ptr pointing to this instance
     inline std::shared_ptr<Image> GetPtr(){
         
@@ -223,6 +229,9 @@ protected:
 
     //! True when Hash has been calculated and duplicate check has completed
     std::atomic<bool> IsReadyToAdd = { false };
+
+    //! Set to false if image is invalid format
+    bool IsValid = true;
 
     std::string ResourcePath;
     std::string ResourceName;

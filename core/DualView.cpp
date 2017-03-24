@@ -1446,8 +1446,11 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
     // Make sure ready to add //
     for(const auto& img : resources){
 
-        if(!img->IsReady())
+        if(!img->IsReady() || !img->GetIsValid()){
+
+            LOG_WARNING("Cannot import because at least one image isn't ready or valid");
             return false;
+        }
     }
 
     // Trim whitespace //

@@ -19,6 +19,7 @@
 #include "Common.h"
 
 #include <boost/filesystem.hpp>
+#include <Magick++.h>
 
 using namespace DV;
 // ------------------------------------ //
@@ -343,7 +344,7 @@ struct DV::DownloadProgressState{
         }
         case STATE::WAITING_FOR_DB:
         {
-            Loader->_SetDLThreadStatus("Waiting on Database", true, 0.05f);
+            Loader->_SetDLThreadStatus("Waiting on Database", true, 0.0f);
             if(ImageListReady){
 
                 state = STATE::DOWNLOADING_IMAGES;
@@ -360,14 +361,72 @@ struct DV::DownloadProgressState{
                     return false;
 
                 if(imagedl->HasFailed()){
-
+                dlretryfailedlable:
                     ++DLRetries;
 
+                    // Force it to be failed //
+                    imagedl->SetAsFailed();
+                    
                     if(DLRetries > DualView::Get().GetSettings().GetMaxDLRetries()){
 
-                        Loader->_SetDLThreadStatus("Max retries reached for failed dl: "
-                            + imagedl->GetURL(),
-                            false, -1);
+                        if(DLRetries < DualView::Get().GetSettings().GetMaxDLRetries() + 2)
+                            Loader->_SetDLThreadStatus("Max retries reached for failed dl: "
+                                + imagedl->GetURL(),
+                                false, -1);
+
+                        if(DLRetries != DualView::Get().GetSettings().GetMaxDLRetries() + 1)
+                            return false;
+
+                        // Ask what to do //
+                        std::promise<bool> thingdone;
+
+                        DualView::Get().InvokeFunction([&](){
+
+                                auto dialog = Gtk::MessageDialog(*Loader,
+                                    "Error Downloading, skip?",
+                                    false,
+                                    Gtk::MESSAGE_ERROR,
+                                    Gtk::BUTTONS_YES_NO,
+                                    true 
+                                );
+
+                                // The url would need to be escaped for use in pango markup
+                                // if that was to be used
+                                dialog.set_secondary_text(
+                                    "Choosing \"yes\" will skip this image."
+                                    "Failed to download image from: "
+                                    );
+
+                                // This breaks linking for some reason
+                                Gtk::LinkButton urlLink(imagedl->GetURL(), imagedl->GetURL());
+                                //urlLink.set_uri(imagedl->GetURL());
+                                
+                                dialog.get_content_area()->add(urlLink);
+
+                                urlLink.show();
+                                    
+                                
+                                const auto selected = dialog.run();
+
+                                if(selected == Gtk::RESPONSE_YES){
+
+                                    thingdone.set_value(true);
+                                    
+                                } else {
+
+                                    thingdone.set_value(false);
+                                }
+                            });
+
+                        const auto result = thingdone.get_future().get();
+
+                        if(result){
+
+                            // Skip //
+                            LOG_INFO("User skipped failed image download");
+                            imagedl.reset();
+                        }
+                        
                         return false;
                     }
 
@@ -385,11 +444,32 @@ struct DV::DownloadProgressState{
                     return false;
                 }
 
+                // Check type //
+                try{
+
+                    Magick::Image testParse(imagedl->GetLocalFile());
+
+                    const auto extension = testParse.magick();
+
+                    if(extension.empty())
+                        throw Leviathan::Exception("testParse.magick() returned empty string");
+
+                } catch(const std::exception &e){
+
+                    LOG_ERROR("Downloader: Downloaded invalid image, exception: " +
+                        std::string(e.what()));
+
+                    boost::filesystem::remove(imagedl->GetLocalFile());
+                    
+                    goto dlretryfailedlable;
+                }
+
                 auto newImage = Image::Create(imagedl->GetLocalFile(),
                     DownloadManager::ExtractFileName(imagedl->GetURL()),
                     imagedl->GetURL());
                 
                 DownloadedImages.push_back(newImage);
+                LocalDLFiles.push_back(imagedl->GetLocalFile());
 
                 ApplyTags(newImage);
                 
@@ -410,7 +490,7 @@ struct DV::DownloadProgressState{
             const float progress = static_cast<float>(CurrentDownload) / ImageList.size();
             
             Loader->_SetDLThreadStatus("Downloading image #" +
-                Convert::ToString(CurrentDownload + 1), true, 0.1f + (0.9f * progress));
+                Convert::ToString(CurrentDownload + 1), true, 1.f * progress);
             Widget->SetProgress(progress);
 
             // Download if the target file doesn't exist yet //
@@ -450,6 +530,7 @@ struct DV::DownloadProgressState{
                     currentdl->GetPreferredName(), currentdl->GetFileURL());
                 
                 DownloadedImages.push_back(newImage);
+                LocalDLFiles.push_back(finalpath);
 
                 ApplyTags(newImage);
 
@@ -526,6 +607,17 @@ struct DV::DownloadProgressState{
                     Gallery->GetTargetGalleryName() + "' to: " +
                     static_cast<std::string>(path));
             }
+
+            // Delete all the files //
+            for(const auto& file : LocalDLFiles){
+
+                if(boost::filesystem::exists(file)){
+
+                    LOG_INFO("Downloader: deleting left over file: " + file);
+                    boost::filesystem::remove(file);
+                }
+            }
+            LocalDLFiles.clear();
                         
             Loader->_SetDLThreadStatus("Finished Downloading: " +
                 Gallery->GetTargetGalleryName(), false, 1.0f);
@@ -546,6 +638,8 @@ struct DV::DownloadProgressState{
 
     std::atomic<bool> ImageListReady = { false };
     std::vector<std::shared_ptr<NetFile>> ImageList;
+    //! Used to delete leftovers after importing
+    std::vector<std::string> LocalDLFiles;
     size_t CurrentDownload = 0;
 
     //! Tags of the NetFile at index CurrentDownload. Used to apply tags

@@ -62,6 +62,12 @@ public:
 
         return URL;
     }
+
+    //! \brief Externally set this as failed
+    void SetAsFailed(){
+
+        HasSucceeded = false;
+    }
     
 protected:
 
