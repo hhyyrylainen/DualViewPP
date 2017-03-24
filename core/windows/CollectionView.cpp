@@ -63,7 +63,9 @@ void CollectionView::_OnShown(){
 void CollectionView::_OnHidden(){
 
     // Explicitly unload items //
+    auto empty = std::vector<std::shared_ptr<ResourceWithPreview>>();
     
+    Container->SetShownItems(empty.begin(), empty.end());
 }
 // ------------------------------------ //
 void CollectionView::OnSearchChanged(){
