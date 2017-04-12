@@ -145,7 +145,7 @@ void InternetImage::_CheckFileDownload(){
 
                 // Save the bytes to disk (if over 40KB) //
                 if(!us->WasAlreadyCached && us->FileDL->GetDownloadedBytes().size() > 40000 &&
-                    us->AutoSaveCache && us->FullImage)
+                    us->AutoSaveCache && us->FullImage && us->FullImage->IsValid())
                 {
                     LOG_INFO("InternetImage: caching image to: " + us->ResourcePath);
                     us->SaveFileToDisk(guard);
@@ -159,6 +159,26 @@ void InternetImage::_CheckFileDownload(){
 bool InternetImage::SaveFileToDisk(Lock &guard){
 
     if(!FileDL || FileDL->GetDownloadedBytes().size() < 1000)
+        return false;
+
+    bool isvalid = true;
+
+    if(FullImage){
+
+        if(!FullImage->IsValid()){
+
+            LOG_WARNING("Not saving InternetImage to disk because FullImage is invalid, url:" +
+                DLURL);
+            isvalid = false;
+        }
+
+    } else {
+
+        // Check it now //
+        isvalid = CacheManager::CheckIsBytesAnImage(FileDL->GetDownloadedBytes());
+    }
+
+    if(!isvalid)
         return false;
 
     Leviathan::FileSystem::WriteToFile(FileDL->GetDownloadedBytes(), ResourcePath);
