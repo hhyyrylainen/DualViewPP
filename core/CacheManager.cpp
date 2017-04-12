@@ -442,6 +442,29 @@ bool CacheManager::GetImageSize(const std::string &image, int &width, int &heigh
     }
 }
 
+bool CacheManager::CheckIsBytesAnImage(const std::string &imagedata){
+
+    try{
+
+        Magick::Blob data(imagedata.c_str(), imagedata.size());
+
+        Magick::Image img(data);
+
+        const auto extension = img.magick();
+
+        if(extension.empty())
+            return false;
+        
+        return true;
+
+    } catch(const std::exception &e){
+
+        LOG_WARNING("CacheManager: CheckIsBytesAnImage: failed with exception: " +
+            std::string(e.what()));
+        return false;
+    }
+}
+
 std::string CacheManager::GetFinalImagePath(const std::string &path){
 
     if(path.empty())

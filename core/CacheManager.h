@@ -238,6 +238,11 @@ public:
     static bool GetImageSize(const std::string &image, int &width, int &height,
         std::string &extension);
 
+    //! \brief Returns true if a byte string is an image
+    //! \note Probably not the worlds fastest implementation as this opens the whole thing
+    //! as a Magick::Image
+    static bool CheckIsBytesAnImage(const std::string &imagedata);
+
     //! \brief Returns the actual path for loading an image. This takes the database directory
     //! in account
     static std::string GetFinalImagePath(const std::string &path);
