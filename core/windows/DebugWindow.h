@@ -17,6 +17,9 @@ public:
     //! Creates a task that keeps DB thread busy, allowing testing
     //! things that hang the main thread when DB is being used
     void OnMakeDBBusy();
+
+    //! Opens an Magick::Image to make sure there isn't memory leakage
+    void OnTestImageRead();
     
 private:
 
