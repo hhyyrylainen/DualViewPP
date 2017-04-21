@@ -70,6 +70,8 @@ protected:
 
     void _OnRemoveListItem(DLListItem &item);
 
+    void _SelectAll();
+
 protected:
 
     //! \warning If this is a flowbox all hell breaks loose

@@ -33,6 +33,9 @@ public:
 
     bool IsSelected() const;
 
+    //! \brief Sets this selected
+    void SetSelected();
+
     //! \brief Prevents the user from changing the selected switch
     void LockSelected(bool locked);
 

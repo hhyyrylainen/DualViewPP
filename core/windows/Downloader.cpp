@@ -51,6 +51,14 @@ Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     BUILDER_GET_WIDGET(DLSpinner);
     BUILDER_GET_WIDGET(DLProgress);
 
+    
+    Gtk::Button* DLSelectAll;
+    BUILDER_GET_WIDGET(DLSelectAll);
+    DLSelectAll->signal_pressed().connect(sigc::mem_fun(*this,
+            &Downloader::_SelectAll));
+    
+
+
     // Listen for new download galleries //
     GUARD_LOCK();
     DualView::Get().GetEvents().RegisterForEvent(CHANGED_EVENT::NET_GALLERY_CREATED,
@@ -214,6 +222,14 @@ void Downloader::WaitForDownloadThread(){
 
     if(DownloadThread.joinable())
         DownloadThread.join();
+}
+// ------------------------------------ //
+void Downloader::_SelectAll(){
+
+    for(auto& item : DLList){
+
+        item->SetSelected();
+    }
 }
 // ------------------------------------ //
 std::shared_ptr<DLListItem> Downloader::GetNextSelectedGallery(){

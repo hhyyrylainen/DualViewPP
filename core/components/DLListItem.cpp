@@ -103,6 +103,16 @@ bool DLListItem::IsSelected() const{
     return Enabled.get_state();
 }
 
+void DLListItem::SetSelected(){
+
+    DualView::IsOnMainThreadAssert();
+
+    if(!Enabled.get_sensitive())
+        return;
+    
+    Enabled.set_state(true);
+}
+
 void DLListItem::LockSelected(bool locked){
 
     auto alive = GetAliveMarker();
