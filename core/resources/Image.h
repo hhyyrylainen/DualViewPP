@@ -9,6 +9,7 @@
 #include <memory>
 #include <atomic>
 
+
 namespace DV{
 
 class LoadedImage;

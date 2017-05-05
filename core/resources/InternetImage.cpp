@@ -113,11 +113,22 @@ void InternetImage::_CheckFileDownload(){
         FileDL = std::make_shared<MemoryDLJob>(DLURL, Referrer);
     }
 
-    auto us = std::dynamic_pointer_cast<InternetImage>(shared_from_this());
+    std::weak_ptr<InternetImage> us;
 
-    LEVIATHAN_ASSERT(us, "InternetImage shared_ptr isn't actually of type InternetImage");
+    {
+        auto casted = std::dynamic_pointer_cast<InternetImage>(shared_from_this());
 
-    FileDL->SetFinishCallback([us](DownloadJob &job, bool success){
+        LEVIATHAN_ASSERT(casted, "InternetImage shared_ptr isn't actually of type InternetImage");
+
+        us = casted;
+    }
+
+    FileDL->SetFinishCallback([usWeak { us }](DownloadJob &job, bool success){
+
+            auto us = usWeak.lock();
+
+            if(!us)
+                return;
 
             GUARD_LOCK_OTHER(*us);
 
