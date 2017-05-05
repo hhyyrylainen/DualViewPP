@@ -24,7 +24,8 @@ set(GroupCommonData "Common/DataStoring/DataBlock.cpp" "Common/DataStoring/DataB
 
 set(GroupEntities "Entities/EntityCommon.h")
 
-set(GroupUtility "Utility/Convert.cpp" "Utility/Convert.h")
+set(GroupUtility "Utility/Convert.cpp" "Utility/Convert.h"
+  "Utility/InstanceCounter.h")
 
 file(GLOB GroupIterators
   "Iterators/IteratorData.h"

@@ -8,6 +8,8 @@
 
 #include "CacheManager.h"
 
+#include "resources/InternetImage.h"
+
 #include <boost/filesystem.hpp>
 
 using namespace DV;
@@ -32,6 +34,14 @@ DebugWindow::DebugWindow(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder)
 
     TestImageRead->signal_clicked().connect(sigc::mem_fun(*this,
             &DebugWindow::OnTestImageRead));
+
+
+    Gtk::Button* TestInstanceCreation;
+    
+    BUILDER_GET_WIDGET(TestInstanceCreation);
+
+    TestInstanceCreation->signal_clicked().connect(sigc::mem_fun(*this,
+            &DebugWindow::OnTestInstanceCreation));
     
 }
 
@@ -76,5 +86,14 @@ void DebugWindow::OnTestImageRead(){
     LEVIATHAN_ASSERT(CacheManager::GetImageSize("/home/hhyyrylainen/803085.png", width,
             height, extension),
         "OnTestImageRead image size get failed");
+    
+}
+// ------------------------------------ //
+void DebugWindow::OnTestInstanceCreation(){
+
+    // This should be released once it goes out of scope
+    
+    auto img1 = InternetImage::Create(ScanFoundImage("http://test.com/img.jpg", "dualview"),
+        false);
     
 }

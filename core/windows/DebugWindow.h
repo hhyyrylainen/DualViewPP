@@ -20,6 +20,9 @@ public:
 
     //! Opens an Magick::Image to make sure there isn't memory leakage
     void OnTestImageRead();
+
+    //! Tests that objects don't leave traces. Needs to be ran with a leak detector
+    void OnTestInstanceCreation();
     
 private:
 
