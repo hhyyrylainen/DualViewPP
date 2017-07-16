@@ -689,6 +689,10 @@ void DualView::_RunHashCalculateThread(){
             } catch(const InvalidSQL&){
 
                 // Database probably isn't initialized
+            } catch(const Leviathan::InvalidState &e){
+
+                LOG_ERROR("Image hash calculation failed, exception:");
+                e.PrintToLog();
             }
             
             img->_OnFinishHash();

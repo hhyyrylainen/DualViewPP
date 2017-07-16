@@ -224,9 +224,11 @@ void Image::_DoHashCalculation(){
 
 void Image::_OnFinishHash(){
 
-    IsReadyToAdd = true;
+    if(IsHashValid)
+        IsReadyToAdd = true;
 
     // Image size is now available
+    // Unless IsHashValid is false
     NotifyAll();
 }
 // ------------------------------------ //
