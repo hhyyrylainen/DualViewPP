@@ -57,6 +57,7 @@ std::shared_ptr<LoadedImage> InternetImage::GetImage(){
             } else {
 
                 FullImage->OnSuccess(FullImage, FileDL->GetDownloadedBytes());
+                _UpdateDimensions();
             }
         }
     }
@@ -138,6 +139,8 @@ void InternetImage::_CheckFileDownload(){
             
             if(!success){
 
+                LOG_WRITE("InternetImage: TODO: retry");
+
                 if(us->ThumbImage)
                     us->ThumbImage->OnFail(us->ThumbImage);
 
@@ -161,6 +164,9 @@ void InternetImage::_CheckFileDownload(){
                     LOG_INFO("InternetImage: caching image to: " + us->ResourcePath);
                     us->SaveFileToDisk(guard);
                 }
+                
+                if(us->FullImage)
+                    us->_UpdateDimensions();
             }
         });
 
@@ -195,6 +201,63 @@ bool InternetImage::SaveFileToDisk(Lock &guard){
     Leviathan::FileSystem::WriteToFile(FileDL->GetDownloadedBytes(), ResourcePath);
     return true;
 }
+
+void InternetImage::_UpdateDimensions(){
+
+    // If not loaded start waiting //
+    if(FullImage && !FullImage->IsLoaded()){
+
+        std::weak_ptr<InternetImage> us;
+
+        {
+            auto casted = std::dynamic_pointer_cast<InternetImage>(shared_from_this());
+
+            LEVIATHAN_ASSERT(casted, "InternetImage shared_ptr isn't actually of "
+                "type InternetImage");
+
+            us = casted;
+        }
+
+        const auto image = FullImage;
+
+        DualView::Get().QueueConditional([=]() -> bool{
+
+                if(!image->IsLoaded()){
+                    // Still waiting
+                    return false;
+                }
+
+                auto locked = us.lock();
+
+                if(!locked){
+
+                    LOG_WARNING("Internet image destroyed before queued dimension "
+                        "set finished");
+                    return true;
+                }
+                
+                locked->_UpdateDimensions();
+
+                return true;
+            });
+        
+        return;
+    }
+
+    if(!FullImage || !FullImage->IsValid()){
+
+        LOG_WARNING("InternetImage trying to update dimensions with invalid / "
+            "not loaded FullImage");
+        return;
+    }
+
+    Width = FullImage->GetWidth();
+    Height = FullImage->GetHeight();
+    // Notify that our size is now available
+    NotifyAll();
+}
+
+
 // ------------------------------------ //
 // DownloadLoadedImage
 DownloadLoadedImage::DownloadLoadedImage(bool thumb) :
@@ -296,7 +359,7 @@ void DownloadLoadedImage::OnSuccess(std::shared_ptr<DownloadLoadedImage> thisobj
                 }
             }
 
-            thisobject->OnLoadSuccess(image);            
+            thisobject->OnLoadSuccess(image);
         });
 }
 

@@ -86,6 +86,11 @@ protected:
     //! \brief Starts downloading the file if not already downloading
     void _CheckFileDownload();
 
+    //! \brief Reads the image size and sets it
+    //!
+    //! This will also call notify to make sure all image viewers get the dimensions
+    void _UpdateDimensions();
+
 protected:
 
     //! Download URL for the full image
