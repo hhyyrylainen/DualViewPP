@@ -91,11 +91,17 @@ public:
     //! AddExternalScanLink
     bool IsValidTargetForScanLink() const;
 
-    //! \brief Sets this invalid for both IsValidTargetForImageAdd and IsValidForNewPageScan
-    void SetLockActive();
-    
     //! \brief Adds an external link to this window
     void AddExternallyFoundLink(const std::string &url, const std::string &referrer);
+
+    //! Disables this from being the active add target
+    void DisableAddActive();
+
+    //! Enables this to be the active add one
+    //!
+    //! This will steal the status from other DownloadSetupsi fany others are active
+    void EnableAddActive();
+    
 
     //! \brief Sets the url
     void SetNewUrlToDl(const std::string &url);
@@ -149,6 +155,9 @@ protected:
     void UpdateEditedImages();
 
     void _OnFinishAccept(bool success);
+
+    //! User touched our "add active" button
+    bool _AddActivePressed(bool state);
     
 private:
 
@@ -213,7 +222,9 @@ private:
     Gtk::Button* ImageSelectPageAll;
 
     Gtk::CheckButton* RemoveAfterAdding;
-    Gtk::Switch* LockFromAdding;
+
+    // If this is enabled then this is the active add target
+    Gtk::Switch* ActiveAsAddTarget;
     
     Gtk::Button* RemoveSelected;
     Gtk::Button* BrowseForward;
@@ -222,7 +233,18 @@ private:
 
     Gtk::Button* SelectAllImagesButton;
     
-        
+
+private:
+
+    //! Called when another DownloadSetup steals our active lock
+    void _OnActiveSlotStolen(DownloadSetup* stealer);
+
+    //! For making sure that only one DownloadSetup can be the add target
+    //! \note This probably doesn't need to be atomic as this is only
+    //! used from the main thread because we have no way of safely
+    //! signaling the old object even though we can change this value
+    //! only if changed
+    static std::atomic<DownloadSetup*> IsSomeGloballyActive;
 };
 
 }

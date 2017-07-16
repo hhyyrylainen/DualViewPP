@@ -1404,7 +1404,7 @@ void DualView::OpenDownloadSetup(bool useropened /*= true*/){
     OpenDLSetups.push_back(wrapped);
 
     if(useropened)
-        wrapped->SetLockActive();
+        wrapped->DisableAddActive();
     
     wrapped->show();
 }

@@ -129,20 +129,47 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
 
     BUILDER_GET_WIDGET(RemoveAfterAdding);
 
-    BUILDER_GET_WIDGET(LockFromAdding);
+    BUILDER_GET_WIDGET(ActiveAsAddTarget);
+
+    // Need to override the default handler otherwise this isn't called
+    ActiveAsAddTarget->signal_state_set().connect(sigc::mem_fun(*this,
+            &DownloadSetup::_AddActivePressed), false);
     
     // Set all the editor controls read only
     _UpdateWidgetStates();
+
+    // Capture add target if none is set //
+    DownloadSetup* nullValue = nullptr;
+    if(IsSomeGloballyActive.compare_exchange_strong(nullValue, this)){
+
+        LOG_INFO("DownloadSetup automatically captured global add");
+        // We now captured it
+        ActiveAsAddTarget->set_active(true);
+    }
 }
 
 DownloadSetup::~DownloadSetup(){
 
     Close();
 }
+
+std::atomic<DownloadSetup*> DownloadSetup::IsSomeGloballyActive = {nullptr};
 // ------------------------------------ //
 void DownloadSetup::_OnClose(){
 
-    
+    DualView::IsOnMainThreadAssert();
+
+    // Release the global set
+    if(ActiveAsAddTarget->get_active()){
+
+        DownloadSetup* usPtr = this;
+        if(!IsSomeGloballyActive.compare_exchange_strong(usPtr, nullptr)){
+
+            LOG_WARNING("Our add active widget was checked, but we weren't the active ptr");
+        }
+
+        ActiveAsAddTarget->set_active(false);
+    }
 }
 // ------------------------------------ //
 void DownloadSetup::_OnFinishAccept(bool success){
@@ -431,7 +458,7 @@ bool DownloadSetup::IsValidTargetForImageAdd() const{
     switch(State){
     case STATE::URL_CHANGED:
     case STATE::URL_OK:
-        return !LockFromAdding->get_active();
+        return ActiveAsAddTarget->get_active();
     default:
         return false; 
     }
@@ -460,7 +487,7 @@ bool DownloadSetup::IsValidForNewPageScan() const{
         return false;
     }
 
-    return !LockFromAdding->get_active();
+    return ActiveAsAddTarget->get_active();
 }
 
 void DownloadSetup::SetNewUrlToDl(const std::string &url){
@@ -474,7 +501,7 @@ bool DownloadSetup::IsValidTargetForScanLink() const{
     switch(State){
     case STATE::URL_CHANGED:
     case STATE::URL_OK:
-        return !LockFromAdding->get_active();
+        return ActiveAsAddTarget->get_active();
     default:
         return false; 
     }
@@ -500,11 +527,69 @@ void DownloadSetup::AddExternalScanLink(const std::string &url){
     _UpdateWidgetStates();
 }
 
-void DownloadSetup::SetLockActive(){
+void DownloadSetup::DisableAddActive(){
 
     DualView::IsOnMainThreadAssert();
-    
-    LockFromAdding->set_active(true);
+
+    DownloadSetup* usPtr = this;
+    // Doesn't matter if setting this fails
+    IsSomeGloballyActive.compare_exchange_strong(usPtr, nullptr);
+    ActiveAsAddTarget->set_active(false);
+}
+
+void DownloadSetup::EnableAddActive(){
+
+    DualView::IsOnMainThreadAssert();
+
+    // Do we need to steal? //
+    auto* other = IsSomeGloballyActive.load();
+    if(other != nullptr){
+
+        // Steal //
+
+        // This is where using an atomic variable breaks so we need to
+        // make sure only main thread uses the atomic variable
+        other->_OnActiveSlotStolen(this);
+    }
+
+    // Take it //
+    DownloadSetup* nullValue = nullptr;
+    if(IsSomeGloballyActive.compare_exchange_strong(nullValue, this)){
+
+        // We now captured it
+        ActiveAsAddTarget->set_active(true);
+    } else {
+
+        // That shouldn't fail, recurse to try freeing it up again
+        EnableAddActive();
+    }
+}
+
+bool DownloadSetup::_AddActivePressed(bool state){
+
+    // If the new state doesn't match what the add active variable
+    // points to call the change methods
+    const bool isUs = IsSomeGloballyActive.load() == this;
+
+    if((isUs && state) || (!isUs && !state)){
+        // Nothing to do //
+        return false;
+    }
+
+    if(state){
+        EnableAddActive();
+    } else {
+        DisableAddActive();
+    }
+
+    // Don't prevent default callback
+    return false;
+}
+
+void DownloadSetup::_OnActiveSlotStolen(DownloadSetup* stealer){
+
+    LOG_INFO("Active slot stolen from us");
+    DisableAddActive();
 }
 // ------------------------------------ //
 void DownloadSetup::OnItemSelected(ListItem &item){
