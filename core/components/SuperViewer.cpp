@@ -276,19 +276,27 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
 
             Pango::FontDescription font;
 
-            font.set_family("Sans-serif");
+            font.set_family("Sans 12");
 
             auto layout = create_pango_layout(error);
 
             layout->set_font_description(font);
+            layout->set_height(height * Pango::SCALE);
+            layout->set_width(width * Pango::SCALE);
+            layout->set_wrap(Pango::WrapMode::WRAP_WORD);
+            layout->set_ellipsize(Pango::EllipsizeMode::ELLIPSIZE_END);
 
-            int text_width;
-            int text_height;
+            int textWidth;
+            int textHeight;
 
             // Calculate text dimensions
-            layout->get_pixel_size(text_width, text_height);
+            layout->get_pixel_size(textWidth, textHeight);
 
-            cr->move_to(0, 0);
+            // Make it be in the center
+            cr->move_to((width / 2) - (textWidth / 2), (height / 2) - (textHeight / 2));
+
+            // Set colour
+            cr->set_source_rgb(1.0, 0.2, 0.5);
 
             layout->show_in_cairo_context(cr);
             
