@@ -289,18 +289,50 @@ void SuperContainer::SelectPreviousItem(){
     }
 }
 // ------------------------------------ //
+bool SuperContainer::IsEmpty() const{
+
+    for(auto& position : Positions){
+
+        // Stop once empty position is reached //
+        if(!position.WidgetToPosition)
+            break;
+
+        // Found non-empty
+        return false;
+    }
+
+    return true;
+}
+// ------------------------------------ //
 std::shared_ptr<ResourceWithPreview> SuperContainer::GetFirstVisibleResource(
     double scrollOffset) const
 {
     for(const auto& position : Positions){
 
-        if(((position.X + 5) > scrollOffset) && position.WidgetToPosition){
-
+        if(((position.Y + 5) > scrollOffset) && position.WidgetToPosition){
+            
             return position.WidgetToPosition->CreatedFrom;
         }
     }
 
     return nullptr;
+}
+
+std::vector<std::shared_ptr<ResourceWithPreview>> SuperContainer::GetResourcesVisibleAfter(
+    double scrollOffset) const
+{
+    std::vector<std::shared_ptr<ResourceWithPreview>> result;
+    result.reserve(Positions.size() / 3);
+    
+    for(const auto& position : Positions){
+
+        if(((position.Y + 5) > scrollOffset) && position.WidgetToPosition){
+            
+            result.push_back(position.WidgetToPosition->CreatedFrom);
+        }
+    }
+
+    return result;
 }
 
 double SuperContainer::GetResourceOffset(std::shared_ptr<ResourceWithPreview> resource) const{
@@ -313,7 +345,7 @@ double SuperContainer::GetResourceOffset(std::shared_ptr<ResourceWithPreview> re
         }
     }
 
-    return 0;
+    return -1;
 }
 // ------------------------------------ //
 void SuperContainer::Reflow(size_t index){

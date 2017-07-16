@@ -94,12 +94,18 @@ public:
             LastWidthReflow = get_width();
         }
 
-        std::shared_ptr<ResourceWithPreview> firstVisibleThing;
+        std::vector<std::shared_ptr<ResourceWithPreview>> firstVisibleThings;
+
+
 
         if(keepPosition && !Positions.empty()){
 
             const auto currentScroll = get_vadjustment()->get_value();
-            firstVisibleThing = GetFirstVisibleResource(currentScroll);
+            
+            firstVisibleThings = GetResourcesVisibleAfter(currentScroll);
+
+            if(firstVisibleThings.empty() && !IsEmpty())
+                LOG_WARNING("SuperContainer didn't find first visible item(s)");
         }
         
         _SetKeepFalse();
@@ -139,6 +145,7 @@ public:
             _PushBackWidgets(i);
             _SetWidget(i, std::make_shared<Element>(*newIndex, selectable));
         }
+
         
         _RemoveElementsNotMarkedKeep();
         
@@ -151,12 +158,23 @@ public:
 
         UpdatePositioning();
 
-        if(keepPosition && firstVisibleThing){
+        // Reset scroll
+        get_vadjustment()->set_value(0);
 
-            // Restore offset //
-            const auto widgetOffset = GetResourceOffset(firstVisibleThing);
+        // And restore it, if wanted
+        if(keepPosition && !firstVisibleThings.empty()){
 
-            get_vadjustment()->set_value(widgetOffset);
+            // Restore offset to the first item that still exists//
+            for(const auto& firstVisibleThing : firstVisibleThings){
+                
+                const auto widgetOffset = GetResourceOffset(firstVisibleThing);
+
+                if(widgetOffset == -1)
+                    continue;
+
+                get_vadjustment()->set_value(widgetOffset);
+                break;
+            }
         }
     }
 
@@ -215,6 +233,9 @@ public:
     //! \see SuperContainer::SelectNextItem
     void SelectPreviousItem();
 
+    //! \brief Returns True if contains no items
+    bool IsEmpty() const;
+
     template<class CallbackFuncT>
         void VisitAllWidgets(const CallbackFuncT &func)
     {
@@ -256,6 +277,10 @@ public:
 
     //! \brief Finds the first widget visible after scrollOffset, or null
     std::shared_ptr<ResourceWithPreview> GetFirstVisibleResource(double scrollOffset) const;
+
+    //! \brief Returns a list of resources that are after scrollOffset
+    std::vector<std::shared_ptr<ResourceWithPreview>> GetResourcesVisibleAfter(
+        double scrollOffset) const;
 
     //! \brief Returns the offset of the widget that has resource, or 0
     double GetResourceOffset(std::shared_ptr<ResourceWithPreview> resource) const;
