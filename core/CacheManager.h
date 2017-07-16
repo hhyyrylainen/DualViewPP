@@ -91,8 +91,17 @@ public:
     inline std::string GetPath() const{
 
         if(Status == IMAGE_LOAD_STATUS::Error)
-            return "";
+            return "error has occured";
 
+        return FromPath;
+    }
+
+    //! \brief Returns the error message if IsValid is false
+    std::string GetError() const{
+
+        if(Status != IMAGE_LOAD_STATUS::Error)
+            return "no error";
+        
         return FromPath;
     }
 

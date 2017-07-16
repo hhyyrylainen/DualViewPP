@@ -272,8 +272,25 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr){
         if(!DisplayImage->IsValid()){
 
             // Draw error message //
-            //const std::string error;
-            //DisplayImage->GetError(error);
+            const std::string error = DisplayImage->GetError();
+
+            Pango::FontDescription font;
+
+            font.set_family("Sans-serif");
+
+            auto layout = create_pango_layout(error);
+
+            layout->set_font_description(font);
+
+            int text_width;
+            int text_height;
+
+            // Calculate text dimensions
+            layout->get_pixel_size(text_width, text_height);
+
+            cr->move_to(0, 0);
+
+            layout->show_in_cairo_context(cr);
             
         } else {
 
