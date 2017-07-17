@@ -25,6 +25,9 @@ protected:
     //! Updates the status spinner
     void _SetSearchingState(bool active);
 
+    //! Called when searching for images has failed
+    void _OnFailSearch(const std::string &message);
+
 private:
 
     SuperContainer* Container = nullptr;
