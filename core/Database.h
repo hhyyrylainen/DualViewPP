@@ -113,7 +113,7 @@ public:
     CREATE_NON_LOCKING_WRAPPER(SelectImageByID);
 
     //! \brief Retrieves images based on tags
-    std::vector<std::shared_ptr<Image>> SelectImageByTag(Lock &guard, const AppliedTag &tag);
+    std::vector<std::shared_ptr<Image>> SelectImageByTag(Lock &guard, DBID tagid);
     CREATE_NON_LOCKING_WRAPPER(SelectImageByTag);    
 
     //! \brief Retrieves an Image's id based on the hash
@@ -410,6 +410,7 @@ public:
     //! \brief Returns an existing tag with the same properties as tag
     //! \returns -1 when tag doesn't exist, id on success
     DBID SelectExistingAppliedTagID(Lock &guard, const AppliedTag &tag);
+    CREATE_NON_LOCKING_WRAPPER(SelectExistingAppliedTagID);
 
     std::vector<std::shared_ptr<TagModifier>> SelectAppliedTagModifiers(Lock &guard,
         const AppliedTag &appliedtag);

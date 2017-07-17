@@ -26,6 +26,8 @@ ImageFinder::ImageFinder(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder)
     BUILDER_GET_WIDGET(SearchActiveSpinner);
 
     BUILDER_GET_WIDGET(FoundImageCountLabel);
+
+    BUILDER_GET_WIDGET(SelectStatusLabel);
     
 }
 
@@ -42,14 +44,14 @@ void ImageFinder::_OnClose(){
 void ImageFinder::OnSearchChanged(){
 
     DualView::IsOnMainThreadAssert();
-    
-    _SetSearchingState(true);
 
     auto isalive = GetAliveMarker();
     std::string matchingPattern = MainSearchBar->get_text();
 
     if(matchingPattern.empty())
         return;
+    
+    _SetSearchingState(true);
 
     DualView::Get().QueueDBThreadFunction([=](){
 
@@ -58,7 +60,9 @@ void ImageFinder::OnSearchChanged(){
             std::shared_ptr<AppliedTag> tags;
             try{
                 tags = DualView::Get().ParseTagFromString(matchingPattern);
-                LEVIATHAN_ASSERT(tags, "got null tags and no exception");
+
+                if(!tags)
+                    throw Leviathan::InvalidArgument("empty");
                 
             } catch(const Leviathan::InvalidArgument &e){
 
@@ -70,9 +74,10 @@ void ImageFinder::OnSearchChanged(){
                 return;
             }
 
-            const auto dbTag = DualView::Get().GetDatabase().SelectExistingAppliedTagAG(*tags);
+            const auto dbTag = DualView::Get().GetDatabase().
+                SelectExistingAppliedTagIDAG(*tags);
 
-            if(!dbTag){
+            if(dbTag == -1){
 
                 INVOKE_CHECK_ALIVE_MARKER(isalive);
                 
@@ -80,27 +85,44 @@ void ImageFinder::OnSearchChanged(){
                 return;
             }
 
-            const auto images = DualView::Get().GetDatabase().SelectImageByTagAG(*dbTag);
+            const auto images = DualView::Get().GetDatabase().SelectImageByTagAG(dbTag);
 
-            auto loadedresources =
+            auto loadedResources =
                 std::make_shared<std::vector<std::shared_ptr<ResourceWithPreview>>>();
 
-            loadedresources->insert(std::end(*loadedresources), std::begin(images),
+            loadedResources->insert(std::end(*loadedResources), std::begin(images),
                 std::end(images));
             
-            auto itemselect = std::make_shared<ItemSelectable>();
+            auto itemselect = std::make_shared<ItemSelectable>([=](ListItem &updateditem){
+
+                    DualView::Get().InvokeFunction([=](){
+
+                            INVOKE_CHECK_ALIVE_MARKER(isalive);
+
+                            const auto count = Container->CountSelectedItems();
+                            if(count == 0){
+
+                                SelectStatusLabel->set_text("Nothing selected");
+                            } else {
+
+                                SelectStatusLabel->set_text("Selected " +
+                                    std::to_string(count)+ " items");
+                            }
+                        });
+                });
 
             DualView::Get().InvokeFunction([=](){
 
                     INVOKE_CHECK_ALIVE_MARKER(isalive);
 
-                    Container->SetShownItems(loadedresources->begin(), loadedresources->end(),
+                    Container->SetShownItems(loadedResources->begin(), loadedResources->end(),
                         itemselect);
 
                     _SetSearchingState(false);
 
                     // Update status label about how many things we have found //
-                    
+                    FoundImageCountLabel->set_text("Found " +
+                        std::to_string(loadedResources->size()) + " images");
                 });
         });
 }

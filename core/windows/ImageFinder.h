@@ -37,5 +37,7 @@ private:
     Gtk::Spinner* SearchActiveSpinner;
 
     Gtk::Label* FoundImageCountLabel;
+
+    Gtk::Label* SelectStatusLabel;
 };
 }

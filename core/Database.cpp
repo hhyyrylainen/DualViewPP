@@ -316,7 +316,7 @@ std::shared_ptr<Image> Database::SelectImageByID(Lock &guard, DBID id){
 }
 
 std::vector<std::shared_ptr<Image>> Database::SelectImageByTag(Lock &guard,
-    const AppliedTag &tag)
+    DBID tagid)
 {
     std::vector<std::shared_ptr<Image>> result;
     
@@ -325,7 +325,7 @@ std::vector<std::shared_ptr<Image>> Database::SelectImageByTag(Lock &guard,
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(tag.ID);
+    auto statementinuse = statementobj.Setup(tagid);
     
     while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
 
