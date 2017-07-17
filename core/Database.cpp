@@ -314,6 +314,26 @@ std::shared_ptr<Image> Database::SelectImageByID(Lock &guard, DBID id){
     
     return nullptr;
 }
+
+std::vector<std::shared_ptr<Image>> Database::SelectImageByTag(Lock &guard,
+    const AppliedTag &tag)
+{
+    std::vector<std::shared_ptr<Image>> result;
+    
+    const char str[] = "SELECT * FROM pictures WHERE pictures.id IN "
+        "(SELECT image_tag.image FROM image_tag WHERE image_tag.tag = ?1);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(tag.ID);
+    
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW){
+
+        result.push_back(_LoadImageFromRow(guard, statementobj));
+    }
+
+    return result;
+}
 // ------------------------------------ //
 std::shared_ptr<TagCollection> Database::LoadImageTags(const std::shared_ptr<Image> &image){
 
