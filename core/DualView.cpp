@@ -14,6 +14,7 @@
 #include "windows/AddToFolder.h"
 #include "windows/RemoveFromFolders.h"
 #include "windows/DebugWindow.h"
+#include "windows/ImageFinder.h"
 
 #include "core/CacheManager.h"
 #include "core/Database.h"
@@ -324,6 +325,14 @@ void DualView::_OnInstanceLoaded(){
 
     OpenDownloader->signal_clicked().connect(
         sigc::mem_fun<void>(*this, &DualView::OpenDownloader));
+
+
+    Gtk::Button* OpenImageFinder = nullptr;
+    MainBuilder->get_widget("OpenImageFinder", OpenImageFinder);
+    LEVIATHAN_ASSERT(OpenImageFinder, "Invalid .glade file");
+
+    OpenImageFinder->signal_clicked().connect(
+        sigc::mem_fun<void>(*this, &DualView::OpenImageFinder));
     
 
     //_CollectionView
@@ -1235,6 +1244,27 @@ void DualView::RunFolderCreatorAsDialog(const VirtualPath &path,
             "created is valid. Exception message: " + std::string(e.what()));
         dialog.run();
     }
+}
+
+void DualView::OpenImageFinder(){
+
+    AssertIfNotMainThread();
+
+    auto builder = Gtk::Builder::create_from_file(
+        "../gui/image_finder.glade");
+
+    ImageFinder* window;
+    builder->get_widget_derived("FileFinder", window);
+
+    if(!window){
+
+        LOG_ERROR("FileFinder window GUI layout is invalid");
+        return;
+    }
+
+    std::shared_ptr<ImageFinder> wrapped(window);
+    _AddOpenWindow(wrapped, *window);
+    wrapped->show();
 }
 // ------------------------------------ //
 void DualView::OnNewImageLinkReceived(const std::string &url, const std::string &referrer){

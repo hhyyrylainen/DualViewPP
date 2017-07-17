@@ -62,6 +62,7 @@ add_library(Core
   windows/AddToFolder.h windows/AddToFolder.cpp
   windows/RemoveFromFolders.h windows/RemoveFromFolders.cpp
   windows/DebugWindow.h windows/DebugWindow.cpp
+  windows/ImageFinder.h windows/ImageFinder.cpp
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp

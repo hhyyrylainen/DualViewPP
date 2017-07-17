@@ -92,6 +92,9 @@ public:
     //! \brief Opens the Downloader
     void OpenDownloader();
 
+    //! \brief Opens a new ImageFinder window
+    void OpenImageFinder();
+
     //! \brief Opens a setup window for a new downloadable gallery
     //! \param useropened True when the user clicked something and this was opened. If this is
     //! automatically opened for some other type of action then this is false
