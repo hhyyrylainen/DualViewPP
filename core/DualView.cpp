@@ -1363,7 +1363,7 @@ void DualView::OnNewGalleryLinkReceived(const std::string &url){
         openednew = true;
         
         // Open a new window and try again //
-        OpenDownloadSetup(false);
+        OpenDownloadSetup(false, true);
     }
 }
 
@@ -1407,11 +1407,13 @@ void DualView::OnNewImagePageLinkReceived(const std::string &url){
         openednew = true;
         
         // Open a new window and try again //
-        OpenDownloadSetup(false);
+        OpenDownloadSetup(false, true);
     }
 }
 
-void DualView::OpenDownloadSetup(bool useropened /*= true*/){
+void DualView::OpenDownloadSetup(bool useropened /*= true*/, bool capture /*= false*/){
+
+    LEVIATHAN_ASSERT(!(useropened && capture), "both useropened and capture may not be true");
     
     AssertIfNotMainThread();
 
@@ -1435,8 +1437,11 @@ void DualView::OpenDownloadSetup(bool useropened /*= true*/){
 
     if(useropened)
         wrapped->DisableAddActive();
-    
+
     wrapped->show();
+
+    if(capture)
+        wrapped->EnableAddActive();
 }
 
 
@@ -2179,9 +2184,15 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const{
     // Break rules are detected by ParseTagName
     
     // Check does removing ending 's' create an existing tag
-    if(str.back() == 's'){
-        
-        return ParseTagFromString(str.substr(0, str.size() - 1));
+    if(str.back() == 's' && str.size() > 1){
+
+        try{
+            return ParseTagFromString(str.substr(0, str.size() - 1));
+        } catch(const Leviathan::InvalidArgument &e){
+
+            // It didn't
+            throw Leviathan::InvalidArgument("unknown tag '" + str + "'");
+        }
     }
 
     throw Leviathan::InvalidArgument("unknown tag '" + str + "'");

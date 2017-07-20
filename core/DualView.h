@@ -98,7 +98,8 @@ public:
     //! \brief Opens a setup window for a new downloadable gallery
     //! \param useropened True when the user clicked something and this was opened. If this is
     //! automatically opened for some other type of action then this is false
-    void OpenDownloadSetup(bool useropened = true);
+    //! \param capture If true will attempt to steal the add lock
+    void OpenDownloadSetup(bool useropened = true, bool capture = false);
 
     //! \brief Opens a download setup for a link that was sent to us from another program
     void OnNewImageLinkReceived(const std::string &url, const std::string &referrer);
