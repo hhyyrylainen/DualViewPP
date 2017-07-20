@@ -61,8 +61,7 @@ void ImageFinder::OnSearchChanged(){
             try{
                 tags = DualView::Get().ParseTagFromString(matchingPattern);
 
-                if(!tags)
-                    throw Leviathan::InvalidArgument("empty");
+                LEVIATHAN_ASSERT(tags, "tags is empty with non-empty string");
                 
             } catch(const Leviathan::InvalidArgument &e){
 
