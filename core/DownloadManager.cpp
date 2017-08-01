@@ -203,7 +203,45 @@ void DownloadJob::DoDownload(DownloadManager &manager){
         LOG_INFO("Downloads using curl debug");
         curl_easy_setopt(curl, CURLOPT_VERBOSE, 1); 
     }
-    
+
+    // Escape the url in case it has spaces or other things
+    {
+        const auto urlBase = Leviathan::StringOperations::BaseHostName(URL);
+        auto path = Leviathan::StringOperations::URLPath(URL);
+
+        // Looks like we first have to unescape and then escape
+        int outlength;
+        auto fullyUnEscaped = curl_easy_unescape(curl, path.c_str(), path.length(),
+            &outlength);
+
+        path = std::string(fullyUnEscaped, outlength);
+
+        LOG_INFO("Path2: " + path);
+
+        curl_free(fullyUnEscaped);
+        fullyUnEscaped = nullptr;
+            
+        auto escaped = curl_easy_escape(curl, path.c_str(), path.size());
+
+        if(!escaped){
+
+            LOG_ERROR("Escaping url failed: " + path);
+            HandleError();
+            return;
+        }
+
+        LOG_INFO("escaped: " + std::string(escaped));
+
+        // Except we don't want to escape '/'s
+        const auto partiallyEscaped = Leviathan::StringOperations::Replace<std::string>(
+            std::string(escaped), "%2F", "/");
+
+        URL = Leviathan::StringOperations::CombineURL(urlBase, partiallyEscaped);
+ 
+        curl_free(escaped); 
+    }
+
+    LOG_INFO("DownloadJob: Escaped download url is: " + URL);
     curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
 
     if(!Referrer.empty()){
@@ -243,11 +281,13 @@ void DownloadJob::DoDownload(DownloadManager &manager){
         long httpcode = 0;
         
         curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &httpcode);
-        
+
         if(httpcode != 200){
 
             LOG_ERROR("received HTTP error code: " + Convert::ToString(httpcode) +
-                " from url" + URL);
+                " from url " + URL);
+            LOG_WRITE("Response data: " + DownloadBytes);
+
             HandleError();
             return;
         }
