@@ -209,14 +209,22 @@ void DownloadJob::DoDownload(DownloadManager &manager){
         const auto urlBase = Leviathan::StringOperations::BaseHostName(URL);
         auto path = Leviathan::StringOperations::URLPath(URL);
 
+        auto questionMark = path.find_first_of('?');
+
+        std::string queryPart;
+
+        if(questionMark != std::string::npos){
+
+            queryPart = path.substr(questionMark, path.size() - questionMark);
+            path = path.substr(0, questionMark);
+        }
+
         // Looks like we first have to unescape and then escape
         int outlength;
         auto fullyUnEscaped = curl_easy_unescape(curl, path.c_str(), path.length(),
             &outlength);
 
         path = std::string(fullyUnEscaped, outlength);
-
-        LOG_INFO("Path2: " + path);
 
         curl_free(fullyUnEscaped);
         fullyUnEscaped = nullptr;
@@ -230,13 +238,12 @@ void DownloadJob::DoDownload(DownloadManager &manager){
             return;
         }
 
-        LOG_INFO("escaped: " + std::string(escaped));
-
         // Except we don't want to escape '/'s
         const auto partiallyEscaped = Leviathan::StringOperations::Replace<std::string>(
             std::string(escaped), "%2F", "/");
 
         URL = Leviathan::StringOperations::CombineURL(urlBase, partiallyEscaped);
+        URL += queryPart;
  
         curl_free(escaped); 
     }
