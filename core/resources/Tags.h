@@ -3,6 +3,7 @@
 #include "DatabaseResource.h"
 
 #include "Common.h"
+#include <functional>
 
 namespace DV{
 
