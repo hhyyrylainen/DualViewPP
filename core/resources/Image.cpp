@@ -229,7 +229,8 @@ void Image::_OnFinishHash(){
 
     // Image size is now available
     // Unless IsHashValid is false
-    NotifyAll();
+    GUARD_LOCK();
+    NotifyAll(guard);
 }
 // ------------------------------------ //
 void Image::_QueueHashCalculation(){

@@ -38,5 +38,6 @@ void ChangeEvents::FireEvent(CHANGED_EVENT event) const{
         "Invalid event number in ChagneEvents");
 
     const auto& slot = RegisteredEvents[static_cast<size_t>(event)];
-    slot->NotifyAll();
+    GUARD_LOCK_OTHER(*slot);
+    slot->NotifyAll(guard);
 }

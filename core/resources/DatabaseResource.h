@@ -31,7 +31,8 @@ public:
     void OnMarkDirty(){
 
         IsDirty = true;
-        NotifyAll();
+        GUARD_LOCK();
+        NotifyAll(guard);
     }
 
     inline auto GetID() const{

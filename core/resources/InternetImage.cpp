@@ -57,7 +57,7 @@ std::shared_ptr<LoadedImage> InternetImage::GetImage(){
             } else {
 
                 FullImage->OnSuccess(FullImage, FileDL->GetDownloadedBytes());
-                _UpdateDimensions();
+                _UpdateDimensions(guard);
             }
         }
     }
@@ -166,7 +166,7 @@ void InternetImage::_CheckFileDownload(){
                 }
                 
                 if(us->FullImage)
-                    us->_UpdateDimensions();
+                    us->_UpdateDimensions(guard);
             }
         });
 
@@ -202,7 +202,7 @@ bool InternetImage::SaveFileToDisk(Lock &guard){
     return true;
 }
 
-void InternetImage::_UpdateDimensions(){
+void InternetImage::_UpdateDimensions(Lock &guard){
 
     // If not loaded start waiting //
     if(FullImage && !FullImage->IsLoaded()){
@@ -235,8 +235,9 @@ void InternetImage::_UpdateDimensions(){
                         "set finished");
                     return true;
                 }
-                
-                locked->_UpdateDimensions();
+
+                GUARD_LOCK_OTHER(locked);
+                locked->_UpdateDimensions(guard);
 
                 return true;
             });
@@ -254,7 +255,7 @@ void InternetImage::_UpdateDimensions(){
     Width = FullImage->GetWidth();
     Height = FullImage->GetHeight();
     // Notify that our size is now available
-    NotifyAll();
+    NotifyAll(guard);
 }
 
 

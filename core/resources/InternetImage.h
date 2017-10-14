@@ -89,7 +89,7 @@ protected:
     //! \brief Reads the image size and sets it
     //!
     //! This will also call notify to make sure all image viewers get the dimensions
-    void _UpdateDimensions();
+    void _UpdateDimensions(Lock &guard);
 
 protected:
 
