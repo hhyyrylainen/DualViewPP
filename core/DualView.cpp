@@ -2481,9 +2481,29 @@ std::string DualView::MakePathUniqueAndShort(const std::string &path){
     
     if(length > DUALVIEW_MAX_ALLOWED_PATH){
 
-        std::string name = fileName.string();
-        name = name.substr(0, name.size() / 2);
-        return MakePathUniqueAndShort((baseFolder / (name + extension.string())).string());
+        const std::string name = fileName.string();        
+
+        for(size_t cutPoint = name.size() / 2; cutPoint > 0; --cutPoint){
+
+            // Cutting may result in invalid utf8 sequences
+            try{
+                const std::string newName = name.substr(0, cutPoint);
+                return MakePathUniqueAndShort((baseFolder / (newName +
+                            extension.string())).string());
+
+            } catch(const boost::filesystem::filesystem_error &e){
+
+                LOG_WARNING(std::string("MakePathUniqueAndShort: filename cutting "
+                        "resulted in invalid string, exception: ") + e.what());
+            }
+        }
+
+        // Failed to cut //
+        LOG_FATAL("MakePathUniqueAndShort: file name cutting failed to find valid filename, "
+            "start string: " + fileName.string());
+        // We could not do a fatal here, as this should probably work
+        return MakePathUniqueAndShort((baseFolder / ("a" +
+                    extension.string())).string());
     }
 
     // Then make sure it doesn't exist //
