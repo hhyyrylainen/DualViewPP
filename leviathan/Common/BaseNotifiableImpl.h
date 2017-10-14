@@ -4,6 +4,7 @@
 // ------------------------------------ //
 #pragma once
 
+#include "BaseNotifiable.h"
 #include "BaseNotifier.h"
 // ------------------------------------ //
 template<class ParentType, class ChildType>
