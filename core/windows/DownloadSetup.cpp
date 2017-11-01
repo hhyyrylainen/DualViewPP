@@ -134,6 +134,15 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     // Need to override the default handler otherwise this isn't called
     ActiveAsAddTarget->signal_state_set().connect(sigc::mem_fun(*this,
             &DownloadSetup::_AddActivePressed), false);
+
+
+    BUILDER_GET_WIDGET(WindowTabs);
+    
+    BUILDER_GET_WIDGET(ShowFullControls);
+
+    // Need to override the default handler otherwise this isn't called
+    ShowFullControls->signal_state_set().connect(sigc::mem_fun(*this,
+            &DownloadSetup::_FullViewToggled), false);
     
     // Set all the editor controls read only
     _UpdateWidgetStates();
@@ -590,6 +599,26 @@ void DownloadSetup::_OnActiveSlotStolen(DownloadSetup* stealer){
 
     LOG_INFO("Active slot stolen from us");
     DisableAddActive();
+}
+// ------------------------------------ //
+bool DownloadSetup::_FullViewToggled(bool state){
+
+    if(state){
+
+        // Show everyhing //
+        WindowTabs->show();
+        
+    } else {
+
+        // Hide everything //
+        WindowTabs->hide();
+        
+        // Resize to minimum size //
+        // TODO: could remember this size when toggled back
+        resize(get_width(), 1);
+    }
+    
+    return false;
 }
 // ------------------------------------ //
 void DownloadSetup::OnItemSelected(ListItem &item){

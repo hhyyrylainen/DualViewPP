@@ -158,6 +158,9 @@ protected:
 
     //! User touched our "add active" button
     bool _AddActivePressed(bool state);
+
+    //! User touched our "toggle full view" button
+    bool _FullViewToggled(bool state);
     
 private:
 
@@ -225,6 +228,10 @@ private:
 
     // If this is enabled then this is the active add target
     Gtk::Switch* ActiveAsAddTarget;
+
+    
+    // For toggling away the full view
+    Gtk::Switch* ShowFullControls;
     
     Gtk::Button* RemoveSelected;
     Gtk::Button* BrowseForward;

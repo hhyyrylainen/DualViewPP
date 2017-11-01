@@ -868,20 +868,59 @@
               </packing>
             </child>
             <child>
-              <object class="GtkButton" id="QuickSwapPages">
-                <property name="label" translatable="yes">Quick Swap Pag_es</property>
+              <object class="GtkBox">
                 <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="margin_left">10</property>
+                <property name="can_focus">False</property>
+                <property name="margin_left">5</property>
                 <property name="margin_right">5</property>
-                <property name="use_underline">True</property>
-                <accelerator key="e" signal="activate" modifiers="GDK_CONTROL_MASK"/>
+                <property name="spacing">2</property>
+                <child>
+                  <object class="GtkButton" id="QuickSwapPages">
+                    <property name="label" translatable="yes">Quick Swap Pag_es</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                    <property name="margin_left">10</property>
+                    <property name="margin_right">5</property>
+                    <property name="use_underline">True</property>
+                    <accelerator key="e" signal="activate" modifiers="GDK_CONTROL_MASK"/>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="margin_left">4</property>
+                    <property name="label" translatable="yes">Full view:</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSwitch" id="ShowFullControls">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="active">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">3</property>
+                  </packing>
+                </child>
               </object>
               <packing>
                 <property name="expand">False</property>
                 <property name="fill">True</property>
-                <property name="position">2</property>
+                <property name="position">3</property>
               </packing>
             </child>
           </object>
