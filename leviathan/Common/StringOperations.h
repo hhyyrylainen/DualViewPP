@@ -33,7 +33,7 @@ constexpr char UNIVERSAL_LINE_SEPARATOR[] = "\n";
 class StringOperations{
 public:
     template<typename CharType>
-		static bool IsCharacterWhitespace(CharType character){
+        static bool IsCharacterWhitespace(CharType character){
         if((int)character <= 32)
             return true;
 
@@ -44,7 +44,7 @@ public:
     }
 
     template<typename CharType>
-		static bool IsCharacterQuote(CharType character){
+        static bool IsCharacterQuote(CharType character){
 
         if(character == '"' || character == '\'')
             return true;
@@ -61,9 +61,22 @@ public:
         str = StringTypeN(characters, count - 1);
     }
 
+    template<class StringTypeN>
+        static StringTypeN RepeatCharacter(int character, size_t count){
+
+        StringTypeN result;
+
+        result.resize(count);
+
+        for(size_t i = 0; i < count; ++i)
+            result[i] = character;
+        
+        return result;
+    }
+
     // ------------------ Path related operations ------------------ //
     template<class StringTypeN>
-		static const StringTypeN RemoveExtension(const StringTypeN &filepath,
+        static const StringTypeN RemoveExtension(const StringTypeN &filepath,
             bool delpath = true)
     {
 
@@ -108,7 +121,7 @@ public:
     }
 
     template<class StringTypeN>
-		static const StringTypeN GetExtension(const StringTypeN &filepath){
+        static const StringTypeN GetExtension(const StringTypeN &filepath){
         size_t startcopy = 0;
         size_t endcopy = filepath.size()-1;
 
@@ -130,7 +143,7 @@ public:
     }
 
     template<class StringTypeN>
-		static const StringTypeN ChangeExtension(const StringTypeN& filepath,
+        static const StringTypeN ChangeExtension(const StringTypeN& filepath,
             const StringTypeN &newext)
     {
         size_t startcopy = 0;
@@ -156,7 +169,7 @@ public:
     }
 
     template<class StringTypeN>
-		static const StringTypeN RemovePath(const StringTypeN &filepath){
+        static const StringTypeN RemovePath(const StringTypeN &filepath){
         size_t startcopy = 0;
         size_t endcopy = filepath.size()-1;
 
@@ -180,7 +193,7 @@ public:
         // Return empty if no data is valid //
         if(startcopy > endcopy || startcopy >= filepath.size() || endcopy >= filepath.size())
             return StringTypeN();
-			
+            
 
         // return the wanted part //
         return filepath.substr(startcopy, endcopy-startcopy+1);
@@ -188,7 +201,7 @@ public:
 
     //! \brief Returns the path part of a path+filename
     template<class StringTypeN>
-		static const StringTypeN GetPath(const StringTypeN &filepath){
+        static const StringTypeN GetPath(const StringTypeN &filepath){
         size_t startcopy = 0;
         size_t endcopy = filepath.size()-1;
 
@@ -226,29 +239,37 @@ public:
 
     //! \brief Returns the protocol from a URL
     //! \example URLProtocol("http://google.fi/index.html") = "http"
-    static std::string URLProtocol(const std::string &url);
+    DLLEXPORT static std::string URLProtocol(const std::string &url);
 
     //! \brief Returns the base hostname from a URL
     //! \example BaseHostName("http://google.fi/index.html") = "http://google.fi/"
-    static std::string BaseHostName(const std::string &url);
+    DLLEXPORT static std::string BaseHostName(const std::string &url);
 
     //! \brief Returns the path of an url
     //!
     //! This returns everything after what BaseHostName would have returned
     //! \example URLPath("http://google.fi/index.html") = "index.html"
-    static std::string URLPath(const std::string &url);
+    DLLEXPORT static std::string URLPath(const std::string &url);
 
     //! \brief Combines a URL with another (relative) URL
     //! \example CombineURL("http://google.fi/index.html", "img.jpg") =
     //! "http://google.fi/img.jpg"
-    static std::string CombineURL(const std::string &first, const std::string &second);
-    
+    DLLEXPORT static std::string CombineURL(const std::string &first,
+        const std::string &second);
 
+    //! \brief Removes multiple hostnames from an address
+    //!
+    //! \example RemovePartsBeforeAbsoluteURLParts(
+    //! "http://example.com//a.example.com/img.png") = "http://a.example.com/img.png"
+    DLLEXPORT static std::string RemovePartsBeforeAbsoluteURLParts(const std::string &url);
+
+    //! \brief Returns true if string looks like a top level domain
+    DLLEXPORT static bool IsURLDomain(const std::string &str);
 
 
     //! \brief Changes all line separators to Windows line separators
     template<class StringTypeN>
-		static const StringTypeN ChangeLineEndsToWindows(const StringTypeN &input){
+        static const StringTypeN ChangeLineEndsToWindows(const StringTypeN &input){
 
         StringTypeN results;
             
@@ -277,7 +298,7 @@ public:
 
                 continue;
             }
-				
+                
             if (!copyparts.Start)
                 copyparts.Start = i;
 
@@ -293,7 +314,7 @@ public:
 
     //! \brief Changes all line separators to universal line separators
     template<class StringTypeN>
-		static const StringTypeN ChangeLineEndsToUniversal(const StringTypeN &input){
+        static const StringTypeN ChangeLineEndsToUniversal(const StringTypeN &input){
 
         StringTypeN results;
 
@@ -392,7 +413,7 @@ public:
 
     // ------------------ General string operations ------------------ //
     template<class StringTypeN>
-		static bool CutString(const StringTypeN &strtocut, const StringTypeN &separator,
+        static bool CutString(const StringTypeN &strtocut, const StringTypeN &separator,
             std::vector<StringTypeN>& vec)
     {
         // scan the input and gather positions for string copying //
@@ -477,7 +498,7 @@ public:
     }
 
     template<class StringTypeN>
-		static int CountOccuranceInString(const StringTypeN &data,
+        static int CountOccuranceInString(const StringTypeN &data,
             const StringTypeN &lookfor)
     {
 
@@ -517,7 +538,7 @@ public:
     }
 
     template<class StringTypeN>
-		static StringTypeN Replace(const StringTypeN &data,
+        static StringTypeN Replace(const StringTypeN &data,
             const StringTypeN &toreplace, const StringTypeN &replacer)
     {
         // We construct an output string from the wanted bits //
@@ -593,7 +614,7 @@ public:
 
 
     template<class StringTypeN>
-		static StringTypeN ReplaceSingleCharacter(const StringTypeN &data,
+        static StringTypeN ReplaceSingleCharacter(const StringTypeN &data,
             const StringTypeN &toreplace, int replacer = ' ')
     {
         // Copy the string and then modify it //
@@ -621,7 +642,7 @@ public:
     }
 
     template<class StringTypeN>
-		static StringTypeN RemoveCharacters(const StringTypeN &data,
+        static StringTypeN RemoveCharacters(const StringTypeN &data,
             const StringTypeN &toremove)
     {
         StringTypeN out;
@@ -651,7 +672,7 @@ public:
     }
 
     template<class StringTypeN>
-		static StringTypeN RemoveFirstWords(const StringTypeN &data, int amount){
+        static StringTypeN RemoveFirstWords(const StringTypeN &data, int amount){
 
         size_t firstpos = 0;
         // Find the copy start position //
@@ -684,7 +705,7 @@ public:
     }
 
     template<class StringTypeN>
-		static StringTypeN StitchTogether(const std::vector<StringTypeN*> &data,
+        static StringTypeN StitchTogether(const std::vector<StringTypeN*> &data,
             const StringTypeN &separator)
     {
         StringTypeN ret;
@@ -698,7 +719,7 @@ public:
         }
             
         totalcharacters += separator.length()*data.size();
-			
+            
         // By reserving space we don't have to allocate more memory
         // during copying which might be faster
         ret.reserve(totalcharacters);
@@ -714,7 +735,7 @@ public:
     }
 
     template<class StringTypeN>
-		static StringTypeN StitchTogether(const std::vector<StringTypeN> &data,
+        static StringTypeN StitchTogether(const std::vector<StringTypeN> &data,
             const StringTypeN &separator)
     {
         StringTypeN ret;
@@ -728,7 +749,7 @@ public:
         }
         
         totalcharacters += separator.length()*data.size();
-			
+            
         // By reserving space we don't have to allocate more memory
         // during copying which might be faster
         ret.reserve(totalcharacters);
@@ -745,7 +766,7 @@ public:
 
 
     template<class StringTypeN>
-		static StringTypeN StitchTogether(
+        static StringTypeN StitchTogether(
             const std::vector<std::shared_ptr<StringTypeN>> &data,
             const StringTypeN &separator)
     {
@@ -775,7 +796,7 @@ public:
     }
 
     template<class StringTypeN>
-		static void RemovePreceedingTrailingSpaces(StringTypeN &str){
+        static void RemovePreceedingTrailingSpaces(StringTypeN &str){
         StartEndIndex CutPositions;
 
         // search the right part of the string //
@@ -834,7 +855,7 @@ public:
     }
 
     template<class StringTypeN>
-		static bool CompareInsensitive(const StringTypeN &data,
+        static bool CompareInsensitive(const StringTypeN &data,
             const StringTypeN &second)
     {
         if(data.size() != second.size())
@@ -867,7 +888,7 @@ public:
     }
 
     template<class StringTypeN>
-		static bool StringStartsWith(const StringTypeN &data,
+        static bool StringStartsWith(const StringTypeN &data,
             const StringTypeN &tomatch)
     {
         size_t foundstop = data.find(tomatch);
@@ -875,7 +896,7 @@ public:
     }
     
     template<class StringTypeN>
-		static bool IsStringNumeric(const StringTypeN &data){
+        static bool IsStringNumeric(const StringTypeN &data){
         for(size_t i = 0; i < data.size(); i++){
             if((data[i] < FIRST_NUMBER ||
                     data[i] > LAST_NUMBER) &&
