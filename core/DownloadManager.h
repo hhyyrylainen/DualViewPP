@@ -13,6 +13,8 @@
 
 namespace DV{
 
+constexpr auto PAGE_SCAN_RETRIES = 5;
+
 class DownloadManager;
 
 size_t CurlWriteCallback(char *ptr, size_t size, size_t nmemb, void *userdata);

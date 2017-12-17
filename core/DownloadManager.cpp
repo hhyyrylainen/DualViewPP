@@ -129,6 +129,11 @@ std::string DownloadManager::GetCachePathForURL(const std::string &url){
         (DualView::CalculateBase64EncodedHash(url) + "." +
             Leviathan::StringOperations::GetExtension(ExtractFileName(url)))).string();
 }
+// ------------------------------------ //
+// Run again exception for DownloadJob
+class RetryDownload : std::exception{
+
+};
 
 // ------------------------------------ //
 // DownloadJob
@@ -278,52 +283,71 @@ void DownloadJob::DoDownload(DownloadManager &manager){
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
 
     // Do download
-    const auto result = curl_easy_perform(curl);
+    // TODO: replace the retries and sleeps here to place new download entries into the
+    // dl queue
+    for(int i = 0; i < PAGE_SCAN_RETRIES; ++i){
+        const auto result = curl_easy_perform(curl);
 
-    if(result == CURLE_OK){
+        if(result == CURLE_OK){
         
-        // Download finished successfully
+            // Download finished successfully
 
-        // Check HTTP result code
-        long httpcode = 0;
+            // Check HTTP result code
+            long httpcode = 0;
         
-        curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &httpcode);
+            curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &httpcode);
 
-        if(httpcode != 200){
+            if(httpcode != 200){
 
-            LOG_ERROR("received HTTP error code: " + Convert::ToString(httpcode) +
-                " from url " + URL);
-            LOG_WRITE("Response data: " + DownloadBytes);
+                LOG_ERROR("received HTTP error code: " + Convert::ToString(httpcode) +
+                    " from url " + URL);
+                LOG_WRITE("Response data: " + DownloadBytes);
 
-            HandleError();
+                if(httpcode == 429){
+
+                    LOG_WARNING("Got slow down status code (429). "
+                        "Waiting 2 seconds before retry");
+                    std::this_thread::sleep_for(std::chrono::seconds(2));
+                }
+                
+            dlretrylabel:
+                LOG_INFO("Retrying url download: " + URL);
+                Retry();
+                std::this_thread::sleep_for(std::chrono::milliseconds(250));
+                continue;
+            }
+
+            // Get content type
+            char* contentptr = nullptr;
+        
+            if(CURLE_OK == curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &contentptr) &&
+                contentptr)
+            {
+                DownloadedContentType = std::string(contentptr);
+            }
+
+            try{
+                HandleContent();
+            } catch(const RetryDownload&){
+
+                goto dlretrylabel;
+            }
+        
             return;
         }
 
-        // Get content type
-        char* contentptr = nullptr;
-        
-        if(CURLE_OK == curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &contentptr) &&
-            contentptr)
-        {
-            DownloadedContentType = std::string(contentptr);
-        }
+        // Handle error //
+        curlError[CURL_ERROR_SIZE - 1] = '\0';
 
+        std::string error = curlError;
 
-        
-        HandleContent();
+        LOG_ERROR("Curl failed with error(" + Convert::ToString(result) + "): " + error);
+        HandleError();
         return;
     }
-
-    // Handle error //
-    curlError[CURL_ERROR_SIZE - 1] = '\0';
-
-    std::string error = curlError;
-
-
-
-    LOG_ERROR("Curl failed with error(" + Convert::ToString(result) + "): " + error);
-    HandleError();
     
+    LOG_ERROR("URL download ran out of retries: " + URL);
+    HandleError();
 }
 // ------------------------------------ //
 // PageScanJob
@@ -352,6 +376,14 @@ void PageScanJob::HandleContent(){
 
     
     Result = scanner->ScanSite({DownloadBytes, URL, DownloadedContentType, InitialPage});
+
+    if(Result.ContentLinks.empty() && scanner->ScanAgainIfNoImages(URL)){
+
+        LOG_INFO("PageScanJob: running again because found no content and scanner "
+            "has ScanAgainIfNoImages = true");
+
+        
+    }
     
     // Copy result //
     Result.PrintInfo();

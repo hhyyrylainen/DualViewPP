@@ -144,6 +144,11 @@ public:
     //! \brief Returns true if this scanner considers the link to be a page that contains
     //! only a single image and is not actually a gallery
     virtual bool IsUrlNotGallery(const std::string &url) = 0;
+
+    //! \brief If this returns true, then the page is scanned again if
+    //! no images have been found
+    //! \note This is rescanned up to a maximum of 5 times
+    virtual bool ScanAgainIfNoImages(const std::string &url) = 0;
 };
 
 //! \brief Description of a plugin

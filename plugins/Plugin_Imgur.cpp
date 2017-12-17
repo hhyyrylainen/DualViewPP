@@ -222,6 +222,10 @@ class ImgurScanner final : public IWebsiteScanner{
 
         return false;
     }
+
+    bool ScanAgainIfNoImages(const std::string &url) override{
+        return false;
+    }
 };
 
 
