@@ -444,7 +444,8 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage &content){
 
                         INVOKE_CHECK_ALIVE_MARKER(alive);
 
-                        LOG_INFO("DownloadSetup: adding found tags to image");
+                        LOG_INFO("DownloadSetup: adding found tags (" +
+                            std::to_string(parsedTags.size()) + ")to image");
 
                         for(const auto& parsedTag : parsedTags)
                             tagCollection->Add(parsedTag);
