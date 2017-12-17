@@ -528,7 +528,7 @@ void DownloadSetup::AddExternalScanLink(const std::string &url){
         return; 
     }
 
-    PagesToScan.push_back(url);
+    AddSubpage(url);
 
     if(State == STATE::URL_CHANGED)
         _SetState(STATE::URL_OK);
