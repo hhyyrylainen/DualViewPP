@@ -919,6 +919,28 @@ void DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
     if(scanned){
 
         data->Scans.Combine(scanned->GetResult());
+
+        // If found new subpages add them to the queue to scan them now too //
+        for(const auto& subpage : scanned->GetResult().PageLinks){
+
+            // Skip duplicates //
+            bool found = false;
+            for(const auto& existing : data->PagesToScan){
+
+                if(existing == subpage){
+
+                    found = true;
+                    break;
+                }
+            }
+
+            LOG_INFO("DownloadSetup: found subpage, adding to queue to scan all in "
+                "one go: " + subpage);
+
+            if(!found){
+                data->PagesToScan.push_back(subpage);
+            }
+        }
     }
     
     auto finished = [=](){
