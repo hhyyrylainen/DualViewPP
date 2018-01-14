@@ -335,7 +335,7 @@ void DownloadSetup::OnUserAcceptSettings(){
                     INVOKE_CHECK_ALIVE_MARKER(alive);
 
                     // Remove the added from the list //
-                    if(remove){
+                    if(remove && success){
         
                         for(size_t i = 0; i < us->ImageObjects.size(); ){
 
