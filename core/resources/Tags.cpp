@@ -693,12 +693,20 @@ void TagCollection::AddTextTags(const std::string &text, const std::string &sepa
         if(line.empty())
             continue;
 
-        auto tag = DualView::Get().ParseTagFromString(line);
+        try{
+            auto tag = DualView::Get().ParseTagFromString(line);
 
-        if(!tag)
+            if(!tag)
+                continue;
+
+            Add(tag);
+            
+        } catch(const Leviathan::InvalidArgument &e){
+            // TODO: should do a popup to let user know
+            LOG_WARNING("AddTextTags: failed to parse tag: " + line + ", exception:");
+            e.PrintToLog();
             continue;
-
-        Add(tag);
+        }
     }
 }
 

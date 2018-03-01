@@ -404,6 +404,9 @@ public:
     void ReplaceWithText(const std::string &text, const std::string &separator);
 
     //! \brief Parses tags from a string with separators and adds them
+    //!
+    //! This ignores invalid tags. If you need to handle them you need to manually parse
+    //! them and call Add
     void AddTextTags(const std::string &text, const std::string &separator);
 
     //! \brief Converts all tags to text and adds the separator inbetween
