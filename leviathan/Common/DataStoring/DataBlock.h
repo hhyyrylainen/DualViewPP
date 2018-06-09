@@ -418,6 +418,10 @@ namespace Leviathan{
     
 
     //! \brief Non-template class for working with all types of DataBlocks
+    //!
+    //! If you want a VariableBlock with no value use:
+    //! VariableBlock(static_cast<DataBlockAll*>(nullptr)) and a cast to void if you want
+    //! a VoidPtrBlock with no value
     class VariableBlock{
     public:
 
@@ -436,7 +440,7 @@ namespace Leviathan{
         VariableBlock(const int &var){
             BlockData = static_cast<DataBlockAll*>(new IntBlock(var));
         }
-        VariableBlock(const bool &var){
+        VariableBlock(const bool &var, bool isactuallybooltype){
             BlockData = static_cast<DataBlockAll*>(new BoolBlock(var));
         }
         VariableBlock(const std::string &var){
@@ -454,6 +458,10 @@ namespace Leviathan{
         VariableBlock(const char &var){
             BlockData = static_cast<DataBlockAll*>(new CharBlock(var));
         }
+        VariableBlock(void* var){
+            BlockData = static_cast<DataBlockAll*>(new VoidPtrBlock(var));
+        }
+        
 
     #ifdef SFML_PACKETS
 
@@ -755,17 +763,52 @@ namespace Leviathan{
     public:
         // constructors that accept any type of DataBlock //
         template<class DBRType>
-        NamedVariableBlock(DataBlock<DBRType>* block, const std::string &name):
+        NamedVariableBlock(DataBlock<DBRType>* block, const std::string &name) :
             VariableBlock(block), Name(name)
         {
 
         }
+        
         // non template constructor //
         NamedVariableBlock(DataBlockAll* block, const std::string &name) :
             VariableBlock(block), Name(name)
         {
 
         }
+
+        // constructors that accept basic types //
+        NamedVariableBlock(const int &var, const std::string &name) :
+            VariableBlock(var), Name(name)
+        {
+        }
+        NamedVariableBlock(const bool &var, bool isactuallybooltype, const std::string &name) :
+            VariableBlock(var, isactuallybooltype), Name(name)
+        {
+        }
+        NamedVariableBlock(const std::string &var, const std::string &name) :
+            VariableBlock(var), Name(name)
+        {
+        }
+        NamedVariableBlock(const std::wstring &var, const std::string &name) :
+            VariableBlock(var), Name(name)
+        {
+        }
+        NamedVariableBlock(const double &var, const std::string &name) :
+            VariableBlock(var), Name(name)
+        {
+        }
+        NamedVariableBlock(const float &var, const std::string &name) :
+            VariableBlock(var), Name(name)
+        {
+        }
+        NamedVariableBlock(const char &var, const std::string &name) :
+            VariableBlock(var), Name(name)
+        {
+        }
+        NamedVariableBlock(void* var, const std::string &name) :
+            VariableBlock(var), Name(name)
+        {
+        }        
 
         inline std::string GetName() const{
             return Name;
@@ -787,11 +830,13 @@ namespace Leviathan{
     };
 
 #ifdef LEVIATHAN_USING_ANGELSCRIPT
-    //! \brief Reference counted version for scripts
+    //! \brief Reference counted version for scripts of VariableBlock
     //!
     //! Also stores the AngelScript ID of the type
     //! \note Do NOT use smart pointers with this class
     //! \todo Unify multiple values containing things and naming
+    //! \todo This whole thing should be made again and the types should be integrated to
+    //! a single VariableBlock class that has a void* and an angelscript type
     class ScriptSafeVariableBlock : public NamedVariableBlock, public ReferenceCounted{
     public:
 
@@ -805,9 +850,6 @@ namespace Leviathan{
         }
 
         DLLEXPORT ScriptSafeVariableBlock(VariableBlock* copyfrom, const std::string &name);
-
-
-        REFERENCECOUNTED_ADD_PROXIESFORANGELSCRIPT_DEFINITIONS(ScriptSafeVariableBlock);
 
 
         bool IsValidType(){
@@ -930,4 +972,8 @@ namespace Leviathan{
         Convert::StringTo<int>(*block->Value));
 
 }
+
+#ifdef LEAK_INTO_GLOBAL
+using Leviathan::VariableBlock;
+#endif
 

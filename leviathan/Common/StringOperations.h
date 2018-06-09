@@ -79,7 +79,6 @@ public:
         static const StringTypeN RemoveExtension(const StringTypeN &filepath,
             bool delpath = true)
     {
-
         size_t startcopy = 0;
         size_t endcopy;
 
@@ -462,6 +461,13 @@ public:
                     // because of the loop incrementation
                     i += separator.length()-1;
             }
+        }
+
+        // Return empty string if there is nothing here //
+        if(CopyOperations.empty()){
+
+            vec.push_back(StringTypeN());
+            return false;
         }
 
         // make sure final position has end //
@@ -946,8 +952,8 @@ public:
 
     //! \brief Appends spaces number of spaces to each line in str and returns the result
     template<class StringTypeN>
-        static StringTypeN IndentLines(const StringTypeN &str, size_t spaces) {
-
+    static StringTypeN IndentLines(const StringTypeN &str, size_t spaces){
+        
         const auto indentstr = Indent<StringTypeN>(spaces);
 
         StringTypeN result;
@@ -991,6 +997,17 @@ public:
         return result;
     }
 
+    template<class StringTypeN>
+    static StringTypeN RemoveEnding(const StringTypeN &str, const StringTypeN &ending){
+
+        const auto pos = str.rfind(ending);
+
+        if(pos != StringTypeN::npos && str.length() - pos == ending.length())
+            return str.substr(0, pos);
+        
+        return str;
+    }
+
     //! \returns True if a character is a line terminating character
     static bool IsLineTerminator(int32_t codepoint) {
 
@@ -1016,99 +1033,9 @@ public:
         return false;
     }
 
-    // ------------------ Named non-template versions ------------------ //
-    FORCE_INLINE static const std::wstring GetExtensionWstring(
-        const std::wstring &filepath)
-    {
-        return GetExtension<std::wstring>(filepath);
-    }
-        
-    FORCE_INLINE static const std::string GetExtensionString(
-        const std::string &filepath)
-    {
-        return GetExtension<std::string>(filepath);
-    }
-
-    FORCE_INLINE static const std::wstring GetPathWstring(
-        const std::wstring &filepath)
-    {
-        return GetPath<std::wstring>(filepath);
-    }
-        
-    FORCE_INLINE static const std::string GetPathString(const std::string &filepath){
-            
-        return GetPath<std::string>(filepath);
-    }
-
-    FORCE_INLINE static const std::wstring RemoveExtensionWstring(
-        const std::wstring &filepath, bool delpath = true)
-    {
-        return RemoveExtension<std::wstring>(filepath, delpath);
-    }
-        
-    FORCE_INLINE static const std::string RemoveExtensionString(
-        const std::string &filepath, bool delpath = true)
-    {
-        return RemoveExtension<std::string>(filepath, delpath);
-    }
-
-    FORCE_INLINE static const std::wstring ChangeExtensionWstring(
-        const std::wstring &filepath, const std::wstring &newext)
-    {
-        return ChangeExtension<std::wstring>(filepath, newext);
-    }
-        
-    FORCE_INLINE static const std::string ChangeExtensionString(
-        const std::string &filepath, const std::string &newext)
-    {
-        return ChangeExtension<std::string>(filepath, newext);
-    }
-
-    FORCE_INLINE static const std::wstring RemovePathWstring(
-        const std::wstring &filepath)
-    {
-        return RemovePath<std::wstring>(filepath);
-    }
-        
-    FORCE_INLINE static const std::string RemovePathString(
-        const std::string &filepath)
-    {
-        return RemovePath<std::string>(filepath);
-    }
-
-    FORCE_INLINE static const std::wstring ChangeLineEndsToUniversalWstring(
-        const std::wstring &input)
-    {
-        return ChangeLineEndsToUniversal<std::wstring>(input);
-    }
-        
-    FORCE_INLINE static const std::string ChangeLineEndsToUniversalString(
-        const std::string &input)
-    {
-        return ChangeLineEndsToUniversal<std::string>(input);
-    }
-
-    FORCE_INLINE static const std::wstring ChangeLineEndsToWindowsWstring(
-        const std::wstring &input)
-    {
-        return ChangeLineEndsToWindows<std::wstring>(input);
-    }
-        
-    FORCE_INLINE static const std::string ChangeLineEndsToWindowsString(
-        const std::string &input)
-    {
-        return ChangeLineEndsToWindows<std::string>(input);
-    }
-
-    FORCE_INLINE static std::string IndentLinesString(const std::string &str,
-        size_t spaces)
-    {
-        return IndentLines<std::string>(str, spaces);
-    }
-
 private:
-    StringOperations();
-    ~StringOperations();
+    StringOperations() = delete;
+    ~StringOperations() = delete;
 };
 
 
