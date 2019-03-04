@@ -97,7 +97,7 @@ add_library(Core
   )
 
 
-target_link_libraries(Core ThirdParty Leviathan
+target_link_libraries(Core ThirdParty tz Leviathan
   ${GTKMM_LIBRARIES} ${GTKCANBERRA_LIBRARIES}
   ${MAGICK_LIBRARIES} ${Boost_LIBRARIES} ${CRYPTOPP_LIBRARIES} ${SQLITE3_LIBRARIES}
   ${CURL_LIBRARIES})
