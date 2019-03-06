@@ -21,11 +21,18 @@ protected:
     void _OnClose() override;
 
 private:
-    Gtk::Box mainContainer;
-    Gtk::ScrolledWindow listScroll;
-    Gtk::Box listContainer;
+    // Titlebar widgets
+    Gtk::HeaderBar HeaderBar;
+    Gtk::MenuButton Menu;
+    Gtk::Button SearchButton;
 
-    Gtk::Label nothingToShow;
+    // Main content area
+    Gtk::Box MainContainer;
+    Gtk::ScrolledWindow ListScroll;
+    Gtk::Box ListContainer;
+
+    // Loading widgets
+    Gtk::Label NothingToShow;
 };
 
 } // namespace DV

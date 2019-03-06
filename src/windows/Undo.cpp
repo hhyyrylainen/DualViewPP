@@ -3,39 +3,47 @@
 
 using namespace DV;
 // ------------------------------------ //
-UndoWindow::UndoWindow() : nothingToShow("No history items available")
+UndoWindow::UndoWindow() : NothingToShow("No history items available")
 {
     signal_delete_event().connect(sigc::mem_fun(*this, &BaseWindow::_OnClosed));
 
     property_resizable() = true;
-    property_title() = "DualView - Undo Recent Actions";
+
+    Menu.set_image_from_icon_name("open-menu-symbolic");
+
+    SearchButton.set_image_from_icon_name("edit-find-symbolic");
+
+    HeaderBar.property_title() = "DualView - Undo Recent Actions";
+    HeaderBar.property_show_close_button() = true;
+    HeaderBar.pack_end(Menu);
+    HeaderBar.pack_end(SearchButton);
+    set_titlebar(HeaderBar);
 
     // Default size if empty
     property_width_request() = 500;
     property_height_request() = 300;
 
-    // add(nothingToShow);
 
-    mainContainer.property_orientation() = Gtk::ORIENTATION_VERTICAL;
-    mainContainer.property_vexpand() = true;
-    mainContainer.property_hexpand() = true;
-    add(mainContainer);
+    MainContainer.property_orientation() = Gtk::ORIENTATION_VERTICAL;
+    MainContainer.property_vexpand() = true;
+    MainContainer.property_hexpand() = true;
+    add(MainContainer);
 
-    listScroll.set_policy(Gtk::POLICY_NEVER, Gtk::POLICY_ALWAYS);
-    listScroll.property_vexpand() = true;
-    listScroll.property_hexpand() = true;
-    mainContainer.add(listScroll);
+    ListScroll.set_policy(Gtk::POLICY_NEVER, Gtk::POLICY_ALWAYS);
+    ListScroll.property_vexpand() = true;
+    ListScroll.property_hexpand() = true;
+    MainContainer.add(ListScroll);
 
-    listContainer.property_orientation() = Gtk::ORIENTATION_VERTICAL;
-    listContainer.property_vexpand() = true;
-    listContainer.property_hexpand() = true;
-    listScroll.add(listContainer);
+    ListContainer.property_orientation() = Gtk::ORIENTATION_VERTICAL;
+    ListContainer.property_vexpand() = true;
+    ListContainer.property_hexpand() = true;
+    ListScroll.add(ListContainer);
 
-    nothingToShow.property_halign() = Gtk::ALIGN_CENTER;
-    nothingToShow.property_hexpand() = true;
-    nothingToShow.property_valign() = Gtk::ALIGN_CENTER;
-    nothingToShow.property_vexpand() = true;
-    listContainer.add(nothingToShow);
+    NothingToShow.property_halign() = Gtk::ALIGN_CENTER;
+    NothingToShow.property_hexpand() = true;
+    NothingToShow.property_valign() = Gtk::ALIGN_CENTER;
+    NothingToShow.property_vexpand() = true;
+    ListContainer.add(NothingToShow);
 
     show_all();
 }
