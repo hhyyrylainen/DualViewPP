@@ -36,7 +36,7 @@ else(WIN32)
   endif()
 
   # Setup rpath
-  set(CMAKE_INSTALL_RPATH "$ORIGIN/lib:$ORIGIN/leviathan")
+  set(CMAKE_INSTALL_RPATH "$ORIGIN/lib:$ORIGIN/ThirdParty/Leviathan/bin:$ORIGIN/ThirdParty/GQ")
 
   set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
   
@@ -96,40 +96,20 @@ pkg_check_modules(SQLITE3 REQUIRED sqlite3)
 
 include_directories(${SQLITE3_INCLUDE_DIRS})
 
+# end of system dependencies
+
+include_directories("${PROJECT_SOURCE_DIR}")
+
+add_subdirectory(ThirdParty)
+
+if(CREATE_DL_PLUGINS)
+  add_subdirectory(plugins)
+endif()
 
 # Default system threads
 find_package(Threads)
 
-include_directories(leviathan)
-include_directories("${PROJECT_SOURCE_DIR}")
-
-# Configure header
-configure_file("${PROJECT_SOURCE_DIR}/Common.h.in" "${PROJECT_BINARY_DIR}/Common.h")
-# Make a readonly copy of it
-file(COPY "${PROJECT_BINARY_DIR}/Common.h" DESTINATION "${PROJECT_SOURCE_DIR}"
-  NO_SOURCE_PERMISSIONS
-  FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ)
-
-
-add_subdirectory(leviathan)
-add_subdirectory(third_party)
-
-if(CREATE_DL_PLUGINS)
-  add_subdirectory(GQ)
-  add_subdirectory(plugins)
-endif()
-
-add_subdirectory(core)
-
-add_executable(dualviewpp
-  main.cpp
-
-  Common.h
-  )
-
-target_link_libraries(dualviewpp Core ${CMAKE_THREAD_LIBS_INIT}
-  ${CMAKE_DL_LIBS})
-
+add_subdirectory(src)
 
 # Doxygen
 find_package(Doxygen)

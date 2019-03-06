@@ -1,21 +1,21 @@
 #include "catch.hpp"
 
-#include "TestDualView.h"
+#include "CacheManager.h"
+#include "Database.h"
 #include "DummyLog.h"
-#include "core/CacheManager.h"
-#include "core/Database.h"
-#include "core/Settings.h"
-#include "core/components/SuperContainer.h"
-#include "core/resources/Image.h"
-#include "core/resources/Collection.h"
-#include "core/resources/Tags.h"
+#include "Settings.h"
+#include "TestDualView.h"
+#include "components/SuperContainer.h"
+#include "resources/Collection.h"
+#include "resources/Image.h"
+#include "resources/Tags.h"
 
 #include "Common.h"
 
 #include <Magick++.h>
 
-#include <thread>
 #include <memory>
+#include <thread>
 
 #include <boost/filesystem.hpp>
 
@@ -27,21 +27,18 @@ using namespace DV;
 
 class GtkTestsFixture {
 public:
-    
     GtkTestsFixture()
     {
-        app = Gtk::Application::create("com.boostslair.dualview.tests.test" +
-            std::to_string(++InstanceCount));
+        app = Gtk::Application::create(
+            "com.boostslair.dualview.tests.test" + std::to_string(++InstanceCount));
 
         REQUIRE(app->register_application());
     }
 
 protected:
-
     Glib::RefPtr<Gtk::Application> app;
-    
-private:
 
+private:
     static int InstanceCount;
 };
 
@@ -49,9 +46,9 @@ int GtkTestsFixture::InstanceCount = 0;
 
 //#define PRINT_PIXEL_VALUES
 
-void CheckPixel(Glib::RefPtr<Gdk::Pixbuf> &pixbuf, Magick::Image &image, size_t x, size_t y){
-
-    const auto &magickColour = image.pixelColor(x, y);
+void CheckPixel(Glib::RefPtr<Gdk::Pixbuf>& pixbuf, Magick::Image& image, size_t x, size_t y)
+{
+    const auto& magickColour = image.pixelColor(x, y);
     auto* pixels = pixbuf->get_pixels();
     const auto gtkRed = pixels[(x * 3) + (y * pixbuf->get_rowstride())];
     const auto gtkGreen = pixels[(x * 3) + (y * pixbuf->get_rowstride()) + 1];
@@ -62,42 +59,40 @@ void CheckPixel(Glib::RefPtr<Gdk::Pixbuf> &pixbuf, Magick::Image &image, size_t 
     const auto magickBlue = MagickCore::ScaleQuantumToChar(magickColour.blueQuantum());
 
 #ifdef PRINT_PIXEL_VALUES
-    std::cout << "Comparing: " << (int)magickRed << ", "
-        << (int)magickGreen << ", "
-        << (int)magickBlue << std::endl;
+    std::cout << "Comparing: " << (int)magickRed << ", " << (int)magickGreen << ", "
+              << (int)magickBlue << std::endl;
 
-    std::cout << "With     : " << (int)gtkRed << ", "
-        << (int)gtkGreen << ", "
-        << (int)gtkBlue << std::endl;
+    std::cout << "With     : " << (int)gtkRed << ", " << (int)gtkGreen << ", " << (int)gtkBlue
+              << std::endl;
 #endif
-    
-    if(gtkRed != magickRed){
+
+    if(gtkRed != magickRed) {
 
         REQUIRE(false);
     }
 
-    if(gtkGreen != magickGreen){
+    if(gtkGreen != magickGreen) {
 
         REQUIRE(false);
     }
 
-    if(gtkBlue != magickBlue){
+    if(gtkBlue != magickBlue) {
 
         REQUIRE(false);
     }
 }
 
-TEST_CASE_METHOD(GtkTestsFixture, "Gdk pixbuf creation works", "[image][gtk]") {
-
+TEST_CASE_METHOD(GtkTestsFixture, "Gdk pixbuf creation works", "[image][gtk]")
+{
     DV::TestDualView DualView;
-    
-    auto img = DualView.GetCacheManager().LoadFullImage(
-        "data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
+
+    auto img =
+        DualView.GetCacheManager().LoadFullImage("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
 
     REQUIRE(img);
 
     // Loop while loading //
-    while(!img->IsLoaded()){
+    while(!img->IsLoaded()) {
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
@@ -116,24 +111,22 @@ TEST_CASE_METHOD(GtkTestsFixture, "Gdk pixbuf creation works", "[image][gtk]") {
     // Verify pixels //
     Magick::Image& image = img->GetMagickImage()->at(0);
 
-    for(size_t x = 0; x < image.columns(); ++x){
-        for(size_t y = 0; y < image.columns(); ++y){
+    for(size_t x = 0; x < image.columns(); ++x) {
+        for(size_t y = 0; y < image.columns(); ++y) {
 
             CheckPixel(gdkImage, image, x, y);
         }
     }
-    
 }
 
 
 
-TEST_CASE_METHOD(GtkTestsFixture, "Basic SuperContainer operations",
-    "[components][gtk]")
+TEST_CASE_METHOD(GtkTestsFixture, "Basic SuperContainer operations", "[components][gtk]")
 {
     DV::DummyDualView dualview;
-    
+
     Gtk::Window window;
-    
+
     DV::SuperContainer container;
 
     window.add(container);
@@ -144,7 +137,7 @@ TEST_CASE_METHOD(GtkTestsFixture, "Basic SuperContainer operations",
     container.show();
 
     std::vector<std::shared_ptr<DV::Image>> images;
-    
+
     for(int i = 0; i < 30; ++i)
         images.push_back(DV::Image::Create("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg"));
 
@@ -175,31 +168,27 @@ TEST_CASE_METHOD(GtkTestsFixture, "Creating collections and importing image",
 
     REQUIRE_NOTHROW(dualview.GetDatabase().Init());
 
-    while(!img->IsReady()){
+    while(!img->IsReady()) {
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     REQUIRE(img->IsReady());
 
-    SECTION("Import one image to one collection"){
-
-        std::vector<std::shared_ptr<Image>> resources = { img };
+    SECTION("Import one image to one collection")
+    {
+        std::vector<std::shared_ptr<Image>> resources = {img};
 
         TagCollection tags;
-        
-        SECTION("Collection that didn't exist before"){
 
-            REQUIRE(dualview.AddToCollection(resources, false,
-                    "First collection", tags));
+        SECTION("Collection that didn't exist before")
+        {
+            REQUIRE(dualview.AddToCollection(resources, false, "First collection", tags));
 
             // Make sure a file was copied //
             CHECK(boost::filesystem::exists(
-                    boost::filesystem::path(dualview.GetPathToCollection(false)) /
-                    "collections/First collection/7c2c2141cf27cb90620f80400c6bc3c4.jpg"));
+                boost::filesystem::path(dualview.GetPathToCollection(false)) /
+                "collections/First collection/7c2c2141cf27cb90620f80400c6bc3c4.jpg"));
         }
     }
-
 }
-
-

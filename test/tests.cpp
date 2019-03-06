@@ -1,33 +1,34 @@
 #include "catch.hpp"
 
-#include "TestDualView.h"
+#include "CacheManager.h"
+#include "DownloadManager.h"
 #include "DummyLog.h"
-#include "core/CacheManager.h"
-#include "core/Settings.h"
-#include "core/VirtualPath.h"
-#include "core/DownloadManager.h"
+#include "Settings.h"
+#include "TestDualView.h"
+#include "VirtualPath.h"
 
-#include "core/TimeHelpers.h"
+#include "TimeHelpers.h"
 
-#include "leviathan/Common/StringOperations.h"
+#include "Common/StringOperations.h"
 
-#include <thread>
 #include <memory>
+#include <thread>
 
 using namespace DV;
 
-TEST_CASE("Cache Manager loads images", "[image]"){
-
+TEST_CASE("Cache Manager loads images", "[image]")
+{
     DV::TestDualView test;
 
-    SECTION("Normal test image"){
-        auto img = test.GetCacheManager().LoadFullImage(
-            "data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
+    SECTION("Normal test image")
+    {
+        auto img =
+            test.GetCacheManager().LoadFullImage("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
 
         REQUIRE(img);
 
         // Loop while loading //
-        while(!img->IsLoaded()){
+        while(!img->IsLoaded()) {
 
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
@@ -39,22 +40,21 @@ TEST_CASE("Cache Manager loads images", "[image]"){
         CHECK(img->GetHeight() == 1280);
 
         // Same object with the same path //
-        auto img2 = test.GetCacheManager().LoadFullImage(
-            "data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
+        auto img2 =
+            test.GetCacheManager().LoadFullImage("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
 
         CHECK(img2.get() == img.get());
     }
 
 
-    SECTION("Gif image"){
-        
-        auto img = test.GetCacheManager().LoadFullImage(
-            "data/bird bathing.gif");
+    SECTION("Gif image")
+    {
+        auto img = test.GetCacheManager().LoadFullImage("data/bird bathing.gif");
 
         REQUIRE(img);
 
         // Loop while loading //
-        while(!img->IsLoaded()){
+        while(!img->IsLoaded()) {
 
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
@@ -70,18 +70,18 @@ TEST_CASE("Cache Manager loads images", "[image]"){
     }
 }
 
-TEST_CASE("Settings right default stuff", "[random][settings]"){
-
+TEST_CASE("Settings right default stuff", "[random][settings]")
+{
     DV::DummyDualView dv;
     DV::Settings settings("settings_test_settingsfile");
 
     CHECK(settings.GetDatabaseFile() == "./dualview.sqlite");
 }
 
-TEST_CASE("VirtualPath operations", "[path]"){
-
-    SECTION("Path combine works"){
-
+TEST_CASE("VirtualPath operations", "[path]")
+{
+    SECTION("Path combine works")
+    {
         CHECK(VirtualPath() / VirtualPath("my folder") == VirtualPath("Root/my folder"));
 
         CHECK(VirtualPath() / VirtualPath("/my folder") == VirtualPath("Root/my folder"));
@@ -93,15 +93,15 @@ TEST_CASE("VirtualPath operations", "[path]"){
 
         CHECK(VirtualPath() / VirtualPath("my folder/") == VirtualPath("Root/my folder/"));
 
-        CHECK(VirtualPath() / VirtualPath("Root/my folder/") ==
-            VirtualPath("Root/my folder/"));
+        CHECK(
+            VirtualPath() / VirtualPath("Root/my folder/") == VirtualPath("Root/my folder/"));
 
         CHECK(VirtualPath("Root/first - folder") / VirtualPath("/second") ==
-            VirtualPath("Root/first - folder/second"));
+              VirtualPath("Root/first - folder/second"));
     }
 
-    SECTION("Up one folder works"){
-
+    SECTION("Up one folder works")
+    {
         VirtualPath path1("Root/folder");
 
         path1.MoveUpOneFolder();
@@ -109,35 +109,35 @@ TEST_CASE("VirtualPath operations", "[path]"){
         CHECK(path1 == VirtualPath());
 
         CHECK(--VirtualPath("Root/first - folder/second") ==
-            VirtualPath("Root/first - folder/"));
+              VirtualPath("Root/first - folder/"));
 
         CHECK(--VirtualPath("Root/first/second/") == VirtualPath("Root/first/"));
     }
 
-    SECTION("Up multiple times works"){
-
+    SECTION("Up multiple times works")
+    {
         CHECK(--(--VirtualPath("Root/first/second/")) == VirtualPath("Root/"));
     }
 
-    SECTION("Up and then combine"){
-
+    SECTION("Up and then combine")
+    {
         CHECK(--VirtualPath("Root/first/second/") / VirtualPath("other") ==
-            VirtualPath("Root/first/other"));
+              VirtualPath("Root/first/other"));
     }
 
-    SECTION("Iterating"){
-
-        SECTION("premade path"){
-
+    SECTION("Iterating")
+    {
+        SECTION("premade path")
+        {
             VirtualPath path;
-            
-            SECTION("With trailing '/'"){
 
+            SECTION("With trailing '/'")
+            {
                 path = VirtualPath("Root/my folder/other folder/last/");
             }
 
-            SECTION("No trailing '/'"){
-
+            SECTION("No trailing '/'")
+            {
                 path = VirtualPath("Root/my folder/other folder/last");
             }
 
@@ -147,7 +147,7 @@ TEST_CASE("VirtualPath operations", "[path]"){
             CHECK(path.end() == path.end());
 
             CHECK(*iter == "Root");
-            
+
             CHECK(++iter != path.end());
             CHECK(*iter == "my folder");
 
@@ -159,19 +159,18 @@ TEST_CASE("VirtualPath operations", "[path]"){
 
             CHECK(++iter == path.end());
             CHECK(*iter == "");
-            
         }
 
-        SECTION("Going backwards from begin is end"){
-
+        SECTION("Going backwards from begin is end")
+        {
             VirtualPath path("Root/folder");
 
             CHECK(--path.begin() == path.end());
         }
     }
 
-    SECTION("Folder path resolve type prepending"){
-
+    SECTION("Folder path resolve type prepending")
+    {
         CHECK(static_cast<std::string>((VirtualPath() / VirtualPath(""))) == "Root/");
 
         CHECK(static_cast<std::string>((VirtualPath("") / VirtualPath())) == "Root/");
@@ -182,98 +181,92 @@ TEST_CASE("VirtualPath operations", "[path]"){
     }
 }
 
-TEST_CASE("Datetime parsing", "[db][time]"){
-
+TEST_CASE("Datetime parsing", "[db][time]")
+{
     DummyDualView dv;
-    //const std::string original = "2016-09-18T20:07:49.7532581+03:00";
+    // const std::string original = "2016-09-18T20:07:49.7532581+03:00";
     const std::string original = "2016-09-18T20:07:49.753+03:00";
 
     REQUIRE_NOTHROW(TimeHelpers::parse8601(original));
 
-    SECTION("Formatting yields original string"){
-
+    SECTION("Formatting yields original string")
+    {
         auto time = TimeHelpers::parse8601(original);
 
         CHECK(TimeHelpers::format8601(time) == original);
     }
 }
 
-TEST_CASE("Filename from URL", "[url][download]"){
-
-    SECTION("Normal names"){
+TEST_CASE("Filename from URL", "[url][download]")
+{
+    SECTION("Normal names")
+    {
         CHECK(DownloadManager::ExtractFileName(
-                "http://w.com//images/eb/3f/eb3f8e3a01665cc99794bb7017dd5b92.jpg?3427768") ==
-            "eb3f8e3a01665cc99794bb7017dd5b92.jpg");
+                  "http://w.com//images/eb/3f/eb3f8e3a01665cc99794bb7017dd5b92.jpg?3427768") ==
+              "eb3f8e3a01665cc99794bb7017dd5b92.jpg");
 
         CHECK(DownloadManager::ExtractFileName("http://i.imgur.com/AF7pCun.jpg") ==
-            "AF7pCun.jpg");
-        
-        CHECK(DownloadManager::ExtractFileName(
-                "http://x.abs.com/u/ufo/6495436/263030533/82.jpg")
-            == "82.jpg");
-    }
-
-    SECTION("Unescaping stuff"){
+              "AF7pCun.jpg");
 
         CHECK(DownloadManager::ExtractFileName(
-                "http://normalsite.com/contents/My%20cool%20image%20%3Ahere.jpg")
-            == "My cool image :here.jpg");
+                  "http://x.abs.com/u/ufo/6495436/263030533/82.jpg") == "82.jpg");
     }
 
-    SECTION("Sneaky slashes"){
-
+    SECTION("Unescaping stuff")
+    {
         CHECK(DownloadManager::ExtractFileName(
-                "http://normalsite.com/contents/My%20cool%20image%20%3%2Ahere.jpg").
-            find_first_of('/') == std::string::npos);
+                  "http://normalsite.com/contents/My%20cool%20image%20%3Ahere.jpg") ==
+              "My cool image :here.jpg");
     }
 
-    SECTION("Real world examples"){
-
+    SECTION("Sneaky slashes")
+    {
         CHECK(DownloadManager::ExtractFileName(
-                "http://x.site.com/u/usrname/6525068/348430179/04_thief.jpg")
-            == "04_thief.jpg");
+                  "http://normalsite.com/contents/My%20cool%20image%20%3%2Ahere.jpg")
+                  .find_first_of('/') == std::string::npos);
     }
-    
+
+    SECTION("Real world examples")
+    {
+        CHECK(DownloadManager::ExtractFileName(
+                  "http://x.site.com/u/usrname/6525068/348430179/04_thief.jpg") ==
+              "04_thief.jpg");
+    }
 }
 
-TEST_CASE("CacheManager database path translations", "[path][db]"){
-
+TEST_CASE("CacheManager database path translations", "[path][db]")
+{
     DV::MemorySettingsDualView dv;
     REQUIRE(dv.GetSettings().GetPrivateCollection() == "./private_collection/");
 
     REQUIRE(Leviathan::StringOperations::StringStartsWith<std::string>(
-            "./private_collection/collections/users data/image1.jpg",
-            "./private_collection/"));
+        "./private_collection/collections/users data/image1.jpg", "./private_collection/"));
 
-    SECTION("Basic valid things"){
-        
+    SECTION("Basic valid things")
+    {
         CHECK(CacheManager::GetDatabaseImagePath(
-                "./private_collection/collections/users data/image1.jpg") ==
-            ":?scl/collections/users data/image1.jpg");
+                  "./private_collection/collections/users data/image1.jpg") ==
+              ":?scl/collections/users data/image1.jpg");
 
         CHECK(CacheManager::GetDatabaseImagePath(
-                "./public_collection/collections/users data/image1.jpg") ==
-            ":?ocl/collections/users data/image1.jpg");
-        
-        CHECK(CacheManager::GetFinalImagePath(
-                ":?ocl/collections/users data/image1.jpg") == 
-                "./public_collection/collections/users data/image1.jpg");
+                  "./public_collection/collections/users data/image1.jpg") ==
+              ":?ocl/collections/users data/image1.jpg");
 
-        CHECK(CacheManager::GetFinalImagePath(
-                ":?scl/collections/users data/image1.jpg") == 
-            "./private_collection/collections/users data/image1.jpg");
+        CHECK(CacheManager::GetFinalImagePath(":?ocl/collections/users data/image1.jpg") ==
+              "./public_collection/collections/users data/image1.jpg");
+
+        CHECK(CacheManager::GetFinalImagePath(":?scl/collections/users data/image1.jpg") ==
+              "./private_collection/collections/users data/image1.jpg");
     }
 
-    SECTION("legacy paths"){
+    SECTION("legacy paths")
+    {
+        CHECK(CacheManager::GetFinalImagePath(
+                  "./public_collection/collections/users data/image1.jpg") ==
+              "./public_collection/collections/users data/image1.jpg");
 
         CHECK(CacheManager::GetFinalImagePath(
-                "./public_collection/collections/users data/image1.jpg") == 
-            "./public_collection/collections/users data/image1.jpg");
-
-        CHECK(CacheManager::GetFinalImagePath(
-                "./private_collection/collections/users data/image1.jpg") == 
-            "./private_collection/collections/users data/image1.jpg");
+                  "./private_collection/collections/users data/image1.jpg") ==
+              "./private_collection/collections/users data/image1.jpg");
     }
 }
-
-

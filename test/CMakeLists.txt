@@ -3,7 +3,7 @@ set(CMAKE_INSTALL_RPATH "$ORIGIN/../leviathan:$ORIGIN/../GQ:$ORIGIN/../lib")
 
 set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
 
-include_directories("${PROJECT_SOURCE_DIR}/third_party")
+set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib:$ORIGIN/../ThirdParty/Leviathan/bin")
 
 add_executable(Test
   testmain.cpp

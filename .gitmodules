@@ -1,3 +1,6 @@
-[submodule "third_party/date"]
-	path = third_party/date
+[submodule "ThirdParty/Leviathan"]
+	path = ThirdParty/Leviathan
+	url = https://github.com/hhyyrylainen/Leviathan.git
+[submodule "ThirdParty/date"]
+	path = ThirdParty/date
 	url = https://github.com/HowardHinnant/date.git

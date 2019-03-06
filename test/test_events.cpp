@@ -1,23 +1,22 @@
 #include "catch.hpp"
 
-#include "core/ChangeEvents.h"
+#include "ChangeEvents.h"
 
 using namespace DV;
 
-class NotifyChecker : public Leviathan::BaseNotifiableAll{
+class NotifyChecker : public Leviathan::BaseNotifiableAll {
 public:
-
-    void OnNotified(Lock &ownlock, Leviathan::BaseNotifierAll* parent, Lock &parentlock)
-        override
+    void OnNotified(
+        Lock& ownlock, Leviathan::BaseNotifierAll* parent, Lock& parentlock) override
     {
         Notified = true;
     }
-    
+
     bool Notified = false;
 };
 
-TEST_CASE("Change events work correctly", "[db][events]"){
-
+TEST_CASE("Change events work correctly", "[db][events]")
+{
     ChangeEvents events;
 
     NotifyChecker obj1;
@@ -25,8 +24,8 @@ TEST_CASE("Change events work correctly", "[db][events]"){
     NotifyChecker obj3;
 
 
-    SECTION("Single event fire"){
-
+    SECTION("Single event fire")
+    {
         {
             GUARD_LOCK_OTHER(obj1);
             events.RegisterForEvent(CHANGED_EVENT::NET_GALLERY_CREATED, &obj1, guard);
@@ -41,8 +40,8 @@ TEST_CASE("Change events work correctly", "[db][events]"){
         CHECK(!obj3.Notified);
     }
 
-    SECTION("Single event doesn't fire other events"){
-
+    SECTION("Single event doesn't fire other events")
+    {
         {
             GUARD_LOCK_OTHER(obj1);
             events.RegisterForEvent(CHANGED_EVENT::NET_GALLERY_CREATED, &obj1, guard);
@@ -65,7 +64,7 @@ TEST_CASE("Change events work correctly", "[db][events]"){
         CHECK(obj3.Notified);
 
         events.FireEvent(CHANGED_EVENT::COLLECTION_CREATED);
-        
+
         CHECK(obj1.Notified);
         CHECK(obj2.Notified);
         CHECK(obj3.Notified);
@@ -80,6 +79,4 @@ TEST_CASE("Change events work correctly", "[db][events]"){
         CHECK(obj2.Notified);
         CHECK(!obj3.Notified);
     }
-
-
 }
