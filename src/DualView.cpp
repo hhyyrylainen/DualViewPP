@@ -8,6 +8,7 @@
 #include "windows/DebugWindow.h"
 #include "windows/DownloadSetup.h"
 #include "windows/Downloader.h"
+#include "windows/DuplicateFinder.h"
 #include "windows/FolderCreator.h"
 #include "windows/ImageFinder.h"
 #include "windows/Importer.h"
@@ -15,6 +16,7 @@
 #include "windows/SingleCollection.h"
 #include "windows/SingleView.h"
 #include "windows/TagManager.h"
+#include "windows/Undo.h"
 
 #include "CacheManager.h"
 #include "ChangeEvents.h"
@@ -303,6 +305,14 @@ void DualView::_OnInstanceLoaded()
 
     OpenDebug->signal_clicked().connect(sigc::mem_fun(*this, &DualView::OpenDebug_OnClick));
 
+    Gtk::ToolButton* OpenUndo = nullptr;
+
+    MainBuilder->get_widget("OpenUndoWindow", OpenUndo);
+    LEVIATHAN_ASSERT(OpenUndo, "Invalid .glade file");
+
+    OpenUndo->signal_clicked().connect(
+        sigc::mem_fun(*this, &DualView::OpenUndoWindow_OnClick));
+
     Gtk::Button* OpenImporter = nullptr;
     MainBuilder->get_widget("OpenImporter", OpenImporter);
     LEVIATHAN_ASSERT(OpenImporter, "Invalid .glade file");
@@ -330,6 +340,13 @@ void DualView::_OnInstanceLoaded()
 
     OpenImageFinder->signal_clicked().connect(
         sigc::mem_fun<void>(*this, &DualView::OpenImageFinder));
+
+    Gtk::Button* openDuplicateFinder = nullptr;
+    MainBuilder->get_widget("OpenDuplicateFinder", openDuplicateFinder);
+    LEVIATHAN_ASSERT(openDuplicateFinder, "Invalid .glade file");
+
+    openDuplicateFinder->signal_clicked().connect(
+        sigc::mem_fun<void>(*this, &DualView::OpenDuplicateFinder_OnClick));
 
 
     //_CollectionView
@@ -1245,6 +1262,43 @@ void DualView::OpenImageFinder()
     std::shared_ptr<ImageFinder> wrapped(window);
     _AddOpenWindow(wrapped, *window);
     wrapped->show();
+}
+
+
+void DualView::OpenUndoWindow()
+{
+    AssertIfNotMainThread();
+
+    auto existing = _UndoWindow.lock();
+
+    if(existing) {
+        existing->show();
+        return;
+    }
+
+    auto window = std::make_shared<UndoWindow>();
+    _AddOpenWindow(window, *window);
+    window->show();
+
+    _UndoWindow = window;
+}
+
+void DualView::OpenDuplicateFinder()
+{
+    AssertIfNotMainThread();
+
+    auto existing = _DuplicateFinderWindow.lock();
+
+    if(existing) {
+        existing->show();
+        return;
+    }
+
+    auto window = std::make_shared<DuplicateFinderWindow>();
+    _AddOpenWindow(window, *window);
+    window->show();
+
+    _DuplicateFinderWindow = window;
 }
 // ------------------------------------ //
 void DualView::OnNewImageLinkReceived(const std::string& url, const std::string& referrer)
@@ -2439,6 +2493,26 @@ void DualView::OpenDebug_OnClick()
     Application->add_window(*_DebugWindow);
     _DebugWindow->show();
     _DebugWindow->present();
+}
+
+void DualView::OpenUndoWindow_OnClick()
+{
+    OpenUndoWindow();
+
+    auto window = _UndoWindow.lock();
+
+    if(window)
+        window->present();
+}
+
+void DualView::OpenDuplicateFinder_OnClick()
+{
+    OpenDuplicateFinder();
+
+    auto window = _DuplicateFinderWindow.lock();
+
+    if(window)
+        window->present();
 }
 // ------------------------------------ //
 std::string DualView::MakePathUniqueAndShort(const std::string& path)

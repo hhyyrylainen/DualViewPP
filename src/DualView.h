@@ -7,19 +7,19 @@
 
 #include "VirtualPath.h"
 
+#include <atomic>
 #include <condition_variable>
+#include <memory>
 #include <mutex>
 #include <thread>
-#include <atomic>
-#include <memory>
 
 
-namespace Leviathan{
+namespace Leviathan {
 
 class Logger;
 }
 
-namespace DV{
+namespace DV {
 
 class Image;
 class TagCollection;
@@ -44,13 +44,15 @@ class TagManager;
 class Downloader;
 class DownloadSetup;
 class DebugWindow;
+class DuplicateFinderWindow;
+class UndoWindow;
+class ReorderWindow;
 
 struct ResolvePathInfinityBlocker;
 
 //! \brief Main class that contains all the windows and systems
-class DualView {    
+class DualView {
 public:
-
     //! \brief Loads the GUI layout files and starts
     DualView(Glib::RefPtr<Gtk::Application> app);
 
@@ -59,11 +61,11 @@ public:
 
     //! \brief Opens an image viewer for a file
     //! \returns True if opened. False if the file isn't supported
-    bool OpenImageViewer(const std::string &file);
+    bool OpenImageViewer(const std::string& file);
 
     //! \brief Opens an image viewer for a file
-    void OpenImageViewer(std::shared_ptr<Image> image,
-        std::shared_ptr<ImageListScroll> scroll);
+    void OpenImageViewer(
+        std::shared_ptr<Image> image, std::shared_ptr<ImageListScroll> scroll);
 
     //! \brief Opens Collection viewer for collection
     void OpenSingleCollectionView(std::shared_ptr<Collection> collection);
@@ -75,10 +77,10 @@ public:
     void OpenRemoveFromFolders(std::shared_ptr<Collection> collection);
 
     //! \brief Opens the tag creation window with the text already filled in
-    void OpenTagCreator(const std::string &settext);
+    void OpenTagCreator(const std::string& settext);
 
     //! \brief Opens tag info window with the specified tag selected / as the search text
-    void OpenTagInfo(const std::string &tagtext);
+    void OpenTagInfo(const std::string& tagtext);
 
     //! \brief Opens the tag creation window
     void OpenTagCreator();
@@ -87,13 +89,22 @@ public:
     void OpenImporter();
 
     //! \brief Opens an Importer with specified database images
-    void OpenImporter(const std::vector<std::shared_ptr<Image>> &images);
+    void OpenImporter(const std::vector<std::shared_ptr<Image>>& images);
 
     //! \brief Opens the Downloader
     void OpenDownloader();
 
     //! \brief Opens a new ImageFinder window
     void OpenImageFinder();
+
+    //! \brief Opens the undo actions window
+    void OpenUndoWindow();
+
+    //! \brief Opens the window for finding duplicate images
+    void OpenDuplicateFinder();
+
+    //! \brief Opens a window for reordering the collection
+    void OpenReorder(std::shared_ptr<Collection> collection);
 
     //! \brief Opens a setup window for a new downloadable gallery
     //! \param useropened True when the user clicked something and this was opened. If this is
@@ -102,22 +113,22 @@ public:
     void OpenDownloadSetup(bool useropened = true, bool capture = false);
 
     //! \brief Opens a download setup for a link that was sent to us from another program
-    void OnNewImageLinkReceived(const std::string &url, const std::string &referrer);
+    void OnNewImageLinkReceived(const std::string& url, const std::string& referrer);
 
     //! \brief Opens a download setup for a gallery that was sent to us from another program
-    void OnNewGalleryLinkReceived(const std::string &url);
+    void OnNewGalleryLinkReceived(const std::string& url);
 
     //! \brief Opens a download setup for a page that contains a single image and not
     //! a gallery
-    void OnNewImagePageLinkReceived(const std::string &url);
-    
+    void OnNewImagePageLinkReceived(const std::string& url);
+
 
     //! \brief Runs folder creator as a modal window
-    void RunFolderCreatorAsDialog(const VirtualPath &path, const std::string &prefillnewname,
-        Gtk::Window &parentwindow);
+    void RunFolderCreatorAsDialog(
+        const VirtualPath& path, const std::string& prefillnewname, Gtk::Window& parentwindow);
 
     //! \brief Registers a gtk window with the gtk instance
-    void RegisterWindow(Gtk::Window &window);
+    void RegisterWindow(Gtk::Window& window);
 
     //! \brief Adds a closed message to the queue and invokes the main thread
     //! \param event The event that has a pointer to the closed window. This
@@ -130,7 +141,7 @@ public:
     //! thread
     void InvokeFunction(std::function<void()> func);
 
-    
+
     //! \brief Adds an image to the hash calculation queue
     //!
     //! After the image is added its hash will be calculated on a worker thread.
@@ -151,7 +162,7 @@ public:
     //! \brief Makes sure function is ran on the main thread.
     //!
     //! Either by queueing it or running it immediately if the main thread calls this function
-    void RunOnMainThread(const std::function<void()> &func);
+    void RunOnMainThread(const std::function<void()>& func);
 
     //! \brief Returns a path to the collection root folder, where imported images are
     //! copied or moved to
@@ -159,18 +170,18 @@ public:
 
     //! \brief Makes a target file path shorter than DUALVIEW_MAX_ALLOWED_PATH and one
     //! that doesn't exist
-    static std::string MakePathUniqueAndShort(const std::string &path);
+    static std::string MakePathUniqueAndShort(const std::string& path);
 
     //! \brief Calculates a sha hash of a string and base64 encodes it
     //!
     //! Also any characters not valid in paths will be replaced
-    static std::string CalculateBase64EncodedHash(const std::string &str);
-    
+    static std::string CalculateBase64EncodedHash(const std::string& str);
+
     //! \brief Moves an image to the folder determined from the collection's name
     //! \return True if succeeded, false if it failed for some reason
     //! \param move If true the file will be moved. If false the file will be copied instead
-    bool MoveFileToCollectionFolder(std::shared_ptr<Image> img,
-        std::shared_ptr<Collection> collection, bool move);
+    bool MoveFileToCollectionFolder(
+        std::shared_ptr<Image> img, std::shared_ptr<Collection> collection, bool move);
 
     //! \brief Function for moving files.
     //!
@@ -179,32 +190,32 @@ public:
     //! \note targetname will be overwritten if it exists already
     //! \returns False if cannot move
     //! \exception boost::filesystem::filesystem_error When something is badly wrong
-    static bool MoveFile(const std::string &original, const std::string &targetname);
+    static bool MoveFile(const std::string& original, const std::string& targetname);
 
     //! \brief Returns true if string is in SUPPORTED_EXTENSIONS
-    static bool IsExtensionContent(const std::string &extension);
-    
-    //! \brief Returns true if file extension is in SUPPORTED_EXTENSIONS
-    static bool IsFileContent(const std::string &file);
+    static bool IsExtensionContent(const std::string& extension);
 
-    
+    //! \brief Returns true if file extension is in SUPPORTED_EXTENSIONS
+    static bool IsFileContent(const std::string& file);
+
+
     //
     // Database insert and modify functions
     //
-    
+
     //! \brief Imports images to the database and adds them to the collection
     //! \param move If true the original file is deleted (only if  the file is not in the
     //! collection folder)
     bool AddToCollection(std::vector<std::shared_ptr<Image>> resources, bool move,
-        std::string collectionname, const TagCollection &addcollectiontags,
+        std::string collectionname, const TagCollection& addcollectiontags,
         std::function<void(float)> progresscallback = nullptr);
 
     //! \brief Removes an Image from Collection and makes sure it is at least in Uncategorized
-    void RemoveImageFromCollection(std::shared_ptr<Image> resource,
-        std::shared_ptr<Collection> collection);
+    void RemoveImageFromCollection(
+        std::shared_ptr<Image> resource, std::shared_ptr<Collection> collection);
 
     //! \brief Retrieves a Collection from the database by name
-    std::shared_ptr<Collection> GetOrCreateCollection(const std::string &name, bool isprivate);
+    std::shared_ptr<Collection> GetOrCreateCollection(const std::string& name, bool isprivate);
 
     //! \brief Adds a Collection to a Folder
     //! \note If added to any other folder than root and removefromroot is true
@@ -215,10 +226,10 @@ public:
     //! \brief Removes a Collection from a folder
     //!
     //! If the Collection is no longer in any folder it will be added to root
-    void RemoveCollectionFromFolder(std::shared_ptr<Collection> collection,
-        std::shared_ptr<Folder> folder);
-        
-    
+    void RemoveCollectionFromFolder(
+        std::shared_ptr<Collection> collection, std::shared_ptr<Folder> folder);
+
+
     //
     // Database object retrieve functions
     //
@@ -232,7 +243,7 @@ public:
     //! \brief Retrieves a Folder from path
     //! \returns Null if the folder doesn't exist
     //! \todo Fix " and ' in the path
-    std::shared_ptr<Folder> GetFolderFromPath(const VirtualPath &path);
+    std::shared_ptr<Folder> GetFolderFromPath(const VirtualPath& path);
 
     //! \brief Returns the first viable path to folder with id
     //! \note This cannot always properly handle circular parent folders
@@ -246,91 +257,91 @@ public:
     //! \brief Parses a tag and returns a list of suggestions
     //!
     //! If the str is a valid tag the first suggestion == str
-    std::vector<std::string> GetSuggestionsForTag(std::string str, size_t maxcount = 100)
-        const;
+    std::vector<std::string> GetSuggestionsForTag(
+        std::string str, size_t maxcount = 100) const;
 
     //! \brief Retrieves tag names, modifiers, aliases, super aliases, and common modifiers
     //! containing str
-    void RetrieveTagsMatching(std::vector<std::string> &result, const std::string &str) const;
+    void RetrieveTagsMatching(std::vector<std::string>& result, const std::string& str) const;
 
 
-    
+
 
     //! \brief Helper for ParseTagFromString
     //!
     //! Parses tag that matches a break rule
     //! \todo Select all possibly working rules from the database (currently selects only one)
-    std::shared_ptr<AppliedTag> ParseTagWithBreakRule(const std::string &str) const;
+    std::shared_ptr<AppliedTag> ParseTagWithBreakRule(const std::string& str) const;
 
     //! \brief Helper for ParseTagFromString
     //!
     //! \returns replacement text for str if it matches a super alias
-    std::string GetExpandedTagFromSuperAlias(const std::string &str) const;
+    std::string GetExpandedTagFromSuperAlias(const std::string& str) const;
 
     //! \brief Helper for ParseTagFromString
     //!
     //! Parses a tag that is only a name, by either it being a tag, an alias, there being a
     //! matching break rule OR with a super alias (will throw if the super alias is invalid)
-    std::shared_ptr<AppliedTag> ParseTagName(const std::string &str) const;
+    std::shared_ptr<AppliedTag> ParseTagName(const std::string& str) const;
 
     //! \brief Helper for ParseTagFromString
     //!
     //! Parses tag of the form: "tag word tag"
     //! \note The first AppliedTag will have the CombinedWith member set
     std::tuple<std::shared_ptr<AppliedTag>, std::string, std::shared_ptr<AppliedTag>>
-        ParseTagWithComposite(const std::string &str) const;
-    
+        ParseTagWithComposite(const std::string& str) const;
+
     //! \brief Helper for ParseTagFromString
     //!
     //! Parses tag of the form: "modifier modifier tag"
-    std::shared_ptr<AppliedTag>
-        ParseTagWithOnlyModifiers(const std::string &str) const;
-        
+    std::shared_ptr<AppliedTag> ParseTagWithOnlyModifiers(const std::string& str) const;
+
     //! \brief Returns the thumbnail folder
     std::string GetThumbnailFolder() const;
 
     //! \brief Returns the CacheManager. use to load images
     //! \todo Assert if _CacheManager is null
-    inline CacheManager& GetCacheManager() const{
+    inline CacheManager& GetCacheManager() const
+    {
 
         return *_CacheManager;
     }
 
     //! \brief Returns the Database. Query all data from here
     //! \todo Assert if _Database is null
-    inline Database& GetDatabase() const{
-
+    inline Database& GetDatabase() const
+    {
         return *_Database;
     }
 
     //! \brief Returns settings
     //! \todo Assert if _Settings is null
-    inline Settings& GetSettings() const{
-
+    inline Settings& GetSettings() const
+    {
         return *_Settings;
     }
 
     //! \brief Returns the logger object
-    inline Leviathan::Logger* GetLogger() const{
-
+    inline Leviathan::Logger* GetLogger() const
+    {
         return _Logger.get();
     }
 
-    inline DownloadManager& GetDownloadManager() const{
-        
+    inline DownloadManager& GetDownloadManager() const
+    {
         return *_DownloadManager;
     }
 
-    inline PluginManager& GetPluginManager() const{
-        
+    inline PluginManager& GetPluginManager() const
+    {
         return *_PluginManager;
     }
 
-    inline ChangeEvents& GetEvents() const{
-
+    inline ChangeEvents& GetEvents() const
+    {
         return *_ChangeEvents;
     }
-    
+
     //! \brief Returns true if called on the main thread
     //!
     //! Used to detect errors where functions are called on the wrong thread
@@ -338,25 +349,24 @@ public:
 
     //! \brief Asserts if IsOnMainThread returns false
     static void IsOnMainThreadAssert();
-    
+
     //! \brief Returns the global instance or asserts and quits the program
     static DualView& Get();
 
 protected:
-
     //! Helper for DualView::ParseTagWithOnlyModifiers
     std::shared_ptr<AppliedTag> ParseHelperCheckModifiersAndBreakRules(
-        const std::shared_ptr<AppliedTag> &maintag, const std::vector<std::string*> &words,
+        const std::shared_ptr<AppliedTag>& maintag, const std::vector<std::string*>& words,
         bool taglast) const;
 
     //! \brief Constructor for test subclass to use
-    DualView(bool tests, const std::string &dbfile);
+    DualView(bool tests, const std::string& dbfile);
 
     //! \brief Constructor for test subclass to use
     DualView(bool tests, bool memorysettings);
 
     //! \brief Constructor for test subclass to use
-    DualView(std::string tests, std::unique_ptr<Database> &&db = nullptr);
+    DualView(std::string tests, std::unique_ptr<Database>&& db = nullptr);
 
     //! \brief Ran in the loader thread
     void _RunInitThread();
@@ -378,11 +388,11 @@ protected:
     //! This is needed to make sure that they aren't deallocated immediately
     //! also gtk parameter is needed to make sure that the program doesn't quit if there are
     //! other windows open.
-    void _AddOpenWindow(std::shared_ptr<BaseWindow> window, Gtk::Window &gtk);
+    void _AddOpenWindow(std::shared_ptr<BaseWindow> window, Gtk::Window& gtk);
 
     //! \brief Processes InvokeQueue
     void _ProcessInvokeQueue();
-    
+
     //! \brief Processes hash calculation queue
     //! \todo Make this return images that are duplicates of currently loaded images,
     //! that are loaded but aren't in the database
@@ -398,10 +408,9 @@ protected:
     void _RunConditionalThread();
 
     std::tuple<bool, VirtualPath> ResolvePathHelperRecursive(DBID currentid,
-        const VirtualPath &currentpath, const ResolvePathInfinityBlocker &earlieritems);
-    
-private:
+        const VirtualPath& currentpath, const ResolvePathInfinityBlocker& earlieritems);
 
+private:
     // Gtk callbacks
     void OpenImageFile_OnClick();
 
@@ -409,19 +418,23 @@ private:
 
     void OpenDebug_OnClick();
 
+    void OpenUndoWindow_OnClick();
+
+    void OpenDuplicateFinder_OnClick();
+
     //! Once an instance is loaded init can start properly
     void _OnInstanceLoaded();
 
     //! \brief Extra instances will pass parameters here
     //! \returns The exit code for the extra instance
-    int _HandleCmdLine(const Glib::RefPtr<Gio::ApplicationCommandLine> &command_line);
+    int _HandleCmdLine(const Glib::RefPtr<Gio::ApplicationCommandLine>& command_line);
 
 
-    int _OnPreParseCommandLine(const Glib::RefPtr<Glib::VariantDict> &options);
+    int _OnPreParseCommandLine(const Glib::RefPtr<Glib::VariantDict>& options);
 
     //! \brief Receives a list of files to open
-    void _OnSignalOpen(const std::vector<Glib::RefPtr<Gio::File>> &files,
-        const Glib::ustring &stuff);
+    void _OnSignalOpen(
+        const std::vector<Glib::RefPtr<Gio::File>>& files, const Glib::ustring& stuff);
 
     //! \brief Starts the background worker threads
     virtual void _StartWorkerThreads();
@@ -431,13 +444,12 @@ private:
     //! Must be called before destructing, otherwise the background threads will
     //! assert
     virtual void _WaitForWorkerThreads();
-    
-private:
 
+private:
     Glib::RefPtr<Gtk::Application> Application;
 
     Glib::RefPtr<Gtk::Builder> MainBuilder;
-    
+
     Gtk::Window* MainMenu = nullptr;
     Gtk::Window* WelcomeWindow = nullptr;
 
@@ -445,7 +457,7 @@ private:
     //! \note Do not access directly, use the Get method for this. This may not be initialized
     //! if the Get method hasn't been called
     std::shared_ptr<Collection> UncategorizedCollection;
-    
+
     //! The root folder. All collections must be in a folder that is a descendant of the root
     //! folder. Otherwise the collection is invisible
     //! \note Do not access directly, use the Get method for this. This may not be initialized
@@ -465,11 +477,11 @@ private:
     std::thread DateInitThread;
     Glib::Dispatcher StartDispatcher;
 
-    std::atomic<bool> LoadError = { false };
-    std::atomic<bool> QuitWorkerThreads = { false };
+    std::atomic<bool> LoadError = {false};
+    std::atomic<bool> QuitWorkerThreads = {false};
 
     //! Set to true once _OnLoadingFinished is done
-    std::atomic<bool> LoadCompletelyFinished = { false };
+    std::atomic<bool> LoadCompletelyFinished = {false};
 
     //! Used to call the main thread when a message has been added
     Glib::Dispatcher MessageDispatcher;
@@ -486,7 +498,7 @@ private:
     Glib::Dispatcher InvokeDispatcher;
 
     //! Queued functions to run on the main thread
-    std::list<std::function<void ()>> InvokeQueue;
+    std::list<std::function<void()>> InvokeQueue;
     std::mutex InvokeQueueMutex;
 
     //! Mutex for accessing QueuedCmds
@@ -516,6 +528,12 @@ private:
 
     //! Debug buttons window
     std::shared_ptr<DebugWindow> _DebugWindow;
+
+    //! Undo window (strong ref is in OpenWindows)
+    std::weak_ptr<UndoWindow> _UndoWindow;
+
+    //! Duplicate finder window (strong ref is in OpenWindows)
+    std::weak_ptr<DuplicateFinderWindow> _DuplicateFinderWindow;
 
     //! Plugin manager. For loading extra functionality
     std::unique_ptr<PluginManager> _PluginManager;
@@ -558,7 +576,7 @@ private:
 
     //! Worker threads
     std::thread Worker1Thread;
-    
+
     std::condition_variable WorkerThreadNotify;
     std::list<std::unique_ptr<std::function<void()>>> WorkerFuncQueue;
     std::mutex WorkerFuncQueueMutex;
@@ -575,5 +593,4 @@ private:
 };
 
 
-}
-
+} // namespace DV

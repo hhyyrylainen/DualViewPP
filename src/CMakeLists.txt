@@ -69,6 +69,8 @@ add_library(Core
   windows/RemoveFromFolders.h windows/RemoveFromFolders.cpp
   windows/DebugWindow.h windows/DebugWindow.cpp
   windows/ImageFinder.h windows/ImageFinder.cpp
+  windows/Undo.h windows/Undo.cpp
+  windows/DuplicateFinder.h windows/DuplicateFinder.cpp
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp

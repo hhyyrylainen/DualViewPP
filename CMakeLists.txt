@@ -42,6 +42,8 @@ else(WIN32)
   
 endif(WIN32)
 
+# TODO: should set GTKMM_DISABLE_DEPRECATED
+
 # Find boost
 find_package(Boost REQUIRED COMPONENTS filesystem locale)
 

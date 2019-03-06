@@ -159,7 +159,6 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
 
 DownloadSetup::~DownloadSetup()
 {
-
     Close();
 }
 
@@ -167,7 +166,6 @@ std::atomic<DownloadSetup*> DownloadSetup::IsSomeGloballyActive = {nullptr};
 // ------------------------------------ //
 void DownloadSetup::_OnClose()
 {
-
     DualView::IsOnMainThreadAssert();
 
     // Release the global set
