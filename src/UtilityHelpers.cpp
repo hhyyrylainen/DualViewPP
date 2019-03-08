@@ -3,6 +3,8 @@
 
 #include "resources/Tags.h"
 
+#include "Exceptions.h"
+
 using namespace DV;
 // ------------------------------------ //
 
@@ -85,4 +87,31 @@ bool DV::CompareSuggestionTags(const std::string& str, const std::shared_ptr<Tag
     const std::shared_ptr<Tag>& right)
 {
     return CompareSuggestionStrings(str, left->GetName(), right->GetName());
+}
+// ------------------------------------ //
+ResourceDataHolder DV::LoadResource(const std::string& name)
+{
+    try {
+        auto data = Gio::Resource::lookup_data_global(name);
+
+        if(!data)
+            throw Leviathan::NotFound("resource not found");
+
+        gsize size;
+        const auto* ptr = data->get_data(size);
+
+        if(!ptr)
+            throw Leviathan::NotFound("resource has invalid ptr");
+
+        return {data, std::string_view(reinterpret_cast<const char*>(ptr), size)};
+
+    } catch(const Glib::Error&) {
+        throw Leviathan::NotFound("resource not found");
+    }
+}
+
+std::string DV::LoadResourceCopy(const std::string& name)
+{
+    auto resource = LoadResource(name);
+    return std::string(resource.DataAsStr);
 }

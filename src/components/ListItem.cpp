@@ -5,11 +5,12 @@
 using namespace DV;
 // ------------------------------------ //
 
-ListItem::ListItem(std::shared_ptr<Image> showimage, const std::string &name,
-    const std::shared_ptr<ItemSelectable> &selectable, bool allowpopup) :
+ListItem::ListItem(std::shared_ptr<Image> showimage, const std::string& name,
+    const std::shared_ptr<ItemSelectable>& selectable, bool allowpopup) :
     Container(Gtk::ORIENTATION_VERTICAL),
-    ImageIcon(showimage, allowpopup ? SuperViewer::ENABLED_EVENTS::POPUP :
-        SuperViewer::ENABLED_EVENTS::NONE, true),
+    ImageIcon(showimage,
+        allowpopup ? SuperViewer::ENABLED_EVENTS::POPUP : SuperViewer::ENABLED_EVENTS::NONE,
+        true),
     Selectable(selectable)
 {
     add(Events);
@@ -33,25 +34,26 @@ ListItem::ListItem(std::shared_ptr<Image> showimage, const std::string &name,
     NameLabel.set_valign(Gtk::ALIGN_CENTER);
     NameLabel.set_halign(Gtk::ALIGN_FILL);
 
-    //NameLabel.set_selectable(true);
-    NameLabel.set_margin_left(4);
+    // NameLabel.set_selectable(true);
+    NameLabel.property_margin_start() = 4;
     NameLabel.set_ellipsize(Pango::ELLIPSIZE_END);
     NameLabel.set_lines(4);
     NameLabel.set_line_wrap(true);
     NameLabel.set_line_wrap_mode(Pango::WRAP_WORD_CHAR);
-    
+
     NameLabel.show();
-    
+
     _SetName(name);
 
-    Container.override_background_color(Gdk::RGBA("white"));
+#warning background colour here
+    // Container.override_background_color(Gdk::RGBA("white"));
 
-    //TextAreaOverlay.set_valign(Gtk::ALIGN_CENTER);
+    // TextAreaOverlay.set_valign(Gtk::ALIGN_CENTER);
 
     // Click events //
-    if(Selectable && (Selectable->Selectable || Selectable->UsesCustomPopup)){
+    if(Selectable && (Selectable->Selectable || Selectable->UsesCustomPopup)) {
 
-        //LOG_INFO("Registered for events");
+        // LOG_INFO("Registered for events");
         Events.add_events(Gdk::BUTTON_PRESS_MASK);
 
         Events.signal_button_press_event().connect(
@@ -61,42 +63,38 @@ ListItem::ListItem(std::shared_ptr<Image> showimage, const std::string &name,
     // TODO: allow editing name
 }
 
-ListItem::~ListItem(){
-
-}
+ListItem::~ListItem() {}
 // ------------------------------------ //
-void ListItem::_SetName(const std::string &name){
-
+void ListItem::_SetName(const std::string& name)
+{
     NameLabel.set_text(name);
 }
 
-void ListItem::_SetImage(std::shared_ptr<Image> image){
-
+void ListItem::_SetImage(std::shared_ptr<Image> image)
+{
     ImageIcon.SetImage(image);
 }
 
 // ------------------------------------ //
 // Gtk overrides
-Gtk::SizeRequestMode ListItem::get_request_mode_vfunc() const{
-
+Gtk::SizeRequestMode ListItem::get_request_mode_vfunc() const
+{
     return Gtk::SIZE_REQUEST_HEIGHT_FOR_WIDTH;
 }
 
-void ListItem::get_preferred_width_vfunc(int& minimum_width, int& natural_width) const{
-
+void ListItem::get_preferred_width_vfunc(int& minimum_width, int& natural_width) const
+{
     int box_width_min, box_width_natural;
-    //Container.get_preferred_width(box_width_min, box_width_natural);
+    // Container.get_preferred_width(box_width_min, box_width_natural);
     Events.get_preferred_width(box_width_min, box_width_natural);
 
-    switch(ItemSize){
-    case LIST_ITEM_SIZE::NORMAL:
-    {
+    switch(ItemSize) {
+    case LIST_ITEM_SIZE::NORMAL: {
         minimum_width = 64;
         natural_width = 128;
         break;
     }
-    case LIST_ITEM_SIZE::SMALL:
-    {
+    case LIST_ITEM_SIZE::SMALL: {
         minimum_width = 64;
         natural_width = 82;
         break;
@@ -104,21 +102,19 @@ void ListItem::get_preferred_width_vfunc(int& minimum_width, int& natural_width)
     }
 }
 
-void ListItem::get_preferred_height_vfunc(int& minimum_height, int& natural_height) const{
-
+void ListItem::get_preferred_height_vfunc(int& minimum_height, int& natural_height) const
+{
     int box_height_min, box_height_natural;
-    //Container.get_preferred_height(box_height_min, box_height_natural);
+    // Container.get_preferred_height(box_height_min, box_height_natural);
     Events.get_preferred_height(box_height_min, box_height_natural);
 
-    switch(ItemSize){
-    case LIST_ITEM_SIZE::NORMAL:
-    {
+    switch(ItemSize) {
+    case LIST_ITEM_SIZE::NORMAL: {
         minimum_height = 64;
         natural_height = 126;
         break;
     }
-    case LIST_ITEM_SIZE::SMALL:
-    {
+    case LIST_ITEM_SIZE::SMALL: {
         minimum_height = 64;
         natural_height = 92;
         break;
@@ -126,37 +122,37 @@ void ListItem::get_preferred_height_vfunc(int& minimum_height, int& natural_heig
     }
 }
 
-void ListItem::get_preferred_height_for_width_vfunc(int width,
-    int& minimum_height, int& natural_height) const
+void ListItem::get_preferred_height_for_width_vfunc(
+    int width, int& minimum_height, int& natural_height) const
 {
     minimum_height = 64;
 
-    natural_height = (int)((float)width / (3.f/4.f));
+    natural_height = (int)((float)width / (3.f / 4.f));
 }
 // ------------------------------------ //
-bool ListItem::_OnMouseButtonPressed(GdkEventButton* event){
-
+bool ListItem::_OnMouseButtonPressed(GdkEventButton* event)
+{
     if(!Selectable)
         return false;
 
-    if(event->type == GDK_2BUTTON_PRESS){
+    if(event->type == GDK_2BUTTON_PRESS) {
 
-        if(Selectable->UsesCustomPopup){
-            
+        if(Selectable->UsesCustomPopup) {
+
             _DoPopup();
             return true;
         }
-        
+
         return false;
     }
 
     // Left mouse //
-    if(event->button == 1){
+    if(event->button == 1) {
 
         if(Selectable->Selectable)
             SetSelected(!CurrentlySelected);
-        
-    } else if(event->button == 3){
+
+    } else if(event->button == 3) {
 
         return _OnRightClick(event);
     }
@@ -164,38 +160,37 @@ bool ListItem::_OnMouseButtonPressed(GdkEventButton* event){
     return true;
 }
 
-void ListItem::SetSelected(bool selected){
-
+void ListItem::SetSelected(bool selected)
+{
     CurrentlySelected = selected;
 
-    if(!CurrentlySelected){
+    if(!CurrentlySelected) {
+#warning selected colour
+        // Container.override_background_color(Gdk::RGBA("white"));
 
-        Container.override_background_color(Gdk::RGBA("white"));
-        
     } else {
-        
+
         // CadetBlue
-        Container.override_background_color(Gdk::RGBA("CadetBlue"));
+        // Container.override_background_color(Gdk::RGBA("CadetBlue"));
     }
-    
+
     _OnSelectionUpdated();
 }
 // ------------------------------------ //
-std::shared_ptr<Image> ListItem::GetPrimaryImage() const{
-
+std::shared_ptr<Image> ListItem::GetPrimaryImage() const
+{
     return ImageIcon.GetImage();
 }
 // ------------------------------------ //
-void ListItem::_OnSelectionUpdated(){
-
+void ListItem::_OnSelectionUpdated()
+{
     if(Selectable->Selectable)
         Selectable->UpdateCallback(*this);
 }
 
-void ListItem::_DoPopup(){
+void ListItem::_DoPopup() {}
 
-}
-
-bool ListItem::_OnRightClick(GdkEventButton* causedbyevent){
+bool ListItem::_OnRightClick(GdkEventButton* causedbyevent)
+{
     return false;
 }

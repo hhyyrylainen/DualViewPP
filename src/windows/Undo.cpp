@@ -7,21 +7,18 @@ UndoWindow::UndoWindow() : NothingToShow("No history items available")
 {
     signal_delete_event().connect(sigc::mem_fun(*this, &BaseWindow::_OnClosed));
 
+    set_default_size(500, 300);
     property_resizable() = true;
 
     Menu.set_image_from_icon_name("open-menu-symbolic");
 
     SearchButton.set_image_from_icon_name("edit-find-symbolic");
 
-    HeaderBar.property_title() = "DualView - Undo Recent Actions";
+    HeaderBar.property_title() = "Latest Actions";
     HeaderBar.property_show_close_button() = true;
     HeaderBar.pack_end(Menu);
     HeaderBar.pack_end(SearchButton);
     set_titlebar(HeaderBar);
-
-    // Default size if empty
-    property_width_request() = 500;
-    property_height_request() = 300;
 
 
     MainContainer.property_orientation() = Gtk::ORIENTATION_VERTICAL;
@@ -45,7 +42,7 @@ UndoWindow::UndoWindow() : NothingToShow("No history items available")
     NothingToShow.property_vexpand() = true;
     ListContainer.add(NothingToShow);
 
-    show_all();
+    show_all_children();
 }
 
 UndoWindow::~UndoWindow()

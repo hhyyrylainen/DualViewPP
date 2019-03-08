@@ -262,7 +262,8 @@ void DualView::_OnInstanceLoaded()
     InvokeDispatcher.connect(sigc::mem_fun(*this, &DualView::_ProcessInvokeQueue));
 
 
-    MainBuilder = Gtk::Builder::create_from_file("../gui/main_gui.glade");
+    MainBuilder = Gtk::Builder::create_from_resource(
+        "/com/boostslair/dualviewpp/resources/gui/main_gui.glade");
 
     // Get all the glade resources //
     MainBuilder->get_widget("WelcomeWindow", WelcomeWindow);
@@ -1057,7 +1058,8 @@ void DualView::OpenImageViewer(
 {
     AssertIfNotMainThread();
 
-    auto builder = Gtk::Builder::create_from_file("../gui/single_view.glade");
+    auto builder = Gtk::Builder::create_from_resource(
+        "/com/boostslair/dualviewpp/resources/gui/single_view.glade");
 
     SingleView* window;
     builder->get_widget_derived("SingleView", window);
@@ -1079,7 +1081,8 @@ void DualView::OpenSingleCollectionView(std::shared_ptr<Collection> collection)
 {
     AssertIfNotMainThread();
 
-    auto builder = Gtk::Builder::create_from_file("../gui/single_collection.glade");
+    auto builder = Gtk::Builder::create_from_resource(
+        "/com/boostslair/dualviewpp/resources/gui/single_collection.glade");
 
     SingleCollection* window;
     builder->get_widget_derived("SingleCollection", window);
@@ -1119,7 +1122,8 @@ void DualView::OpenImporter()
 {
     AssertIfNotMainThread();
 
-    auto builder = Gtk::Builder::create_from_file("../gui/importer.glade");
+    auto builder = Gtk::Builder::create_from_resource(
+        "/com/boostslair/dualviewpp/resources/gui/importer.glade");
 
     Importer* window;
     builder->get_widget_derived("FileImporter", window);
@@ -1141,7 +1145,8 @@ void DualView::OpenImporter(const std::vector<std::shared_ptr<Image>>& images)
 {
     AssertIfNotMainThread();
 
-    auto builder = Gtk::Builder::create_from_file("../gui/importer.glade");
+    auto builder = Gtk::Builder::create_from_resource(
+        "/com/boostslair/dualviewpp/resources/gui/importer.glade");
 
     Importer* window;
     builder->get_widget_derived("FileImporter", window);
@@ -1249,7 +1254,8 @@ void DualView::OpenImageFinder()
 {
     AssertIfNotMainThread();
 
-    auto builder = Gtk::Builder::create_from_file("../gui/image_finder.glade");
+    auto builder = Gtk::Builder::create_from_resource(
+        "/com/boostslair/dualviewpp/resources/gui/image_finder.glade");
 
     ImageFinder* window;
     builder->get_widget_derived("FileFinder", window);
@@ -1461,7 +1467,8 @@ void DualView::OpenDownloadSetup(bool useropened /*= true*/, bool capture /*= fa
 
     AssertIfNotMainThread();
 
-    auto builder = Gtk::Builder::create_from_file("../gui/download_setup.glade");
+    auto builder = Gtk::Builder::create_from_resource(
+        "/com/boostslair/dualviewpp/resources/gui/download_setup.glade");
 
     DownloadSetup* window;
     builder->get_widget_derived("DownloadSetup", window);

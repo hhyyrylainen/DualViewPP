@@ -6,6 +6,8 @@ option(CREATE_DL_PLUGINS "Set to OFF to skip building web download tools" ON)
 
 option(USE_GPROF "Set to ON to use gprof profiling" OFF)
 
+option(DISABLE_DEPRECATED_GTK "Set to OFF to allow use of deprecated GTKMM APIs" ON)
+
 set(DUALVIEW_VERSION_STR "0.1.0")
 
 if(CMAKE_BUILD_TYPE STREQUAL "")
@@ -111,8 +113,6 @@ endif()
 # Default system threads
 find_package(Threads)
 
-add_subdirectory(src)
-
 # Doxygen
 find_package(Doxygen)
 if(DOXYGEN_FOUND)
@@ -132,6 +132,9 @@ if(DOXYGEN_FOUND)
     )
   
 endif(DOXYGEN_FOUND)
+
+
+add_subdirectory(src)
 
 # Testing
 add_subdirectory(test)

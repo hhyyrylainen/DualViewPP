@@ -23,7 +23,20 @@ add_executable(Test
 
   DummyLog.h DummyLog.cpp
   TestDualView.h
+
+  # Generated resource file
+  # TODO: it might be nice to have a separate resources bundle for the tests and it
+  # would be nice to keep the separate bundles up to date with cmake
+  "${PROJECT_BINARY_DIR}/generated/dualviewpp.gresource.cpp"
   )
+
+set_source_files_properties("${PROJECT_BINARY_DIR}/generated/dualviewpp.gresource.cpp"
+  PROPERTIES GENERATED TRUE)
+
+target_include_directories(Test PRIVATE "${PROJECT_BINARY_DIR}/generated")
+
+# For file generation
+add_dependencies(Test dualviewpp)
 
 target_link_libraries(Test Core
   # Need to be linked to same libraries as dualviewpp executable

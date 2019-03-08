@@ -351,7 +351,7 @@ void DownloadSetup::OnUserAcceptSettings()
     set_sensitive(false);
     auto window = get_window();
     if(window)
-        window->set_cursor(Gdk::Cursor::create(Gdk::WATCH));
+        window->set_cursor(Gdk::Cursor::create(window->get_display(), Gdk::WATCH));
 }
 // ------------------------------------ //
 void DownloadSetup::AddSubpage(const std::string& url)

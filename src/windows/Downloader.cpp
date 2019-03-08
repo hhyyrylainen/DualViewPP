@@ -39,12 +39,12 @@ Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     builder->get_widget("AddNewLink", AddNewLink);
     LEVIATHAN_ASSERT(AddNewLink, "Invalid .glade file");
 
-    AddNewLink->signal_pressed().connect(
+    AddNewLink->signal_button_press_event().connect(
         sigc::mem_fun(*this, &Downloader::_OpenNewDownloadSetup));
 
 
     BUILDER_GET_WIDGET(StartDownloadButton);
-    StartDownloadButton->signal_pressed().connect(
+    StartDownloadButton->signal_button_press_event().connect(
         sigc::mem_fun(*this, &Downloader::_ToggleDownloadThread));
 
     BUILDER_GET_WIDGET(DLStatusLabel);
@@ -54,7 +54,8 @@ Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     Gtk::Button* DLSelectAll;
     BUILDER_GET_WIDGET(DLSelectAll);
-    DLSelectAll->signal_pressed().connect(sigc::mem_fun(*this, &Downloader::_SelectAll));
+    DLSelectAll->signal_button_press_event().connect(
+        sigc::mem_fun(*this, &Downloader::_SelectAll));
 
 
 
@@ -66,14 +67,12 @@ Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
 Downloader::~Downloader()
 {
-
     WaitForDownloadThread();
 }
 
 // ------------------------------------ //
 bool Downloader::_OnClose(GdkEventAny* event)
 {
-
     // Ask user to stop downloads //
 
     StopDownloadThread();
@@ -92,7 +91,6 @@ void Downloader::OnNotified(
 
 void Downloader::_OnShown()
 {
-
     auto alive = GetAliveMarker();
 
     DualView::Get().QueueDBThreadFunction([=]() {
@@ -128,14 +126,12 @@ void Downloader::_OnShown()
 
 void Downloader::_OnHidden()
 {
-
     // Ask user whether downloads should be paused //
     StopDownloadThread();
 }
 // ------------------------------------ //
 void Downloader::AddNetGallery(std::shared_ptr<NetGallery> gallery)
 {
-
     if(!gallery) {
 
         LOG_ERROR("Downloader trying to add null NetGallery");
@@ -157,7 +153,6 @@ void Downloader::AddNetGallery(std::shared_ptr<NetGallery> gallery)
 
 void Downloader::_OnRemoveListItem(DLListItem& item)
 {
-
     auto alive = GetAliveMarker();
 
     DualView::Get().InvokeFunction([=, toremove{&item}]() {
@@ -176,14 +171,14 @@ void Downloader::_OnRemoveListItem(DLListItem& item)
     });
 }
 // ------------------------------------ //
-void Downloader::_OpenNewDownloadSetup()
+bool Downloader::_OpenNewDownloadSetup(GdkEventButton*)
 {
     DualView::Get().OpenDownloadSetup();
+    return true;
 }
 // ------------------------------------ //
 void Downloader::StartDownloadThread()
 {
-
     if(RunDownloadThread)
         return;
 
@@ -204,7 +199,6 @@ void Downloader::StartDownloadThread()
 
 void Downloader::StopDownloadThread()
 {
-
     RunDownloadThread = false;
 
     auto alive = GetAliveMarker();
@@ -217,7 +211,6 @@ void Downloader::StopDownloadThread()
 
 void Downloader::WaitForDownloadThread()
 {
-
     if(RunDownloadThread)
         StopDownloadThread();
 
@@ -227,18 +220,18 @@ void Downloader::WaitForDownloadThread()
         DownloadThread.join();
 }
 // ------------------------------------ //
-void Downloader::_SelectAll()
+bool Downloader::_SelectAll(GdkEventButton*)
 {
-
     for(auto& item : DLList) {
 
         item->SetSelected();
     }
+
+    return true;
 }
 // ------------------------------------ //
 std::shared_ptr<DLListItem> Downloader::GetNextSelectedGallery()
 {
-
     std::promise<std::shared_ptr<DLListItem>> result;
 
     DualView::Get().RunOnMainThread([&]() {
@@ -261,7 +254,6 @@ std::shared_ptr<DLListItem> Downloader::GetNextSelectedGallery()
 
 void Downloader::_DLFinished(std::shared_ptr<DLListItem> item)
 {
-
     std::promise<bool> done;
 
     DualView::Get().RunOnMainThread([&]() {
@@ -280,7 +272,6 @@ void Downloader::_DLFinished(std::shared_ptr<DLListItem> item)
 void Downloader::_SetDLThreadStatus(
     const std::string& statusstr, bool spinneractive, float progress)
 {
-
     auto alive = GetAliveMarker();
 
     DualView::Get().RunOnMainThread([=]() {
@@ -324,7 +315,6 @@ struct DV::DownloadProgressState {
 
     ~DownloadProgressState()
     {
-
         if(Widget)
             Widget->LockSelected(false);
     }
@@ -332,7 +322,6 @@ struct DV::DownloadProgressState {
     //! \brief Applies tags to a created image
     void ApplyTags(std::shared_ptr<Image> img)
     {
-
         if(CurrentDLTags.empty())
             return;
 
@@ -347,7 +336,6 @@ struct DV::DownloadProgressState {
     //! \returns True once done
     bool Tick(std::shared_ptr<DownloadProgressState> us)
     {
-
         switch(state) {
         case STATE::INITIAL: {
 
@@ -666,7 +654,6 @@ struct DV::DownloadProgressState {
 
 void Downloader::_RunDownloadThread()
 {
-
     std::unique_lock<std::mutex> lock(DownloadThreadMutex);
 
     std::shared_ptr<DownloadProgressState> dlState;
@@ -700,9 +687,8 @@ void Downloader::_RunDownloadThread()
 
 
 // ------------------------------------ //
-void Downloader::_ToggleDownloadThread()
+bool Downloader::_ToggleDownloadThread(GdkEventButton*)
 {
-
     if(RunDownloadThread) {
 
         StopDownloadThread();
@@ -713,5 +699,7 @@ void Downloader::_ToggleDownloadThread()
         StartDownloadThread();
         DLStatusLabel->set_text("Downloader thread waiting for work");
     }
+
+    return true;
 }
 // ------------------------------------ //

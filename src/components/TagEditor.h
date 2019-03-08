@@ -58,6 +58,7 @@ public:
     //! \brief Adds a tag
     //! \returns True if succeeded, false if the tag string wasn't valid
     //! \todo Make this use the database thread to avoid user visible lag
+    //! and popup an error notification if it fails later
     bool AddTag(const std::string tagstr);
 
     //! \brief Removes a tag

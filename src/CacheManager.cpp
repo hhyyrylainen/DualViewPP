@@ -137,15 +137,14 @@ void CacheManager::NotifyMovedFile(const std::string& oldfile, const std::string
 // Resource loading
 Glib::RefPtr<Gdk::Pixbuf> CacheManager::GetFolderIcon()
 {
-
     std::lock_guard<std::mutex> lock(ResourceLoadMutex);
 
     if(FolderIcon)
         return FolderIcon;
 
     // Load it //
-    FolderIcon =
-        Gdk::Pixbuf::create_from_file(DualView::Get().GetSettings().GetPathToFolderIcon());
+    FolderIcon = Gdk::Pixbuf::create_from_resource(
+        "/com/boostslair/dualviewpp/resources/icons/file-folder.png");
 
     LEVIATHAN_ASSERT(FolderIcon, "Failed to load resource: FolderIcon");
     return FolderIcon;
@@ -153,15 +152,14 @@ Glib::RefPtr<Gdk::Pixbuf> CacheManager::GetFolderIcon()
 
 Glib::RefPtr<Gdk::Pixbuf> CacheManager::GetCollectionIcon()
 {
-
     std::lock_guard<std::mutex> lock(ResourceLoadMutex);
 
     if(CollectionIcon)
         return CollectionIcon;
 
     // Load it //
-    CollectionIcon =
-        Gdk::Pixbuf::create_from_file(DualView::Get().GetSettings().GetPathToCollectionIcon());
+    CollectionIcon = Gdk::Pixbuf::create_from_resource(
+        "/com/boostslair/dualviewpp/resources/icons/folders.png");
 
     LEVIATHAN_ASSERT(CollectionIcon, "Failed to load resource: CollectionIcon");
     return CollectionIcon;
@@ -169,31 +167,27 @@ Glib::RefPtr<Gdk::Pixbuf> CacheManager::GetCollectionIcon()
 
 std::shared_ptr<LoadedImage> CacheManager::GetFolderAsImage()
 {
-
-    std::lock_guard<std::mutex> lock(ResourceLoadMutex);
+    std::unique_lock<std::mutex> lock(ResourceLoadMutex);
 
     if(FolderIconAsImage)
         return FolderIconAsImage;
 
     // Load it //
-    FolderIconAsImage =
-        std::make_shared<LoadedImage>(DualView::Get().GetSettings().GetPathToFolderIcon());
+    FolderIconAsImage = std::make_shared<LoadedImage>(
+        "resource:///com/boostslair/dualviewpp/resources/icons/file-folder.png");
 
-    {
-        std::lock_guard<std::mutex> lock2(LoadQueueMutex);
-        LoadQueue.push_back(FolderIconAsImage);
-    }
+    // Bit of a mess, but this is only done once
+    lock.unlock();
+    auto icon = GetFolderIcon();
+    lock.lock();
 
-    // Notify loader thread //
-    NotifyFullLoaderThread.notify_all();
-
+    FolderIconAsImage->LoadFromGtkImage(icon);
     return FolderIconAsImage;
 }
 
 // ------------------------------------ //
 void CacheManager::QuitProcessingThreads()
 {
-
     Quitting = true;
 }
 
@@ -202,7 +196,6 @@ void CacheManager::QuitProcessingThreads()
 
 void CacheManager::_RunFullSizeLoaderThread()
 {
-
     std::unique_lock<std::mutex> lock(LoadQueueMutex);
 
     while(!Quitting) {
@@ -229,7 +222,6 @@ void CacheManager::_RunFullSizeLoaderThread()
 
 void CacheManager::_RunCacheCleanupThread()
 {
-
     std::unique_lock<std::mutex> lock(CacheCleanupMutex);
 
     while(!Quitting) {
@@ -260,7 +252,6 @@ void CacheManager::_RunCacheCleanupThread()
 
 void CacheManager::_RunThumbnailGenerationThread()
 {
-
     std::unique_lock<std::mutex> lock(ThumbQueueMutex);
 
     while(!Quitting) {
@@ -287,7 +278,6 @@ void CacheManager::_RunThumbnailGenerationThread()
 // ------------------------------------ //
 void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) const
 {
-
     // Get the thumbnail folder //
     const auto extension = boost::filesystem::extension(thumb.FromPath);
 
@@ -446,7 +436,6 @@ bool CacheManager::GetImageSize(
 
 bool CacheManager::CheckIsBytesAnImage(const std::string& imagedata)
 {
-
     try {
 
         Magick::Blob data(imagedata.c_str(), imagedata.size());
@@ -470,7 +459,6 @@ bool CacheManager::CheckIsBytesAnImage(const std::string& imagedata)
 
 std::string CacheManager::GetFinalImagePath(const std::string& path)
 {
-
     if(path.empty())
         return path;
 
@@ -512,8 +500,6 @@ std::string CacheManager::GetFinalImagePath(const std::string& path)
 
 std::string CacheManager::GetDatabaseImagePath(const std::string& path)
 {
-
-
     const auto& settings = DualView::Get().GetSettings();
 
     if(Leviathan::StringOperations::StringStartsWith(path, settings.GetPrivateCollection())) {
@@ -536,13 +522,11 @@ LoadedImage::LoadedImage(const std::string& path) : FromPath(path) {}
 
 LoadedImage::~LoadedImage()
 {
-
     MagickImage.reset();
 }
 
 void LoadedImage::UnloadImage()
 {
-
     Status = IMAGE_LOAD_STATUS::Error;
     FromPath = "Forced unload";
     MagickImage.reset();
@@ -591,7 +575,6 @@ void LoadedImage::LoadImage(
 
 void LoadedImage::DoLoad()
 {
-
     try {
 
         LoadImage(FromPath, MagickImage);
@@ -614,7 +597,6 @@ void LoadedImage::DoLoad()
 
 void LoadedImage::DoLoad(const std::string& thumbfile)
 {
-
     try {
 
         LoadImage(thumbfile, MagickImage);
@@ -635,14 +617,12 @@ void LoadedImage::DoLoad(const std::string& thumbfile)
 
 void LoadedImage::OnLoadFail(const std::string& error)
 {
-
     FromPath = error;
     Status = IMAGE_LOAD_STATUS::Error;
 }
 
 void LoadedImage::OnLoadSuccess(std::shared_ptr<std::vector<Magick::Image>> image)
 {
-
     LEVIATHAN_ASSERT(
         Status != IMAGE_LOAD_STATUS::Error, "OnLoadSuccess called on an errored image");
 
@@ -654,7 +634,6 @@ void LoadedImage::OnLoadSuccess(std::shared_ptr<std::vector<Magick::Image>> imag
 // ------------------------------------ //
 size_t LoadedImage::GetWidth() const
 {
-
     if(!IsImageObjectLoaded())
         throw Leviathan::InvalidState("MagickImage not loaded");
 
@@ -663,7 +642,6 @@ size_t LoadedImage::GetWidth() const
 
 size_t LoadedImage::GetHeight() const
 {
-
     if(!IsImageObjectLoaded())
         throw Leviathan::InvalidState("MagickImage not loaded");
 
@@ -672,7 +650,6 @@ size_t LoadedImage::GetHeight() const
 
 size_t LoadedImage::GetFrameCount() const
 {
-
     if(!IsImageObjectLoaded())
         throw Leviathan::InvalidState("MagickImage not loaded");
 
@@ -681,7 +658,6 @@ size_t LoadedImage::GetFrameCount() const
 
 std::chrono::duration<float> LoadedImage::GetAnimationTime(size_t page) const
 {
-
     if(!IsImageObjectLoaded())
         throw Leviathan::InvalidState("MagickImage not loaded");
 
@@ -693,7 +669,6 @@ std::chrono::duration<float> LoadedImage::GetAnimationTime(size_t page) const
 // ------------------------------------ //
 Glib::RefPtr<Gdk::Pixbuf> LoadedImage::CreateGtkImage(size_t page /*= 0*/) const
 {
-
     if(!IsImageObjectLoaded())
         throw Leviathan::InvalidState("MagickImage not loaded");
 
@@ -740,4 +715,22 @@ Glib::RefPtr<Gdk::Pixbuf> LoadedImage::CreateGtkImage(size_t page /*= 0*/) const
     }
 
     return pixbuf;
+}
+
+void LoadedImage::LoadFromGtkImage(Glib::RefPtr<Gdk::Pixbuf> image)
+{
+    LEVIATHAN_ASSERT(image->get_colorspace() == Gdk::COLORSPACE_RGB,
+        "pixbuf format is different from expected");
+
+    LEVIATHAN_ASSERT(
+        image->get_bits_per_sample() == 8, "pixbuf has unexpected bits per sample: " +
+                                               std::to_string(image->get_bits_per_sample()));
+
+    Magick::Image newImage(image->get_width(), image->get_height(),
+        image->get_has_alpha() ? "RGBA" : "RGB", Magick::CharPixel, image->get_pixels());
+
+    MagickImage =
+        std::make_shared<std::vector<Magick::Image>>(std::vector<Magick::Image>{newImage});
+
+    Status = IMAGE_LOAD_STATUS::Loaded;
 }

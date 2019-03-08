@@ -1,6 +1,10 @@
 # Core library. Used by the main application and the test to avoid compiling
 # twice
 
+if(DISABLE_DEPRECATED_GTK)
+  add_definitions(-DGTKMM_DISABLE_DEPRECATED -DGDKMM_DISABLE_DEPRECATED)
+endif()
+
 # Configure header
 configure_file("Common.h.in" "${PROJECT_BINARY_DIR}/Common.h")
 # Make a readonly copy of it
@@ -8,29 +12,30 @@ file(COPY "${PROJECT_BINARY_DIR}/Common.h" DESTINATION "${CMAKE_CURRENT_SOURCE_D
   NO_SOURCE_PERMISSIONS
   FILE_PERMISSIONS OWNER_READ GROUP_READ WORLD_READ)
 
-# Sql file generation
-set(GENERATED_SQL_FILES)
-make_directory("${PROJECT_SOURCE_DIR}/generated")
 
-macro(add_sql_generated file)
+# Resource file packing
+file(GLOB_RECURSE ALL_RESOURCE_FILES "${PROJECT_SOURCE_DIR}/resources/*.*")
 
-  list(APPEND GENERATED_SQL_FILES "${PROJECT_SOURCE_DIR}/generated/${file}.h")
-  
-  add_custom_command(OUTPUT "${PROJECT_SOURCE_DIR}/generated/${file}.h"
-    COMMAND "ruby" "${PROJECT_SOURCE_DIR}/generator/SqlToC.rb"
-    "${PROJECT_SOURCE_DIR}/sql/${file}" "${PROJECT_SOURCE_DIR}/generated/${file}.h"
-    DEPENDS "${PROJECT_SOURCE_DIR}/generator/SqlToC.rb" "${PROJECT_SOURCE_DIR}/sql/${file}"
-    )
+make_directory("${PROJECT_BINARY_DIR}/generated")
 
-endmacro(add_sql_generated)
+# add_custom_command(OUTPUT "${PROJECT_BINARY_DIR}/generated/dualviewpp.gresource.h"
+#   COMMAND "glib-compile-resources" "${PROJECT_SOURCE_DIR}/dualviewpp.gresource.xml"
+#   "--target=${CMAKE_BINARY_DIR}/generated/dualviewpp.gresource.h"
+#   "--sourcedir=${PROJECT_SOURCE_DIR}"
+#   "--generate-header"
+#   "--c-name=dualview"
+#   DEPENDS ../dualviewpp.gresource.xml
+#   )
 
-add_sql_generated("maintables.sql")
-add_sql_generated("defaulttablevalues.sql")
-add_sql_generated("defaulttags.sql")
-add_sql_generated("migration_14_15.sql")
-add_sql_generated("migration_15_16.sql")
-add_sql_generated("migration_16_17.sql")
-add_sql_generated("migration_18_19.sql")
+add_custom_command(OUTPUT "${PROJECT_BINARY_DIR}/generated/dualviewpp.gresource.cpp"
+  COMMAND "glib-compile-resources" "${PROJECT_SOURCE_DIR}/dualviewpp.gresource.xml"
+  "--target=${CMAKE_BINARY_DIR}/generated/dualviewpp.gresource.cpp"
+  "--sourcedir=${PROJECT_SOURCE_DIR}"
+  "--generate-source"
+  "--c-name=dualview"
+  DEPENDS ../dualviewpp.gresource.xml ${ALL_RESOURCE_FILES}
+  )
+
 
 add_library(Core
 
@@ -102,11 +107,8 @@ add_library(Core
   resources/NetGallery.h resources/NetGallery.cpp
 
   # Generated headers
-  ${GENERATED_SQL_FILES}
-
   Common.h
   )
-
 
 target_link_libraries(Core ThirdParty tz Engine
   ${GTKMM_LIBRARIES} ${GTKCANBERRA_LIBRARIES}
@@ -117,7 +119,10 @@ target_compile_options(Core PUBLIC ${MAGICK_CFLAGS_OTHER})
 target_include_directories(Core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Main executable
-add_executable(dualviewpp main.cpp)
+add_executable(dualviewpp main.cpp
+  # Embedded resources
+  "${PROJECT_BINARY_DIR}/generated/dualviewpp.gresource.cpp"  
+  )
 
 target_link_libraries(dualviewpp Core ${CMAKE_THREAD_LIBS_INIT}
   ${CMAKE_DL_LIBS})

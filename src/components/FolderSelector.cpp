@@ -11,27 +11,27 @@ using namespace DV;
 // ------------------------------------ //
 
 
-FolderSelector::FolderSelector() :
-    Gtk::Box(Gtk::ORIENTATION_VERTICAL), CreateNewFolder(Gtk::StockID("gtk-new")),
-    UpFolder(Gtk::StockID("gtk-go-up"))
+FolderSelector::FolderSelector() : Gtk::Box(Gtk::ORIENTATION_VERTICAL)
 {
     _CommonCtor();
 }
 
 FolderSelector::FolderSelector(_GtkBox* widget, Glib::RefPtr<Gtk::Builder> builder) :
-    Gtk::Box(widget), CreateNewFolder(Gtk::StockID("gtk-new")),
-    UpFolder(Gtk::StockID("gtk-go-up"))
+    Gtk::Box(widget)
 {
     _CommonCtor();
 }
 
 void FolderSelector::_CommonCtor()
 {
+    CreateNewFolder.set_image_from_icon_name("folder-new-symbolic");
+    UpFolder.set_image_from_icon_name("go-up-symbolic");
+
     FolderContents.SetItemSize(LIST_ITEM_SIZE::SMALL);
 
     CreateNewFolder.set_always_show_image();
     UpFolder.set_always_show_image();
-    UpFolder.set_margin_right(15);
+    UpFolder.set_margin_end(15);
 
     TopBox.set_orientation(Gtk::ORIENTATION_HORIZONTAL);
     TopBox.pack_start(PathEntry, true, true);

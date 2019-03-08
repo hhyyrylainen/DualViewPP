@@ -11,7 +11,7 @@ using namespace DV;
 RemoveFromFolders::RemoveFromFolders(std::shared_ptr<Collection> collection) :
     TargetCollection(collection),
 
-    MainBox(Gtk::ORIENTATION_VERTICAL), ApplyButton(Gtk::StockID("gtk-apply"))
+    MainBox(Gtk::ORIENTATION_VERTICAL), ApplyButton("_Apply")
 {
     ApplyButton.set_always_show_image();
     MainBox.pack_end(ApplyButton, false, true);
@@ -48,7 +48,6 @@ RemoveFromFolders::RemoveFromFolders(std::shared_ptr<Collection> collection) :
 
 RemoveFromFolders::~RemoveFromFolders()
 {
-
     Close();
 }
 // ------------------------------------ //
@@ -56,7 +55,6 @@ void RemoveFromFolders::_OnClose() {}
 // ------------------------------------ //
 void RemoveFromFolders::_OnApply()
 {
-
     std::vector<std::string> pathstoremove;
 
     // Find folders to delete //
@@ -114,7 +112,6 @@ void RemoveFromFolders::_OnApply()
 // ------------------------------------ //
 void RemoveFromFolders::_OnToggled(const Glib::ustring& path)
 {
-
     Gtk::TreeModel::Row row = *FoldersModel->get_iter(path);
 
     row[TreeViewColumns.m_keep_folder] =
@@ -123,7 +120,6 @@ void RemoveFromFolders::_OnToggled(const Glib::ustring& path)
 
 void RemoveFromFolders::ReadFolders()
 {
-
     DualView::IsOnMainThreadAssert();
 
     auto collection = TargetCollection;

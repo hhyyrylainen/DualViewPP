@@ -81,9 +81,9 @@ void CollectionListItem::_DoPopup()
 
 bool CollectionListItem::_OnRightClick(GdkEventButton* causedbyevent)
 {
-    // Would be nice to use this but it's in gtk 3.22
-    // ContextMenu.popup_at_pointer(causedbyevent);
-    ContextMenu.popup(causedbyevent->button, causedbyevent->time);
+    ContextMenu.popup_at_pointer(nullptr);
+    // ContextMenu.popup_at_widget(this, Gdk::GRAVITY_CENTER, Gdk::GRAVITY_NORTH_EAST,
+    // nullptr);
 
     return true;
 }

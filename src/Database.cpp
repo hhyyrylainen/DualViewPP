@@ -13,18 +13,10 @@
 
 #include "CacheManager.h"
 #include "TimeHelpers.h"
+#include "UtilityHelpers.h"
 
 #include "ChangeEvents.h"
 #include "DualView.h"
-
-#include "generated/defaulttablevalues.sql.h"
-#include "generated/defaulttags.sql.h"
-#include "generated/maintables.sql.h"
-
-#include "generated/migration_14_15.sql.h"
-#include "generated/migration_15_16.sql.h"
-#include "generated/migration_16_17.sql.h"
-#include "generated/migration_18_19.sql.h"
 
 #include "CurlWrapper.h"
 
@@ -40,7 +32,6 @@ using namespace DV;
 // ------------------------------------ //
 Database::Database(std::string dbfile) : DatabaseFile(dbfile)
 {
-
     if(dbfile.empty())
         throw Leviathan::InvalidArgument("dbfile is empty");
 
@@ -2970,7 +2961,8 @@ bool Database::_UpdateDatabase(Lock& guard, const int oldversion)
 
     switch(oldversion) {
     case 14: {
-        _RunSQL(guard, STR_MIGRATION_14_15_SQL);
+        _RunSQL(guard,
+            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_14_15.sql"));
         _SetCurrentDatabaseVersion(guard, 15);
         return true;
     }
@@ -2995,14 +2987,16 @@ bool Database::_UpdateDatabase(Lock& guard, const int oldversion)
 
         _RunSQL(guard, "PRAGMA synchronous = ON; PRAGMA journal_mode = DELETE;");
 
-        _RunSQL(guard, STR_MIGRATION_15_16_SQL);
+        _RunSQL(guard,
+            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_15_16.sql"));
         _SetCurrentDatabaseVersion(guard, 16);
 
 
         return true;
     }
     case 16: {
-        _RunSQL(guard, STR_MIGRATION_16_17_SQL);
+        _RunSQL(guard,
+            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_16_17.sql"));
         _SetCurrentDatabaseVersion(guard, 17);
         return true;
     }
@@ -3014,7 +3008,8 @@ bool Database::_UpdateDatabase(Lock& guard, const int oldversion)
         return true;
     }
     case 18: {
-        _RunSQL(guard, STR_MIGRATION_18_19_SQL);
+        _RunSQL(guard,
+            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_18_19.sql"));
         _SetCurrentDatabaseVersion(guard, 19);
         return true;
     }
@@ -3113,14 +3108,16 @@ void Database::_UpdateApplyDownloadTagStrings(Lock& guard)
 // ------------------------------------ //
 void Database::_CreateTableStructure(Lock& guard)
 {
-
     _RunSQL(guard, "BEGIN TRANSACTION;");
 
-    _RunSQL(guard, STR_MAINTABLES_SQL);
+    _RunSQL(
+        guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/maintables.sql"));
 
-    _RunSQL(guard, STR_DEFAULTTABLEVALUES_SQL);
+    _RunSQL(guard,
+        LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/defaulttablevalues.sql"));
 
-    _RunSQL(guard, STR_DEFAULTTAGS_SQL);
+    _RunSQL(
+        guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/defaulttags.sql"));
 
     // Default collections //
     InsertCollection(guard, "Uncategorized", false);
@@ -3136,7 +3133,6 @@ void Database::_CreateTableStructure(Lock& guard)
 
 void Database::_RunSQL(Lock& guard, const std::string& sql)
 {
-
     auto result = sqlite3_exec(SQLiteDb, sql.c_str(), nullptr, nullptr, nullptr);
 
     if(SQLITE_OK != result) {

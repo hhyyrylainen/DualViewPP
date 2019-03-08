@@ -13,7 +13,7 @@ AddToFolder::AddToFolder(std::shared_ptr<Collection> collection) :
     MovedCollection(collection),
 
     MainBox(Gtk::ORIENTATION_VERTICAL), ButtonBox(Gtk::ORIENTATION_HORIZONTAL),
-    Accept(Gtk::StockID("gtk-ok")), Cancel(Gtk::StockID("gtk-cancel"))
+    Accept("_Accept", true), Cancel("_Cancel", true)
 {
     add(MainBox);
     MainBox.pack_start(TargetFolder, true, true);
@@ -22,11 +22,6 @@ AddToFolder::AddToFolder(std::shared_ptr<Collection> collection) :
 
     ButtonBox.add(Cancel);
     ButtonBox.add(Accept);
-
-    Accept.set_margin_left(2);
-    Accept.set_always_show_image();
-    Accept.set_size_request(120, 25);
-    Cancel.set_always_show_image();
 
     Cancel.signal_clicked().connect(sigc::mem_fun(this, &AddToFolder::close));
     Accept.signal_clicked().connect(sigc::mem_fun(this, &AddToFolder::_OnApply));

@@ -19,6 +19,9 @@ protected:
     void _OnClose() override;
 
 private:
+    // Titlebar widgets
+    Gtk::HeaderBar HeaderBar;
+    Gtk::MenuButton Menu;
 };
 
 } // namespace DV

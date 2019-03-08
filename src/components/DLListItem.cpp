@@ -22,7 +22,7 @@ DLListItem::DLListItem(std::shared_ptr<NetGallery> todownload) :
     Enabled.set_valign(Gtk::ALIGN_CENTER);
 
     Container.pack_start(URLLabel, false, true);
-    URLLabel.set_margin_left(5);
+    URLLabel.property_margin_start() = 5;
     URLLabel.set_ellipsize(Pango::ELLIPSIZE_MIDDLE);
 
     Container.pack_start(Active, false, false);
@@ -39,7 +39,8 @@ DLListItem::DLListItem(std::shared_ptr<NetGallery> todownload) :
     ButtonBox.add(AdvancedSettings);
     ButtonBox.add(Delete);
 
-    Delete.signal_pressed().connect(sigc::mem_fun(*this, &DLListItem::OnPressedRemove));
+    Delete.signal_button_press_event().connect(
+        sigc::mem_fun(*this, &DLListItem::OnPressedRemove));
 
     Container.pack_end(NameBox, true, true);
     NameBox.set_valign(Gtk::ALIGN_CENTER);
@@ -138,8 +139,10 @@ void DLListItem::SetRemoveCallback(std::function<void(DLListItem&)> callback)
     OnRemoveCallback = callback;
 }
 
-void DLListItem::OnPressedRemove()
+bool DLListItem::OnPressedRemove(GdkEventButton*)
 {
     if(OnRemoveCallback)
         OnRemoveCallback(*this);
+
+    return true;
 }
