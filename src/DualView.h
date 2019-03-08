@@ -104,7 +104,7 @@ public:
     void OpenDuplicateFinder();
 
     //! \brief Opens a window for reordering the collection
-    void OpenReorder(std::shared_ptr<Collection> collection);
+    void OpenReorder(const std::shared_ptr<Collection>& collection);
 
     //! \brief Opens a setup window for a new downloadable gallery
     //! \param useropened True when the user clicked something and this was opened. If this is

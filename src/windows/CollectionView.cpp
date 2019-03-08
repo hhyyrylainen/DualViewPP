@@ -16,7 +16,6 @@ using namespace DV;
 CollectionView::CollectionView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     Gtk::Window(window)
 {
-
     signal_delete_event().connect(sigc::mem_fun(*this, &CollectionView::_OnClose));
 
     signal_unmap().connect(sigc::mem_fun(*this, &CollectionView::_OnHidden));

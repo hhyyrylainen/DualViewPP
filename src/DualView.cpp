@@ -13,6 +13,7 @@
 #include "windows/ImageFinder.h"
 #include "windows/Importer.h"
 #include "windows/RemoveFromFolders.h"
+#include "windows/Reorder.h"
 #include "windows/SingleCollection.h"
 #include "windows/SingleView.h"
 #include "windows/TagManager.h"
@@ -1299,6 +1300,15 @@ void DualView::OpenDuplicateFinder()
     window->show();
 
     _DuplicateFinderWindow = window;
+}
+
+void DualView::OpenReorder(const std::shared_ptr<Collection>& collection)
+{
+    AssertIfNotMainThread();
+
+    auto window = std::make_shared<ReorderWindow>(collection);
+    _AddOpenWindow(window, *window);
+    window->show();
 }
 // ------------------------------------ //
 void DualView::OnNewImageLinkReceived(const std::string& url, const std::string& referrer)

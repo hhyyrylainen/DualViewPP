@@ -64,7 +64,6 @@ SuperViewer::SuperViewer(
 
 void SuperViewer::_CommonCtor()
 {
-
     // Event registration //
     if((int)Events & (int)ENABLED_EVENTS::DRAG || (int)Events & (int)ENABLED_EVENTS::POPUP) {
 
@@ -108,7 +107,6 @@ void SuperViewer::_CommonCtor()
 
 SuperViewer::~SuperViewer()
 {
-
     PRINT_INFO("Super destructed");
 
     DisplayedResource.reset();
@@ -116,7 +114,6 @@ SuperViewer::~SuperViewer()
 // ------------------------------------ //
 void SuperViewer::SetImage(std::shared_ptr<Image> displayedResource)
 {
-
     DisplayedResource = displayedResource;
 
     // Reset things //
@@ -137,7 +134,6 @@ void SuperViewer::SetImage(std::shared_ptr<Image> displayedResource)
 
 void SuperViewer::SetBackground(Glib::RefPtr<Gdk::Pixbuf> background)
 {
-
     Background = background;
 
     queue_draw();
@@ -145,7 +141,6 @@ void SuperViewer::SetBackground(Glib::RefPtr<Gdk::Pixbuf> background)
 
 void SuperViewer::SetImage(std::shared_ptr<LoadedImage> alreadyloaded)
 {
-
     DisplayedResource = nullptr;
 
     DisplayImage = alreadyloaded;
@@ -165,7 +160,6 @@ void SuperViewer::SetImage(std::shared_ptr<LoadedImage> alreadyloaded)
 
 void SuperViewer::RemoveImage()
 {
-
     DisplayedResource = nullptr;
 
     // Reset things //
@@ -181,7 +175,6 @@ void SuperViewer::RemoveImage()
 // ------------------------------------ //
 bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr)
 {
-
     Gtk::Allocation allocation = get_allocation();
     const int width = allocation.get_width();
     const int height = allocation.get_height();
@@ -363,7 +356,6 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr)
 
 void SuperViewer::_DrawCurrentImage(const Cairo::RefPtr<Cairo::Context>& cr) const
 {
-
     LEVIATHAN_ASSERT(CachedDrawnImage, "CachedDrawnImage is invalid in draw current");
 
     // Move to right position //
@@ -385,7 +377,6 @@ void SuperViewer::_DrawCurrentImage(const Cairo::RefPtr<Cairo::Context>& cr) con
 
 void SuperViewer::_DrawBackground(const Cairo::RefPtr<Cairo::Context>& cr) const
 {
-
     if(!Background)
         return;
 
@@ -429,7 +420,6 @@ SuperViewer::Point SuperViewer::CalculateImageRenderTopLeft(
 
 void SuperViewer::DoAutoFit()
 {
-
     if(!DisplayImage || !DisplayImage->IsImageObjectLoaded())
         return;
 
@@ -454,7 +444,6 @@ void SuperViewer::DoAutoFit()
 // ------------------------------------ //
 bool SuperViewer::IsImageReadyToShow() const
 {
-
     if(!DisplayImage)
         return false;
 
@@ -467,7 +456,6 @@ bool SuperViewer::IsImageReadyToShow() const
 
 void SuperViewer::_OnNewImageReady()
 {
-
     LEVIATHAN_ASSERT(DisplayImage, "DisplayImage is invalid in _OnNewImageReady");
 
     IsImageReady = true;
@@ -499,7 +487,6 @@ void SuperViewer::_OnNewImageReady()
 
 void SuperViewer::_SetLoadedImage(std::shared_ptr<LoadedImage> image)
 {
-
     DisplayImage = image;
     IsImageReady = false;
 
@@ -509,7 +496,6 @@ void SuperViewer::_SetLoadedImage(std::shared_ptr<LoadedImage> image)
 // ------------------------------------ //
 void SuperViewer::OpenImageInNewWindow()
 {
-
     if(!DisplayedResource)
         return;
 
@@ -518,7 +504,6 @@ void SuperViewer::OpenImageInNewWindow()
 // ------------------------------------ //
 bool SuperViewer::MoveInCollection(bool forwards, bool wrap /*= true*/)
 {
-
     if(!ScrollableImages)
         return false;
 
@@ -536,19 +521,16 @@ bool SuperViewer::MoveInCollection(bool forwards, bool wrap /*= true*/)
 
 void SuperViewer::SetImageList(std::shared_ptr<ImageListScroll> list)
 {
-
     ScrollableImages = list;
 }
 
 void SuperViewer::RegisterSetImageNotify(std::function<void()> callback)
 {
-
     ImageChangeCallback = callback;
 }
 // ------------------------------------ //
 void SuperViewer::_AddRedrawTimer(int32_t ms)
 {
-
     if(CurrentTimer == ms)
         return;
 
@@ -568,7 +550,6 @@ void SuperViewer::_AddRedrawTimer(int32_t ms)
 
 bool SuperViewer::_OnTimerCheck(int32_t currenttime)
 {
-
     // If currenttime is no longer CurrentTimer, we have been replaced //
     if(currenttime != CurrentTimer) {
 
@@ -583,7 +564,6 @@ bool SuperViewer::_OnTimerCheck(int32_t currenttime)
 
 void SuperViewer::_AddUnloadTimer()
 {
-
     if(HasUnloadTimer)
         return;
 
@@ -596,7 +576,6 @@ void SuperViewer::_AddUnloadTimer()
 
 bool SuperViewer::_OnUnloadTimer()
 {
-
     if(HasBeenDrawn) {
 
         HasBeenDrawn = false;
@@ -612,7 +591,6 @@ bool SuperViewer::_OnUnloadTimer()
 
 void SuperViewer::_OnUnMapped()
 {
-
     HasBeenDrawn = false;
 
     // Prevents this being called after destructor
@@ -622,10 +600,8 @@ void SuperViewer::_OnUnMapped()
     }
 }
 // ------------------------------------ //
-
 bool SuperViewer::_OnMouseMove(GdkEventMotion* motion_event)
 {
-
     if(!((int)Events & (int)ENABLED_EVENTS::DRAG) || (!CanStartDrag && !DoingDrag))
         return false;
 
@@ -657,7 +633,6 @@ bool SuperViewer::_OnMouseMove(GdkEventMotion* motion_event)
 
 bool SuperViewer::_OnMouseButtonPressed(GdkEventButton* event)
 {
-
     if(!((int)Events & (int)ENABLED_EVENTS::DRAG) &&
         !((int)Events & (int)ENABLED_EVENTS::POPUP)) {
         return false;
@@ -686,7 +661,6 @@ bool SuperViewer::_OnMouseButtonPressed(GdkEventButton* event)
 
 bool SuperViewer::_OnMouseButtonReleased(GdkEventButton* event)
 {
-
     if(!((int)Events & (int)ENABLED_EVENTS::DRAG))
         return false;
 
@@ -708,7 +682,6 @@ bool SuperViewer::_OnMouseButtonReleased(GdkEventButton* event)
 
 bool SuperViewer::_OnKeyPressed(GdkEventKey* event)
 {
-
     if(!((int)Events & (int)ENABLED_EVENTS::MOVE_KEYS))
         return false;
 
@@ -729,7 +702,6 @@ bool SuperViewer::_OnKeyPressed(GdkEventKey* event)
 
 bool SuperViewer::_OnScroll(GdkEventScroll* event)
 {
-
     if(!((int)Events & (int)ENABLED_EVENTS::SCROLL))
         return false;
 
@@ -804,7 +776,6 @@ bool SuperViewer::_OnScroll(GdkEventScroll* event)
 
 void SuperViewer::_OnResize(Gtk::Allocation& allocation)
 {
-
     if(!IsImageReady)
         return;
 

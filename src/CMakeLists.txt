@@ -71,6 +71,7 @@ add_library(Core
   windows/ImageFinder.h windows/ImageFinder.cpp
   windows/Undo.h windows/Undo.cpp
   windows/DuplicateFinder.h windows/DuplicateFinder.cpp
+  windows/Reorder.h windows/Reorder.cpp  
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp
