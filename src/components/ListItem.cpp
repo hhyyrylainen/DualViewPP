@@ -45,8 +45,7 @@ ListItem::ListItem(std::shared_ptr<Image> showimage, const std::string& name,
 
     _SetName(name);
 
-#warning background colour here
-    // Container.override_background_color(Gdk::RGBA("white"));
+    Container.get_style_context()->add_class("ListItemContainer");
 
     // TextAreaOverlay.set_valign(Gtk::ALIGN_CENTER);
 
@@ -165,13 +164,14 @@ void ListItem::SetSelected(bool selected)
     CurrentlySelected = selected;
 
     if(!CurrentlySelected) {
-#warning selected colour
-        // Container.override_background_color(Gdk::RGBA("white"));
+
+        Container.get_style_context()->add_class("ListItemContainer");
+        Container.get_style_context()->remove_class("ListItemContainerSelected");
 
     } else {
 
-        // CadetBlue
-        // Container.override_background_color(Gdk::RGBA("CadetBlue"));
+        Container.get_style_context()->remove_class("ListItemContainer");
+        Container.get_style_context()->add_class("ListItemContainerSelected");
     }
 
     _OnSelectionUpdated();

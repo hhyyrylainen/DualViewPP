@@ -261,6 +261,17 @@ void DualView::_OnInstanceLoaded()
     MessageDispatcher.connect(sigc::mem_fun(*this, &DualView::_HandleMessages));
     InvokeDispatcher.connect(sigc::mem_fun(*this, &DualView::_ProcessInvokeQueue));
 
+    // Load custom widget styles
+    auto screen = Gdk::Screen::get_default();
+
+    CustomCSS = Gtk::CssProvider::create();
+    CustomCSS->load_from_resource("/com/boostslair/dualviewpp/resources/dualview.css");
+
+    StyleContext = Gtk::StyleContext::create();
+
+    StyleContext->add_provider_for_screen(
+        screen, CustomCSS, GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
 
     MainBuilder = Gtk::Builder::create_from_resource(
         "/com/boostslair/dualviewpp/resources/gui/main_gui.glade");

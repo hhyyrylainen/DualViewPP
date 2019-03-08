@@ -448,6 +448,9 @@ private:
 private:
     Glib::RefPtr<Gtk::Application> Application;
 
+    Glib::RefPtr<Gtk::CssProvider> CustomCSS;
+    Glib::RefPtr<Gtk::StyleContext> StyleContext;
+
     Glib::RefPtr<Gtk::Builder> MainBuilder;
 
     Gtk::Window* MainMenu = nullptr;

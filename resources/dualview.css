@@ -1,3 +1,7 @@
 .ListItemContainer{
     background-color: white;
 }
+
+.ListItemContainerSelected{
+    background-color: cadetblue;
+}
