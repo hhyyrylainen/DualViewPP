@@ -30,6 +30,10 @@ private:
 
     // Primary menu
     PrimaryMenu MenuPopover;
+    Gtk::Button ClearHistory;
+    Gtk::Separator Separator1;
+    Gtk::Label HistorySizeLabel;
+    Gtk::SpinButton HistorySize;
 
     // Main content area
     Gtk::Box MainContainer;

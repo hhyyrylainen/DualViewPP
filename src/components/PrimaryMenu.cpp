@@ -16,6 +16,7 @@ PrimaryMenu::PrimaryMenu() : ShowMain("Show _Main Window", true), About("_About"
 
     Container.pack_start(ShowMain);
     Container.pack_start(Separator1);
+    Separator1.set_margin_bottom(12);
 
     Container.pack_end(About);
     Container.pack_end(Separator2);

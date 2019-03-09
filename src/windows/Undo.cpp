@@ -3,7 +3,9 @@
 
 using namespace DV;
 // ------------------------------------ //
-UndoWindow::UndoWindow() : NothingToShow("No history items available")
+UndoWindow::UndoWindow() :
+    ClearHistory("Clear History"), HistorySizeLabel("History items to keep"),
+    NothingToShow("No history items available")
 {
     signal_delete_event().connect(sigc::mem_fun(*this, &BaseWindow::_OnClosed));
 
@@ -11,6 +13,27 @@ UndoWindow::UndoWindow() : NothingToShow("No history items available")
     property_resizable() = true;
 
     Menu.set_image_from_icon_name("open-menu-symbolic");
+
+    // Window specific controls
+    ClearHistory.property_relief() = Gtk::RELIEF_NONE;
+    MenuPopover.Container.pack_start(ClearHistory);
+    MenuPopover.Container.pack_start(Separator1);
+    MenuPopover.Container.pack_start(HistorySizeLabel);
+
+    HistorySize.property_editable() = true;
+    HistorySize.property_input_purpose() = Gtk::INPUT_PURPOSE_NUMBER;
+    HistorySize.property_snap_to_ticks() = true;
+    HistorySize.property_snap_to_ticks() = true;
+    HistorySize.set_range(0, 250);
+    HistorySize.set_increments(1, 10);
+    HistorySize.set_digits(0);
+    // TODO: implement logic
+    HistorySize.set_value(50);
+
+    MenuPopover.Container.pack_start(HistorySize);
+
+    MenuPopover.show_all_children();
+
     Menu.set_popover(MenuPopover);
 
     SearchButton.set_image_from_icon_name("edit-find-symbolic");
