@@ -41,6 +41,7 @@ public:
         SCROLL = 0x2,
         POPUP = 0x4,
         MOVE_KEYS = 0x8,
+        ALL_BUT_MOVE = DRAG | SCROLL | POPUP,
         ALL = DRAG | SCROLL | POPUP | MOVE_KEYS
     };
 

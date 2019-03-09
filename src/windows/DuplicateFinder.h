@@ -3,6 +3,10 @@
 #include "BaseWindow.h"
 #include "IsAlive.h"
 
+#include "components/PrimaryMenu.h"
+#include "components/SuperContainer.h"
+#include "components/SuperViewer.h"
+
 #include <gtkmm.h>
 
 #include <atomic>
@@ -22,6 +26,50 @@ private:
     // Titlebar widgets
     Gtk::HeaderBar HeaderBar;
     Gtk::MenuButton Menu;
+    Gtk::MenuButton Undo;
+    Gtk::MenuButton Redo;
+    Gtk::Button ScanControl;
+
+    // Primary menu
+    PrimaryMenu MenuPopover;
+    Gtk::Button ResetResults;
+    Gtk::Separator Separator1;
+    Gtk::Label SensitivityLabel;
+    Gtk::Scale Sensitivity;
+
+    // Window contents
+    Gtk::Box MainContainer;
+
+    // Progress area
+    Gtk::Box ProgressContainer;
+    Gtk::ProgressBar ScanProgress;
+    Gtk::Label ProgressLabel;
+    Gtk::Separator Separator2;
+
+    // Resolve area
+    Gtk::Label CurrentlyShownGroup;
+    Gtk::Box ImagesContainer;
+    Gtk::Box ImagesLeftSide;
+    Gtk::Label FirstSelected;
+    SuperViewer FirstImage;
+    Gtk::Box ImagesRightSide;
+    Gtk::Label LastSelected;
+    SuperViewer LastImage;
+
+    // Bottom part of resolve area
+    Gtk::Box ImageListAreaContainer;
+    Gtk::Box ImageListLeftSide;
+    Gtk::Box ImageListLeftTop;
+    Gtk::Label DuplicateImagesLabel;
+    Gtk::Button DeleteSelectedAfterFirst;
+    Gtk::Frame DuplicateGroupImagesFrame;
+    SuperContainer DuplicateGroupImages;
+
+    // Bottom right buttons
+    Gtk::Box BottomRightContainer;
+    Gtk::Button DeleteAllAfterFirst;
+    Gtk::Button NotDuplicates;
+    Gtk::Button Skip;
 };
 
 } // namespace DV

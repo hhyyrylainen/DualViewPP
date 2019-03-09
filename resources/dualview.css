@@ -5,3 +5,9 @@
 .ListItemContainerSelected{
     background-color: cadetblue;
 }
+
+/* apparently this is the only way to fix the height of progress bars
+   but this also affects other things */
+progress, trough {
+  min-height: 8px;
+}
