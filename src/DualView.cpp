@@ -1152,6 +1152,18 @@ void DualView::OpenImporter()
     wrapped->show();
 }
 
+void DualView::OpenMainWindow(bool present /*= true*/)
+{
+    AssertIfNotMainThread();
+
+    if(MainMenu) {
+        MainMenu->show();
+
+        if(present)
+            MainMenu->present();
+    }
+}
+
 void DualView::OpenImporter(const std::vector<std::shared_ptr<Image>>& images)
 {
     AssertIfNotMainThread();

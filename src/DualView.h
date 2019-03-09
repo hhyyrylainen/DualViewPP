@@ -88,6 +88,9 @@ public:
     //! \brief Opens an empty Importer
     void OpenImporter();
 
+    //! \brief Opens the main window if it was closed
+    void OpenMainWindow(bool present = true);
+
     //! \brief Opens an Importer with specified database images
     void OpenImporter(const std::vector<std::shared_ptr<Image>>& images);
 
@@ -121,7 +124,6 @@ public:
     //! \brief Opens a download setup for a page that contains a single image and not
     //! a gallery
     void OnNewImagePageLinkReceived(const std::string& url);
-
 
     //! \brief Runs folder creator as a modal window
     void RunFolderCreatorAsDialog(

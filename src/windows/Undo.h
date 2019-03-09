@@ -3,6 +3,8 @@
 #include "BaseWindow.h"
 #include "IsAlive.h"
 
+#include "components/PrimaryMenu.h"
+
 #include "Common/BaseNotifiable.h"
 
 #include <gtkmm.h>
@@ -25,6 +27,9 @@ private:
     Gtk::HeaderBar HeaderBar;
     Gtk::MenuButton Menu;
     Gtk::Button SearchButton;
+
+    // Primary menu
+    PrimaryMenu MenuPopover;
 
     // Main content area
     Gtk::Box MainContainer;

@@ -11,6 +11,7 @@ UndoWindow::UndoWindow() : NothingToShow("No history items available")
     property_resizable() = true;
 
     Menu.set_image_from_icon_name("open-menu-symbolic");
+    Menu.set_popover(MenuPopover);
 
     SearchButton.set_image_from_icon_name("edit-find-symbolic");
 

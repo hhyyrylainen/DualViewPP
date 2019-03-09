@@ -85,7 +85,8 @@ add_library(Core
   components/ImageListItem.h components/ImageListItem.cpp
   components/CollectionListItem.h components/CollectionListItem.cpp
   components/FolderListItem.h components/FolderListItem.cpp
-
+  components/PrimaryMenu.h components/PrimaryMenu.cpp
+  
   components/DLListItem.h components/DLListItem.cpp
 
   components/TagEditor.h components/TagEditor.cpp
