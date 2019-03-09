@@ -47,7 +47,7 @@ protected:
     //! \brief Updates the gallery name
     void OnNameUpdated();
 
-    bool OnPressedRemove(GdkEventButton*);
+    void OnPressedRemove();
 
 protected:
     //! The gallery that is being edited / progress shown on

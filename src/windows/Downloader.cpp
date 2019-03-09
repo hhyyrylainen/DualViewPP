@@ -39,12 +39,12 @@ Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     builder->get_widget("AddNewLink", AddNewLink);
     LEVIATHAN_ASSERT(AddNewLink, "Invalid .glade file");
 
-    AddNewLink->signal_button_press_event().connect(
+    AddNewLink->signal_clicked().connect(
         sigc::mem_fun(*this, &Downloader::_OpenNewDownloadSetup));
 
 
     BUILDER_GET_WIDGET(StartDownloadButton);
-    StartDownloadButton->signal_button_press_event().connect(
+    StartDownloadButton->signal_clicked().connect(
         sigc::mem_fun(*this, &Downloader::_ToggleDownloadThread));
 
     BUILDER_GET_WIDGET(DLStatusLabel);
@@ -54,8 +54,7 @@ Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     Gtk::Button* DLSelectAll;
     BUILDER_GET_WIDGET(DLSelectAll);
-    DLSelectAll->signal_button_press_event().connect(
-        sigc::mem_fun(*this, &Downloader::_SelectAll));
+    DLSelectAll->signal_clicked().connect(sigc::mem_fun(*this, &Downloader::_SelectAll));
 
 
 
@@ -171,10 +170,9 @@ void Downloader::_OnRemoveListItem(DLListItem& item)
     });
 }
 // ------------------------------------ //
-bool Downloader::_OpenNewDownloadSetup(GdkEventButton*)
+void Downloader::_OpenNewDownloadSetup()
 {
     DualView::Get().OpenDownloadSetup();
-    return true;
 }
 // ------------------------------------ //
 void Downloader::StartDownloadThread()
@@ -220,14 +218,12 @@ void Downloader::WaitForDownloadThread()
         DownloadThread.join();
 }
 // ------------------------------------ //
-bool Downloader::_SelectAll(GdkEventButton*)
+void Downloader::_SelectAll()
 {
     for(auto& item : DLList) {
 
         item->SetSelected();
     }
-
-    return true;
 }
 // ------------------------------------ //
 std::shared_ptr<DLListItem> Downloader::GetNextSelectedGallery()
@@ -687,7 +683,7 @@ void Downloader::_RunDownloadThread()
 
 
 // ------------------------------------ //
-bool Downloader::_ToggleDownloadThread(GdkEventButton*)
+void Downloader::_ToggleDownloadThread()
 {
     if(RunDownloadThread) {
 
@@ -699,7 +695,5 @@ bool Downloader::_ToggleDownloadThread(GdkEventButton*)
         StartDownloadThread();
         DLStatusLabel->set_text("Downloader thread waiting for work");
     }
-
-    return true;
 }
 // ------------------------------------ //

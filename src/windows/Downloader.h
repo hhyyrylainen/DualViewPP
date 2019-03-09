@@ -48,14 +48,14 @@ public:
 
 protected:
     //! \brief Toggles the download thread, callback for the button
-    bool _ToggleDownloadThread(GdkEventButton*);
+    void _ToggleDownloadThread();
 
     bool _OnClose(GdkEventAny* event);
 
     void _OnShown();
     void _OnHidden();
 
-    bool _OpenNewDownloadSetup(GdkEventButton*);
+    void _OpenNewDownloadSetup();
 
     //! \brief Gets the next selected download gallery
     std::shared_ptr<DLListItem> GetNextSelectedGallery();
@@ -68,7 +68,7 @@ protected:
 
     void _OnRemoveListItem(DLListItem& item);
 
-    bool _SelectAll(GdkEventButton*);
+    void _SelectAll();
 
 protected:
     //! \warning If this is a flowbox all hell breaks loose
