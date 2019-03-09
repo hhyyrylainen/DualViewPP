@@ -1,0 +1,7 @@
+<b>DualView++ by Henri Hyyryläinen, 2016-2019</b>
+
+Licensed under the MIT license
+
+Uses icons from flaticon:
+folders.png Icon made by Freepik from www.flaticon.com
+file-folder.png Icon made by Daniel Bruce from www.flaticon.com

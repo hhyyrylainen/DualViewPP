@@ -1,6 +1,8 @@
 // ------------------------------------ //
 #include "PrimaryMenu.h"
 
+#include "UtilityHelpers.h"
+
 #include "DualView.h"
 
 using namespace DV;
@@ -45,10 +47,8 @@ void PrimaryMenu::_OpenAbout()
         Gtk::Label label;
 
         label.set_max_width_chars(60);
-        label.set_markup("DualView++ by Henri Hyyryläinen, 2016-2019\n\nLicensed under the "
-                         "MIT license\n\nUses icons from flaticon:\nfolders.png Icon made by "
-                         "Freepik from www.flaticon.com\nfile-folder.png Icon made by Daniel "
-                         "Bruce from www.flaticon.com");
+        label.set_markup(
+            LoadResourceCopy("/com/boostslair/dualviewpp/resources/about_text.txt"));
 
         Gtk::Button ok("_Close", true);
         dialog.add_action_widget(ok, 1);

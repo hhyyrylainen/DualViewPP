@@ -23,5 +23,6 @@
     <file preprocess="to-pixdata">resources/icons/folders.png</file>
     
     <file>resources/dualview.css</file>
+    <file compressed="true">resources/about_text.txt</file>
   </gresource>
 </gresources>
