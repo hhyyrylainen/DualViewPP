@@ -78,6 +78,7 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
     MainContainer.pack_start(ProgressContainer, false, false);
 
     Separator2.property_margin_top() = 5;
+    Separator2.property_height_request() = 3;
     Separator2.property_margin_bottom() = 2;
 
     MainContainer.pack_start(Separator2, false, false);
@@ -87,14 +88,14 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
     // Images
     FirstSelected.property_valign() = Gtk::ALIGN_END;
     FirstSelected.property_vexpand() = false;
-    ImagesLeftSide.pack_start(FirstSelected);
+    ImagesLeftSide.pack_start(FirstSelected, false, false);
     FirstImage.property_height_request() = 300;
     ImagesLeftSide.pack_end(FirstImage, true, true);
     ImagesContainer.pack_start(ImagesLeftSide, true, true);
 
     LastSelected.property_valign() = Gtk::ALIGN_END;
     LastSelected.property_vexpand() = false;
-    ImagesRightSide.pack_start(LastSelected);
+    ImagesRightSide.pack_start(LastSelected, false, false);
     LastImage.property_height_request() = 300;
     ImagesRightSide.pack_end(LastImage, true, true);
     ImagesContainer.pack_start(ImagesRightSide, true, true);
