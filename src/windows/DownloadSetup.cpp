@@ -36,16 +36,9 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     builder->get_widget_derived("CollectionTags", CollectionTagEditor);
     LEVIATHAN_ASSERT(CollectionTagEditor, "Invalid .glade file");
 
-#ifdef DV_BUILDER_WORKAROUND
-
-    builder->get_widget_derived("CurrentImage", CurrentImage);
-    ImageView->Init(nullptr, SuperViewer::ENABLED_EVENTS::ALL, false);
-#else
-
     builder->get_widget_derived(
         "CurrentImage", CurrentImage, nullptr, SuperViewer::ENABLED_EVENTS::ALL, false);
 
-#endif // DV_BUILDER_WORKAROUND
     LEVIATHAN_ASSERT(CurrentImage, "Invalid .glade file");
 
     builder->get_widget_derived("CurrentImageEditor", CurrentImageEditor);

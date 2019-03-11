@@ -23,24 +23,6 @@ using namespace DV;
 
 constexpr auto MAX_LOADING_LINES = 6;
 
-#ifdef DV_BUILDER_WORKAROUND
-
-SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder) :
-    Gtk::DrawingArea(area)
-{}
-
-void SuperViewer::Init(
-    std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events, bool forcethumbnail)
-{
-    DisplayedResource = displayedResource;
-    Events = events;
-    ForceOnlyThumbnail = forcethumbnail;
-
-    _CommonCtor();
-}
-
-#else
-
 SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
     std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events, bool forcethumbnail) :
     Gtk::DrawingArea(area),
@@ -49,8 +31,6 @@ SuperViewer::SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> build
     // Do setup stuff //
     _CommonCtor();
 }
-
-#endif
 
 SuperViewer::SuperViewer(
     std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events, bool forcethumbnail) :

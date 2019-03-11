@@ -22,16 +22,8 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     try {
 
-#ifdef DV_BUILDER_WORKAROUND
-
-        builder->get_widget_derived("ImageView", ImageView);
-        ImageView->Init(nullptr, SuperViewer::ENABLED_EVENTS::ALL, false);
-#else
-
         builder->get_widget_derived(
             "ImageView", ImageView, nullptr, SuperViewer::ENABLED_EVENTS::ALL, false);
-
-#endif // DV_BUILDER_WORKAROUND
 
     } catch(const Leviathan::InvalidArgument& e) {
 

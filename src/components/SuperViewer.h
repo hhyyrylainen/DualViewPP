@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CacheManager.h"
-#include "UbuntuWorkaround.h"
 #include "resources/Image.h"
 
 #include "Common/Types.h"
@@ -50,22 +49,9 @@ public:
     SuperViewer(
         std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events, bool forcethumbnail);
 
-#ifdef DV_BUILDER_WORKAROUND
-
-    SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder);
-
-    //! \brief Workaround for old and bad ubuntu gtk versions
-    void Init(
-        std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events, bool forcethumbnail);
-#else
-
     //! \brief Constructor called by glade builder when loading a widget of this type
     SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
         std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events, bool forcethumbnail);
-
-#endif
-
-
 
 
     ~SuperViewer();
