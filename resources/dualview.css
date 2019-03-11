@@ -10,3 +10,8 @@
 progressbar > trough, progress{
   min-height: 15px;
 }
+
+.ArrowButton{
+    padding-left: 30px;
+    padding-right: 30px;
+}

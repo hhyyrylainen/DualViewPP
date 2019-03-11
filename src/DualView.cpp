@@ -1333,6 +1333,9 @@ void DualView::OpenDuplicateFinder()
 
 void DualView::OpenReorder(const std::shared_ptr<Collection>& collection)
 {
+    if(!collection)
+        return;
+
     AssertIfNotMainThread();
 
     auto window = std::make_shared<ReorderWindow>(collection);
