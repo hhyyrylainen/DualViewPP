@@ -15,7 +15,6 @@ TagEditor::TagEditor() :
     Gtk::Box(Gtk::ORIENTATION_VERTICAL), ContainerForTags(),
     ViewForTags(ContainerForTags.get_hadjustment(), ContainerForTags.get_vadjustment())
 {
-    CreateTag.set_image_from_icon_name("list-add-symbolic");
     _CommonCtor();
 }
 
@@ -23,14 +22,15 @@ TagEditor::TagEditor(_GtkBox* widget, Glib::RefPtr<Gtk::Builder> builder) :
     Gtk::Box(widget), ContainerForTags(),
     ViewForTags(ContainerForTags.get_hadjustment(), ContainerForTags.get_vadjustment())
 {
-    CreateTag.set_image_from_icon_name("list-add-symbolic");
-    set_orientation(Gtk::ORIENTATION_VERTICAL);
-
     _CommonCtor();
 }
 
 void TagEditor::_CommonCtor()
 {
+    set_orientation(Gtk::ORIENTATION_VERTICAL);
+
+    CreateTag.set_image_from_icon_name("document-new-symbolic");
+
     set_spacing(2);
 
     // This doesn't seem to work if the container is not set as expand
