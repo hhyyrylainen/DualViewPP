@@ -223,12 +223,14 @@ bool Database::SelectDatabaseVersion(Lock& guard, int& result)
 // Image
 void Database::InsertImage(Lock& guard, Image& image)
 {
-
     LEVIATHAN_ASSERT(image.IsReady(), "InsertImage: image not ready");
 
-    const char str[] = "INSERT INTO pictures (relative_path, width, height, name, extension, "
-                       "add_date, last_view, is_private, from_file, file_hash) VALUES "
-                       "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+    const auto& signature = image.GetSignature();
+
+    const char str[] =
+        "INSERT INTO pictures (relative_path, width, height, name, extension, "
+        "add_date, last_view, is_private, from_file, file_hash, signature) VALUES "
+        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -237,32 +239,107 @@ void Database::InsertImage(Lock& guard, Image& image)
         image.GetHeight(), image.GetName(), image.GetExtension(), image.GetAddDateStr(),
         image.GetLastViewStr(), image.GetIsPrivate(), image.GetFromFile(), image.GetHash());
 
+    if(signature.empty()) {
+        statementobj.Bind(nullptr);
+    } else {
+        statementobj.Bind(image.GetSignature());
+    }
+
     statementobj.StepAll(statementinuse);
 
     const DBID id = SelectImageIDByHash(guard, image.GetHash());
+
+    // This is usually executed within a transaction so this isn't grouped with the image
+    // insert here
+    // TODO: this does some extra work when inserting but shouldn't be too bad
+    if(!signature.empty())
+        _InsertImageSignatureParts(guard, id, signature);
 
     image.OnAdopted(id, *this);
 }
 
 bool Database::UpdateImage(const Image& image)
 {
+    if(!image.IsInDatabase())
+        return false;
 
     GUARD_LOCK();
 
+    const auto id = image.GetID();
+
+    // Only the signature property can change
+    const auto& signature = image.GetSignature();
+    // Detect if the signature changed
+    if(signature != SelectImageSignatureByID(guard, id)) {
+
+        DoDBTransaction transaction(*this, guard);
+
+        // Update
+        {
+            const char str[] = "UPDATE pictures SET signature = ? WHERE id = ?;";
+
+            PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+            auto statementinuse = !signature.empty() ?
+                                      statementobj.Setup(signature, image.GetID()) :
+                                      statementobj.Setup(nullptr, image.GetID());
+
+            statementobj.StepAll(statementinuse);
+        }
+
+        // Also insert constituent parts
+        _InsertImageSignatureParts(guard, id, signature);
+    }
+
     // Don't forget to call CacheManager::GetDatabaseImagePath when saving the path
-    return false;
+    return true;
+}
+
+void Database::_InsertImageSignatureParts(
+    Lock& guard, DBID image, const std::string& signature)
+{
+    // First clear all
+    {
+        const char str[] = "DELETE FROM picture_signature_words WHERE picture_id = ?;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        auto statementinuse = statementobj.Setup(image);
+
+        statementobj.StepAll(statementinuse);
+    }
+
+    const char str[] =
+        "INSERT INTO picture_signature_words (picture_id, sig_word) VALUES (?, ?);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    // Then insert new
+    if(signature.length() > IMAGE_SIGNATURE_WORD_LENGTH) {
+
+        size_t loopCount = std::min<size_t>(
+            IMAGE_SIGNATURE_WORD_COUNT, signature.length() - IMAGE_SIGNATURE_WORD_LENGTH + 1);
+
+        for(size_t i = 0; i < loopCount; ++i) {
+
+            // The index is part of the word key in the table
+            std::string finalKey =
+                std::to_string(i) + "__" + signature.substr(i, IMAGE_SIGNATURE_WORD_LENGTH);
+            auto statementinuse = statementobj.Setup(signature, image);
+
+            statementobj.StepAll(statementinuse);
+        }
+    }
 }
 
 bool Database::DeleteImage(Image& image)
 {
-
     GUARD_LOCK();
     return false;
 }
 
 DBID Database::SelectImageIDByHash(Lock& guard, const std::string& hash)
 {
-
     const char str[] = "SELECT id FROM pictures WHERE file_hash = ?1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -279,9 +356,24 @@ DBID Database::SelectImageIDByHash(Lock& guard, const std::string& hash)
     return -1;
 }
 
+std::string Database::SelectImageSignatureByID(Lock& guard, DBID image)
+{
+    const char str[] = "SELECT signature FROM pictures WHERE id = ?1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(image);
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        return statementobj.GetColumnAsString(0);
+    }
+
+    return "";
+}
+
 std::shared_ptr<Image> Database::SelectImageByHash(Lock& guard, const std::string& hash)
 {
-
     const char str[] = "SELECT * FROM pictures WHERE file_hash = ?1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -298,7 +390,6 @@ std::shared_ptr<Image> Database::SelectImageByHash(Lock& guard, const std::strin
 
 std::shared_ptr<Image> Database::SelectImageByID(Lock& guard, DBID id)
 {
-
     const char str[] = "SELECT * FROM pictures WHERE id = ?1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -334,7 +425,6 @@ std::vector<std::shared_ptr<Image>> Database::SelectImageByTag(Lock& guard, DBID
 // ------------------------------------ //
 std::shared_ptr<TagCollection> Database::LoadImageTags(const std::shared_ptr<Image>& image)
 {
-
     if(!image || !image->IsInDatabase())
         return nullptr;
 
@@ -413,7 +503,6 @@ void Database::InsertImageTag(Lock& guard, std::weak_ptr<Image> image, AppliedTa
 
 void Database::InsertTagImage(Lock& guard, Image& image, DBID appliedtagid)
 {
-
     const char str[] = "INSERT INTO image_tag (image, tag) VALUES (?, ?);";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -482,21 +571,18 @@ std::shared_ptr<Collection> Database::InsertCollection(
 
 bool Database::UpdateCollection(const Collection& collection)
 {
-
     GUARD_LOCK();
     return false;
 }
 
 bool Database::DeleteCollection(Collection& collection)
 {
-
     GUARD_LOCK();
     return false;
 }
 
 std::shared_ptr<Collection> Database::SelectCollectionByID(DBID id)
 {
-
     GUARD_LOCK();
 
     const char str[] = "SELECT * FROM collections WHERE id = ?1;";
@@ -557,7 +643,6 @@ std::vector<std::string> Database::SelectCollectionNamesByWildcard(
 
 int64_t Database::SelectCollectionLargestShowOrder(Lock& guard, const Collection& collection)
 {
-
     if(!collection.IsInDatabase())
         return 0;
 
@@ -578,7 +663,6 @@ int64_t Database::SelectCollectionLargestShowOrder(Lock& guard, const Collection
 
 int64_t Database::SelectCollectionImageCount(Lock& guard, const Collection& collection)
 {
-
     if(!collection.IsInDatabase())
         return 0;
 
@@ -678,7 +762,6 @@ void Database::InsertCollectionTag(
 
 void Database::InsertTagCollection(Lock& guard, Collection& collection, DBID appliedtagid)
 {
-
     const char str[] = "INSERT INTO collection_tag (collection, tag) VALUES (?, ?);";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -733,7 +816,6 @@ bool Database::InsertImageToCollection(
 
 bool Database::SelectIsImageInAnyCollection(Lock& guard, const Image& image)
 {
-
     const char str[] = "SELECT 1 FROM collection_image WHERE image = ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -750,7 +832,6 @@ bool Database::SelectIsImageInAnyCollection(Lock& guard, const Image& image)
 
 bool Database::DeleteImageFromCollection(Lock& guard, Collection& collection, Image& image)
 {
-
     if(!collection.IsInDatabase() || !image.IsInDatabase())
         return false;
 
@@ -815,7 +896,6 @@ std::shared_ptr<Image> Database::SelectImageInCollectionByShowOrder(
 
 std::shared_ptr<Image> Database::SelectCollectionPreviewImage(const Collection& collection)
 {
-
     GUARD_LOCK();
 
     const char str[] = "SELECT preview_image FROM collections WHERE id = ?;";
@@ -1005,7 +1085,6 @@ std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollection(
 // ------------------------------------ //
 size_t Database::CountExistingTags()
 {
-
     GUARD_LOCK();
 
     const char str[] = "SELECT COUNT(*) FROM tags;";
@@ -1025,7 +1104,6 @@ size_t Database::CountExistingTags()
 // Folder
 std::shared_ptr<Folder> Database::SelectRootFolder(Lock& guard)
 {
-
     const char str[] = "SELECT * FROM virtual_folders WHERE id = 1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -1043,7 +1121,6 @@ std::shared_ptr<Folder> Database::SelectRootFolder(Lock& guard)
 
 std::shared_ptr<Folder> Database::SelectFolderByID(Lock& guard, DBID id)
 {
-
     const char str[] = "SELECT * FROM virtual_folders WHERE id = ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -1096,7 +1173,6 @@ std::shared_ptr<Folder> Database::InsertFolder(
 
 bool Database::UpdateFolder(Folder& folder)
 {
-
     GUARD_LOCK();
     return false;
 }
@@ -1122,7 +1198,6 @@ bool Database::InsertCollectionToFolder(
 
 void Database::DeleteCollectionFromFolder(Folder& folder, const Collection& collection)
 {
-
     const char str[] = "DELETE FROM folder_collection WHERE parent = ? AND child = ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -1169,7 +1244,6 @@ std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsInFolder(
 
 bool Database::SelectCollectionIsInFolder(Lock& guard, const Collection& collection)
 {
-
     const char str[] = "SELECT 1 FROM folder_collection WHERE child = ? LIMIT 1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -1226,7 +1300,6 @@ std::vector<DBID> Database::SelectFoldersCollectionIsIn(const Collection& collec
 
 void Database::DeleteCollectionFromRootIfInAnotherFolder(const Collection& collection)
 {
-
     GUARD_LOCK();
 
     auto& root = *SelectRootFolder(guard);
@@ -1247,7 +1320,6 @@ void Database::DeleteCollectionFromRootIfInAnotherFolder(const Collection& colle
 
 void Database::InsertCollectionToRootIfInNone(const Collection& collection)
 {
-
     GUARD_LOCK();
 
     if(SelectCollectionIsInFolder(guard, collection))
@@ -1262,7 +1334,6 @@ void Database::InsertCollectionToRootIfInNone(const Collection& collection)
 // Folder folder
 void Database::InsertFolderToFolder(Lock& guard, Folder& folder, const Folder& parent)
 {
-
     const char str[] = "INSERT INTO folder_folder (parent, child) VALUES(?, ?);";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -1293,7 +1364,6 @@ std::shared_ptr<Folder> Database::SelectFolderByNameAndParent(
 
 std::vector<DBID> Database::SelectFolderParents(const Folder& folder)
 {
-
     GUARD_LOCK();
 
     std::vector<DBID> result;
@@ -1370,7 +1440,6 @@ std::shared_ptr<Tag> Database::InsertTag(
 
 std::shared_ptr<Tag> Database::SelectTagByID(Lock& guard, DBID id)
 {
-
     const char str[] = "SELECT * FROM tags WHERE id = ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -1387,7 +1456,6 @@ std::shared_ptr<Tag> Database::SelectTagByID(Lock& guard, DBID id)
 
 std::shared_ptr<Tag> Database::SelectTagByName(Lock& guard, const std::string& name)
 {
-
     const char str[] = "SELECT * FROM tags WHERE name = ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -1468,7 +1536,6 @@ std::vector<std::shared_ptr<Tag>> Database::SelectTagsWildcard(
 
 std::shared_ptr<Tag> Database::SelectTagByAlias(Lock& guard, const std::string& alias)
 {
-
     const char str[] =
         "SELECT tags.* FROM tag_aliases "
         "LEFT JOIN tags ON tags.id = tag_aliases.meant_tag WHERE tag_aliases.name = ?;";
@@ -1487,7 +1554,6 @@ std::shared_ptr<Tag> Database::SelectTagByAlias(Lock& guard, const std::string& 
 
 std::shared_ptr<Tag> Database::SelectTagByNameOrAlias(const std::string& name)
 {
-
     GUARD_LOCK();
 
     auto tag = SelectTagByName(guard, name);
@@ -1500,7 +1566,6 @@ std::shared_ptr<Tag> Database::SelectTagByNameOrAlias(const std::string& name)
 
 std::string Database::SelectTagSuperAlias(const std::string& name)
 {
-
     GUARD_LOCK();
 
     const char str[] = "SELECT expanded FROM tag_super_aliases WHERE alias = ?;";
@@ -1519,7 +1584,6 @@ std::string Database::SelectTagSuperAlias(const std::string& name)
 
 void Database::UpdateTag(Tag& tag)
 {
-
     if(!tag.IsInDatabase())
         return;
 
@@ -1539,7 +1603,6 @@ void Database::UpdateTag(Tag& tag)
 
 bool Database::InsertTagAlias(Tag& tag, const std::string& alias)
 {
-
     if(!tag.IsInDatabase())
         return false;
 
@@ -1570,7 +1633,6 @@ bool Database::InsertTagAlias(Tag& tag, const std::string& alias)
 
 void Database::DeleteTagAlias(const std::string& alias)
 {
-
     GUARD_LOCK();
 
     const char str[] = "DELETE FROM tag_aliases WHERE name = ?;";
@@ -1584,7 +1646,6 @@ void Database::DeleteTagAlias(const std::string& alias)
 
 void Database::DeleteTagAlias(const Tag& tag, const std::string& alias)
 {
-
     GUARD_LOCK();
 
     const char str[] = "DELETE FROM tag_aliases WHERE name = ? AND meant_tag = ?;";
@@ -1598,7 +1659,6 @@ void Database::DeleteTagAlias(const Tag& tag, const std::string& alias)
 
 std::vector<std::string> Database::SelectTagAliases(const Tag& tag)
 {
-
     GUARD_LOCK();
 
     std::vector<std::string> result;
@@ -1619,7 +1679,6 @@ std::vector<std::string> Database::SelectTagAliases(const Tag& tag)
 
 bool Database::InsertTagImply(Tag& tag, const Tag& implied)
 {
-
     GUARD_LOCK();
 
     {
@@ -1647,7 +1706,6 @@ bool Database::InsertTagImply(Tag& tag, const Tag& implied)
 
 void Database::DeleteTagImply(Tag& tag, const Tag& implied)
 {
-
     GUARD_LOCK();
 
     const char str[] = "DELETE FROM tag_implies WHERE primary_tag = ? AND to_apply = ?;";
@@ -3013,6 +3071,12 @@ bool Database::_UpdateDatabase(Lock& guard, const int oldversion)
         _SetCurrentDatabaseVersion(guard, 19);
         return true;
     }
+    case 19: {
+        _RunSQL(guard,
+            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_19_20.sql"));
+        _SetCurrentDatabaseVersion(guard, 20);
+        return true;
+    }
     default: {
         LOG_ERROR("Unknown database version to update from: " + Convert::ToString(oldversion));
         return false;
@@ -3022,7 +3086,6 @@ bool Database::_UpdateDatabase(Lock& guard, const int oldversion)
 
 void Database::_SetCurrentDatabaseVersion(Lock& guard, int newversion)
 {
-
     if(sqlite3_exec(SQLiteDb,
            ("UPDATE version SET number = " + Convert::ToString(newversion) + ";").c_str(),
            nullptr, nullptr, nullptr) != SQLITE_OK) {
@@ -3032,7 +3095,6 @@ void Database::_SetCurrentDatabaseVersion(Lock& guard, int newversion)
 
 void Database::_UpdateApplyDownloadTagStrings(Lock& guard)
 {
-
     const char str[] =
         "SELECT pictures.id, net_files.tags_string FROM net_files "
         "INNER JOIN pictures ON net_files.file_url = pictures.from_file WHERE "
@@ -3143,7 +3205,6 @@ void Database::_RunSQL(Lock& guard, const std::string& sql)
 
 void Database::PrintResultingRows(Lock& guard, const std::string& str)
 {
-
     PreparedStatement statementobj(SQLiteDb, str);
 
     auto statementinuse = statementobj.Setup();
@@ -3186,13 +3247,11 @@ std::string Database::EscapeSql(std::string str)
 // Transaction stuff
 void Database::BeginTransaction(Lock& guard)
 {
-
     RunSQLAsPrepared(guard, "BEGIN TRANSACTION;");
 }
 
 void Database::CommitTransaction(Lock& guard)
 {
-
     RunSQLAsPrepared(guard, "COMMIT TRANSACTION;");
 }
 
@@ -3200,12 +3259,10 @@ void Database::CommitTransaction(Lock& guard)
 // DoDBTransaction
 DoDBTransaction::DoDBTransaction(Database& db, Lock& dblock) : DB(db), Locked(dblock)
 {
-
     DB.BeginTransaction(Locked);
 }
 
 DoDBTransaction::~DoDBTransaction()
 {
-
     DB.CommitTransaction(Locked);
 }

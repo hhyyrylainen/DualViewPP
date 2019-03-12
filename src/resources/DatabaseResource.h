@@ -30,7 +30,6 @@ public:
     //! their cached values
     void OnMarkDirty()
     {
-
         IsDirty = true;
         GUARD_LOCK();
         NotifyAll(guard);
@@ -38,28 +37,24 @@ public:
 
     inline auto GetID() const
     {
-
         return ID;
     }
 
     //! \brief Returns true if this is in the database
     inline bool IsInDatabase() const
     {
-
         return InDatabase && ID != -1;
     }
 
     //! \brief Returns true if the IDs match and they aren't -1
     bool operator==(const DatabaseResource& other) const
     {
-
         return (ID == other.ID && ID != -1 && InDatabase);
     }
 
     //! \brief Not ==
     bool operator!=(const DatabaseResource& other) const
     {
-
         return !(*this == other);
     }
 

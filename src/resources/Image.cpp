@@ -16,6 +16,8 @@
 #include "Exceptions.h"
 #include "FileSystem.h"
 
+#include "base64.h"
+
 #include <boost/filesystem.hpp>
 
 using namespace DV;
@@ -90,6 +92,8 @@ Image::Image(Database& db, Lock& dblock, PreparedStatement& statement, int64_t i
     CheckRowID(statement, 8, "is_private");
     CheckRowID(statement, 9, "from_file");
     CheckRowID(statement, 10, "file_hash");
+    CheckRowID(statement, 11, "signature");
+
 
     // Convert path to runtime path
     ResourcePath = CacheManager::GetFinalImagePath(statement.GetColumnAsString(1));
@@ -109,6 +113,9 @@ Image::Image(Database& db, Lock& dblock, PreparedStatement& statement, int64_t i
 
     AddDate = TimeHelpers::ParseTime(statement.GetColumnAsString(6));
     LastView = TimeHelpers::ParseTime(statement.GetColumnAsString(7));
+
+    // This may be empty
+    Signature = statement.GetColumnAsString(11);
 }
 
 Image::~Image()
@@ -164,6 +171,17 @@ void Image::SetResourcePath(const std::string& newpath)
     Extension = boost::filesystem::path(ResourcePath).extension().string();
 
     OnMarkDirty();
+}
+
+void Image::SetSignature(const std::string& signature)
+{
+    Signature = signature;
+    OnMarkDirty();
+}
+
+std::string Image::GetSignatureBase64() const
+{
+    return base64_encode(GetSignature());
 }
 // ------------------------------------ //
 void Image::_DoSave(Database& db)

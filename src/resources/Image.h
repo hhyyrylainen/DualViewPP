@@ -67,7 +67,6 @@ public:
     //! \exception Leviathan::InvalidArgument if something is wrong with the file
     inline static std::shared_ptr<Image> Create(const std::string& file)
     {
-
         auto obj = std::shared_ptr<Image>(new Image(file));
         obj->Init();
         return obj;
@@ -103,89 +102,86 @@ public:
     //! is imported to the collection in DualView::AddToCollection
     std::shared_ptr<TagCollection> GetTags()
     {
-
         return Tags;
     }
 
     //! \brief Returns true if this is ready to be added to the database
     inline bool IsReady() const
     {
-
         return IsReadyToAdd;
     }
 
     //! \brief Returns true if there hasn't been an error with this image
     inline auto GetIsValid() const
     {
-
         return IsValid;
     }
 
     //! \brief Returns a shared_ptr pointing to this instance
     inline std::shared_ptr<Image> GetPtr()
     {
-
         return shared_from_this();
     }
 
     //! \brief Returns the name
     inline std::string GetName() const
     {
-
         return ResourceName;
     }
 
     inline auto GetResourcePath() const
     {
-
         return ResourcePath;
     }
 
     inline auto GetExtension() const
     {
-
         return Extension;
     }
 
     inline auto GetWidth() const
     {
-
         return Width;
     }
 
     inline auto GetHeight() const
     {
-
         return Height;
     }
 
     inline auto GetIsPrivate() const
     {
-
         return IsPrivate;
     }
 
     inline auto GetFromFile() const
     {
-
         return ImportLocation;
     }
 
     std::string GetAddDateStr() const
     {
-
         return TimeHelpers::format8601(AddDate);
     }
 
     std::string GetLastViewStr() const
     {
-
         return TimeHelpers::format8601(LastView);
     }
 
     //! \brief Updates the resources location. Must be called after the file at ResourcePath
     //! is moved
     void SetResourcePath(const std::string& newpath);
+
+    //! \brief Updates the signature. Marks this as changed. This will be saved later
+    void SetSignature(const std::string& signature);
+
+    inline const auto& GetSignature() const
+    {
+        return Signature;
+    }
+
+    std::string GetSignatureBase64() const;
 
 
     //! \brief Returns a hash calculated from the file at ResourcePath
@@ -248,6 +244,9 @@ protected:
     std::string ResourceName;
 
     std::string Extension;
+
+    //! LibPuzzle signature
+    std::string Signature;
 
     bool IsPrivate = false;
 

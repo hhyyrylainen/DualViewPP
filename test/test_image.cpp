@@ -3,6 +3,7 @@
 #include "CacheManager.h"
 #include "DummyLog.h"
 #include "Settings.h"
+#include "SignatureCalculator.h"
 #include "TestDualView.h"
 #include "resources/Image.h"
 
@@ -222,4 +223,26 @@ TEST_CASE("Thumbnail is created in a different folder", "[image][expensive]")
     INFO("Path is: " << path);
     INFO("NOTE: there seems to be a file creation race condition in this test. ");
     REQUIRE(boost::filesystem::exists(path));
+}
+
+TEST_CASE("Image signature calculation on non-db image works", "[image][hash]")
+{
+    DummyDualView dummy;
+
+    auto img = Image::Create("data/7c2c2141cf27cb90620f80400c6bc3c4.jpg");
+
+    SignatureCalculator calculator;
+    CHECK(calculator.CalculateImageSignature(*img));
+
+    CHECK(
+        img->GetSignatureBase64() ==
+        "Af/////+/v8B//8B/wECAQEC/v7+/wEC/gEC/gICAgEB/v7+//8CAQEBAgECAgECAf8BAQL/Af////8B/v4B/"
+        "wIBAv//Av4B//4B/v////7+//7//v4C/wICAQIBAv8B//8B/wL/Af//Af/+/wH+/v7+///+/v7/AQIBAv//"
+        "AQICAQIBAgICAv4BAf7//gEAAQL+Af4CAf4C/wECAgL/Af7+//7+/v7+AQECAQEBAv8CAgICAQECAgL/Af/+/"
+        "gEB/v7+/gL/Av7+Af7//v7//v//AP/+Af7/Af4CAQICAgICAv8C//4AAQEBAv8AAQH+/v/+/v7+/wH+/v//"
+        "AQICAgACAgICAgIAAgICAv8BAf4B/wIAAf/+//4B//4C/v8CAQH+AP7+/////v/+//8BAf8CAgECAgIB/"
+        "v8AAgH/Af7+AAEB/v7+/gH/Av7+Af7+//7+/v4BAAH/Av7/Av8CAgICAgICAgAB//7/AQEBAgEBAQH+/v/+//"
+        "7//wH+/wH/AQICAv8CAgICAgIBAgICAv8CAf4C/wL///7+/v4A/v4B/v8CAQH+Af7//////gD///"
+        "8BAf8CAQIBAQH//v7/////Af7+AQEA//7+/gH/Av/+Af7+AP7+/v4BAQL/Av4BAv8CAgICAgICAv8A//7////"
+        "/AQEBAQH/AQH/AQD//wEBAQH+AgICAgL/Av/+Av/+/v7+Af4BAv/+Af8BAAH/AA==");
 }

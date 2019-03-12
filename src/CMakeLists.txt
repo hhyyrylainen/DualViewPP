@@ -53,9 +53,9 @@ add_library(Core
   SingleLoad.h 
   CacheManager.h CacheManager.cpp
   DownloadManager.h DownloadManager.cpp
+  SignatureCalculator.h SignatureCalculator.cpp
 
   IsAlive.h
-  UbuntuWorkaround.h
 
   VirtualPath.h VirtualPath.cpp
   TimeHelpers.h TimeHelpers.cpp
@@ -111,7 +111,7 @@ add_library(Core
   Common.h
   )
 
-target_link_libraries(Core ThirdParty tz Engine
+target_link_libraries(Core ThirdParty tz Engine puzzle
   ${GTKMM_LIBRARIES} ${GTKCANBERRA_LIBRARIES}
   ${MAGICK_LIBRARIES} ${Boost_LIBRARIES} ${CRYPTOPP_LIBRARIES} ${SQLITE3_LIBRARIES}
   ${CURL_LIBRARIES})

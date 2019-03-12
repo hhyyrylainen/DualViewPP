@@ -44,35 +44,30 @@ public:
     //! \brief Returns true if this image is no longer waiting
     inline bool IsLoaded() const
     {
-
         return Status != IMAGE_LOAD_STATUS::Waiting;
     }
 
     //! \brief Returns true if loading was successfull
     inline bool IsValid() const
     {
-
         return MagickImage && (Status == IMAGE_LOAD_STATUS::Loaded);
     }
 
     //! \brief Returns true if MagickImage is loaded
     inline bool IsImageObjectLoaded() const
     {
-
         return MagickImage.operator bool();
     }
 
     //! \brief Returns true if path matches the path that this image has loaded
     inline bool PathMatches(const std::string& path) const
     {
-
         return Status != IMAGE_LOAD_STATUS::Error && FromPath == path;
     }
 
     //! \brief Called when the image that is in this object is moved
     void OnMoved(const std::string& newfile)
     {
-
         // Don't erase error message
         if(Status == IMAGE_LOAD_STATUS::Error)
             return;
@@ -83,21 +78,18 @@ public:
     //! \brief Resets the last use time
     inline void ResetActiveTime()
     {
-
         LastUsed = std::chrono::high_resolution_clock::now();
     }
 
     //! \brief Returns the time when ResetActiveTime was last called
     inline auto GetLastUsed() const
     {
-
         return LastUsed;
     }
 
     //! \brief Returns the path or empty if the path has been replaced by an error message
     inline std::string GetPath() const
     {
-
         if(Status == IMAGE_LOAD_STATUS::Error)
             return "error has occured";
 
@@ -107,7 +99,6 @@ public:
     //! \brief Returns the error message if IsValid is false
     std::string GetError() const
     {
-
         if(Status != IMAGE_LOAD_STATUS::Error)
             return "no error";
 

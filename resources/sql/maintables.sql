@@ -24,8 +24,20 @@ CREATE TABLE pictures (
     from_file TEXT DEFAULT "", 
     
     -- Hash of the file
-    file_hash TEXT NOT NULL UNIQUE
+    file_hash TEXT NOT NULL UNIQUE,
+
+    -- Siqnature with libpuzzle for similarity checking
+    signature TEXT
 );
+
+-- Duplicate image checking support
+CREATE TABLE picture_signature_words (
+    picture_id INTEGER NOT NULL,
+    sig_word TEXT NOT NULL,
+    FOREIGN KEY (picture_id) REFERENCES pictures(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS position_sig ON picture_signature_words(picture_id, sig_word);
 
 -- This is replaced by forcing file_hash to be unique
 --CREATE INDEX pictures_file_hash ON pictures (file_hash);
@@ -328,6 +340,7 @@ CREATE TABLE activated_db_plugins (
 
        plugin_uuid TEXT PRIMARY KEY
 );
+
 
 
 --COMMIT TRANSACTION;
