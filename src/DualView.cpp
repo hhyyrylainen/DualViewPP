@@ -133,12 +133,13 @@ DualView::~DualView()
     delete MainMenu;
     MainMenu = nullptr;
 
+    // Worker threads might still be working on some stuff
+    _WaitForWorkerThreads();
+
     // Unload image loader. All images must be closed before this is called //
     _CacheManager.reset();
 
     _Settings.reset();
-
-    _WaitForWorkerThreads();
 
     // Let go of last database resources //
     UncategorizedCollection.reset();

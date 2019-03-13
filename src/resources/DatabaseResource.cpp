@@ -57,12 +57,12 @@ void DatabaseResource::_BecomeDuplicateOf(const DatabaseResource& other)
 // ------------------------------------ //
 void DatabaseResource::Save()
 {
-    if(!IsDirty)
+    if(!IsDirty || !InDatabase)
         return;
 
     try {
 
-        _DoSave(DualView::Get().GetDatabase());
+        _DoSave(*InDatabase);
 
     } catch(const InvalidSQL& e) {
 
@@ -72,4 +72,31 @@ void DatabaseResource::Save()
     }
 
     IsDirty = false;
+}
+
+void DatabaseResource::Save(Database& db, Lock& dblock)
+{
+    if(!IsDirty || !InDatabase)
+        return;
+
+    LEVIATHAN_ASSERT(&db == InDatabase, "wrong db given to Save");
+
+    try {
+
+        _DoSave(*InDatabase, dblock);
+
+    } catch(const InvalidSQL& e) {
+
+        LOG_ERROR("DatabaseResource: failed to save, exception: ");
+        e.PrintToLog();
+        return;
+    }
+
+    IsDirty = false;
+}
+
+void DatabaseResource::_DoSave(Database& db, Lock& dblock)
+{
+    LOG_FATAL(
+        "_DoSave variant for bulk save called on an object that doesn't support bulk save");
 }

@@ -159,6 +159,13 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
     add(MainContainer);
 
     show_all_children();
+
+    // Setup non widget stuff
+
+    // Status listener for signature calculation
+    Calculator.SetStatusListener(
+        std::bind(&DuplicateFinderWindow::_ReportSignatureCalculationStatus, this,
+            std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 }
 
 DuplicateFinderWindow::~DuplicateFinderWindow()
@@ -166,7 +173,11 @@ DuplicateFinderWindow::~DuplicateFinderWindow()
     Close();
 }
 
-void DuplicateFinderWindow::_OnClose() {}
+void DuplicateFinderWindow::_OnClose()
+{
+    // Make sure the background thread is closed
+    Calculator.Pause(true);
+}
 // ------------------------------------ //
 void DuplicateFinderWindow::_ScanButtonPressed()
 {
@@ -176,6 +187,7 @@ void DuplicateFinderWindow::_ScanButtonPressed()
         Calculator.Pause();
 
     } else {
+        DoneWithSignatures = false;
         ProgressLabel.property_label() = DETECTION_STRING;
 
         // Detect images to scan
@@ -191,7 +203,12 @@ void DuplicateFinderWindow::_ScanButtonPressed()
             DualView::Get().InvokeFunction([this, isalive, imagesWithoutSignature]() {
                 INVOKE_CHECK_ALIVE_MARKER(isalive);
 
-                Calculator.AddImages(imagesWithoutSignature);
+                if(imagesWithoutSignature.empty()) {
+                    DoneWithSignatures = true;
+                } else {
+
+                    Calculator.AddImages(imagesWithoutSignature);
+                }
 
                 _CheckScanStatus();
             });
@@ -219,6 +236,86 @@ void DuplicateFinderWindow::_ScanButtonPressed()
             ProgressLabel.property_label() = "Start scan to get results";
     }
 }
-
-void DuplicateFinderWindow::_CheckScanStatus() {}
 // ------------------------------------ //
+void DuplicateFinderWindow::_CheckScanStatus()
+{
+    DualView::IsOnMainThreadAssert();
+
+    if(DoneWithSignatures) {
+        ProgressLabel.property_label() =
+            "Signature calculation complete. Searching for duplicates";
+        ScanProgress.property_fraction() = 0;
+    }
+
+    if(!QueryingDBForDuplicates && !NoMoreQueryResults) {
+        // Query DB for duplicates
+        LOG_INFO("Querying DB for potential duplicate images");
+        QueryingDBForDuplicates = true;
+
+        auto isalive = GetAliveMarker();
+
+        DualView::Get().QueueDBThreadFunction([=]() {
+            LOG_INFO("Found " + std::to_string(0) + " potential duplicates");
+
+            DualView::Get().GetDatabase().SelectPotentialImageDuplicates();
+
+            DualView::Get().InvokeFunction([this, isalive]() {
+                INVOKE_CHECK_ALIVE_MARKER(isalive);
+
+                LOG_INFO("Finished finding duplicates from db, count: ");
+
+
+                NoMoreQueryResults = true;
+                QueryingDBForDuplicates = false;
+                _CheckScanStatus();
+            });
+        });
+    }
+
+    _UpdateDuplicateStatusLabel();
+}
+
+void DuplicateFinderWindow::_ReportSignatureCalculationStatus(
+    int processed, int total, bool done)
+{
+    auto isalive = GetAliveMarker();
+
+    DualView::Get().InvokeFunction([=]() {
+        INVOKE_CHECK_ALIVE_MARKER(isalive);
+
+        ProgressLabel.property_label() = "Calculated signatures for " +
+                                         std::to_string(processed) + "/" +
+                                         std::to_string(total) + " images";
+
+        // The bar is also used for the duplicate checking phase
+        if(total > 0 && !DoneWithSignatures)
+            ScanProgress.property_fraction() = static_cast<float>(processed) / total;
+
+        DoneWithSignatures = done;
+
+        // Reset this to query the DB again once done (or hit some percentage done)
+        NoMoreQueryResults = false;
+
+        // TODO: also periodically check during scan
+
+        if(done)
+            _CheckScanStatus();
+    });
+}
+// ------------------------------------ //
+void DuplicateFinderWindow::_UpdateDuplicateStatusLabel()
+{
+    DualView::IsOnMainThreadAssert();
+
+    if(DuplicateGroups.empty()) {
+
+        CurrentlyShownGroup.property_label() = "No duplicates found";
+
+    } else {
+
+        CurrentlyShownGroup.property_label() =
+            "Resolving duplicate group " +
+            std::to_string(TotalGroupsFound + 1 - DuplicateGroups.size()) + " of " +
+            std::to_string(TotalGroupsFound) + "";
+    }
+}

@@ -76,7 +76,12 @@ public:
     {
         GUARD_LOCK();
 
-        PrintResultingRows(guard, "SELECT * FROM applied_tag");
+        PrintResultingRows(guard, GetDB(), "SELECT * FROM applied_tag");
+    }
+
+    sqlite3* GetDB()
+    {
+        return SQLiteDb;
     }
 };
 

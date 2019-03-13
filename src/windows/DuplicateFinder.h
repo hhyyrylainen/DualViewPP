@@ -30,6 +30,14 @@ protected:
     //! duplicates
     void _CheckScanStatus();
 
+    //! \brief Called from SignatureCalculator to update stats.
+    //!
+    //! This also periodically calls _CheckScanstatus
+    void _ReportSignatureCalculationStatus(int processed, int total, bool done);
+
+    //! \brief Updates the label describing
+    void _UpdateDuplicateStatusLabel();
+
 private:
     // Titlebar widgets
     Gtk::HeaderBar HeaderBar;
@@ -81,8 +89,16 @@ private:
 
     // Other resources
     SignatureCalculator Calculator;
+    bool DoneWithSignatures = false;
 
+    // Is running the finding process
     bool Scanning = false;
+
+    // Resources for the duplicate groups
+    bool QueryingDBForDuplicates = false;
+    bool NoMoreQueryResults = false;
+    std::vector<std::vector<std::shared_ptr<Image>>> DuplicateGroups;
+    size_t TotalGroupsFound = 0;
 };
 
 } // namespace DV

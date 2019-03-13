@@ -162,7 +162,7 @@ TEST_CASE("In memory initialization works and version is set", "[db]")
     int version = 0;
     GUARD_LOCK_OTHER(db);
 
-    REQUIRE(db.SelectDatabaseVersion(guard, version));
+    REQUIRE(db.SelectDatabaseVersion(guard, db.GetDB(), version));
 
     CHECK(version > 0);
 }

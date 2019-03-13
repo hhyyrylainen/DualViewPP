@@ -14,11 +14,13 @@
     <file compressed="true">resources/sql/defaulttablevalues.sql</file>
     <file compressed="true">resources/sql/defaulttags.sql</file>
     <file compressed="true">resources/sql/maintables.sql</file>
+    <file compressed="true">resources/sql/signaturetables.sql</file>
     <file compressed="true">resources/sql/migration_14_15.sql</file>
     <file compressed="true">resources/sql/migration_15_16.sql</file>
     <file compressed="true">resources/sql/migration_16_17.sql</file>
     <file compressed="true">resources/sql/migration_18_19.sql</file>
     <file compressed="true">resources/sql/migration_19_20.sql</file>
+    <file compressed="true">resources/sql/migration_20_21.sql</file>
     
     <file preprocess="to-pixdata">resources/icons/file-folder.png</file>
     <file preprocess="to-pixdata">resources/icons/folders.png</file>

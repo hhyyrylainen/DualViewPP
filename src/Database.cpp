@@ -30,10 +30,35 @@
 
 using namespace DV;
 // ------------------------------------ //
+std::string PreparePathForSQLite(std::string path)
+{
+    CurlWrapper urlencoder;
+    char* curlEncoded = curl_easy_escape(urlencoder.Get(), path.c_str(), path.size());
+
+    path = curlEncoded;
+
+    curl_free(curlEncoded);
+
+    // If begins with ':' add a ./ to the beginning
+    // as recommended by sqlite documentation
+    if(path[0] == ':')
+        path = "./" + path;
+
+    // Add the file uri specifier
+    path = "file:" + path;
+
+    return path;
+}
+
 Database::Database(std::string dbfile) : DatabaseFile(dbfile)
 {
     if(dbfile.empty())
         throw Leviathan::InvalidArgument("dbfile is empty");
+
+    //
+    auto pictureSignatureFile =
+        Leviathan::StringOperations::RemoveExtension(DatabaseFile, false) +
+        "_picture_signatures.sqlite";
 
 #ifdef _WIN32
     // This needs to be set to work properly on windows
@@ -41,23 +66,12 @@ Database::Database(std::string dbfile) : DatabaseFile(dbfile)
 
 #endif // _WIN32
 
-    CurlWrapper urlencoder;
-    char* curlEncoded = curl_easy_escape(urlencoder.Get(), dbfile.c_str(), dbfile.size());
+    dbfile = PreparePathForSQLite(dbfile);
 
-    dbfile = std::string(curlEncoded);
-
-    curl_free(curlEncoded);
-
-    // If begins with ':' add a ./ to the beginning
-    // as recommended by sqlite documentation
-    if(dbfile[0] == ':')
-        dbfile = "./" + dbfile;
-
-    // Add the file uri specifier
-    dbfile = "file:" + dbfile;
+    pictureSignatureFile = PreparePathForSQLite(pictureSignatureFile);
 
     // Open with SQLITE_OPEN_NOMUTEX because we already use explicit mutex locks
-    const auto result = sqlite3_open_v2(dbfile.c_str(), &SQLiteDb,
+    auto result = sqlite3_open_v2(dbfile.c_str(), &SQLiteDb,
         SQLITE_OPEN_URI | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX,
         nullptr);
 
@@ -76,11 +90,33 @@ Database::Database(std::string dbfile) : DatabaseFile(dbfile)
                   "' errorcode: " + Convert::ToString(result) + " message: " + errormessage);
         throw Leviathan::InvalidState("failed to open sqlite database");
     }
+
+    // Open with SQLITE_OPEN_NOMUTEX because we already use explicit mutex locks
+    result = sqlite3_open_v2(pictureSignatureFile.c_str(), &PictureSignatureDb,
+        SQLITE_OPEN_URI | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX,
+        nullptr);
+
+    if(!PictureSignatureDb) {
+
+        throw Leviathan::InvalidState("failed to allocate memory for sqlite database");
+    }
+
+    if(result != SQLITE_OK) {
+
+        const std::string errormessage(sqlite3_errmsg(PictureSignatureDb));
+
+        sqlite3_close(SQLiteDb);
+        SQLiteDb = nullptr;
+        sqlite3_close(PictureSignatureDb);
+        PictureSignatureDb = nullptr;
+        LOG_ERROR("Sqlite failed to open signature database '" + pictureSignatureFile +
+                  "' errorcode: " + Convert::ToString(result) + " message: " + errormessage);
+        throw Leviathan::InvalidState("failed to open sqlite database");
+    }
 }
 
 Database::Database(bool tests)
 {
-
     LEVIATHAN_ASSERT(tests, "Database test version not constructed with true");
 
     // const auto result = sqlite3_open(":memory:", &SQLiteDb);
@@ -94,11 +130,22 @@ Database::Database(bool tests)
         SQLiteDb = nullptr;
         throw Leviathan::InvalidState("failed to open memory sqlite database");
     }
+
+    const auto result2 = sqlite3_open_v2(":memory:", &PictureSignatureDb,
+        SQLITE_OPEN_URI | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX,
+        nullptr);
+
+    if(result2 != SQLITE_OK || PictureSignatureDb == nullptr) {
+
+        sqlite3_close(SQLiteDb);
+        sqlite3_close(PictureSignatureDb);
+        SQLiteDb = nullptr;
+        throw Leviathan::InvalidState("failed to open memory sqlite database");
+    }
 }
 
 Database::~Database()
 {
-
     GUARD_LOCK();
     // No operations can be in progress, as we are locked
     // But if there were that would be an error in DualView not properly
@@ -121,26 +168,27 @@ Database::~Database()
 
         SQLiteDb = nullptr;
     }
+
+    if(PictureSignatureDb) {
+
+        while(sqlite3_close(PictureSignatureDb) != SQLITE_OK) {
+
+            LOG_WARNING("Database waiting for sqlite3 resources to be released, "
+                        "database cannot be closed yet");
+        }
+
+        PictureSignatureDb = nullptr;
+    }
 }
 // ------------------------------------ //
 void Database::Init()
 {
-
     GUARD_LOCK();
 
-    {
-        const char str[] =
-            "PRAGMA foreign_keys = ON; PRAGMA recursive_triggers = ON; "
-            // Note if this is changed also places where journal_mode is restored
-            //! need to be updated
-            "PRAGMA journal_mode = DELETE;";
-
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
-
-        auto statementinuse = statementobj.Setup();
-
-        statementobj.StepAll(statementinuse);
-    }
+    _RunSQL(guard, "PRAGMA foreign_keys = ON; PRAGMA recursive_triggers = ON; "
+                   // Note if this is changed also places where journal_mode is restored
+                   //! need to be updated
+                   "PRAGMA journal_mode = WAL;");
 
     // Verify foreign keys are on //
     {
@@ -162,7 +210,7 @@ void Database::Init()
     // Verify database version and setup tables if they don't exist //
     int fileVersion = -1;
 
-    if(!SelectDatabaseVersion(guard, fileVersion)) {
+    if(!SelectDatabaseVersion(guard, SQLiteDb, fileVersion)) {
 
         // Database is newly created //
         _CreateTableStructure(guard);
@@ -176,12 +224,28 @@ void Database::Init()
         }
     }
 
-    // Setup statements //
+    _RunSQL(guard, PictureSignatureDb,
+        "PRAGMA foreign_keys = ON; PRAGMA recursive_triggers = ON; "
+        "PRAGMA journal_mode = WAL;");
+
+    // Setup the auxiliary DBs
+    if(!SelectDatabaseVersion(guard, PictureSignatureDb, fileVersion)) {
+
+        // Database is newly created //
+        _CreateTableStructureSignatures(guard);
+
+    } else {
+
+        // Check that the version is compatible, upgrade if needed //
+        if(!_VerifyLoadedVersionSignatures(guard, fileVersion)) {
+
+            throw Leviathan::InvalidState("Database file is unsupported version");
+        }
+    }
 }
 
 void Database::PurgeInactiveCache()
 {
-
     GUARD_LOCK();
 
     LoadedCollections.Purge();
@@ -191,14 +255,13 @@ void Database::PurgeInactiveCache()
     LoadedNetGalleries.Purge();
 }
 // ------------------------------------ //
-bool Database::SelectDatabaseVersion(Lock& guard, int& result)
+bool Database::SelectDatabaseVersion(Lock& guard, sqlite3* db, int& result)
 {
-
     const char str[] = "SELECT number FROM version;";
 
     try {
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+        PreparedStatement statementobj(db, str, sizeof(str));
 
         auto statementinuse = statementobj.Setup();
 
@@ -226,6 +289,8 @@ void Database::InsertImage(Lock& guard, Image& image)
     LEVIATHAN_ASSERT(image.IsReady(), "InsertImage: image not ready");
 
     const auto& signature = image.GetSignature();
+
+    DoDBSavePoint transaction(*this, guard, "insert_image", signature.empty() ? false : true);
 
     const char str[] =
         "INSERT INTO pictures (relative_path, width, height, name, extension, "
@@ -258,37 +323,38 @@ void Database::InsertImage(Lock& guard, Image& image)
     image.OnAdopted(id, *this);
 }
 
-bool Database::UpdateImage(const Image& image)
+bool Database::UpdateImage(Lock& guard, Image& image)
 {
     if(!image.IsInDatabase())
         return false;
 
-    GUARD_LOCK();
-
     const auto id = image.GetID();
 
     // Only the signature property can change
-    const auto& signature = image.GetSignature();
-    // Detect if the signature changed
-    if(signature != SelectImageSignatureByID(guard, id)) {
+    if(image.HasSignatureRetrieved()) {
 
-        DoDBTransaction transaction(*this, guard);
+        const auto& signature = image.GetSignature();
+        // Detect if the signature changed
+        if(signature != SelectImageSignatureByID(guard, id)) {
 
-        // Update
-        {
-            const char str[] = "UPDATE pictures SET signature = ? WHERE id = ?;";
+            DoDBSavePoint transaction(*this, guard, "update_image", true);
 
-            PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+            // // Update
+            // {
+            //     const char str[] = "UPDATE pictures SET stuff hereWHERE id = ?;";
 
-            auto statementinuse = !signature.empty() ?
-                                      statementobj.Setup(signature, image.GetID()) :
-                                      statementobj.Setup(nullptr, image.GetID());
+            //     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-            statementobj.StepAll(statementinuse);
+            //     auto statementinuse = !signature.empty() ?
+            //                               statementobj.Setup(signature, image.GetID()) :
+            //                               statementobj.Setup(nullptr, image.GetID());
+
+            //     statementobj.StepAll(statementinuse);
+            // }
+
+            // Also insert constituent parts
+            _InsertImageSignatureParts(guard, id, signature);
         }
-
-        // Also insert constituent parts
-        _InsertImageSignatureParts(guard, id, signature);
     }
 
     // Don't forget to call CacheManager::GetDatabaseImagePath when saving the path
@@ -298,21 +364,14 @@ bool Database::UpdateImage(const Image& image)
 void Database::_InsertImageSignatureParts(
     Lock& guard, DBID image, const std::string& signature)
 {
-    // First clear all
-    {
-        const char str[] = "DELETE FROM picture_signature_words WHERE picture_id = ?;";
-
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
-
-        auto statementinuse = statementobj.Setup(image);
-
-        statementobj.StepAll(statementinuse);
-    }
+    // This will also clear old entries if there were any with the foreign keys
+    RunOnSignatureDB(guard, "INSERT OR REPLACE INTO pictures (id, signature) VALUES(?, ?);",
+        image, signature);
 
     const char str[] =
         "INSERT INTO picture_signature_words (picture_id, sig_word) VALUES (?, ?);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementobj(PictureSignatureDb, str, sizeof(str));
 
     // Then insert new
     if(signature.length() > IMAGE_SIGNATURE_WORD_LENGTH) {
@@ -325,7 +384,7 @@ void Database::_InsertImageSignatureParts(
             // The index is part of the word key in the table
             std::string finalKey =
                 std::to_string(i) + "__" + signature.substr(i, IMAGE_SIGNATURE_WORD_LENGTH);
-            auto statementinuse = statementobj.Setup(image, signature);
+            auto statementinuse = statementobj.Setup(image, finalKey);
 
             statementobj.StepAll(statementinuse);
         }
@@ -335,6 +394,7 @@ void Database::_InsertImageSignatureParts(
 bool Database::DeleteImage(Image& image)
 {
     GUARD_LOCK();
+    // Remember to also delete from SignaturesDB
     return false;
 }
 
@@ -360,7 +420,7 @@ std::string Database::SelectImageSignatureByID(Lock& guard, DBID image)
 {
     const char str[] = "SELECT signature FROM pictures WHERE id = ?1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementobj(PictureSignatureDb, str, sizeof(str));
 
     auto statementinuse = statementobj.Setup(image);
 
@@ -374,7 +434,7 @@ std::string Database::SelectImageSignatureByID(Lock& guard, DBID image)
 
 std::vector<DBID> Database::SelectImageIDsWithoutSignature(Lock& guard)
 {
-    const char str[] = "SELECT id FROM pictures WHERE signature IS NULL;";
+    const char str[] = "SELECT id FROM pictures;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -382,11 +442,27 @@ std::vector<DBID> Database::SelectImageIDsWithoutSignature(Lock& guard)
 
     std::vector<DBID> result;
 
+    PreparedStatement statementobj2(
+        PictureSignatureDb, "SELECT EXISTS(SELECT 1 FROM pictures WHERE id = ?);");
+
     while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
 
         DBID id;
-        if(statementobj.GetObjectIDFromColumn(id))
-            result.push_back(id);
+        if(statementobj.GetObjectIDFromColumn(id)) {
+
+            auto statementinuse2 = statementobj2.Setup(id);
+
+            bool exists = false;
+
+            if(statementobj2.Step(statementinuse2) == PreparedStatement::STEP_RESULT::ROW) {
+                if(statementobj2.GetColumnAsInt(0)) {
+                    exists = true;
+                }
+            }
+
+            if(!exists)
+                result.push_back(id);
+        }
     }
 
     return result;
@@ -549,6 +625,19 @@ void Database::DeleteImageTag(Lock& guard, std::weak_ptr<Image> image, AppliedTa
 
     // This calls orphan on the tag object
     DeleteAppliedTagIfNotUsed(guard, tag);
+}
+
+void Database::SelectPotentialImageDuplicates(int sensitivity /*= 5*/)
+{
+    GUARD_LOCK();
+
+    PrintResultingRows(guard, PictureSignatureDb,
+        "SELECT i.*, COUNT(isw.sig_word) as strength FROM pictures i JOIN "
+        "picture_signature_words isw ON i.id = isw.picture_id JOIN picture_signature_words "
+        "isw_search ON isw.sig_word = isw_search.sig_word AND isw.picture_id != "
+        "isw_search.picture_id GROUP BY i.id, i.signature HAVING strength > ? ORDER "
+        "BY strength DESC",
+        sensitivity);
 }
 // ------------------------------------ //
 // Collection
@@ -2967,13 +3056,11 @@ std::shared_ptr<Folder> Database::_LoadFolderFromRow(Lock& guard, PreparedStatem
 // ------------------------------------ //
 void Database::ThrowCurrentSqlError(Lock& guard)
 {
-
     ThrowErrorFromDB(SQLiteDb);
 }
 // ------------------------------------ //
 bool Database::_VerifyLoadedVersion(Lock& guard, int fileversion)
 {
-
     if(fileversion == DATABASE_CURRENT_VERSION)
         return true;
 
@@ -2999,7 +3086,7 @@ bool Database::_VerifyLoadedVersion(Lock& guard, int fileversion)
         }
 
         // Get new version //
-        if(!SelectDatabaseVersion(guard, updateversion)) {
+        if(!SelectDatabaseVersion(guard, SQLiteDb, updateversion)) {
 
             LOG_ERROR("Database failed to retrieve new version after update");
             return false;
@@ -3011,7 +3098,6 @@ bool Database::_VerifyLoadedVersion(Lock& guard, int fileversion)
 
 bool Database::_UpdateDatabase(Lock& guard, const int oldversion)
 {
-
     if(oldversion < 14) {
 
         LOG_ERROR("Migrations from version 13 and older aren't copied to DualView++ "
@@ -3063,7 +3149,7 @@ bool Database::_UpdateDatabase(Lock& guard, const int oldversion)
             throw;
         }
 
-        _RunSQL(guard, "PRAGMA synchronous = ON; PRAGMA journal_mode = DELETE;");
+        _RunSQL(guard, "PRAGMA synchronous = ON; PRAGMA journal_mode = WAL;");
 
         _RunSQL(guard,
             LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_15_16.sql"));
@@ -3097,6 +3183,12 @@ bool Database::_UpdateDatabase(Lock& guard, const int oldversion)
         _SetCurrentDatabaseVersion(guard, 20);
         return true;
     }
+    case 20: {
+        _RunSQL(guard,
+            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_20_21.sql"));
+        _SetCurrentDatabaseVersion(guard, 21);
+        return true;
+    }
     default: {
         LOG_ERROR("Unknown database version to update from: " + Convert::ToString(oldversion));
         return false;
@@ -3112,7 +3204,70 @@ void Database::_SetCurrentDatabaseVersion(Lock& guard, int newversion)
         ThrowCurrentSqlError(guard);
     }
 }
+// ------------------------------------ //
+bool Database::_VerifyLoadedVersionSignatures(Lock& guard, int fileversion)
+{
+    if(fileversion == DATABASE_CURRENT_SIGNATURES_VERSION)
+        return true;
 
+    // Fail if trying to load a newer version
+    if(fileversion > DATABASE_CURRENT_SIGNATURES_VERSION) {
+
+        LOG_ERROR("Trying to load a database that is newer than program's version");
+        return false;
+    }
+
+    // Update the database //
+    int updateversion = fileversion;
+
+    LOG_INFO("Database: updating signatures db from version " +
+             Convert::ToString(updateversion) + " to version " +
+             Convert::ToString(DATABASE_CURRENT_SIGNATURES_VERSION));
+
+    while(updateversion != DATABASE_CURRENT_SIGNATURES_VERSION) {
+
+        if(!_UpdateDatabaseSignatures(guard, updateversion)) {
+
+            LOG_ERROR("Database update failed, database file version is unsupported");
+            return false;
+        }
+
+        // Get new version //
+        if(!SelectDatabaseVersion(guard, PictureSignatureDb, updateversion)) {
+
+            LOG_ERROR("Database failed to retrieve new version after update");
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Database::_UpdateDatabaseSignatures(Lock& guard, const int oldversion)
+{
+    // Signatures can be recalculated. no need to backup
+
+    LOG_INFO(
+        "Database(signatures): running update from version " + Convert::ToString(oldversion));
+
+    switch(oldversion) {
+    default: {
+        LOG_ERROR("Unknown database version to update from: " + Convert::ToString(oldversion));
+        return false;
+    }
+    }
+}
+
+void Database::_SetCurrentDatabaseVersionSignatures(Lock& guard, int newversion)
+{
+    if(sqlite3_exec(PictureSignatureDb,
+           ("UPDATE version SET number = " + Convert::ToString(newversion) + ";").c_str(),
+           nullptr, nullptr, nullptr) != SQLITE_OK) {
+        ThrowCurrentSqlError(guard);
+    }
+}
+
+// ------------------------------------ //
 void Database::_UpdateApplyDownloadTagStrings(Lock& guard)
 {
     const char str[] =
@@ -3213,19 +3368,39 @@ void Database::_CreateTableStructure(Lock& guard)
     _RunSQL(guard, "COMMIT TRANSACTION;");
 }
 
+void Database::_CreateTableStructureSignatures(Lock& guard)
+{
+    _RunSQL(guard, PictureSignatureDb, "BEGIN TRANSACTION;");
+
+    _RunSQL(guard, PictureSignatureDb,
+        LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/signaturetables.sql"));
+
+    // Insert version last //
+    _RunSQL(guard, PictureSignatureDb,
+        "INSERT INTO version (number) VALUES (" +
+            Convert::ToString(DATABASE_CURRENT_SIGNATURES_VERSION) + ");");
+
+    _RunSQL(guard, PictureSignatureDb, "COMMIT TRANSACTION;");
+}
+// ------------------------------------ //
 void Database::_RunSQL(Lock& guard, const std::string& sql)
 {
-    auto result = sqlite3_exec(SQLiteDb, sql.c_str(), nullptr, nullptr, nullptr);
+    return _RunSQL(guard, SQLiteDb, sql);
+}
+
+void Database::_RunSQL(Lock& guard, sqlite3* db, const std::string& sql)
+{
+    auto result = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, nullptr);
 
     if(SQLITE_OK != result) {
 
-        ThrowErrorFromDB(SQLiteDb, result);
+        ThrowErrorFromDB(db, result);
     }
 }
 
-void Database::PrintResultingRows(Lock& guard, const std::string& str)
+void Database::PrintResultingRows(Lock& guard, sqlite3* db, const std::string& str)
 {
-    PreparedStatement statementobj(SQLiteDb, str);
+    PreparedStatement statementobj(db, str);
 
     auto statementinuse = statementobj.Setup();
 
@@ -3265,24 +3440,69 @@ std::string Database::EscapeSql(std::string str)
 }
 
 // Transaction stuff
-void Database::BeginTransaction(Lock& guard)
+void Database::BeginTransaction(Lock& guard, bool alsoauxiliary /*= false*/)
 {
     RunSQLAsPrepared(guard, "BEGIN TRANSACTION;");
+
+    if(alsoauxiliary)
+        RunOnSignatureDB(guard, "BEGIN TRANSACTION;");
 }
 
-void Database::CommitTransaction(Lock& guard)
+void Database::CommitTransaction(Lock& guard, bool alsoauxiliary /*= false*/)
 {
     RunSQLAsPrepared(guard, "COMMIT TRANSACTION;");
+
+    if(alsoauxiliary)
+        RunOnSignatureDB(guard, "COMMIT TRANSACTION;");
+}
+
+void Database::BeginSavePoint(
+    Lock& guard, const std::string& savepointname, bool alsoauxiliary /*= false*/)
+{
+    _RunSQL(guard, "SAVEPOINT " + savepointname + ";");
+
+    if(alsoauxiliary)
+        RunOnSignatureDB(guard, "SAVEPOINT " + savepointname + ";");
+}
+
+void Database::ReleaseSavePoint(
+    Lock& guard, const std::string& savepointname, bool alsoauxiliary /*= false*/)
+{
+    _RunSQL(guard, "RELEASE " + savepointname + ";");
+
+    if(alsoauxiliary)
+        RunOnSignatureDB(guard, "RELEASE " + savepointname + ";");
+}
+
+bool Database::HasActiveTransaction(Lock& guard)
+{
+    return sqlite3_get_autocommit(SQLiteDb) == 0;
 }
 
 // ------------------------------------ //
 // DoDBTransaction
-DoDBTransaction::DoDBTransaction(Database& db, Lock& dblock) : DB(db), Locked(dblock)
+DoDBTransaction::DoDBTransaction(Database& db, Lock& dblock, bool alsoauxiliary /*= false*/) :
+    DB(db), Locked(dblock), Auxiliary(alsoauxiliary)
 {
-    DB.BeginTransaction(Locked);
+    DB.BeginTransaction(Locked, Auxiliary);
 }
 
 DoDBTransaction::~DoDBTransaction()
 {
-    DB.CommitTransaction(Locked);
+    DB.CommitTransaction(Locked, Auxiliary);
+}
+
+// ------------------------------------ //
+// DoDBSavePoint
+DoDBSavePoint::DoDBSavePoint(
+    Database& db, Lock& dblock, const std::string& savepoint, bool alsoauxiliary /*= false*/) :
+    DB(db),
+    Locked(dblock), SavePoint(savepoint), Auxiliary(alsoauxiliary)
+{
+    DB.BeginSavePoint(Locked, SavePoint, Auxiliary);
+}
+
+DoDBSavePoint::~DoDBSavePoint()
+{
+    DB.ReleaseSavePoint(Locked, SavePoint, Auxiliary);
 }

@@ -176,12 +176,16 @@ public:
     //! \brief Updates the signature. Marks this as changed. This will be saved later
     void SetSignature(const std::string& signature);
 
-    inline const auto& GetSignature() const
+    //! \note Loads the signature from DB if not loaded already
+    std::string& GetSignature();
+
+    //! \brief Returns true if the signature is loaded
+    bool HasSignatureRetrieved() const
     {
-        return Signature;
+        return SignatureRetrieved;
     }
 
-    std::string GetSignatureBase64() const;
+    std::string GetSignatureBase64();
 
 
     //! \brief Returns a hash calculated from the file at ResourcePath
@@ -204,6 +208,7 @@ public:
 protected:
     // DatabaseResource implementation
     void _DoSave(Database& db) override;
+    void _DoSave(Database& db, Lock& dblock) override;
     void _OnAdopted() override;
 
 
@@ -245,9 +250,6 @@ protected:
 
     std::string Extension;
 
-    //! LibPuzzle signature
-    std::string Signature;
-
     bool IsPrivate = false;
 
     date::zoned_time<std::chrono::milliseconds> AddDate;
@@ -264,6 +266,11 @@ protected:
     int Width = 0;
 
     std::shared_ptr<TagCollection> Tags;
+
+    //! LibPuzzle signature
+    //! This is stored in another table
+    std::string Signature;
+    bool SignatureRetrieved = false;
 };
 
 } // namespace DV

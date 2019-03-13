@@ -26,6 +26,9 @@ public:
     //! \brief Saves this object to the database if it is marked dirty
     void Save();
 
+    //! \brief Bulk save variant (db is already locked)
+    void Save(Database& db, Lock& dblock);
+
     //! \brief Called when this gets marked dirty, used to notify listeners to update
     //! their cached values
     void OnMarkDirty()
@@ -66,6 +69,11 @@ protected:
     void OnAdopted(int64_t id, Database& from);
 
     virtual void _DoSave(Database& db) = 0;
+    //! \brief This is used in bulk saves where the DB is already locked
+    //! \note If this is not overridden this probably doesn't support bulk write
+    //! \todo Find a way to enforce that only types that support bulk saving can call the bulk
+    //! save variant
+    virtual void _DoSave(Database& db, Lock& dblock);
 
     //! \brief Callback for child classes to reload resources when added to the database
     virtual void _OnAdopted();

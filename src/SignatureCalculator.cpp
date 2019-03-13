@@ -42,12 +42,19 @@ struct SignatureCalculator::Private {
     std::atomic<int> QueuedDatabaseWrites{0};
 
     //! The total number of items added
-    int TotalItemsAdded = 0;
+    std::atomic<int> TotalItemsAdded{0};
 
     //! The total number of items processed
     std::atomic<int> TotalItemsProcessed{0};
 
     bool Done = false;
+
+    //! Used to only read one batch of images at a time
+    std::atomic<bool> DBReadInProgress = false;
+
+    //! Used to have one save operation going on at once
+    std::shared_ptr<std::atomic<bool>> DBWriteInProgress =
+        std::make_shared<std::atomic<bool>>(false);
 
     std::atomic<bool> RunThread = false;
 
@@ -58,16 +65,15 @@ struct SignatureCalculator::Private {
     std::condition_variable WorkerNotify;
 
     std::thread WorkerThread;
+
+    std::function<void(int processed, int total, bool done)> Callback;
 };
 
 // ------------------------------------ //
 SignatureCalculator::SignatureCalculator() : pimpl(std::make_unique<Private>()) {}
 SignatureCalculator::~SignatureCalculator()
 {
-    Pause();
-
-    if(pimpl->WorkerThread.joinable())
-        pimpl->WorkerThread.join();
+    Pause(true);
 }
 // ------------------------------------ //
 void SignatureCalculator::AddImages(const std::vector<DBID>& images)
@@ -75,6 +81,8 @@ void SignatureCalculator::AddImages(const std::vector<DBID>& images)
     pimpl->Done = false;
 
     std::lock_guard<std::mutex> guard(pimpl->DataMutex);
+
+    pimpl->TotalItemsAdded += images.size();
 
     pimpl->QueueEnd.reserve(pimpl->QueueEnd.size() + images.size());
     pimpl->QueueEnd.insert(pimpl->QueueEnd.end(), images.begin(), images.end());
@@ -84,6 +92,8 @@ void SignatureCalculator::AddImages(const std::vector<DBID>& images)
     LOG_INFO(
         "SignatureCalculator: queue size is now: " + std::to_string(pimpl->QueueEnd.size()) +
         ", loaded images: " + std::to_string(pimpl->Queue.size()));
+
+    _ReportStatus();
 }
 
 void SignatureCalculator::AddImages(const std::vector<std::shared_ptr<Image>>& images)
@@ -114,12 +124,19 @@ void SignatureCalculator::Resume()
     }
 }
 
-void SignatureCalculator::Pause()
+void SignatureCalculator::Pause(bool wait /*= false*/)
 {
     pimpl->RunThread = false;
 
-    std::lock_guard<std::mutex> guard(pimpl->DataMutex);
-    pimpl->WorkerNotify.notify_all();
+    {
+        std::lock_guard<std::mutex> guard(pimpl->DataMutex);
+        pimpl->WorkerNotify.notify_all();
+    }
+
+    if(wait) {
+        if(pimpl->WorkerThread.joinable())
+            pimpl->WorkerThread.join();
+    }
 }
 
 bool SignatureCalculator::IsDone() const
@@ -127,9 +144,73 @@ bool SignatureCalculator::IsDone() const
     return pimpl->Done;
 }
 // ------------------------------------ //
+void SignatureCalculator::SetStatusListener(
+    std::function<void(int processed, int total, bool done)> callback)
+{
+    pimpl->Callback = callback;
+}
+
+void SignatureCalculator::_ReportStatus() const
+{
+    if(pimpl->Callback) {
+        pimpl->Callback(pimpl->TotalItemsProcessed, pimpl->TotalItemsAdded, pimpl->Done);
+    }
+}
+// ------------------------------------ //
+void _QueueToDB(const std::vector<std::shared_ptr<Image>>& savequeue)
+{
+    auto& db = DualView::Get().GetDatabase();
+
+    GUARD_LOCK_OTHER(db);
+
+    DoDBTransaction transaction(db, guard, true);
+
+    for(auto& item : savequeue)
+        item->Save(db, guard);
+}
+
+void SignatureCalculator::_SaveQueueHelper(
+    std::vector<std::shared_ptr<Image>>& savequeue, bool runinbackground)
+{
+    if(savequeue.empty())
+        return;
+
+    if(runinbackground) {
+
+        // Only one at a time
+        while(*pimpl->DBWriteInProgress)
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+        // No race condition here as only one thread queues these
+        *pimpl->DBWriteInProgress = true;
+
+        auto isalive = GetAliveMarker();
+
+        DualView::Get().QueueDBThreadFunction([status{pimpl->DBWriteInProgress}, savequeue]() {
+            if(savequeue.empty())
+                LOG_ERROR("SignatureCalculator: save queue became empty in transit");
+
+            _QueueToDB(savequeue);
+
+            *status = false;
+        });
+
+    } else {
+
+        _QueueToDB(savequeue);
+    }
+
+    savequeue.clear();
+}
+
 void SignatureCalculator::_RunCalculationThread()
 {
     LOG_INFO("SignatureCalculator: running worker thread");
+
+    std::vector<std::shared_ptr<Image>> saveQueue;
+
+    if(SIGNATURE_CALCULATOR_GROUP_IMAGE_SAVE > 1)
+        saveQueue.reserve(SIGNATURE_CALCULATOR_GROUP_IMAGE_SAVE);
 
     std::unique_lock<std::mutex> lock(pimpl->DataMutex);
 
@@ -141,7 +222,9 @@ void SignatureCalculator::_RunCalculationThread()
 
         // Queue DB read if too few items are loaded (and there are items to load)
         if(pimpl->Queue.size() <= SIGNATURE_CALCULATOR_READ_MORE_THRESSHOLD &&
-            !pimpl->QueueEnd.empty()) {
+            !pimpl->QueueEnd.empty() && !pimpl->DBReadInProgress) {
+
+            pimpl->DBReadInProgress = true;
 
             somethingToDo = true;
             didSomethingOld = true;
@@ -169,13 +252,11 @@ void SignatureCalculator::_RunCalculationThread()
                         images.push_back(image);
                 }
 
-                LOG_INFO("SignatureCalculator: loaded images from DB: " +
-                         std::to_string(images.size()));
-
                 DualView::Get().InvokeFunction([this, isalive, images]() {
                     INVOKE_CHECK_ALIVE_MARKER(isalive);
 
                     AddImages(images);
+                    pimpl->DBReadInProgress = false;
                 });
             });
         }
@@ -197,29 +278,52 @@ void SignatureCalculator::_RunCalculationThread()
                 CalculateImageSignature(*image);
 
                 // Save the updated signature
-                if(image->IsInDatabase())
-                    image->Save();
-                LOG_INFO("SignatureCalculator: calculated for image: " + image->GetName());
+                if(image->IsInDatabase()) {
+
+                    if(SIGNATURE_CALCULATOR_GROUP_IMAGE_SAVE < 2) {
+                        image->Save();
+                    } else {
+                        saveQueue.push_back(image);
+
+                        if(saveQueue.size() > SIGNATURE_CALCULATOR_GROUP_IMAGE_SAVE)
+                            _SaveQueueHelper(saveQueue, true);
+                    }
+                }
+
+                // A lot of spam
+                // LOG_INFO("SignatureCalculator: calculated for image: " + image->GetName());
             }
 
+            ++pimpl->TotalItemsProcessed;
+            _ReportStatus();
             lock.lock();
         }
 
         if(!somethingToDo) {
             // Nothing to do
+            // Save queue if it has something
+            if(!saveQueue.empty()) {
+                lock.unlock();
+                _SaveQueueHelper(saveQueue, true);
+                lock.lock();
+            }
 
-            // If also didn't anything last time this is now done
-            if(!didSomethingOld) {
+            // If also didn't anything last time this is now done. And isn't waiting for a
+            // database read then this is done
+            if(!didSomethingOld && !pimpl->Done && !pimpl->DBReadInProgress) {
                 pimpl->Done = true;
+                _ReportStatus();
                 LOG_INFO("SignatureCalculator: has finished with all work");
             }
 
             didSomethingOld = false;
 
             // Sleep while waiting for something to happen
-            pimpl->WorkerNotify.wait_for(lock, std::chrono::seconds(30));
+            pimpl->WorkerNotify.wait_for(lock, std::chrono::seconds(5));
         }
     }
+
+    _SaveQueueHelper(saveQueue, false);
 
     LOG_INFO("SignatureCalculator: running worker thread exiting");
 }

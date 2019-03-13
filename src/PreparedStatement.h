@@ -287,7 +287,6 @@ void PreparedStatement::SetBindWithType(int index, const bool& value);
 
 inline void CheckRowID(PreparedStatement& statement, int index, const char* name)
 {
-
     auto* columnName = statement.GetColumnNameDirect(index);
     LEVIATHAN_ASSERT(columnName, "Column name retrieval for verification failed");
 

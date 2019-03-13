@@ -35,7 +35,8 @@ class TagModifier;
 class TagBreakRule;
 
 //! \brief The version number of the database
-constexpr auto DATABASE_CURRENT_VERSION = 20;
+constexpr auto DATABASE_CURRENT_VERSION = 21;
+constexpr auto DATABASE_CURRENT_SIGNATURES_VERSION = 1;
 
 constexpr auto IMAGE_SIGNATURE_WORD_COUNT = 100;
 constexpr auto IMAGE_SIGNATURE_WORD_LENGTH = 10;
@@ -79,8 +80,8 @@ public:
     void Init();
 
     //! \brief Selects the database version
-    //! \returns True if succeeded, false if np version exists.
-    bool SelectDatabaseVersion(Lock& guard, int& result);
+    //! \returns True if succeeded, false if no version exists.
+    bool SelectDatabaseVersion(Lock& guard, sqlite3* db, int& result);
 
     //! \brief Removes objects that no longer have external references from the database
     //! \todo Call this periodically from the database thread in DualView
@@ -98,7 +99,8 @@ public:
 
     //! \brief Updates an images properties in the database
     //! \returns False if the update fails
-    bool UpdateImage(const Image& image);
+    bool UpdateImage(Lock& guard, Image& image);
+    CREATE_NON_LOCKING_WRAPPER(UpdateImage);
 
     //! \brief Deletes an image from the database
     //!
@@ -124,6 +126,7 @@ public:
 
     //! \brief Retrieves signature (or empty string) for image id
     std::string SelectImageSignatureByID(Lock& guard, DBID image);
+    CREATE_NON_LOCKING_WRAPPER(SelectImageSignatureByID);
 
     //! \brief Retrieves image ids that don't have a signature
     std::vector<DBID> SelectImageIDsWithoutSignature(Lock& guard);
@@ -142,6 +145,12 @@ public:
 
     //! \brief Removes a tag from an image
     void DeleteImageTag(Lock& guard, std::weak_ptr<Image> image, AppliedTag& tag);
+
+    //! \brief Queries the signature words table to find potentially duplicate images
+    //! \param sensitivity How many parts need to match before returning a result. Strength of
+    //! 20 can be used instead of refining the results further to get a faster method for
+    //! finding duplicates, but less accurate
+    void SelectPotentialImageDuplicates(int sensitivity = 5);
 
     //
     // Collection functions
@@ -565,10 +574,25 @@ public:
     //! call.
     //!
     //! The database must be locked until the transaction is committed
+    //! \param alsoauxiliary If true a transaction is also started on the secondary databases
     //! \see CommitTransaction
-    void BeginTransaction(Lock& guardLocked);
+    void BeginTransaction(Lock& guardLocked, bool alsoauxiliary = false);
 
-    void CommitTransaction(Lock& guardLocked);
+    void CommitTransaction(Lock& guardLocked, bool alsoauxiliary = false);
+
+    //! \brief Alternative to transaction that can be nested
+    //!
+    //! Must be accompanied by a ReleaseSavePoint call
+    //! \warning The savepoint name is not sent as a prepared statement, SQL injection is
+    //! possible!
+    void BeginSavePoint(
+        Lock& guard, const std::string& savepointname, bool alsoauxiliary = false);
+
+    void ReleaseSavePoint(
+        Lock& guard, const std::string& savepointname, bool alsoauxiliary = false);
+
+    //! \brief Returns true if a transaction is in progress
+    bool HasActiveTransaction(Lock& guard);
 
     // Statistics functions //
     size_t CountExistingTags();
@@ -576,15 +600,16 @@ public:
 
 protected:
     //! \brief Runs a command and prints all the result rows with column headers to log
-    void PrintResultingRows(Lock& guard, const std::string& str);
+    void PrintResultingRows(Lock& guard, sqlite3* db, const std::string& str);
 
     //! \brief Runs a command and prints all the result rows with column headers to log
     //!
     //! This version allows settings parameters
     template<typename... TBindTypes>
-    void PrintResultingRows(Lock& guard, const std::string& str, TBindTypes&&... valuestobind)
+    void PrintResultingRows(
+        Lock& guard, sqlite3* db, const std::string& str, TBindTypes&&... valuestobind)
     {
-        PreparedStatement statementobj(SQLiteDb, str);
+        PreparedStatement statementobj(db, str);
 
         auto statementinuse = statementobj.Setup(std::forward<TBindTypes>(valuestobind)...);
 
@@ -603,9 +628,24 @@ protected:
         statementobj.StepAll(statementinuse);
     }
 
+
+    //! \brief Runs SQL statement as a prepared statement with the values on the signature DB
+    template<typename... TBindTypes>
+    void RunOnSignatureDB(Lock& guard, const std::string& str, TBindTypes&&... valuestobind)
+    {
+        PreparedStatement statementobj(PictureSignatureDb, str);
+
+        auto statementinuse = statementobj.Setup(std::forward<TBindTypes>(valuestobind)...);
+
+        statementobj.StepAll(statementinuse);
+    }
+
     //! \brief Runs a raw sql query.
     //! \note Don't use unless absolutely necessary prefer to use Database::RunSqlAsPrepared
     void _RunSQL(Lock& guard, const std::string& sql);
+
+    //! \brief Variant for auxiliary dbs
+    void _RunSQL(Lock& guard, sqlite3* db, const std::string& sql);
 
     //! \brief Throws an InvalidSQL exception, filling it with values from the database
     //! connection
@@ -653,6 +693,7 @@ private:
 
     void InsertTagCollection(Lock& guard, Collection& image, DBID appliedtagid);
 
+    //! \brief Inserts the image signature to the auxiliary DB
     void _InsertImageSignatureParts(Lock& guard, DBID image, const std::string& signature);
 
     //
@@ -662,8 +703,14 @@ private:
     //! \brief Creates default tables and also calls _InsertDefaultTags
     void _CreateTableStructure(Lock& guard);
 
+    //! \brief Variant for the picture signature auxiliary db
+    void _CreateTableStructureSignatures(Lock& guard);
+
     //! \brief Verifies that the specified version is compatible with the current version
     bool _VerifyLoadedVersion(Lock& guard, int fileversion);
+
+    //! \brief Variant for the picture signature auxiliary db
+    bool _VerifyLoadedVersionSignatures(Lock& guard, int fileversion);
 
     //! \brief Called if a loaded database version is older than DATABASE_CURRENT_VERSION
     //! \param oldversion The version from which the update is done, will contain the new
@@ -671,8 +718,14 @@ private:
     //! \returns True if succeeded, false if update is not supported
     bool _UpdateDatabase(Lock& guard, const int oldversion);
 
+    //! \brief Variant for the picture signature auxiliary db
+    bool _UpdateDatabaseSignatures(Lock& guard, const int oldversion);
+
     //! \brief Sets the database version. Should only be called from _UpdateDatabase
     void _SetCurrentDatabaseVersion(Lock& guard, int newversion);
+
+    //! \brief Variant for the picture signature auxiliary db
+    void _SetCurrentDatabaseVersionSignatures(Lock& guard, int newversion);
 
     //! \brief Helper for updates. Might be useful integrity checks later
     //! \note This can only be ran while doing a database update because the database
@@ -682,6 +735,9 @@ private:
 
 protected:
     sqlite3* SQLiteDb = nullptr;
+
+    //! This has the image signature table
+    sqlite3* PictureSignatureDb = nullptr;
 
     //! Used for backups before potentially dangerous operations
     std::string DatabaseFile;
@@ -703,9 +759,10 @@ protected:
 };
 
 //! \brief Helper class that automatically commits a transaction when it destructs
+//!\ todo Would be nice to be able to conditionally create these
 class DoDBTransaction {
 public:
-    DoDBTransaction(Database& db, Lock& dblock);
+    DoDBTransaction(Database& db, Lock& dblock, bool alsoauxiliary = false);
 
     DoDBTransaction(DoDBTransaction&& other) = delete;
     DoDBTransaction(const DoDBTransaction& other) = delete;
@@ -716,6 +773,28 @@ public:
 private:
     Database& DB;
     Lock& Locked;
+    bool Auxiliary;
+};
+
+//! \brief Helper class that automatically handles a savepoint
+//!\ see DoDBTransaction
+//! \warning The savepoint name is not sent as a prepared statement, SQL injection is possible!
+class DoDBSavePoint {
+public:
+    DoDBSavePoint(
+        Database& db, Lock& dblock, const std::string& savepoint, bool alsoauxiliary = false);
+
+    DoDBSavePoint(DoDBSavePoint&& other) = delete;
+    DoDBSavePoint(const DoDBSavePoint& other) = delete;
+    DoDBSavePoint& operator=(const DoDBSavePoint& other) = delete;
+
+    ~DoDBSavePoint();
+
+private:
+    Database& DB;
+    Lock& Locked;
+    const std::string SavePoint;
+    bool Auxiliary;
 };
 
 } // namespace DV

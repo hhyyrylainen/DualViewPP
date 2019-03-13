@@ -92,7 +92,6 @@ Image::Image(Database& db, Lock& dblock, PreparedStatement& statement, int64_t i
     CheckRowID(statement, 8, "is_private");
     CheckRowID(statement, 9, "from_file");
     CheckRowID(statement, 10, "file_hash");
-    CheckRowID(statement, 11, "signature");
 
 
     // Convert path to runtime path
@@ -113,9 +112,6 @@ Image::Image(Database& db, Lock& dblock, PreparedStatement& statement, int64_t i
 
     AddDate = TimeHelpers::ParseTime(statement.GetColumnAsString(6));
     LastView = TimeHelpers::ParseTime(statement.GetColumnAsString(7));
-
-    // This may be empty
-    Signature = statement.GetColumnAsString(11);
 }
 
 Image::~Image()
@@ -179,23 +175,48 @@ void Image::SetSignature(const std::string& signature)
         return;
 
     Signature = signature;
+    SignatureRetrieved = true;
     OnMarkDirty();
 }
 
-std::string Image::GetSignatureBase64() const
+std::string& Image::GetSignature()
+{
+    GUARD_LOCK();
+
+    if(SignatureRetrieved)
+        return Signature;
+
+    if(IsInDatabase()) {
+
+        Signature = InDatabase->SelectImageSignatureByIDAG(ID);
+    }
+
+    SignatureRetrieved = true;
+    return Signature;
+}
+
+std::string Image::GetSignatureBase64()
 {
     return base64_encode(GetSignature());
 }
 // ------------------------------------ //
 void Image::_DoSave(Database& db)
 {
-    db.UpdateImage(*this);
+    db.UpdateImageAG(*this);
+}
+
+void Image::_DoSave(Database& db, Lock& dblock)
+{
+    db.UpdateImage(dblock, *this);
 }
 
 void Image::_OnAdopted()
 {
     // Reload tags //
     Tags = InDatabase->LoadImageTags(shared_from_this());
+
+    // Reset signature status
+    SignatureRetrieved = false;
 }
 // ------------------------------------ //
 std::string Image::CalculateFileHash() const
