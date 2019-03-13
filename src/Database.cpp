@@ -325,7 +325,7 @@ void Database::_InsertImageSignatureParts(
             // The index is part of the word key in the table
             std::string finalKey =
                 std::to_string(i) + "__" + signature.substr(i, IMAGE_SIGNATURE_WORD_LENGTH);
-            auto statementinuse = statementobj.Setup(signature, image);
+            auto statementinuse = statementobj.Setup(image, signature);
 
             statementobj.StepAll(statementinuse);
         }
