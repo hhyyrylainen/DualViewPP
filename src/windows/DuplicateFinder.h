@@ -3,6 +3,8 @@
 #include "BaseWindow.h"
 #include "IsAlive.h"
 
+#include "SignatureCalculator.h"
+
 #include "components/PrimaryMenu.h"
 #include "components/SuperContainer.h"
 #include "components/SuperViewer.h"
@@ -21,6 +23,12 @@ public:
 
 protected:
     void _OnClose() override;
+
+    void _ScanButtonPressed();
+
+    //! \brief Check the status of signature calculation and queue the database lookup for
+    //! duplicates
+    void _CheckScanStatus();
 
 private:
     // Titlebar widgets
@@ -70,6 +78,11 @@ private:
     Gtk::Button DeleteAllAfterFirst;
     Gtk::Button NotDuplicates;
     Gtk::Button Skip;
+
+    // Other resources
+    SignatureCalculator Calculator;
+
+    bool Scanning = false;
 };
 
 } // namespace DV

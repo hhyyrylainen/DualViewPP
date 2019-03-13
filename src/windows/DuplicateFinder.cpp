@@ -1,6 +1,9 @@
 // ------------------------------------ //
 #include "DuplicateFinder.h"
 
+#include "Database.h"
+#include "DualView.h"
+
 using namespace DV;
 // ------------------------------------ //
 DuplicateFinderWindow::DuplicateFinderWindow() :
@@ -36,6 +39,8 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
     ResetResults.property_relief() = Gtk::RELIEF_NONE;
     MenuPopover.Container.pack_start(ResetResults);
     MenuPopover.Container.pack_start(Separator1);
+    SensitivityLabel.property_tooltip_text() =
+        "Higher sensitivity requires images to be more similar before reporting a duplicate";
     MenuPopover.Container.pack_start(SensitivityLabel);
 
     Sensitivity.set_digits(0);
@@ -63,6 +68,8 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
 
     ScanControl.set_can_default(true);
     ScanControl.get_style_context()->add_class("suggested-action");
+    ScanControl.signal_clicked().connect(
+        sigc::mem_fun(*this, &DuplicateFinderWindow::_ScanButtonPressed));
     HeaderBar.pack_start(ScanControl);
 
     set_titlebar(HeaderBar);
@@ -112,6 +119,7 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
     ImageListLeftTop.pack_start(DuplicateImagesLabel, false, false);
     DeleteSelectedAfterFirst.property_valign() = Gtk::ALIGN_CENTER;
     DeleteSelectedAfterFirst.property_hexpand() = false;
+    DeleteSelectedAfterFirst.property_sensitive() = false;
     ImageListLeftTop.pack_end(DeleteSelectedAfterFirst, false, false);
 
     ImageListLeftTop.set_spacing(15);
@@ -128,10 +136,13 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
 
     // Right
     DeleteAllAfterFirst.property_valign() = Gtk::ALIGN_END;
+    DeleteAllAfterFirst.property_sensitive() = false;
     BottomRightContainer.pack_end(DeleteAllAfterFirst);
     NotDuplicates.property_valign() = Gtk::ALIGN_END;
+    NotDuplicates.property_sensitive() = false;
     BottomRightContainer.pack_end(NotDuplicates);
     Skip.property_valign() = Gtk::ALIGN_END;
+    Skip.property_sensitive() = false;
     BottomRightContainer.pack_end(Skip);
 
     BottomRightContainer.property_vexpand() = false;
@@ -156,4 +167,58 @@ DuplicateFinderWindow::~DuplicateFinderWindow()
 }
 
 void DuplicateFinderWindow::_OnClose() {}
+// ------------------------------------ //
+void DuplicateFinderWindow::_ScanButtonPressed()
+{
+    constexpr auto DETECTION_STRING = "Detecting images needing signature calculation...";
+    if(Scanning) {
+        // Stop scanning
+        Calculator.Pause();
+
+    } else {
+        ProgressLabel.property_label() = DETECTION_STRING;
+
+        // Detect images to scan
+        auto isalive = GetAliveMarker();
+
+        DualView::Get().QueueDBThreadFunction([=]() {
+            const auto imagesWithoutSignature =
+                DualView::Get().GetDatabase().SelectImageIDsWithoutSignatureAG();
+
+            LOG_INFO("Found " + std::to_string(imagesWithoutSignature.size()) +
+                     " images to calculate signatures for");
+
+            DualView::Get().InvokeFunction([this, isalive, imagesWithoutSignature]() {
+                INVOKE_CHECK_ALIVE_MARKER(isalive);
+
+                Calculator.AddImages(imagesWithoutSignature);
+
+                _CheckScanStatus();
+            });
+        });
+
+        // Start scanning
+        Calculator.Resume();
+    }
+
+    // Update button state
+    Scanning = !Scanning;
+
+    if(Scanning) {
+
+        ScanControl.property_label() = "Stop";
+        ScanControl.get_style_context()->remove_class("suggested-action");
+
+    } else {
+
+        ScanControl.property_label() = "Start";
+        ScanControl.get_style_context()->add_class("suggested-action");
+
+        // Reset text if nothing is in progress
+        if(ProgressLabel.property_label() == DETECTION_STRING)
+            ProgressLabel.property_label() = "Start scan to get results";
+    }
+}
+
+void DuplicateFinderWindow::_CheckScanStatus() {}
 // ------------------------------------ //

@@ -3,7 +3,6 @@
 #include "Common.h"
 #include "IsAlive.h"
 
-#include <atomic>
 #include <memory>
 #include <vector>
 
@@ -11,37 +10,36 @@ namespace DV {
 
 class Image;
 
+constexpr auto SIGNATURE_CALCULATOR_READ_MORE_THRESSHOLD = 5;
+constexpr auto SIGNATURE_CALCULATOR_READ_BATCH = 50;
+
 //! \brief Manages calculating signatures for a bunch of images
+//! \note This processes items in LIFO order, first image is only processed once finished
 class SignatureCalculator : public IsAlive {
+    struct Private;
+
 public:
     SignatureCalculator();
     ~SignatureCalculator();
 
     void AddImages(const std::vector<DBID>& images);
+    void AddImages(const std::vector<std::shared_ptr<Image>>& images);
 
     void Resume();
     void Pause();
 
-    bool IsDone()
-    {
-        return Done;
-    }
+    bool IsDone() const;
 
     //! \brief Calculates the signatures for the given image
     //! \returns False on error
-    static bool CalculateImageSignature(Image& image);
+    //! \note This shares the static puzzle context and uses a lock to protect access to it
+    bool CalculateImageSignature(Image& image);
 
 private:
-    //! This is the tail of the queue and contains images that haven't been loaded from the
-    //! database yet
-    std::vector<DBID> QueueEnd;
+    void _RunCalculationThread();
 
-    std::vector<std::shared_ptr<Image>> Queue;
-
-    //! Used to throttle if it looks like the database can't keep up
-    std::atomic<int> QueuedDatabaseWrites{0};
-
-    bool Done = false;
+private:
+    std::unique_ptr<Private> pimpl;
 };
 
 } // namespace DV

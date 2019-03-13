@@ -39,13 +39,11 @@ CollectionView::CollectionView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> bu
 
 CollectionView::~CollectionView()
 {
-
     LOG_INFO("CollectionView closed");
 }
 // ------------------------------------ //
 bool CollectionView::_OnClose(GdkEventAny* event)
 {
-
     // Just hide it //
     hide();
 
@@ -56,14 +54,11 @@ bool CollectionView::_OnClose(GdkEventAny* event)
 // ------------------------------------ //
 void CollectionView::_OnShown()
 {
-
-
     GoToRoot();
 }
 
 void CollectionView::_OnHidden()
 {
-
     // Explicitly unload items //
     auto empty = std::vector<std::shared_ptr<ResourceWithPreview>>();
 
@@ -72,13 +67,11 @@ void CollectionView::_OnHidden()
 // ------------------------------------ //
 void CollectionView::OnSearchChanged()
 {
-
     _UpdateShownItems();
 }
 
 void CollectionView::OnFolderChanged()
 {
-
     if(!DualView::IsOnMainThread()) {
 
         // Invoke on the main thread //
@@ -104,7 +97,6 @@ void CollectionView::OnFolderChanged()
 
 void CollectionView::_UpdateShownItems()
 {
-
     auto isalive = GetAliveMarker();
     std::string matchingpattern = SearchBox->get_text();
 

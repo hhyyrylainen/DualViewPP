@@ -175,6 +175,9 @@ void Image::SetResourcePath(const std::string& newpath)
 
 void Image::SetSignature(const std::string& signature)
 {
+    if(Signature == signature)
+        return;
+
     Signature = signature;
     OnMarkDirty();
 }

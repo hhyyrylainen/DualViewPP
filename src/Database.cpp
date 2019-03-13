@@ -372,6 +372,26 @@ std::string Database::SelectImageSignatureByID(Lock& guard, DBID image)
     return "";
 }
 
+std::vector<DBID> Database::SelectImageIDsWithoutSignature(Lock& guard)
+{
+    const char str[] = "SELECT id FROM pictures WHERE signature IS NULL;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup();
+
+    std::vector<DBID> result;
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        DBID id;
+        if(statementobj.GetObjectIDFromColumn(id))
+            result.push_back(id);
+    }
+
+    return result;
+}
+
 std::shared_ptr<Image> Database::SelectImageByHash(Lock& guard, const std::string& hash)
 {
     const char str[] = "SELECT * FROM pictures WHERE file_hash = ?1;";

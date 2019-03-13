@@ -125,6 +125,10 @@ public:
     //! \brief Retrieves signature (or empty string) for image id
     std::string SelectImageSignatureByID(Lock& guard, DBID image);
 
+    //! \brief Retrieves image ids that don't have a signature
+    std::vector<DBID> SelectImageIDsWithoutSignature(Lock& guard);
+    CREATE_NON_LOCKING_WRAPPER(SelectImageIDsWithoutSignature);
+
     //! \brief Loads a TagCollection for the specified image.
     //! \returns Null if the image is not in the database
     std::shared_ptr<TagCollection> LoadImageTags(const std::shared_ptr<Image>& image);
