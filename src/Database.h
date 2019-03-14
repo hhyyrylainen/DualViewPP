@@ -35,7 +35,7 @@ class TagModifier;
 class TagBreakRule;
 
 //! \brief The version number of the database
-constexpr auto DATABASE_CURRENT_VERSION = 21;
+constexpr auto DATABASE_CURRENT_VERSION = 22;
 constexpr auto DATABASE_CURRENT_SIGNATURES_VERSION = 1;
 
 constexpr auto IMAGE_SIGNATURE_WORD_COUNT = 100;

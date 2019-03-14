@@ -292,10 +292,9 @@ void Database::InsertImage(Lock& guard, Image& image)
 
     DoDBSavePoint transaction(*this, guard, "insert_image", signature.empty() ? false : true);
 
-    const char str[] =
-        "INSERT INTO pictures (relative_path, width, height, name, extension, "
-        "add_date, last_view, is_private, from_file, file_hash, signature) VALUES "
-        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+    const char str[] = "INSERT INTO pictures (relative_path, width, height, name, extension, "
+                       "add_date, last_view, is_private, from_file, file_hash) VALUES "
+                       "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -303,12 +302,6 @@ void Database::InsertImage(Lock& guard, Image& image)
         CacheManager::GetDatabaseImagePath(image.GetResourcePath()), image.GetWidth(),
         image.GetHeight(), image.GetName(), image.GetExtension(), image.GetAddDateStr(),
         image.GetLastViewStr(), image.GetIsPrivate(), image.GetFromFile(), image.GetHash());
-
-    if(signature.empty()) {
-        statementobj.Bind(nullptr);
-    } else {
-        statementobj.Bind(image.GetSignature());
-    }
 
     statementobj.StepAll(statementinuse);
 
@@ -3187,6 +3180,12 @@ bool Database::_UpdateDatabase(Lock& guard, const int oldversion)
         _RunSQL(guard,
             LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_20_21.sql"));
         _SetCurrentDatabaseVersion(guard, 21);
+        return true;
+    }
+    case 21: {
+        _RunSQL(guard,
+            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_21_22.sql"));
+        _SetCurrentDatabaseVersion(guard, 22);
         return true;
     }
     default: {

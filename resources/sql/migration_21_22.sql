@@ -1,34 +1,33 @@
--- This is ran within the main init transaction, so these aren't needed
--- All succeed or all will fail
---BEGIN TRANSACTION;
+-- Migration from database version 21 to 22 --
+-- This fixes pictures_old still being referenced all over
 
--- Version info 
-CREATE TABLE version( number INTEGER );
+PRAGMA foreign_keys = OFF;
 
--- Main pictures table
-CREATE TABLE pictures ( 
-    id INTEGER PRIMARY KEY AUTOINCREMENT, 
-    -- Path from which this image can be loaded
-    relative_path TEXT,
-    -- When importing the size is determined
-    width INTEGER, 
-    height INTEGER, 
-    -- Friendly name, shown in image browser
-    name TEXT, 
-    extension TEXT, 
-    add_date TEXT, 
-    last_view TEXT,
-    -- If 1 only visible in private mode
-    is_private INTEGER DEFAULT 0,
-    
-    from_file TEXT DEFAULT "", 
-    
-    -- Hash of the file
-    file_hash TEXT NOT NULL UNIQUE
-);
 
--- This is replaced by forcing file_hash to be unique
---CREATE INDEX pictures_file_hash ON pictures (file_hash);
+BEGIN TRANSACTION;
+
+--
+-- Rename old tables
+--
+
+ALTER TABLE ratings RENAME TO ratings_old;
+ALTER TABLE image_region RENAME TO image_region_old;
+ALTER TABLE tags RENAME TO tags_old;
+ALTER TABLE applied_tag RENAME TO applied_tag_old;
+ALTER TABLE applied_tag_combine RENAME TO applied_tag_combine_old;
+ALTER TABLE applied_tag_modifier RENAME TO applied_tag_modifier_old;
+ALTER TABLE tag_aliases RENAME TO tag_aliases_old;
+ALTER TABLE tag_implies RENAME TO tag_implies_old;
+ALTER TABLE image_tag RENAME TO image_tag_old;
+ALTER TABLE collections RENAME TO collections_old;
+ALTER TABLE collection_tag RENAME TO collection_tag_old;
+ALTER TABLE collection_image RENAME TO collection_image_old;
+ALTER TABLE folder_collection RENAME TO folder_collection_old;
+
+--
+-- Create new tables
+--
+
 
 -- Stores rating information about collections, images and whatever else wants to have ratings, too
 CREATE TABLE ratings ( 
@@ -81,31 +80,6 @@ CREATE TABLE tags (
     example_image_region INTEGER DEFAULT NULL REFERENCES image_region(id) ON DELETE SET NULL ON UPDATE RESTRICT
 );
 
--- Modifies tags, like colours and numbers
-CREATE TABLE tag_modifiers (
-    
-    id INTEGER PRIMARY KEY AUTOINCREMENT, 
-    
-    name TEXT UNIQUE,
-    
-    -- If 1 only visible in private mode
-    -- Will automatically set any applied tags this is attached to be private
-    is_private INTEGER DEFAULT 0,
-    
-    -- Similar to category in tags, basically the type of modifier, some examples:
-    -- colour, number, intensity
-    description TEXT
-);
-
--- Tag Modifier alias. Allows multiple names for a modifier
-CREATE TABLE tag_modifier_aliases (
-    
-    -- Name of the alias
-    name TEXT UNIQUE COLLATE NOCASE,
-    -- The Modifier this name means
-    meant_modifier INTEGER REFERENCES tag_modifiers(id) ON DELETE CASCADE
-);
-
 -- A tag that can be applied
 CREATE TABLE applied_tag (
     
@@ -136,29 +110,6 @@ CREATE TABLE applied_tag_modifier (
     UNIQUE (to_tag, modifier)
 );
 
--- Detect tags that should actually be modified tags
-CREATE TABLE common_composite_tags (
-    
-    id INTEGER PRIMARY KEY AUTOINCREMENT, 
-    
-    -- The text tto match this detection
-    -- The string may contain * to indicate that it may be any tag, 
-    -- for example "wet*" would match any tag that has 'wet' in front of an existing tag
-    tag_string TEXT UNIQUE,
-    
-    -- The actual tag meant
-    -- May be 0 if * is used
-    actual_tag INTEGER NOT NULL
-    
-);
-
--- The modifiers to apply to the above table detection rule
-CREATE TABLE composite_tag_modifiers (
-    
-    composite INTEGER REFERENCES common_composite_tags(id) ON DELETE CASCADE,
-    modifier INTEGER REFERENCES tag_modifiers(id) ON DELETE CASCADE
-);
-
 -- Tag alias. Allows multiple names for a tag
 CREATE TABLE tag_aliases (
     
@@ -166,15 +117,6 @@ CREATE TABLE tag_aliases (
     name TEXT UNIQUE COLLATE NOCASE,
     -- The tag this name means
     meant_tag INTEGER REFERENCES tags(id) ON DELETE CASCADE
-);
-
--- Unhelpful tags can be blacklisted
-CREATE TABLE tag_blacklist (
-    
-    -- Name of tag
-    name TEXT UNIQUE COLLATE NOCASE,
-    -- Reason this is blacklisted
-    reason TEXT DEFAULT "Unhelpful tag, use something else"
 );
 
 -- Implicit tags, applies a tag if another is already applied
@@ -190,15 +132,6 @@ CREATE TABLE tag_implies (
     UNIQUE (primary_tag, to_apply)
 );
 
--- Super aliases. These allow a matching tag string to expand to the expanded form
-CREATE TABLE tag_super_aliases (
-
-       -- The input the text must match
-       alias TEXT UNIQUE COLLATE NOCASE,
-       
-       -- The text the match must expand to
-       expanded TEXT
-);
 
 -- Tag applied to an image
 CREATE TABLE image_tag ( 
@@ -240,22 +173,6 @@ CREATE TABLE collection_image (
     UNIQUE (image, collection) ON CONFLICT IGNORE
 );
 
--- Virtual folders table. These contain collections and other folders. Base structure for browsing
--- folders can be added to multiple folders so there is no simple parent folder other than that all folders
--- must eventually be children of the Root folder
--- Paths are created like this Root/{name}/{name}/{collection}
--- '/' characters are disallowed in folder names convert to | 
-CREATE TABLE virtual_folders (
-    
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    
-    -- Name of the folder
-    name TEXT NOT NULL CHECK (name NOT LIKE "%/%"),
-    
-    -- Is a private folder, only visible in private mode if set to 1
-    is_private INTEGER DEFAULT 0
-);
-
 -- Collection added to a virtual folder
 CREATE TABLE folder_collection (
     
@@ -264,69 +181,44 @@ CREATE TABLE folder_collection (
     UNIQUE (parent, child) ON CONFLICT IGNORE
 );
 
--- Folder within a folder. Disallows setting inside itself
-CREATE TABLE folder_folder (
+--
+-- Copy data
+--
+INSERT INTO ratings SELECT id, favorited, stars, image FROM ratings_old;
+INSERT INTO image_region SELECT * FROM image_region_old;
+INSERT INTO tags SELECT * FROM tags_old;
+INSERT INTO applied_tag SELECT * FROM applied_tag_old;
+INSERT INTO applied_tag_combine SELECT * FROM applied_tag_combine_old;
+INSERT INTO applied_tag_modifier SELECT * FROM applied_tag_modifier_old;
+INSERT INTO tag_aliases SELECT * FROM tag_aliases_old;
+INSERT INTO tag_implies SELECT * FROM tag_implies_old;
+INSERT INTO image_tag SELECT * FROM image_tag_old;
+INSERT INTO collections SELECT * FROM collections_old;
+INSERT INTO collection_tag SELECT * FROM collection_tag_old;
+INSERT INTO collection_image SELECT * FROM collection_image_old;
+INSERT INTO folder_collection SELECT * FROM folder_collection_old;
 
-    parent INTEGER NOT NULL REFERENCES virtual_folders(id) ON DELETE RESTRICT,
-    child INTEGER NOT NULL CHECK (child IS NOT parent) REFERENCES virtual_folders(id) ON DELETE CASCADE,
-    UNIQUE (parent, child) ON CONFLICT IGNORE
-);
+-- Drop old tables
+DROP TABLE ratings_old;
+DROP TABLE image_region_old;
+DROP TABLE tags_old;
+DROP TABLE applied_tag_old;
+DROP TABLE applied_tag_combine_old;
+DROP TABLE applied_tag_modifier_old;
+DROP TABLE tag_aliases_old;
+DROP TABLE tag_implies_old;
+DROP TABLE image_tag_old;
+DROP TABLE collections_old;
+DROP TABLE collection_tag_old;
+DROP TABLE collection_image_old;
+DROP TABLE folder_collection_old;
 
--- Internet download things --
+-- This should actually be output and checked with a regex
+PRAGMA foreign_key_check;
 
--- Resource file found on the internet
-CREATE TABLE net_files (
+COMMIT TRANSACTION;
 
-    id INTEGER PRIMARY KEY,
-    
-    -- Path to download this file from
-    file_url TEXT NOT NULL,
-    
-    -- Referrer page to use, some sites require this
-    page_referrer TEXT DEFAULT "",
-    
-    -- Name to use for this once downloaded
-    preferred_name TEXT NOT NULL,
-
-    -- Tags on this image. Contains ';' delimited list of tags
-    tags_string TEXT,
-
-    -- Part of a net gallery
-    belongs_to_gallery INTEGER REFERENCES net_gallery(id) ON DELETE CASCADE
-);
-
--- An online gallery
-CREATE TABLE net_gallery (
-    
-    id INTEGER PRIMARY KEY,
-    
-    -- Main url
-    gallery_url TEXT NOT NULL,
-
-    -- Folder target path
-    target_path TEXT DEFAULT "",
-    
-    -- Name of gallery (if already received a response to http request)
-    -- When saving download_settings strip settings should be applied before saving
-    gallery_name TEXT,
-    
-    -- Currently scanned page
-    currently_scanned TEXT,
-    
-    -- Is downloaded successfully
-    is_downloaded INTEGER DEFAULT 0,
-    
-    -- Contains ';' delimited list of tags
-    tags_string TEXT
-);
-
--- Plugin management tables
--- This table is used to initialize all plugins once
-CREATE TABLE activated_db_plugins (
-
-       plugin_uuid TEXT PRIMARY KEY
-);
+PRAGMA foreign_keys = ON;
 
 
 
---COMMIT TRANSACTION;
