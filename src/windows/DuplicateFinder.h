@@ -94,6 +94,10 @@ private:
     // Is running the finding process
     bool Scanning = false;
 
+    //! This prevents sending the images again. Detecting images without signatures once is
+    //! good enough
+    bool ImagesMissingSignaturesCalculated = false;
+
     // Resources for the duplicate groups
     bool QueryingDBForDuplicates = false;
     bool NoMoreQueryResults = false;

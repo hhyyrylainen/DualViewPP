@@ -275,23 +275,30 @@ void SignatureCalculator::_RunCalculationThread()
 
             if(image) {
                 // Calculate new signature
-                CalculateImageSignature(*image);
+                bool success = CalculateImageSignature(*image);
 
-                // Save the updated signature
-                if(image->IsInDatabase()) {
+                if(!success) {
+                    LOG_ERROR("SignatureCalculator: failed to calculate for image: " +
+                              image->GetName() + ", path: " + image->GetResourcePath());
+                } else {
 
-                    if(SIGNATURE_CALCULATOR_GROUP_IMAGE_SAVE < 2) {
-                        image->Save();
-                    } else {
-                        saveQueue.push_back(image);
+                    // Save the updated signature
+                    if(image->IsInDatabase()) {
 
-                        if(saveQueue.size() > SIGNATURE_CALCULATOR_GROUP_IMAGE_SAVE)
-                            _SaveQueueHelper(saveQueue, true);
+                        if(SIGNATURE_CALCULATOR_GROUP_IMAGE_SAVE < 2) {
+                            image->Save();
+                        } else {
+                            saveQueue.push_back(image);
+
+                            if(saveQueue.size() > SIGNATURE_CALCULATOR_GROUP_IMAGE_SAVE)
+                                _SaveQueueHelper(saveQueue, true);
+                        }
                     }
-                }
 
-                // A lot of spam
-                // LOG_INFO("SignatureCalculator: calculated for image: " + image->GetName());
+                    // A lot of spam
+                    // LOG_INFO("SignatureCalculator: calculated for image: " +
+                    // image->GetName());
+                }
             }
 
             ++pimpl->TotalItemsProcessed;
@@ -300,6 +307,7 @@ void SignatureCalculator::_RunCalculationThread()
         }
 
         if(!somethingToDo) {
+
             // Nothing to do
             // Save queue if it has something
             if(!saveQueue.empty()) {
@@ -308,18 +316,30 @@ void SignatureCalculator::_RunCalculationThread()
                 lock.lock();
             }
 
-            // If also didn't anything last time this is now done. And isn't waiting for a
-            // database read then this is done
-            if(!didSomethingOld && !pimpl->Done && !pimpl->DBReadInProgress) {
-                pimpl->Done = true;
-                _ReportStatus();
-                LOG_INFO("SignatureCalculator: has finished with all work");
+            if(pimpl->DBReadInProgress) {
+
+                // Shouldn't mark done while waiting for more data
+                pimpl->WorkerNotify.wait_for(lock, std::chrono::seconds(1));
+                didSomethingOld = true;
+
+            } else {
+
+                // If also didn't anything last time this is now done. And isn't waiting for a
+                // database read then this is done
+                if(!didSomethingOld && !pimpl->Done) {
+                    // Some extra checking to not report us being done too soon
+                    if(!pimpl->DBReadInProgress && pimpl->TotalItemsProcessed > 0) {
+                        pimpl->Done = true;
+                        LOG_INFO("SignatureCalculator: has finished with all work");
+                        _ReportStatus();
+                    }
+                }
+
+                didSomethingOld = false;
+
+                // Sleep while waiting for something to happen
+                pimpl->WorkerNotify.wait_for(lock, std::chrono::seconds(3));
             }
-
-            didSomethingOld = false;
-
-            // Sleep while waiting for something to happen
-            pimpl->WorkerNotify.wait_for(lock, std::chrono::seconds(5));
         }
     }
 

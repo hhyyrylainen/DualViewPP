@@ -187,32 +187,37 @@ void DuplicateFinderWindow::_ScanButtonPressed()
         Calculator.Pause();
 
     } else {
-        DoneWithSignatures = false;
-        ProgressLabel.property_label() = DETECTION_STRING;
 
-        // Detect images to scan
-        auto isalive = GetAliveMarker();
+        if(!ImagesMissingSignaturesCalculated) {
 
-        DualView::Get().QueueDBThreadFunction([=]() {
-            const auto imagesWithoutSignature =
-                DualView::Get().GetDatabase().SelectImageIDsWithoutSignatureAG();
+            DoneWithSignatures = false;
+            ProgressLabel.property_label() = DETECTION_STRING;
 
-            LOG_INFO("Found " + std::to_string(imagesWithoutSignature.size()) +
-                     " images to calculate signatures for");
+            // Detect images to scan
+            auto isalive = GetAliveMarker();
 
-            DualView::Get().InvokeFunction([this, isalive, imagesWithoutSignature]() {
-                INVOKE_CHECK_ALIVE_MARKER(isalive);
+            DualView::Get().QueueDBThreadFunction([=]() {
+                const auto imagesWithoutSignature =
+                    DualView::Get().GetDatabase().SelectImageIDsWithoutSignatureAG();
 
-                if(imagesWithoutSignature.empty()) {
-                    DoneWithSignatures = true;
-                } else {
+                LOG_INFO("Found " + std::to_string(imagesWithoutSignature.size()) +
+                         " images to calculate signatures for");
 
-                    Calculator.AddImages(imagesWithoutSignature);
-                }
+                DualView::Get().InvokeFunction([this, isalive, imagesWithoutSignature]() {
+                    INVOKE_CHECK_ALIVE_MARKER(isalive);
 
-                _CheckScanStatus();
+                    if(imagesWithoutSignature.empty()) {
+                        DoneWithSignatures = true;
+                        _CheckScanStatus();
+                    } else {
+
+                        Calculator.AddImages(imagesWithoutSignature);
+                        DoneWithSignatures = false;
+                        ImagesMissingSignaturesCalculated = true;
+                    }
+                });
             });
-        });
+        }
 
         // Start scanning
         Calculator.Resume();
@@ -257,7 +262,7 @@ void DuplicateFinderWindow::_CheckScanStatus()
         DualView::Get().QueueDBThreadFunction([=]() {
             LOG_INFO("Found " + std::to_string(0) + " potential duplicates");
 
-            DualView::Get().GetDatabase().SelectPotentialImageDuplicates();
+            // DualView::Get().GetDatabase().SelectPotentialImageDuplicates();
 
             DualView::Get().InvokeFunction([this, isalive]() {
                 INVOKE_CHECK_ALIVE_MARKER(isalive);
