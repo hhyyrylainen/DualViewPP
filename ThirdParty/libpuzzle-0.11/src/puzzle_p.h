@@ -26,8 +26,9 @@ typedef struct PuzzleImageType_ {
 #endif
 
 #define PUZZLE_DEFAULT_LAMBDAS 9
-#define PUZZLE_DEFAULT_MAX_WIDTH 10000
-#define PUZZLE_DEFAULT_MAX_HEIGHT 10000
+// AFAIK these are just sanity checks and don't negatively affect performance of small images
+#define PUZZLE_DEFAULT_MAX_WIDTH 50000
+#define PUZZLE_DEFAULT_MAX_HEIGHT 50000
 #define PUZZLE_DEFAULT_NOISE_CUTOFF 2.0
 #define PUZZLE_DEFAULT_P_RATIO 2.0
 #define PUZZLE_MIN_P 2

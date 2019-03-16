@@ -622,14 +622,15 @@ void Database::DeleteImageTag(Lock& guard, std::weak_ptr<Image> image, AppliedTa
 
 void Database::SelectPotentialImageDuplicates(int sensitivity /*= 5*/)
 {
+    // TODO: have a separate lock for PictureSignatureDb as this takes a long, long time to run
     GUARD_LOCK();
 
     PrintResultingRows(guard, PictureSignatureDb,
-        "SELECT i.*, COUNT(isw.sig_word) as strength FROM pictures i JOIN "
-        "picture_signature_words isw ON i.id = isw.picture_id JOIN picture_signature_words "
-        "isw_search ON isw.sig_word = isw_search.sig_word AND isw.picture_id != "
-        "isw_search.picture_id GROUP BY i.id, i.signature HAVING strength > ? ORDER "
-        "BY strength DESC",
+        "SELECT i.id, COUNT(isw.sig_word) as strength, isw_search.picture_id FROM pictures i "
+        "JOIN picture_signature_words isw ON i.id = isw.picture_id JOIN "
+        "picture_signature_words isw_search ON isw.sig_word = isw_search.sig_word AND "
+        "isw.picture_id < isw_search.picture_id GROUP BY i.id HAVING strength > ? ORDER BY "
+        "strength DESC;",
         sensitivity);
 }
 // ------------------------------------ //

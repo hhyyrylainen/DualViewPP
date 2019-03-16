@@ -260,9 +260,8 @@ void DuplicateFinderWindow::_CheckScanStatus()
         auto isalive = GetAliveMarker();
 
         DualView::Get().QueueDBThreadFunction([=]() {
-            LOG_INFO("Found " + std::to_string(0) + " potential duplicates");
-
-            // DualView::Get().GetDatabase().SelectPotentialImageDuplicates();
+            DualView::Get().GetDatabase().SelectPotentialImageDuplicates();
+            // LOG_INFO("Found " + std::to_string(0) + " potential duplicates");
 
             DualView::Get().InvokeFunction([this, isalive]() {
                 INVOKE_CHECK_ALIVE_MARKER(isalive);
