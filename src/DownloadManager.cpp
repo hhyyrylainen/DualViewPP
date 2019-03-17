@@ -206,7 +206,7 @@ void DownloadJob::DoDownload(DownloadManager& manager)
     // Escape the url in case it has spaces or other things
     {
         const auto urlBase = Leviathan::StringOperations::BaseHostName(URL);
-        auto path = Leviathan::StringOperations::URLPath(URL);
+        auto path = Leviathan::StringOperations::URLPath(URL, false);
 
         auto questionMark = path.find_first_of('?');
 
