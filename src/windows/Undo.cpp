@@ -45,7 +45,6 @@ UndoWindow::UndoWindow() :
     SearchButton.set_image_from_icon_name("edit-find-symbolic");
     SearchButton.add_accelerator("clicked", accelGroup, GDK_KEY_f,
         Gdk::ModifierType::CONTROL_MASK, Gtk::AccelFlags::ACCEL_VISIBLE);
-    SearchButton.signal_clicked().connect(sigc::mem_fun(*this, &UndoWindow::_ToggleSearch));
 
     HeaderBar.property_title() = "Latest Actions";
     HeaderBar.property_show_close_button() = true;
@@ -63,8 +62,9 @@ UndoWindow::UndoWindow() :
     Search.signal_search_changed().connect(sigc::mem_fun(*this, &UndoWindow::_SearchUpdated));
 
     SearchBar.property_search_mode_enabled() = false;
-    SearchBar.property_search_mode_enabled().signal_changed().connect(
-        sigc::mem_fun(*this, &UndoWindow::_SearchModeChanged));
+
+    SearchActiveBinding = Glib::Binding::bind_property(SearchButton.property_active(),
+        SearchBar.property_search_mode_enabled(), Glib::BINDING_BIDIRECTIONAL);
     SearchBar.add(Search);
     MainContainer.add(SearchBar);
 
@@ -97,30 +97,6 @@ UndoWindow::~UndoWindow()
 
 void UndoWindow::_OnClose() {}
 // ------------------------------------ //
-void UndoWindow::_ToggleSearch()
-{
-    if(SearchBarVisibilityUpdateHappening)
-        return;
-
-    if(SearchBar.property_search_mode_enabled()) {
-
-        SearchBar.property_search_mode_enabled() = false;
-
-    } else {
-        SearchBar.property_search_mode_enabled() = true;
-    }
-}
-
-void UndoWindow::_SearchModeChanged()
-{
-    SearchBarVisibilityUpdateHappening = true;
-
-    SearchButton.property_active() =
-        static_cast<bool>(SearchBar.property_search_mode_enabled());
-
-    SearchBarVisibilityUpdateHappening = false;
-}
-
 bool UndoWindow::_StartSearchFromKeypress(GdkEventKey* event)
 {
     return SearchBar.handle_event(event);

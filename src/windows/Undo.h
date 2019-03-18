@@ -22,8 +22,6 @@ public:
 protected:
     void _OnClose() override;
 
-    void _ToggleSearch();
-    void _SearchModeChanged();
     bool _StartSearchFromKeypress(GdkEventKey* event);
 
     void _SearchUpdated();
@@ -44,15 +42,14 @@ private:
     // Main content area
     Gtk::Box MainContainer;
     Gtk::SearchBar SearchBar;
+    //! Updates the button status from the search bar visibility and vice versa
+    Glib::RefPtr<Glib::Binding> SearchActiveBinding;
     Gtk::SearchEntry Search;
     Gtk::ScrolledWindow ListScroll;
     Gtk::Box ListContainer;
 
     // Loading widgets
     Gtk::Label NothingToShow;
-
-    //! Prevent recursive shenanigans with showing the search bar
-    bool SearchBarVisibilityUpdateHappening = false;
 };
 
 } // namespace DV
