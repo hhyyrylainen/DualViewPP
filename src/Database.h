@@ -150,7 +150,11 @@ public:
     //! \param sensitivity How many parts need to match before returning a result. Strength of
     //! 20 can be used instead of refining the results further to get a faster method for
     //! finding duplicates, but less accurate
-    void SelectPotentialImageDuplicates(int sensitivity = 5);
+    //! \result Returns the images that have duplicates (lower ids are reported as the original
+    //! Image). The vector containing the tuples first has the id of the duplicate Image and
+    //! then the strength
+    std::map<DBID, std::vector<std::tuple<DBID, int>>> SelectPotentialImageDuplicates(
+        int sensitivity = 15);
 
     //
     // Collection functions

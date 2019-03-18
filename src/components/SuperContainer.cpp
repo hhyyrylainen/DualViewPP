@@ -25,7 +25,6 @@ SuperContainer::SuperContainer(
 
 void SuperContainer::_CommonCtor()
 {
-
     add(View);
     View.add(Container);
     View.show();
@@ -40,13 +39,11 @@ void SuperContainer::_CommonCtor()
 
 SuperContainer::~SuperContainer()
 {
-
     Clear();
 }
 // ------------------------------------ //
 void SuperContainer::Clear()
 {
-
     DualView::IsOnMainThreadAssert();
 
     // This will delete all the widgets //
@@ -56,7 +53,6 @@ void SuperContainer::Clear()
 // ------------------------------------ //
 void SuperContainer::UpdatePositioning()
 {
-
     if(!LayoutDirty)
         return;
 
@@ -96,7 +92,6 @@ void SuperContainer::UpdatePositioning()
 
 void SuperContainer::UpdateRowWidths()
 {
-
     WidestRow = SUPERCONTAINER_MARGIN;
 
     int32_t CurrentRow = SUPERCONTAINER_MARGIN;
@@ -127,7 +122,6 @@ void SuperContainer::UpdateRowWidths()
 // ------------------------------------ //
 size_t SuperContainer::CountRows() const
 {
-
     size_t count = 0;
 
     int32_t CurrentY = -1;
@@ -150,7 +144,6 @@ size_t SuperContainer::CountRows() const
 // ------------------------------------ //
 size_t SuperContainer::CountSelectedItems() const
 {
-
     size_t count = 0;
 
     for(auto& position : Positions) {
@@ -168,7 +161,6 @@ size_t SuperContainer::CountSelectedItems() const
 
 void SuperContainer::DeselectAllItems()
 {
-
     for(auto& position : Positions) {
 
         // Stop once empty position is reached //
@@ -181,7 +173,6 @@ void SuperContainer::DeselectAllItems()
 
 void SuperContainer::SelectAllItems()
 {
-
     for(auto& position : Positions) {
 
         // Stop once empty position is reached //
@@ -194,7 +185,6 @@ void SuperContainer::SelectAllItems()
 
 void SuperContainer::DeselectAllExcept(const ListItem* item)
 {
-
     for(auto& position : Positions) {
 
         // Stop once empty position is reached //
@@ -210,7 +200,6 @@ void SuperContainer::DeselectAllExcept(const ListItem* item)
 
 void SuperContainer::DeselectFirstItem()
 {
-
     for(auto& position : Positions) {
 
         // Stop once empty position is reached //
@@ -225,23 +214,27 @@ void SuperContainer::DeselectFirstItem()
     }
 }
 
-void SuperContainer::SelectFirstItem()
+void SuperContainer::SelectFirstItems(int count)
 {
+    int selected = 0;
 
     for(auto& position : Positions) {
+
+        // If enough are selected stop
+        if(selected >= count)
+            break;
 
         // Stop once empty position is reached //
         if(!position.WidgetToPosition)
             break;
 
         position.WidgetToPosition->Widget->Select();
-        break;
+        ++selected;
     }
 }
 
 void SuperContainer::SelectNextItem()
 {
-
     bool select = false;
 
     for(auto iter = Positions.begin(); iter != Positions.end(); ++iter) {
@@ -274,7 +267,6 @@ void SuperContainer::SelectNextItem()
 
 void SuperContainer::SelectPreviousItem()
 {
-
     bool select = false;
 
     for(auto iter = Positions.rbegin(); iter != Positions.rend(); ++iter) {
@@ -307,7 +299,6 @@ void SuperContainer::SelectPreviousItem()
 // ------------------------------------ //
 bool SuperContainer::IsEmpty() const
 {
-
     for(auto& position : Positions) {
 
         // Stop once empty position is reached //
@@ -354,7 +345,6 @@ std::vector<std::shared_ptr<ResourceWithPreview>> SuperContainer::GetResourcesVi
 
 double SuperContainer::GetResourceOffset(std::shared_ptr<ResourceWithPreview> resource) const
 {
-
     for(const auto& position : Positions) {
 
         if(position.WidgetToPosition && position.WidgetToPosition->CreatedFrom == resource) {
@@ -368,7 +358,6 @@ double SuperContainer::GetResourceOffset(std::shared_ptr<ResourceWithPreview> re
 // ------------------------------------ //
 void SuperContainer::Reflow(size_t index)
 {
-
     if(Positions.empty() || index >= Positions.size())
         return;
 
@@ -476,7 +465,6 @@ SuperContainer::GridPosition& SuperContainer::_AddNewGridPosition(
 // ------------------------------------ //
 void SuperContainer::_SetWidgetSize(Element& widget)
 {
-
     int width_min, width_natural;
     int height_min, height_natural;
 
@@ -496,7 +484,6 @@ void SuperContainer::_SetWidgetSize(Element& widget)
 
 void SuperContainer::SetItemSize(LIST_ITEM_SIZE newsize)
 {
-
     if(SelectedItemSize == newsize)
         return;
 
@@ -520,7 +507,6 @@ void SuperContainer::SetItemSize(LIST_ITEM_SIZE newsize)
 // ------------------------------------ //
 void SuperContainer::_SetKeepFalse()
 {
-
     for(auto& position : Positions) {
 
         if(position.WidgetToPosition)
@@ -530,7 +516,6 @@ void SuperContainer::_SetKeepFalse()
 
 void SuperContainer::_RemoveElementsNotMarkedKeep()
 {
-
     size_t reflowStart = Positions.size();
 
     for(size_t i = 0; i < Positions.size();) {
@@ -584,7 +569,6 @@ void SuperContainer::_RemoveElementsNotMarkedKeep()
 // ------------------------------------ //
 void SuperContainer::_RemoveWidget(size_t index)
 {
-
     if(index >= Positions.size())
         throw Leviathan::InvalidArgument("index out of range");
 
@@ -653,7 +637,6 @@ void SuperContainer::_SetWidget(
 // ------------------------------------ //
 void SuperContainer::_PushBackWidgets(size_t index)
 {
-
     if(Positions.empty())
         return;
 
@@ -727,7 +710,6 @@ void SuperContainer::_AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item,
 // ------------------------------------ //
 void SuperContainer::_CheckPositions() const
 {
-
     // Find duplicate stuff //
     for(size_t i = 0; i < Positions.size(); ++i) {
 
@@ -759,7 +741,6 @@ void SuperContainer::_CheckPositions() const
 // Callbacks
 void SuperContainer::_OnResize(Gtk::Allocation& allocation)
 {
-
     if(Positions.empty())
         return;
 
@@ -825,7 +806,6 @@ void SuperContainer::_OnResize(Gtk::Allocation& allocation)
 // GridPosition
 bool SuperContainer::GridPosition::SetNewWidget(std::shared_ptr<Element> widget)
 {
-
     const auto newWidth = widget->Width;
     const auto newHeight = widget->Height;
 
@@ -843,7 +823,6 @@ bool SuperContainer::GridPosition::SetNewWidget(std::shared_ptr<Element> widget)
 
 bool SuperContainer::GridPosition::SwapWidgets(GridPosition& other)
 {
-
     WidgetToPosition.swap(other.WidgetToPosition);
 
     if(Width != other.Width || Height != other.Height) {

@@ -392,6 +392,8 @@ ImageFileDLJob::ImageFileDLJob(
 
 void ImageFileDLJob::HandleContent()
 {
+    LOG_WRITE("TODO: check the file integrity as an image before succeeding");
+
     // Generate filename //
     if(ReplaceLocal) {
 

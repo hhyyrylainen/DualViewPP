@@ -216,7 +216,13 @@ public:
     void DeselectFirstItem();
 
     //! \brief Selects the first item
-    void SelectFirstItem();
+    inline void SelectFirstItem()
+    {
+        SelectFirstItems(1);
+    }
+
+    //! \brief Selects the first count items
+    void SelectFirstItems(int count);
 
     //! \brief Moves selection to next item
     //!
@@ -267,7 +273,6 @@ public:
     //! \note UpdatePositioning needs to be called before this is updated
     inline auto GetWidestRowWidth() const
     {
-
         return WidestRow;
     }
 

@@ -47,7 +47,6 @@ SingleCollection::SingleCollection(_GtkWindow* window, Glib::RefPtr<Gtk::Builder
 
 SingleCollection::~SingleCollection()
 {
-
     Close();
 
     LOG_INFO("SingleCollection window destructed");
@@ -55,7 +54,6 @@ SingleCollection::~SingleCollection()
 // ------------------------------------ //
 void SingleCollection::ShowCollection(std::shared_ptr<Collection> collection)
 {
-
     // Detach old collection, if there is one //
     GUARD_LOCK();
 
@@ -73,7 +71,6 @@ void SingleCollection::OnNotified(
 
 void SingleCollection::ReloadImages(Lock& guard)
 {
-
     // Start listening for changes in the collection //
     if(ShownCollection)
         if(!IsConnectedTo(ShownCollection.get(), guard))
@@ -131,7 +128,6 @@ void SingleCollection::_OnClose() {}
 // ------------------------------------ //
 void SingleCollection::ToggleTagEditor()
 {
-
     if(CollectionTags->get_visible()) {
 
         CollectionTags->SetEditedTags({});
@@ -147,7 +143,6 @@ void SingleCollection::ToggleTagEditor()
 
 std::vector<std::shared_ptr<Image>> SingleCollection::GetSelected() const
 {
-
     std::vector<std::shared_ptr<ResourceWithPreview>> items;
     ImageContainer->GetSelectedItems(items);
 
@@ -167,7 +162,6 @@ std::vector<std::shared_ptr<Image>> SingleCollection::GetSelected() const
 
 void SingleCollection::_OnDeleteSelected()
 {
-
     auto isalive = GetAliveMarker();
     const auto images = GetSelected();
     const auto collection = ShownCollection;
@@ -191,6 +185,5 @@ void SingleCollection::_OnDeleteSelected()
 
 void SingleCollection::_OnOpenSelectedInImporter()
 {
-
     DualView::Get().OpenImporter(GetSelected());
 }

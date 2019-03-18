@@ -242,6 +242,103 @@ void DuplicateFinderWindow::_ScanButtonPressed()
     }
 }
 // ------------------------------------ //
+void DuplicateFinderWindow::_DetectNewDuplicates(
+    const std::map<DBID, std::vector<std::tuple<DBID, int>>>& duplicates)
+{
+    DualView::IsOnMainThreadAssert();
+
+    // The images are in unloaded form. So build a list of the groups to be loaded
+    std::vector<std::vector<DBID>> toLoadGroups;
+    toLoadGroups.reserve(duplicates.size());
+
+    for(const auto& duplicatePair : duplicates) {
+
+        DBID id = duplicatePair.first;
+        const auto& groupTail = duplicatePair.second;
+
+        // Skip already found
+        // TODO: if this needs to be supported the logic is going to get way difficult as
+        // existing groups could need things added to them
+        // bool found = false;
+
+        // for(const auto& existingGroup : DuplicateGroups) {
+
+        //     for(auto image
+
+        //     if(!existingGroup.empty() && existingGroup.front()->GetID() == id) {
+        //         found = true;
+        //         break;
+        //     }
+        // }
+        // if(found)
+        //     continue;
+
+        // Add to the waiting load groups
+        std::vector<DBID> ids{id};
+        ids.reserve(1 + groupTail.size());
+
+        for(const auto& tuple : groupTail)
+            ids.push_back(std::get<0>(tuple));
+
+        toLoadGroups.emplace_back(std::move(ids));
+    }
+
+
+    if(!toLoadGroups.empty()) {
+
+        FetchingNewDuplicateGroups = true;
+
+        auto isalive = GetAliveMarker();
+
+        DualView::Get().QueueDBThreadFunction([=]() {
+            std::vector<std::vector<std::shared_ptr<Image>>> loaded;
+            loaded.reserve(toLoadGroups.size());
+
+            {
+                Database& db = DualView::Get().GetDatabase();
+
+                GUARD_LOCK_OTHER(db);
+
+                for(const auto& group : toLoadGroups) {
+
+                    std::vector<std::shared_ptr<Image>> loadedGroup;
+                    loadedGroup.reserve(group.size());
+
+                    for(DBID image : group) {
+                        auto loaded = db.SelectImageByID(guard, image);
+                        if(loaded)
+                            loadedGroup.push_back(loaded);
+                    }
+
+                    loaded.emplace_back(std::move(loadedGroup));
+                }
+            }
+
+            // Sort the groups based on image size with stable sort to preserve the lower ID
+            // image being first if they are equal size
+            for(auto& group : loaded) {
+                std::stable_sort(group.begin(), group.end(),
+                    [](const std::shared_ptr<Image>& first,
+                        const std::shared_ptr<Image>& second) {
+                        return first->GetPixelCount() > second->GetPixelCount();
+                    });
+            }
+
+            DualView::Get().InvokeFunction([this, isalive, loaded{std::move(loaded)}]() {
+                INVOKE_CHECK_ALIVE_MARKER(isalive);
+                TotalGroupsFound += loaded.size();
+
+                DuplicateGroups.insert(DuplicateGroups.end(), loaded.begin(), loaded.end());
+
+                FetchingNewDuplicateGroups = false;
+                _UpdateDuplicateWidgets();
+            });
+        });
+    }
+
+    _UpdateDuplicateWidgets();
+}
+// ------------------------------------ //
 void DuplicateFinderWindow::_CheckScanStatus()
 {
     DualView::IsOnMainThreadAssert();
@@ -260,23 +357,28 @@ void DuplicateFinderWindow::_CheckScanStatus()
         auto isalive = GetAliveMarker();
 
         DualView::Get().QueueDBThreadFunction([=]() {
-            DualView::Get().GetDatabase().SelectPotentialImageDuplicates();
-            // LOG_INFO("Found " + std::to_string(0) + " potential duplicates");
+            auto duplicates = DualView::Get().GetDatabase().SelectPotentialImageDuplicates();
 
-            DualView::Get().InvokeFunction([this, isalive]() {
+            DualView::Get().InvokeFunction([this, isalive, duplicates]() {
                 INVOKE_CHECK_ALIVE_MARKER(isalive);
 
-                LOG_INFO("Finished finding duplicates from db, count: ");
+                LOG_INFO("Found " + std::to_string(duplicates.size()) +
+                         " images with potential duplicates");
 
-
-                NoMoreQueryResults = true;
                 QueryingDBForDuplicates = false;
-                _CheckScanStatus();
+
+                if(DoneWithSignatures) {
+                    NoMoreQueryResults = true;
+                    ScanProgress.property_fraction() = 1.f;
+                    LOG_INFO("Final batch of duplicates read");
+                }
+
+                _DetectNewDuplicates(duplicates);
             });
         });
     }
 
-    _UpdateDuplicateStatusLabel();
+    _UpdateDuplicateWidgets();
 }
 
 void DuplicateFinderWindow::_ReportSignatureCalculationStatus(
@@ -300,26 +402,92 @@ void DuplicateFinderWindow::_ReportSignatureCalculationStatus(
         // Reset this to query the DB again once done (or hit some percentage done)
         NoMoreQueryResults = false;
 
-        // TODO: also periodically check during scan
+        // TODO: also periodically check during scan. Actually seems to not be possible as it
+        // takes a huge amount of time for the detection to run
 
         if(done)
             _CheckScanStatus();
     });
 }
 // ------------------------------------ //
-void DuplicateFinderWindow::_UpdateDuplicateStatusLabel()
+void DuplicateFinderWindow::_BrowseDuplicates(int newindex)
+{
+    LEVIATHAN_ASSERT(newindex >= 0 && newindex < static_cast<int>(DuplicateGroups.size()),
+        "newindex out of range");
+
+    ShownDuplicateGroup = newindex;
+
+    // Set visible images
+    const auto& items = DuplicateGroups[ShownDuplicateGroup];
+
+    DuplicateGroupImages.SetShownItems(
+        items.begin(), items.end(), std::make_shared<ItemSelectable>([=](ListItem& item) {
+            std::vector<std::shared_ptr<ResourceWithPreview>> selected;
+            DuplicateGroupImages.GetSelectedItems(selected);
+
+            // Enable buttons //
+            DeleteSelectedAfterFirst.property_sensitive() = !selected.empty();
+
+            // Update the preview images
+            // TODO: add image size labels for quick access to that
+            if(selected.size() > 0) {
+                FirstImage.SetImage(std::dynamic_pointer_cast<Image>(selected.front()));
+            } else {
+                FirstImage.SetImage(std::shared_ptr<Image>(nullptr));
+            }
+
+            if(selected.size() > 1) {
+                LastImage.SetImage(std::dynamic_pointer_cast<Image>(selected.back()));
+            } else {
+                LastImage.SetImage(std::shared_ptr<Image>(nullptr));
+            }
+        }));
+
+    // Select the first two images
+    DuplicateGroupImages.SelectFirstItems(2);
+
+    _UpdateDuplicateWidgets();
+}
+
+void DuplicateFinderWindow::_UpdateDuplicateWidgets()
 {
     DualView::IsOnMainThreadAssert();
 
+    std::string text;
+
+    bool active = false;
+
     if(DuplicateGroups.empty()) {
 
-        CurrentlyShownGroup.property_label() = "No duplicates found";
+        text = "No duplicates found";
+        ShownDuplicateGroup = -1;
 
     } else {
 
-        CurrentlyShownGroup.property_label() =
-            "Resolving duplicate group " +
-            std::to_string(TotalGroupsFound + 1 - DuplicateGroups.size()) + " of " +
-            std::to_string(TotalGroupsFound) + "";
+        // If no groups are selected select the first
+        if(ShownDuplicateGroup == -1 ||
+            ShownDuplicateGroup >= static_cast<int>(DuplicateGroups.size())) {
+            // This updates the label
+            _BrowseDuplicates(0);
+            return;
+        }
+
+        active = true;
+
+
+        text = "Resolving duplicate group " +
+               std::to_string(
+                   TotalGroupsFound + 1 - (DuplicateGroups.size() - ShownDuplicateGroup)) +
+               " of " + std::to_string(TotalGroupsFound) + "";
     }
+
+    // Set button state
+    DeleteAllAfterFirst.property_sensitive() = active;
+    NotDuplicates.property_sensitive() = active;
+    Skip.property_sensitive() = active;
+
+    if(FetchingNewDuplicateGroups)
+        text += ". Fetching new duplicate images...";
+
+    CurrentlyShownGroup.property_label() = text;
 }

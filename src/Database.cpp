@@ -620,18 +620,52 @@ void Database::DeleteImageTag(Lock& guard, std::weak_ptr<Image> image, AppliedTa
     DeleteAppliedTagIfNotUsed(guard, tag);
 }
 
-void Database::SelectPotentialImageDuplicates(int sensitivity /*= 5*/)
+std::map<DBID, std::vector<std::tuple<DBID, int>>> Database::SelectPotentialImageDuplicates(
+    int sensitivity /*= 15*/)
 {
+    std::map<DBID, std::vector<std::tuple<DBID, int>>> result;
+
     // TODO: have a separate lock for PictureSignatureDb as this takes a long, long time to run
     GUARD_LOCK();
 
-    PrintResultingRows(guard, PictureSignatureDb,
-        "SELECT i.id, COUNT(isw.sig_word) as strength, isw_search.picture_id FROM pictures i "
-        "JOIN picture_signature_words isw ON i.id = isw.picture_id JOIN "
-        "picture_signature_words isw_search ON isw.sig_word = isw_search.sig_word AND "
-        "isw.picture_id < isw_search.picture_id GROUP BY i.id HAVING strength > ? ORDER BY "
-        "strength DESC;",
-        sensitivity);
+    // const char sql[] =
+    //     "SELECT i.id, COUNT(isw.sig_word) as strength, isw_search.picture_id FROM pictures i
+    //     " "JOIN picture_signature_words isw ON i.id = isw.picture_id JOIN "
+    //     "picture_signature_words isw_search ON isw.sig_word = isw_search.sig_word AND "
+    //     "isw.picture_id < isw_search.picture_id GROUP BY i.id, isw_search.picture_id HAVING
+    //     " "strength > ?;";
+    const char sql[] =
+        "SELECT isw.picture_id, COUNT(isw.sig_word) as strength, isw_search.picture_id FROM "
+        "picture_signature_words isw JOIN picture_signature_words isw_search ON isw.sig_word "
+        "= isw_search.sig_word AND isw.picture_id < isw_search.picture_id GROUP BY "
+        "isw.picture_id, isw_search.picture_id HAVING strength >= ?;";
+
+    PreparedStatement statementobj(PictureSignatureDb, sql, sizeof(sql));
+
+    auto statementinuse = statementobj.Setup(sensitivity);
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        DBID original;
+        DBID duplicate;
+
+        if(statementobj.GetObjectIDFromColumn(original, 0) &&
+            statementobj.GetObjectIDFromColumn(duplicate, 2)) {
+
+            int strength = statementobj.GetColumnAsInt(1);
+
+            auto found = result.find(original);
+
+            if(found != result.end()) {
+                result[original].push_back(std::make_tuple(duplicate, strength));
+
+            } else {
+                result[original] = {std::make_tuple(duplicate, strength)};
+            }
+        }
+    }
+
+    return result;
 }
 // ------------------------------------ //
 // Collection

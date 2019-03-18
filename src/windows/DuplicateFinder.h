@@ -35,8 +35,14 @@ protected:
     //! This also periodically calls _CheckScanstatus
     void _ReportSignatureCalculationStatus(int processed, int total, bool done);
 
-    //! \brief Updates the label describing
-    void _UpdateDuplicateStatusLabel();
+    //! \brief Updates the label describing duplicates and the duplicate handling widgets
+    void _UpdateDuplicateWidgets();
+
+    //! \brief Adds new found duplicates
+    void _DetectNewDuplicates(
+        const std::map<DBID, std::vector<std::tuple<DBID, int>>>& duplicates);
+
+    void _BrowseDuplicates(int newindex);
 
 private:
     // Titlebar widgets
@@ -101,8 +107,19 @@ private:
     // Resources for the duplicate groups
     bool QueryingDBForDuplicates = false;
     bool NoMoreQueryResults = false;
+
+    //! Currently found duplicates that need the user to resolve them
     std::vector<std::vector<std::shared_ptr<Image>>> DuplicateGroups;
+
+    //! True when a DB fetch for Image objects that are duplicates is happening
+    bool FetchingNewDuplicateGroups = false;
+
+    //! The total amount of DuplicateGroups found to keep consistent group count
     size_t TotalGroupsFound = 0;
+
+    //! The selected duplicate group (handled groups are removed from DuplicateGroups so this
+    //! is usually 0 unless the user is browsing around between the groups)
+    int ShownDuplicateGroup = -1;
 };
 
 } // namespace DV

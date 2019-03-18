@@ -149,6 +149,11 @@ public:
         return Height;
     }
 
+    inline auto GetPixelCount() const
+    {
+        return Width * Height;
+    }
+
     inline auto GetIsPrivate() const
     {
         return IsPrivate;
