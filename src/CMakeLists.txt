@@ -54,6 +54,7 @@ add_library(Core
   CacheManager.h CacheManager.cpp
   DownloadManager.h DownloadManager.cpp
   SignatureCalculator.h SignatureCalculator.cpp
+  ReversibleAction.h ReversibleAction.cpp
 
   IsAlive.h
 
@@ -106,6 +107,8 @@ add_library(Core
   resources/Folder.h resources/Folder.cpp
   resources/Tags.h resources/Tags.cpp
   resources/NetGallery.h resources/NetGallery.cpp
+
+  resources/DatabaseAction.h resources/DatabaseAction.cpp
 
   # Generated headers
   Common.h

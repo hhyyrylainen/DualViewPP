@@ -16,6 +16,7 @@ add_executable(Test
   test_collection.cpp
   test_helpers.cpp
   test_events.cpp
+  test_undo.cpp
 
   gtk_tests.cpp
 

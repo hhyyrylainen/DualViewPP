@@ -6,6 +6,7 @@
 #include "PreparedStatement.h"
 
 #include "resources/Collection.h"
+#include "resources/DatabaseAction.h"
 #include "resources/Folder.h"
 #include "resources/Image.h"
 #include "resources/NetGallery.h"
