@@ -16,7 +16,7 @@
 
 using namespace DV;
 
-TEST_CASE("Cache Manager loads images", "[image]")
+TEST_CASE("Cache Manager loads images", "[image][.expensive]")
 {
     DV::TestDualView test;
 
@@ -181,7 +181,7 @@ TEST_CASE("VirtualPath operations", "[path]")
     }
 }
 
-TEST_CASE("Datetime parsing", "[db][time]")
+TEST_CASE("Datetime parsing", "[db][time][.expensive]")
 {
     DummyDualView dv;
     // const std::string original = "2016-09-18T20:07:49.7532581+03:00";

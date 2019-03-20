@@ -42,8 +42,6 @@ void Settings::Save()
 
     IsDirty = false;
 
-    LOG_INFO("Saving settings to " + SettingsFile);
-
     // Create the file structure //
     ObjectFile data;
 
@@ -150,8 +148,6 @@ void Settings::_Load()
 {
     if(InMemoryOnly)
         return;
-
-    LOG_INFO("Loading settings from: " + SettingsFile);
 
     auto file = Leviathan::ObjectFileProcessor::ProcessObjectFile(
         SettingsFile, DualView::Get().GetLogger());

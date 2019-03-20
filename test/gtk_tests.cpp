@@ -82,7 +82,7 @@ void CheckPixel(Glib::RefPtr<Gdk::Pixbuf>& pixbuf, Magick::Image& image, size_t 
     }
 }
 
-TEST_CASE_METHOD(GtkTestsFixture, "Gdk pixbuf creation works", "[image][gtk]")
+TEST_CASE_METHOD(GtkTestsFixture, "Gdk pixbuf creation works", "[image][gtk][.expensive]")
 {
     DV::TestDualView DualView;
 
@@ -121,7 +121,8 @@ TEST_CASE_METHOD(GtkTestsFixture, "Gdk pixbuf creation works", "[image][gtk]")
 
 
 
-TEST_CASE_METHOD(GtkTestsFixture, "Basic SuperContainer operations", "[components][gtk]")
+TEST_CASE_METHOD(
+    GtkTestsFixture, "Basic SuperContainer operations", "[components][gtk][.expensive]")
 {
     DV::DummyDualView dualview;
 
@@ -154,7 +155,7 @@ TEST_CASE_METHOD(GtkTestsFixture, "Basic SuperContainer operations", "[component
 
 
 TEST_CASE_METHOD(GtkTestsFixture, "Creating collections and importing image",
-    "[full][integration][expensive][db][gtk]")
+    "[full][integration][.expensive][db][gtk]")
 {
     boost::filesystem::remove("image_import_test.sqlite");
     DV::TestDualView dualview("image_import_test.sqlite");

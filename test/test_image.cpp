@@ -12,7 +12,7 @@
 
 using namespace DV;
 
-TEST_CASE("Image getptr works", "[image]")
+TEST_CASE("Image getptr works", "[image][.expensive]")
 {
     DummyDualView dummy;
 
@@ -26,7 +26,7 @@ TEST_CASE("Image getptr works", "[image]")
     CHECK(img.use_count() == img2.use_count());
 }
 
-TEST_CASE("File hash generation is correct", "[image][hash]")
+TEST_CASE("File hash generation is correct", "[image][hash][.expensive]")
 {
     DummyDualView dummy;
 
@@ -35,7 +35,7 @@ TEST_CASE("File hash generation is correct", "[image][hash]")
     CHECK(img->CalculateFileHash() == "II+O7pSQgH8BG_gWrc+bAetVgxJNrJNX4zhA4oWV+V0=");
 }
 
-TEST_CASE("ImageMagick properly loads the test image", "[image]")
+TEST_CASE("ImageMagick properly loads the test image", "[image][.expensive]")
 {
     SECTION("jpg")
     {
@@ -80,7 +80,7 @@ TEST_CASE("ImageMagick properly loads the test image", "[image]")
 }
 
 
-TEST_CASE("File hash calculation happens on a worker thread", "[image][hash]")
+TEST_CASE("File hash calculation happens on a worker thread", "[image][hash][.expensive]")
 {
     TestDualView dualview("test_image.sqlite");
 
@@ -100,7 +100,7 @@ TEST_CASE("File hash calculation happens on a worker thread", "[image][hash]")
     CHECK(img->GetHash() == "II+O7pSQgH8BG_gWrc+bAetVgxJNrJNX4zhA4oWV+V0=");
 }
 
-TEST_CASE("Thumbnail generation does something", "[image]")
+TEST_CASE("Thumbnail generation does something", "[image][.expensive]")
 {
     TestDualView dualview("test_image.sqlite");
 
@@ -133,10 +133,10 @@ TEST_CASE("Thumbnail generation does something", "[image]")
     while(!thumb->IsLoaded()) {
 
         ++failCount;
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
         // Fail after 30 seconds //
-        REQUIRE(failCount < 6000);
+        REQUIRE(failCount < 3000);
     }
 
     CHECK(thumb->IsValid());
@@ -144,7 +144,7 @@ TEST_CASE("Thumbnail generation does something", "[image]")
         boost::filesystem::exists(folder / boost::filesystem::path(img->GetHash() + ".jpg")));
 }
 
-TEST_CASE("Thumbnail for gif has fewer frames", "[image][expensive]")
+TEST_CASE("Thumbnail for gif has fewer frames", "[image][.expensive]")
 {
     TestDualView dualview("test_image.sqlite");
 
@@ -190,7 +190,7 @@ TEST_CASE("Thumbnail for gif has fewer frames", "[image][expensive]")
     CHECK(thumb->GetFrameCount() <= 142 / 2);
 }
 
-TEST_CASE("Thumbnail is created in a different folder", "[image][expensive]")
+TEST_CASE("Thumbnail is created in a different folder", "[image][.expensive]")
 {
     DV::TestDualView dualview("test_image.sqlite");
 
@@ -225,7 +225,7 @@ TEST_CASE("Thumbnail is created in a different folder", "[image][expensive]")
     REQUIRE(boost::filesystem::exists(path));
 }
 
-TEST_CASE("Image signature calculation on non-db image works", "[image][hash]")
+TEST_CASE("Image signature calculation on non-db image works", "[image][hash][.expensive]")
 {
     DummyDualView dummy;
 

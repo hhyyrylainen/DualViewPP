@@ -117,7 +117,7 @@ TEST_CASE("Database in memory creation", "[db]")
     REQUIRE_NOTHROW(Database(true));
 }
 
-TEST_CASE("Disk database can be opened", "[db][expensive]")
+TEST_CASE("Disk database can be opened", "[db][.expensive]")
 {
     SECTION("Without ./")
     {
@@ -140,7 +140,7 @@ TEST_CASE("Basic database retrieves don't throw", "[db]")
     CHECK_NOTHROW(db.SelectImageByHashAG("ladlsafh"));
 }
 
-TEST_CASE("Normal database setup works", "[db][expensive]")
+TEST_CASE("Normal database setup works", "[db][.expensive]")
 {
     DummyDualView dv;
     boost::filesystem::remove("test_init.sqlite");

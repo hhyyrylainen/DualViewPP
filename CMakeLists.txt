@@ -144,7 +144,7 @@ if(UNIX)
     DEPENDS Test
     WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/test")
 
-  add_custom_target(check-cheap COMMAND "${PROJECT_BINARY_DIR}/test/Test" "~[expensive]"
+  add_custom_target(check-full COMMAND "${PROJECT_BINARY_DIR}/test/Test" "[expensive]"
     DEPENDS Test
     WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/test")
 endif()
