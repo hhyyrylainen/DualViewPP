@@ -426,7 +426,7 @@ void DuplicateFinderWindow::_BrowseDuplicates(int newindex)
             DuplicateGroupImages.GetSelectedItems(selected);
 
             // Enable buttons //
-            DeleteSelectedAfterFirst.property_sensitive() = !selected.empty();
+            DeleteSelectedAfterFirst.property_sensitive() = selected.size() > 1;
 
             // Update the preview images
             // TODO: add image size labels for quick access to that
