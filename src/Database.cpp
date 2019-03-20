@@ -28,6 +28,7 @@
 #include <boost/filesystem.hpp>
 
 #include <thread>
+#include <unordered_set>
 
 using namespace DV;
 // ------------------------------------ //
@@ -430,29 +431,38 @@ std::vector<DBID> Database::SelectImageIDsWithoutSignature(Lock& guard)
 {
     const char str[] = "SELECT id FROM pictures;";
 
+    std::unordered_set<DBID> imagesWithSignature;
+
+    // This is really slow so we do it in memory with an unordered set (a map was also slow)
+    // PreparedStatement statementobj2(
+    //     PictureSignatureDb, "SELECT EXISTS(SELECT 1 FROM pictures WHERE id = ?);");
+    {
+        PreparedStatement statementobj2(PictureSignatureDb, str, sizeof(str));
+
+        auto statementinuse2 = statementobj2.Setup();
+
+        while(statementobj2.Step(statementinuse2) == PreparedStatement::STEP_RESULT::ROW) {
+
+            DBID id;
+            if(statementobj2.GetObjectIDFromColumn(id)) {
+                imagesWithSignature.insert(id);
+            }
+        }
+    }
+
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
     auto statementinuse = statementobj.Setup();
 
     std::vector<DBID> result;
 
-    PreparedStatement statementobj2(
-        PictureSignatureDb, "SELECT EXISTS(SELECT 1 FROM pictures WHERE id = ?);");
 
     while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
 
         DBID id;
         if(statementobj.GetObjectIDFromColumn(id)) {
 
-            auto statementinuse2 = statementobj2.Setup(id);
-
-            bool exists = false;
-
-            if(statementobj2.Step(statementinuse2) == PreparedStatement::STEP_RESULT::ROW) {
-                if(statementobj2.GetColumnAsInt(0)) {
-                    exists = true;
-                }
-            }
+            bool exists = imagesWithSignature.find(id) != imagesWithSignature.end();
 
             if(!exists)
                 result.push_back(id);
