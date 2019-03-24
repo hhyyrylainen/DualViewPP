@@ -7,7 +7,7 @@ using namespace DV;
 
 // ------------------------------------ //
 // ReversibleAction
-
+ReversibleAction::~ReversibleAction() {}
 
 // ------------------------------------ //
 // ActionHistory

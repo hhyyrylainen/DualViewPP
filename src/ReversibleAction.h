@@ -12,6 +12,7 @@ constexpr auto DEFAULT_UNDO_HISTORY_SIZE = 20;
 //! \brief Base class for all action classes that can be undone
 class ReversibleAction {
 public:
+    virtual ~ReversibleAction();
     //! \brief Applies this action again. Or if this hasn't been applied yet also applies this
     //! for the first time
     virtual bool Redo() = 0;

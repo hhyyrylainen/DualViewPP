@@ -324,8 +324,8 @@ void SignatureCalculator::_RunCalculationThread()
 
             } else {
 
-                // If also didn't anything last time this is now done. And isn't waiting for a
-                // database read then this is done
+                // If also didn't do anything last time this is now done. And isn't waiting for
+                // a database read then this is done
                 if(!didSomethingOld && !pimpl->Done) {
                     // Some extra checking to not report us being done too soon
                     if(!pimpl->DBReadInProgress && pimpl->TotalItemsProcessed > 0) {
@@ -403,7 +403,6 @@ bool SignatureCalculator::CalculateImageSignature(Image& image)
            &pimpl->Context, &cvec, dataHolder.data(), width, height) == 0) {
 
         success = true;
-        // TODO: this DB write could be outside the mutex
         image.SetSignature(std::string(reinterpret_cast<char*>(cvec.vec), cvec.sizeof_vec));
 
     } else {

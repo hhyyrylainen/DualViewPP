@@ -59,12 +59,15 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
     HeaderBar.pack_end(Menu);
 
     Redo.set_image_from_icon_name("edit-redo-symbolic");
-    HeaderBar.pack_end(Redo);
+    Redo.signal_clicked().connect(sigc::mem_fun(*this, &DuplicateFinderWindow::_RedoPressed));
     Redo.property_sensitive() = false;
+    HeaderBar.pack_end(Redo);
 
     Undo.set_image_from_icon_name("edit-undo-symbolic");
-    HeaderBar.pack_end(Undo);
+    Undo.signal_clicked().connect(sigc::mem_fun(*this, &DuplicateFinderWindow::_UndoPressed));
     Undo.property_sensitive() = false;
+    HeaderBar.pack_end(Undo);
+
 
     ScanControl.set_can_default(true);
     ScanControl.get_style_context()->add_class("suggested-action");
@@ -143,6 +146,7 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
     BottomRightContainer.pack_end(NotDuplicates);
     Skip.property_valign() = Gtk::ALIGN_END;
     Skip.property_sensitive() = false;
+    Skip.signal_clicked().connect(sigc::mem_fun(*this, &DuplicateFinderWindow::_SkipPressed));
     BottomRightContainer.pack_end(Skip);
 
     BottomRightContainer.property_vexpand() = false;
@@ -177,6 +181,73 @@ void DuplicateFinderWindow::_OnClose()
 {
     // Make sure the background thread is closed
     Calculator.Pause(true);
+}
+// ------------------------------------ //
+bool DuplicateFinderWindow::PerformAction(HistoryItem& action)
+{
+    // Detect items to remove
+    if(action.GroupsVectorIndexToRemoveAt >= DuplicateGroups.size())
+        return false;
+
+    action.StoredShownDuplicateGroup = ShownDuplicateGroup;
+
+    auto& group = DuplicateGroups[action.GroupsVectorIndexToRemoveAt];
+
+    // Remove the items specified by the action
+    group.erase(std::remove_if(group.begin(), group.end(),
+                    [&](const std::shared_ptr<Image>& item) {
+                        for(const auto& toErase : action.RemovedImages)
+                            if(item == toErase)
+                                return true;
+                        return false;
+                    }),
+        group.end());
+
+    // If the group only has a single item (or none) left remove it as well and move to the
+    // next
+    if(group.size() == 1) {
+
+        action.ExtraRemovedGroupImages.push_back(group.front());
+        group.pop_back();
+    }
+
+    if(group.empty()) {
+
+        DuplicateGroups.erase(DuplicateGroups.begin() + action.GroupsVectorIndexToRemoveAt);
+
+        if(!DuplicateGroups.empty()) {
+
+            _BrowseDuplicates(
+                std::min(ShownDuplicateGroup, static_cast<int>(DuplicateGroups.size()) - 1));
+
+        } else {
+            _UpdateDuplicateWidgets();
+        }
+    }
+
+    return true;
+}
+
+bool DuplicateFinderWindow::UndoAction(HistoryItem& action)
+{
+    if(action.GroupsVectorIndexToRemoveAt > DuplicateGroups.size())
+        return false;
+
+    // Restore a fully removed group
+    if(action.GroupsVectorIndexToRemoveAt == DuplicateGroups.size()) {
+        DuplicateGroups.push_back({});
+    }
+
+    auto& group = DuplicateGroups[action.GroupsVectorIndexToRemoveAt];
+
+    // Add the items
+    for(const auto& item : action.ExtraRemovedGroupImages)
+        group.push_back(item);
+    for(const auto& item : action.RemovedImages)
+        group.push_back(item);
+
+    _BrowseDuplicates(action.StoredShownDuplicateGroup);
+    return true;
 }
 // ------------------------------------ //
 void DuplicateFinderWindow::_ScanButtonPressed()
@@ -240,6 +311,51 @@ void DuplicateFinderWindow::_ScanButtonPressed()
         if(ProgressLabel.property_label() == DETECTION_STRING)
             ProgressLabel.property_label() = "Start scan to get results";
     }
+}
+// ------------------------------------ //
+void DuplicateFinderWindow::_SkipPressed()
+{
+    if(DuplicateGroups.empty() || ShownDuplicateGroup < 0 ||
+        ShownDuplicateGroup >= static_cast<int>(DuplicateGroups.size()))
+        return;
+
+    // Create a proper action out of this
+    auto action = std::make_shared<HistoryItem>(
+        *this, DuplicateGroups[ShownDuplicateGroup], ShownDuplicateGroup);
+
+    // And put it into the history which will call Redo on it
+    History.AddAction(action);
+
+    _UpdateUndoRedoButtons();
+}
+
+void DuplicateFinderWindow::_UndoPressed()
+{
+    try {
+        if(!History.Undo())
+            throw Leviathan::Exception("unknown error in undo");
+
+    } catch(const Leviathan::Exception& e) {
+        LOG_ERROR("Undo failed:");
+        e.PrintToLog();
+    }
+
+    _UpdateUndoRedoButtons();
+}
+
+void DuplicateFinderWindow::_RedoPressed()
+{
+    try {
+        if(!History.Redo())
+            throw Leviathan::Exception("unknown error in redo");
+
+    } catch(const Leviathan::Exception& e) {
+        LOG_ERROR("Redo failed:");
+        e.PrintToLog();
+    }
+
+
+    _UpdateUndoRedoButtons();
 }
 // ------------------------------------ //
 void DuplicateFinderWindow::_DetectNewDuplicates(
@@ -412,8 +528,8 @@ void DuplicateFinderWindow::_ReportSignatureCalculationStatus(
 // ------------------------------------ //
 void DuplicateFinderWindow::_BrowseDuplicates(int newindex)
 {
-    LEVIATHAN_ASSERT(newindex >= 0 && newindex < static_cast<int>(DuplicateGroups.size()),
-        "newindex out of range");
+    if(newindex < 0 || newindex >= static_cast<int>(DuplicateGroups.size()))
+        throw Leviathan::InvalidArgument("newindex out of range");
 
     ShownDuplicateGroup = newindex;
 
@@ -462,6 +578,14 @@ void DuplicateFinderWindow::_UpdateDuplicateWidgets()
         text = "No duplicates found";
         ShownDuplicateGroup = -1;
 
+        // Reset the image view and the container
+        if(!DuplicateGroupImages.IsEmpty()) {
+            DuplicateGroupImages.Clear();
+            FirstImage.SetImage(std::shared_ptr<Image>(nullptr));
+            LastImage.SetImage(std::shared_ptr<Image>(nullptr));
+            DeleteSelectedAfterFirst.property_sensitive() = false;
+        }
+
     } else {
 
         // If no groups are selected select the first
@@ -490,4 +614,42 @@ void DuplicateFinderWindow::_UpdateDuplicateWidgets()
         text += ". Fetching new duplicate images...";
 
     CurrentlyShownGroup.property_label() = text;
+}
+// ------------------------------------ //
+void DuplicateFinderWindow::_UpdateUndoRedoButtons()
+{
+    Undo.property_sensitive() = History.CanUndo();
+    Redo.property_sensitive() = History.CanRedo();
+}
+// ------------------------------------ //
+// DuplicateFinderWindow::HistoryItem
+DuplicateFinderWindow::HistoryItem::HistoryItem(DuplicateFinderWindow& target,
+    const std::vector<std::shared_ptr<Image>>& removedimages,
+    size_t groupsvectorindextoremoveat) :
+    RemovedImages(removedimages),
+    GroupsVectorIndexToRemoveAt(groupsvectorindextoremoveat), Target(target)
+{}
+// ------------------------------------ //
+bool DuplicateFinderWindow::HistoryItem::Redo()
+{
+    if(IsPerformed())
+        return false;
+
+    if(!Target.PerformAction(*this))
+        return false;
+
+    Performed = true;
+    return true;
+}
+
+bool DuplicateFinderWindow::HistoryItem::Undo()
+{
+    if(!IsPerformed())
+        return false;
+
+    if(!Target.UndoAction(*this))
+        return false;
+
+    Performed = false;
+    return true;
 }

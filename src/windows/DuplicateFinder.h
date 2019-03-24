@@ -3,6 +3,7 @@
 #include "BaseWindow.h"
 #include "IsAlive.h"
 
+#include "ReversibleAction.h"
 #include "SignatureCalculator.h"
 
 #include "components/PrimaryMenu.h"
@@ -16,15 +17,46 @@
 namespace DV {
 
 //! \brief Manages letting the user undo and redo actions and edit them
-class DuplicateFinderWindow : public BaseWindow, public Gtk::Window, public IsAlive {
+class DuplicateFinderWindow final : public BaseWindow, public Gtk::Window, public IsAlive {
+    class HistoryItem final : public ReversibleAction {
+        friend DuplicateFinderWindow;
+
+    public:
+        HistoryItem(DuplicateFinderWindow& target,
+            const std::vector<std::shared_ptr<Image>>& removedimages,
+            size_t groupsvectorindextoremoveat);
+
+        bool Redo() override;
+        bool Undo() override;
+
+    protected:
+        int StoredShownDuplicateGroup = -1;
+        std::vector<std::shared_ptr<Image>> RemovedImages;
+        size_t GroupsVectorIndexToRemoveAt;
+
+        // Things for applying the effects and storing info
+        DuplicateFinderWindow& Target;
+
+        //! This is used when an entire group is removed to restore extra items not in
+        //! RemovedImages
+        std::vector<std::shared_ptr<Image>> ExtraRemovedGroupImages;
+    };
+
 public:
     DuplicateFinderWindow();
     ~DuplicateFinderWindow();
 
+    bool PerformAction(HistoryItem& action);
+    bool UndoAction(HistoryItem& action);
+
 protected:
     void _OnClose() override;
 
+private:
     void _ScanButtonPressed();
+    void _SkipPressed();
+    void _UndoPressed();
+    void _RedoPressed();
 
     //! \brief Check the status of signature calculation and queue the database lookup for
     //! duplicates
@@ -43,6 +75,8 @@ protected:
         const std::map<DBID, std::vector<std::tuple<DBID, int>>>& duplicates);
 
     void _BrowseDuplicates(int newindex);
+
+    void _UpdateUndoRedoButtons();
 
 private:
     // Titlebar widgets
@@ -120,6 +154,9 @@ private:
     //! The selected duplicate group (handled groups are removed from DuplicateGroups so this
     //! is usually 0 unless the user is browsing around between the groups)
     int ShownDuplicateGroup = -1;
+
+    // Image delete action history to allow going back
+    ActionHistory History;
 };
 
 } // namespace DV
