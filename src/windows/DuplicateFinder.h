@@ -49,6 +49,8 @@ public:
     bool PerformAction(HistoryItem& action);
     bool UndoAction(HistoryItem& action);
 
+    void ResetState();
+
 protected:
     void _OnClose() override;
 

@@ -54,6 +54,9 @@ public:
     //! \see CanUndo
     bool CanRedo() const;
 
+    //! \brief Clears all actions
+    void Clear();
+
 
 protected:
     //! Oldest actions are at the front. New actions are pushed back

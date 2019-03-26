@@ -77,3 +77,9 @@ bool ActionHistory::CanRedo() const
 {
     return TopOfUndoStack < Actions.size();
 }
+// ------------------------------------ //
+void ActionHistory::Clear()
+{
+    Actions.clear();
+    TopOfUndoStack = 0;
+}

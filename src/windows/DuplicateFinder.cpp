@@ -6,10 +6,12 @@
 
 using namespace DV;
 // ------------------------------------ //
+const auto PROGRESS_LABEL_INITIAL_TEXT = "Scan not started";
+
 DuplicateFinderWindow::DuplicateFinderWindow() :
     ScanControl("Start"), ResetResults("Reset Results"), SensitivityLabel("Sensitivity"),
     Sensitivity(Gtk::ORIENTATION_HORIZONTAL), MainContainer(Gtk::ORIENTATION_VERTICAL),
-    ProgressContainer(Gtk::ORIENTATION_VERTICAL), ProgressLabel("Scan not started"),
+    ProgressContainer(Gtk::ORIENTATION_VERTICAL), ProgressLabel(PROGRESS_LABEL_INITIAL_TEXT),
     CurrentlyShownGroup("No duplicates found"), ImagesContainer(Gtk::ORIENTATION_HORIZONTAL),
     ImagesLeftSide(Gtk::ORIENTATION_VERTICAL), FirstSelected("First Selected"),
     FirstImage(nullptr, SuperViewer::ENABLED_EVENTS::ALL_BUT_MOVE, false),
@@ -36,6 +38,9 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
 
     Menu.set_image_from_icon_name("open-menu-symbolic");
 
+
+    ResetResults.signal_clicked().connect(
+        sigc::mem_fun(*this, &DuplicateFinderWindow::ResetState));
     ResetResults.property_relief() = Gtk::RELIEF_NONE;
     MenuPopover.Container.pack_start(ResetResults);
     MenuPopover.Container.pack_start(Separator1);
@@ -248,6 +253,33 @@ bool DuplicateFinderWindow::UndoAction(HistoryItem& action)
 
     _BrowseDuplicates(action.StoredShownDuplicateGroup);
     return true;
+}
+// ------------------------------------ //
+void DuplicateFinderWindow::ResetState()
+{
+    // TODO: this cannot interrupt already queued background operations so the reset might not
+    // "stick"
+
+    // Reset all the status variables
+    TotalGroupsFound = 0;
+    FetchingNewDuplicateGroups = false;
+    DuplicateGroups.clear();
+    ImagesMissingSignaturesCalculated = false;
+    QueryingDBForDuplicates = false;
+    NoMoreQueryResults = false;
+    DoneWithSignatures = false;
+
+    // Reset all the widgets
+    if(Scanning)
+        _ScanButtonPressed();
+    History.Clear();
+    _UpdateUndoRedoButtons();
+    _UpdateDuplicateWidgets();
+
+    ProgressLabel.property_label() = PROGRESS_LABEL_INITIAL_TEXT;
+    ScanProgress.property_fraction() = 0;
+
+    MenuPopover.hide();
 }
 // ------------------------------------ //
 void DuplicateFinderWindow::_ScanButtonPressed()
