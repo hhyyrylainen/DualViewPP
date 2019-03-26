@@ -42,9 +42,13 @@ SuperContainer::~SuperContainer()
     Clear();
 }
 // ------------------------------------ //
-void SuperContainer::Clear()
+void SuperContainer::Clear(bool deselect /*= true*/)
 {
     DualView::IsOnMainThreadAssert();
+
+    // This could be made more efficient
+    if(deselect)
+        DeselectAllItems();
 
     // This will delete all the widgets //
     Positions.clear();

@@ -580,9 +580,6 @@ void DuplicateFinderWindow::_UpdateDuplicateWidgets()
         // Reset the image view and the container
         if(!DuplicateGroupImages.IsEmpty()) {
             DuplicateGroupImages.Clear();
-            FirstImage.SetImage(std::shared_ptr<Image>(nullptr));
-            LastImage.SetImage(std::shared_ptr<Image>(nullptr));
-            DeleteSelectedAfterFirst.property_sensitive() = false;
         }
 
     } else {

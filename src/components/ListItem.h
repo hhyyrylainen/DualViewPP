@@ -32,7 +32,6 @@ public:
     //! \brief Deselects this if currently selected and selecting is enabled
     inline void Deselect()
     {
-
         if(Selectable && Selectable->Selectable && CurrentlySelected)
             SetSelected(false);
     }
@@ -40,7 +39,6 @@ public:
     //! \brief Selects this isn't currently selected and selecting is enabled
     inline void Select()
     {
-
         if(Selectable && Selectable->Selectable && !CurrentlySelected)
             SetSelected(true);
     }
@@ -48,7 +46,6 @@ public:
     //! \brief Returns true if this is selected
     inline bool IsSelected() const
     {
-
         return CurrentlySelected;
     }
 
@@ -58,7 +55,6 @@ public:
     //! This is virtual so that FolderListItem can change to non-homogeneous layout
     virtual void SetItemSize(LIST_ITEM_SIZE newsize)
     {
-
         ItemSize = newsize;
     }
 
@@ -68,7 +64,6 @@ public:
     //! \brief Returns the default label text
     auto GetName() const
     {
-
         return NameLabel.get_text();
     }
 

@@ -251,7 +251,7 @@ public:
     }
 
     //! \brief Empties this container completely
-    void Clear();
+    void Clear(bool deselect = true);
 
     //! \brief Applies the positioning, will be called whenever Positions is changed
     void UpdatePositioning();
