@@ -259,6 +259,8 @@ public:
     //! \brief Parses a tag and returns a list of suggestions
     //!
     //! If the str is a valid tag the first suggestion == str
+    //! \todo The tag parsing should be modified to be the same as this to not get invalid
+    //! suggestions
     std::vector<std::string> GetSuggestionsForTag(
         std::string str, size_t maxcount = 100) const;
 

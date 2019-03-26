@@ -2206,6 +2206,7 @@ std::shared_ptr<AppliedTag> DualView::ParseTagWithOnlyModifiers(const std::strin
 
 std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const
 {
+    // TODO: make all the fixes here recursively call this to be more exhaustive
     // Strip whitespace //
     Leviathan::StringOperations::RemovePreceedingTrailingSpaces(str);
 
@@ -2224,6 +2225,7 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const
     // Wasn't exactly a single tag //
 
     // Check does removing whitespace create some existing tag
+    // TODO: also check if converting underscores to spaces helps
     auto nowhitespace = Leviathan::StringOperations::RemoveCharacters<std::string>(str, " ");
 
     if(nowhitespace.size() != str.size()) {
@@ -2272,11 +2274,11 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const
     throw Leviathan::InvalidArgument("unknown tag '" + str + "'");
 }
 // ------------------------------------ //
-//#define GETSUGGESTIONS_DEBUG
+// #define GETSUGGESTIONS_DEBUG
 
 #ifdef GETSUGGESTIONS_DEBUG
 
-#define SUGG_DEBUG(x) LOG_WRITE("Suggestions" + std::string(x));
+#define SUGG_DEBUG(x) LOG_WRITE("Suggestions " + std::string(x));
 
 #else
 #define SUGG_DEBUG(x) \
@@ -2383,7 +2385,7 @@ std::vector<std::string> DualView::GetSuggestionsForTag(
     SUGG_DEBUG("Unparsed part is: " + currentpart);
 
     // If there's nothing left in currentpart the tag would be successfully parsed
-    // So just make sure that it is and at it to the result
+    // So just make sure that it is and add it to the result
     if(currentpart.empty()) {
 
         try {
@@ -2405,6 +2407,11 @@ std::vector<std::string> DualView::GetSuggestionsForTag(
 
     } else {
 
+        // This is used to block generating combine suggestions where the word from which the
+        // further suggestions are generated was actually part of a multiword tag
+        // TODO: find a better way to do this
+        bool foundExactPrefix = false;
+
         // Get suggestions for it //
         {
             SUGG_DEBUG("Finding suggestions: " + currentpart);
@@ -2416,6 +2423,15 @@ std::vector<std::string> DualView::GetSuggestionsForTag(
 
             for(const auto& gotmatch : tmpholder) {
 
+                if(!foundExactPrefix) {
+
+                    if(gotmatch.find(currentpart) == 0) {
+                        SUGG_DEBUG("Found exact prefix: " + gotmatch +
+                                   ", currentpart: " + currentpart);
+                        foundExactPrefix = true;
+                    }
+                }
+
                 SUGG_DEBUG("Found suggestion: " + gotmatch + ", prefix: " + prefix);
                 result.push_back(prefix + gotmatch);
             }
@@ -2424,7 +2440,7 @@ std::vector<std::string> DualView::GetSuggestionsForTag(
         // Combines //
         const auto tail = Leviathan::StringOperations::RemoveFirstWords(currentpart, 1);
 
-        if(tail != currentpart) {
+        if(tail != currentpart && !foundExactPrefix) {
 
             SUGG_DEBUG("Finding combine suggestions: " + tail);
 
@@ -2456,7 +2472,7 @@ std::vector<std::string> DualView::GetSuggestionsForTag(
 
     SUGG_DEBUG("Resulting suggestions: " + Convert::ToString(result.size()));
     for(auto iter = result.begin(); iter != result.end(); ++iter)
-        SUGG_DEBUG(" " + *iter);
+        SUGG_DEBUG(*iter);
 
     return result;
 }
