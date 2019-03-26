@@ -59,6 +59,10 @@ private:
     void _SkipPressed();
     void _UndoPressed();
     void _RedoPressed();
+    void _DeleteSelectedAfterFirstPressed();
+    void _DeleteAllAfterFirstPressed();
+
+    void _MergeCurrentGroupDuplicates(std::vector<std::shared_ptr<Image>>& toMerge);
 
     //! \brief Check the status of signature calculation and queue the database lookup for
     //! duplicates
@@ -84,8 +88,8 @@ private:
     // Titlebar widgets
     Gtk::HeaderBar HeaderBar;
     Gtk::MenuButton Menu;
-    Gtk::MenuButton Undo;
-    Gtk::MenuButton Redo;
+    Gtk::Button Undo;
+    Gtk::Button Redo;
     Gtk::Button ScanControl;
 
     // Primary menu

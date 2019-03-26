@@ -128,6 +128,8 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
     DeleteSelectedAfterFirst.property_valign() = Gtk::ALIGN_CENTER;
     DeleteSelectedAfterFirst.property_hexpand() = false;
     DeleteSelectedAfterFirst.property_sensitive() = false;
+    DeleteSelectedAfterFirst.signal_clicked().connect(
+        sigc::mem_fun(*this, &DuplicateFinderWindow::_DeleteSelectedAfterFirstPressed));
     ImageListLeftTop.pack_end(DeleteSelectedAfterFirst, false, false);
 
     ImageListLeftTop.set_spacing(15);
@@ -145,6 +147,8 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
     // Right
     DeleteAllAfterFirst.property_valign() = Gtk::ALIGN_END;
     DeleteAllAfterFirst.property_sensitive() = false;
+    DeleteAllAfterFirst.signal_clicked().connect(
+        sigc::mem_fun(*this, &DuplicateFinderWindow::_DeleteAllAfterFirstPressed));
     BottomRightContainer.pack_end(DeleteAllAfterFirst);
     NotDuplicates.property_valign() = Gtk::ALIGN_END;
     NotDuplicates.property_sensitive() = false;
@@ -388,6 +392,14 @@ void DuplicateFinderWindow::_RedoPressed()
 
     _UpdateUndoRedoButtons();
 }
+// ------------------------------------ //
+void DuplicateFinderWindow::_DeleteSelectedAfterFirstPressed() {}
+
+void DuplicateFinderWindow::_DeleteAllAfterFirstPressed() {}
+
+void DuplicateFinderWindow::_MergeCurrentGroupDuplicates(
+    std::vector<std::shared_ptr<Image>>& toMerge)
+{}
 // ------------------------------------ //
 void DuplicateFinderWindow::_DetectNewDuplicates(
     const std::map<DBID, std::vector<std::tuple<DBID, int>>>& duplicates)
