@@ -660,8 +660,6 @@ void DuplicateFinderWindow::_UpdateUndoRedoButtons()
 {
     Undo.property_sensitive() = History.CanUndo();
     Redo.property_sensitive() = History.CanRedo();
-    Undo.property_active() = false;
-    Redo.property_active() = false;
 }
 // ------------------------------------ //
 // DuplicateFinderWindow::HistoryItem
