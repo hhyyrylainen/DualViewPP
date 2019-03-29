@@ -24,11 +24,11 @@ CREATE TABLE pictures (
     from_file TEXT DEFAULT "", 
     
     -- Hash of the file
-    file_hash TEXT NOT NULL UNIQUE
-);
+    file_hash TEXT NOT NULL UNIQUE,
 
--- This is replaced by forcing file_hash to be unique
---CREATE INDEX pictures_file_hash ON pictures (file_hash);
+    -- Deleted mark (query with "deleted IS NOT 1")
+    deleted INTEGER
+);
 
 -- Stores rating information about collections, images and whatever else wants to have ratings, too
 CREATE TABLE ratings ( 
@@ -40,6 +40,8 @@ CREATE TABLE ratings (
     
     -- Rated image
     image INTEGER UNIQUE REFERENCES pictures(id) ON DELETE CASCADE
+
+    -- This is a simple table and requires no deleted column
 );
 
 -- Region of an image, used to apply tags to specific regions
@@ -55,7 +57,10 @@ CREATE TABLE image_region (
     start_frame INTEGER DEFAULT 0,
     end_frame INTEGER DEFAULT 0,
     
-    parent_image INTEGER NOT NULL REFERENCES pictures(id) ON DELETE CASCADE
+    parent_image INTEGER NOT NULL REFERENCES pictures(id) ON DELETE CASCADE,
+
+    -- Deleted mark (query with "deleted IS NOT 1")
+    deleted INTEGER
 );
 
 -- All defined tags
@@ -78,7 +83,10 @@ CREATE TABLE tags (
     -- Will automatically set any images this is attached to be private
     is_private INTEGER DEFAULT 0,
     -- Sample image shown when applying this tag, used to show what the tag means
-    example_image_region INTEGER DEFAULT NULL REFERENCES image_region(id) ON DELETE SET NULL ON UPDATE RESTRICT
+    example_image_region INTEGER DEFAULT NULL REFERENCES image_region(id) ON DELETE SET NULL ON UPDATE RESTRICT,
+    
+    -- Deleted mark (query with "deleted IS NOT 1")
+    deleted INTEGER    
 );
 
 -- Modifies tags, like colours and numbers
@@ -94,7 +102,10 @@ CREATE TABLE tag_modifiers (
     
     -- Similar to category in tags, basically the type of modifier, some examples:
     -- colour, number, intensity
-    description TEXT
+    description TEXT,
+
+    -- Deleted mark (query with "deleted IS NOT 1")
+    deleted INTEGER
 );
 
 -- Tag Modifier alias. Allows multiple names for a modifier
@@ -104,6 +115,8 @@ CREATE TABLE tag_modifier_aliases (
     name TEXT UNIQUE COLLATE NOCASE,
     -- The Modifier this name means
     meant_modifier INTEGER REFERENCES tag_modifiers(id) ON DELETE CASCADE
+
+    -- This is a simple table and requires no deleted column
 );
 
 -- A tag that can be applied
@@ -111,6 +124,8 @@ CREATE TABLE applied_tag (
     
     id INTEGER PRIMARY KEY AUTOINCREMENT, 
     tag INTEGER REFERENCES tags(id) ON DELETE CASCADE
+
+    -- Doesn't need deleted column as this can be saved in text form for undo
 );
 
 -- Combined tags of form {tag} {preposition / action} {tag}
@@ -148,8 +163,10 @@ CREATE TABLE common_composite_tags (
     
     -- The actual tag meant
     -- May be 0 if * is used
-    actual_tag INTEGER NOT NULL
-    
+    actual_tag INTEGER NOT NULL,
+
+    -- Deleted mark (query with "deleted IS NOT 1")
+    deleted INTEGER
 );
 
 -- The modifiers to apply to the above table detection rule
@@ -166,6 +183,8 @@ CREATE TABLE tag_aliases (
     name TEXT UNIQUE COLLATE NOCASE,
     -- The tag this name means
     meant_tag INTEGER REFERENCES tags(id) ON DELETE CASCADE
+
+    -- Doesn't need deleted column as this can be saved in text form for undo
 );
 
 -- Unhelpful tags can be blacklisted
@@ -175,6 +194,8 @@ CREATE TABLE tag_blacklist (
     name TEXT UNIQUE COLLATE NOCASE,
     -- Reason this is blacklisted
     reason TEXT DEFAULT "Unhelpful tag, use something else"
+
+    -- Doesn't need deleted column as this can be saved in text form for undo
 );
 
 -- Implicit tags, applies a tag if another is already applied
@@ -193,11 +214,13 @@ CREATE TABLE tag_implies (
 -- Super aliases. These allow a matching tag string to expand to the expanded form
 CREATE TABLE tag_super_aliases (
 
-       -- The input the text must match
-       alias TEXT UNIQUE COLLATE NOCASE,
+    -- The input the text must match
+    alias TEXT UNIQUE COLLATE NOCASE,
        
-       -- The text the match must expand to
-       expanded TEXT
+    -- The text the match must expand to
+    expanded TEXT
+
+    -- Doesn't need deleted column as this can be saved in text form for undo
 );
 
 -- Tag applied to an image
@@ -205,6 +228,8 @@ CREATE TABLE image_tag (
     image NOT NULL REFERENCES pictures(id) ON DELETE CASCADE,
     tag NOT NULL REFERENCES applied_tag(id) ON DELETE CASCADE,
     UNIQUE (image, tag) ON CONFLICT IGNORE
+
+    -- Doesn't need deleted column as this can be saved in text form for undo
 );
 
 -- Collections table
@@ -221,7 +246,10 @@ CREATE TABLE collections (
     is_private INTEGER DEFAULT 0,
     
     -- Preview image, if selected otherwise first image returned by the database
-    preview_image INTEGER DEFAULT NULL REFERENCES pictures(id) ON DELETE SET NULL
+    preview_image INTEGER DEFAULT NULL REFERENCES pictures(id) ON DELETE SET NULL,
+
+    -- Deleted mark (query with "deleted IS NOT 1")
+    deleted INTEGER
 );
 
 -- Tag applied to a collection
@@ -229,6 +257,8 @@ CREATE TABLE collection_tag (
     collection NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
     tag NOT NULL REFERENCES applied_tag(id) ON DELETE CASCADE,
     UNIQUE (collection, tag) ON CONFLICT IGNORE
+
+    -- Doesn't need deleted column as this can be saved in text form for undo
 );
 
 -- Image belonging to a collection
@@ -238,6 +268,8 @@ CREATE TABLE collection_image (
     image NOT NULL REFERENCES pictures(id) ON DELETE CASCADE,
     collection NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
     UNIQUE (image, collection) ON CONFLICT IGNORE
+
+    -- Doesn't need deleted column as this can be saved in text form for undo
 );
 
 -- Virtual folders table. These contain collections and other folders. Base structure for browsing
@@ -253,7 +285,10 @@ CREATE TABLE virtual_folders (
     name TEXT NOT NULL CHECK (name NOT LIKE "%/%"),
     
     -- Is a private folder, only visible in private mode if set to 1
-    is_private INTEGER DEFAULT 0
+    is_private INTEGER DEFAULT 0,
+
+    -- Deleted mark (query with "deleted IS NOT 1")
+    deleted INTEGER
 );
 
 -- Collection added to a virtual folder
@@ -262,6 +297,8 @@ CREATE TABLE folder_collection (
     parent INTEGER NOT NULL REFERENCES virtual_folders(id) ON DELETE RESTRICT,
     child INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
     UNIQUE (parent, child) ON CONFLICT IGNORE
+
+    -- Doesn't need deleted column as this can be saved in text form for undo
 );
 
 -- Folder within a folder. Disallows setting inside itself
@@ -270,6 +307,8 @@ CREATE TABLE folder_folder (
     parent INTEGER NOT NULL REFERENCES virtual_folders(id) ON DELETE RESTRICT,
     child INTEGER NOT NULL CHECK (child IS NOT parent) REFERENCES virtual_folders(id) ON DELETE CASCADE,
     UNIQUE (parent, child) ON CONFLICT IGNORE
+
+    -- Doesn't need deleted column as this can be saved in text form for undo
 );
 
 -- Internet download things --
@@ -293,6 +332,8 @@ CREATE TABLE net_files (
 
     -- Part of a net gallery
     belongs_to_gallery INTEGER REFERENCES net_gallery(id) ON DELETE CASCADE
+
+    -- This is a simple table and requires no deleted column
 );
 
 -- An online gallery
@@ -317,14 +358,17 @@ CREATE TABLE net_gallery (
     is_downloaded INTEGER DEFAULT 0,
     
     -- Contains ';' delimited list of tags
-    tags_string TEXT
+    tags_string TEXT,
+
+    -- Deleted mark (query with "deleted IS NOT 1")
+    deleted INTEGER
 );
 
 -- Plugin management tables
 -- This table is used to initialize all plugins once
 CREATE TABLE activated_db_plugins (
 
-       plugin_uuid TEXT PRIMARY KEY
+    plugin_uuid TEXT PRIMARY KEY
 );
 
 

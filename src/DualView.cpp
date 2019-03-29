@@ -1628,6 +1628,9 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
 
                 LOG_WARNING("Trying to import a duplicate hash image");
 
+                if(existingimage->IsDeleted()) {
+                }
+
                 // Delete original file if moving //
                 if(move) {
 

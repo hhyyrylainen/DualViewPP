@@ -22,10 +22,12 @@ TagModifier::TagModifier(
     CheckRowID(statement, 1, "name");
     CheckRowID(statement, 2, "is_private");
     CheckRowID(statement, 3, "description");
+    CheckRowID(statement, 4, "deleted");
 
     Name = statement.GetColumnAsString(1);
     Description = statement.GetColumnAsString(3);
     IsPrivate = statement.GetColumnAsBool(2);
+    Deleted = statement.GetColumnAsOptionalBool(4);
 }
 
 TagModifier::~TagModifier()
@@ -115,11 +117,15 @@ Tag::Tag(Database& db, Lock& dblock, PreparedStatement& statement, int64_t id) :
     CheckRowID(statement, 2, "category");
     CheckRowID(statement, 3, "description");
     CheckRowID(statement, 4, "is_private");
+    CheckRowID(statement, 5, "example_image_region");
+    CheckRowID(statement, 6, "deleted");
+
 
     Name = statement.GetColumnAsString(1);
     Description = statement.GetColumnAsString(3);
     Category = static_cast<TAG_CATEGORY>(statement.GetColumnAsInt64(2));
     IsPrivate = statement.GetColumnAsBool(4);
+    Deleted = statement.GetColumnAsOptionalBool(6);
 }
 
 Tag::~Tag()
@@ -731,6 +737,9 @@ std::string TagCollection::TagsAsString(const std::string& separator)
     strs.reserve(Tags.size());
 
     for(const auto& tag : Tags) {
+
+        if(tag->HasDeletedParts())
+            continue;
 
         strs.push_back(tag->ToAccurateString());
     }

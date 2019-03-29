@@ -1,9 +1,10 @@
+//! \file Basic undo related tests. Tests with DB undo are in test_actions
 #include "catch.hpp"
 
 #include "ReversibleAction.h"
 
-
 using namespace DV;
+
 
 TEST_CASE("Undo stack handling", "[undo]")
 {

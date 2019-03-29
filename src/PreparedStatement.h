@@ -188,6 +188,18 @@ public:
         return value != 0 ? true : false;
     }
 
+    auto GetColumnAsOptionalBool(int column)
+    {
+        AssertIfColumnOutOfRange(column);
+
+        if(GetColumnType(column) == SQLITE_NULL)
+            return false;
+
+        int value = sqlite3_column_int(Statement, column);
+
+        return value != 0 ? true : false;
+    }
+
     auto GetColumnAsInt64(int column)
     {
         AssertIfColumnOutOfRange(column);

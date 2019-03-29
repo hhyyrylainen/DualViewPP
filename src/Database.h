@@ -28,6 +28,7 @@ class Folder;
 class TagCollection;
 class NetGallery;
 class NetFile;
+class DatabaseAction;
 
 class Tag;
 class AppliedTag;
@@ -35,7 +36,7 @@ class TagModifier;
 class TagBreakRule;
 
 //! \brief The version number of the database
-constexpr auto DATABASE_CURRENT_VERSION = 22;
+constexpr auto DATABASE_CURRENT_VERSION = 23;
 constexpr auto DATABASE_CURRENT_SIGNATURES_VERSION = 1;
 
 constexpr auto IMAGE_SIGNATURE_WORD_COUNT = 100;
@@ -109,12 +110,17 @@ public:
     bool DeleteImage(Image& image);
 
     //! \brief Retrieves an Image based on the hash
+    //! \todo All callers need to check if the image is deleted or not
     std::shared_ptr<Image> SelectImageByHash(Lock& guard, const std::string& hash);
     CREATE_NON_LOCKING_WRAPPER(SelectImageByHash);
 
     //! \brief Retrieves an Image based on the id
     std::shared_ptr<Image> SelectImageByID(Lock& guard, DBID id);
     CREATE_NON_LOCKING_WRAPPER(SelectImageByID);
+
+    //! \brief Retrieves an Image based on the id but doesn't retrieve deleted images
+    std::shared_ptr<Image> SelectImageByIDSkipDeleted(Lock& guard, DBID id);
+    CREATE_NON_LOCKING_WRAPPER(SelectImageByIDSkipDeleted);
 
     //! \brief Retrieves images based on tags
     std::vector<std::shared_ptr<Image>> SelectImageByTag(Lock& guard, DBID tagid);
@@ -260,6 +266,8 @@ public:
     CREATE_NON_LOCKING_WRAPPER(SelectLastImageInCollection);
 
     //! \brief Counts the index image has in a collection based on the show_orders
+    //! \todo This doesn't handle deleted but SelectImageInCollectionByShowIndex does so this
+    //! acts weird. Fix this
     int64_t SelectImageShowIndexInCollection(const Collection& collection, const Image& image);
 
     //! \brief Returns the image with the show_order index
@@ -316,17 +324,21 @@ public:
     bool SelectCollectionIsInFolder(Lock& guard, const Collection& collection);
 
     //! \brief Returns true if Collection is in another folder than folder
+    //! \todo This doesn't handle deleted properly
     bool SelectCollectionIsInAnotherFolder(
         Lock& guard, const Folder& folder, const Collection& collection);
 
     //! \brief Returs Folders Collection is in
+    //! \todo This doesn't handle deleted properly
     std::vector<DBID> SelectFoldersCollectionIsIn(const Collection& collection);
 
     //! \brief Deletes a Collection from the root folder if the collection is in another
     //! folder.
+    //! \todo This doesn't handle deleted properly
     void DeleteCollectionFromRootIfInAnotherFolder(const Collection& collection);
 
     //! \brief Adds a Collection to root if it isn't in any folder
+    //! \todo This doesn't handle deleted properly
     void InsertCollectionToRootIfInNone(const Collection& collection);
 
     //
@@ -555,7 +567,18 @@ public:
         std::vector<std::string>& result, const std::string& pattern);
 
     //
-    // Database maintainance functions
+    // Complex operations
+    //
+    //! \brief Merges specified images into the target image
+    //!
+    //! This will copy all non-duplicate tags from the merged images and add the target to
+    //! collections from the merged images that it wasn't in.
+    //! \returns A performed action that can be used to undo the action
+    std::shared_ptr<DatabaseAction> MergeImages(const std::shared_ptr<Image>& mergeTarget,
+        const std::vector<std::shared_ptr<Image>>& toMerge);
+
+    //
+    // Database maintenance functions
     //
     //! \brief Finds all AppliedTags that have the same properties and combines them
     void CombineAllPossibleAppliedTags(Lock& guard);

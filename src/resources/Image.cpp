@@ -92,6 +92,7 @@ Image::Image(Database& db, Lock& dblock, PreparedStatement& statement, int64_t i
     CheckRowID(statement, 8, "is_private");
     CheckRowID(statement, 9, "from_file");
     CheckRowID(statement, 10, "file_hash");
+    CheckRowID(statement, 11, "deleted");
 
 
     // Convert path to runtime path
@@ -112,6 +113,8 @@ Image::Image(Database& db, Lock& dblock, PreparedStatement& statement, int64_t i
 
     AddDate = TimeHelpers::ParseTime(statement.GetColumnAsString(6));
     LastView = TimeHelpers::ParseTime(statement.GetColumnAsString(7));
+
+    Deleted = statement.GetColumnAsOptionalBool(11);
 }
 
 Image::~Image()
@@ -280,6 +283,12 @@ void Image::BecomeDuplicateOf(const Image& other)
 {
     LEVIATHAN_ASSERT(other.IsHashValid, "Image becoming duplicate of invalid hash");
 
+    if(other.IsDeleted()) {
+        LOG_WARNING("Image(" + ResourcePath + "): becoming duplicate of deleted image id:" +
+                    std::to_string(other.GetID()));
+    }
+
+
     // Copy database ID //
     _BecomeDuplicateOf(other);
 
@@ -296,6 +305,8 @@ void Image::BecomeDuplicateOf(const Image& other)
 
     Height = other.Height;
     Width = other.Width;
+
+    Deleted = other.Deleted;
 
     std::shared_ptr<TagCollection> currentTags = Tags;
 
@@ -364,4 +375,6 @@ void Image::_FillWidget(ImageListItem& widget)
 {
     widget.SetImage(shared_from_this());
     widget.Deselect();
+
+    // TODO: deleted flag
 }

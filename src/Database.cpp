@@ -429,14 +429,14 @@ std::string Database::SelectImageSignatureByID(Lock& guard, DBID image)
 
 std::vector<DBID> Database::SelectImageIDsWithoutSignature(Lock& guard)
 {
-    const char str[] = "SELECT id FROM pictures;";
-
     std::unordered_set<DBID> imagesWithSignature;
 
     // This is really slow so we do it in memory with an unordered set (a map was also slow)
     // PreparedStatement statementobj2(
     //     PictureSignatureDb, "SELECT EXISTS(SELECT 1 FROM pictures WHERE id = ?);");
     {
+        const char str[] = "SELECT id FROM pictures;";
+
         PreparedStatement statementobj2(PictureSignatureDb, str, sizeof(str));
 
         auto statementinuse2 = statementobj2.Setup();
@@ -449,6 +449,8 @@ std::vector<DBID> Database::SelectImageIDsWithoutSignature(Lock& guard)
             }
         }
     }
+
+    const char str[] = "SELECT id FROM pictures WHERE deleted IS NOT 1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -504,11 +506,27 @@ std::shared_ptr<Image> Database::SelectImageByID(Lock& guard, DBID id)
     return nullptr;
 }
 
+std::shared_ptr<Image> Database::SelectImageByIDSkipDeleted(Lock& guard, DBID id)
+{
+    const char str[] = "SELECT * FROM pictures WHERE id = ?1 AND deleted IS NOT 1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(id);
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        return _LoadImageFromRow(guard, statementobj);
+    }
+
+    return nullptr;
+}
+
 std::vector<std::shared_ptr<Image>> Database::SelectImageByTag(Lock& guard, DBID tagid)
 {
     std::vector<std::shared_ptr<Image>> result;
 
-    const char str[] = "SELECT * FROM pictures WHERE pictures.id IN "
+    const char str[] = "SELECT * FROM pictures WHERE deleted IS NOT 1 AND pictures.id IN "
                        "(SELECT image_tag.image FROM image_tag WHERE image_tag.tag = ?1);";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -564,6 +582,10 @@ void Database::SelectImageTags(
 
             // Load tag //
             auto tag = SelectAppliedTagByID(guard, id);
+
+            // Skip applied tag that contains deleted tag
+            if(tag->HasDeletedParts())
+                continue;
 
             if(!tag) {
 
@@ -639,12 +661,6 @@ std::map<DBID, std::vector<std::tuple<DBID, int>>> Database::SelectPotentialImag
     // TODO: have a separate lock for PictureSignatureDb as this takes a long, long time to run
     GUARD_LOCK();
 
-    // const char sql[] =
-    //     "SELECT i.id, COUNT(isw.sig_word) as strength, isw_search.picture_id FROM pictures i
-    //     " "JOIN picture_signature_words isw ON i.id = isw.picture_id JOIN "
-    //     "picture_signature_words isw_search ON isw.sig_word = isw_search.sig_word AND "
-    //     "isw.picture_id < isw_search.picture_id GROUP BY i.id, isw_search.picture_id HAVING
-    //     " "strength > ?;";
     const char sql[] =
         "SELECT isw.picture_id, COUNT(isw.sig_word) as strength, isw_search.picture_id FROM "
         "picture_signature_words isw JOIN picture_signature_words isw_search ON isw.sig_word "
@@ -751,7 +767,7 @@ std::shared_ptr<Collection> Database::SelectCollectionByID(DBID id)
 std::shared_ptr<Collection> Database::SelectCollectionByName(
     Lock& guard, const std::string& name)
 {
-    const char str[] = "SELECT * FROM collections WHERE name = ?1;";
+    const char str[] = "SELECT * FROM collections WHERE name = ?1 AND deleted IS NOT 1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -773,7 +789,7 @@ std::vector<std::string> Database::SelectCollectionNamesByWildcard(
 
     std::vector<std::string> result;
 
-    const char str[] = "SELECT name FROM collections WHERE name LIKE ?1 "
+    const char str[] = "SELECT name FROM collections WHERE name LIKE ?1 AND deleted IS NOT 1 "
                        "ORDER BY NAME LIMIT ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -870,6 +886,10 @@ void Database::SelectCollectionTags(Lock& guard, std::weak_ptr<Collection> colle
 
             // Load tag //
             auto tag = SelectAppliedTagByID(guard, id);
+
+            // Skip applied tag that contains deleted tag
+            if(tag->HasDeletedParts())
+                continue;
 
             if(!tag) {
 
@@ -1036,7 +1056,7 @@ std::shared_ptr<Image> Database::SelectImageInCollectionByShowOrder(
 
         DBID id;
         if(statementobj.GetObjectIDFromColumn(id, 0))
-            return SelectImageByID(guard, id);
+            return SelectImageByIDSkipDeleted(guard, id);
     }
 
     return nullptr;
@@ -1059,7 +1079,7 @@ std::shared_ptr<Image> Database::SelectCollectionPreviewImage(const Collection& 
         if(statementobj.GetObjectIDFromColumn(preview, 0)) {
 
             // It was set //
-            return SelectImageByID(guard, preview);
+            return SelectImageByIDSkipDeleted(guard, preview);
         }
     }
 
@@ -1071,18 +1091,22 @@ std::shared_ptr<Image> Database::SelectFirstImageInCollection(
     Lock& guard, const Collection& collection)
 {
     const char str[] = "SELECT image FROM collection_image WHERE collection = ? "
-                       "ORDER BY show_order ASC LIMIT 1;";
+                       "ORDER BY show_order ASC;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
     auto statementinuse = statementobj.Setup(collection.GetID());
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
 
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0))
-            return SelectImageByID(guard, id);
+        if(statementobj.GetObjectIDFromColumn(id, 0)) {
+            auto image = SelectImageByIDSkipDeleted(guard, id);
+
+            if(image)
+                return image;
+        }
     }
 
     return nullptr;
@@ -1092,18 +1116,22 @@ std::shared_ptr<Image> Database::SelectLastImageInCollection(
     Lock& guard, const Collection& collection)
 {
     const char str[] = "SELECT image FROM collection_image WHERE collection = ? "
-                       "ORDER BY show_order DESC LIMIT 1;";
+                       "ORDER BY show_order DESC;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
     auto statementinuse = statementobj.Setup(collection.GetID());
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
 
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0))
-            return SelectImageByID(guard, id);
+        if(statementobj.GetObjectIDFromColumn(id, 0)) {
+            auto image = SelectImageByIDSkipDeleted(guard, id);
+
+            if(image)
+                return image;
+        }
     }
 
     return nullptr;
@@ -1147,7 +1175,7 @@ std::shared_ptr<Image> Database::SelectImageInCollectionByShowIndex(
         DBID id;
 
         if(statementobj.GetObjectIDFromColumn(id, 0))
-            return SelectImageByID(guard, id);
+            return SelectImageByIDSkipDeleted(guard, id);
     }
 
     return nullptr;
@@ -1159,19 +1187,22 @@ std::shared_ptr<Image> Database::SelectNextImageInCollectionByShowOrder(
     GUARD_LOCK();
 
     const char str[] = "SELECT image FROM collection_image WHERE collection = ?1 "
-                       "AND show_order - ?2 > 0 ORDER BY ABS(show_order - ?2) LIMIT 1;";
+                       "AND show_order - ?2 > 0 ORDER BY ABS(show_order - ?2);";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
     auto statementinuse = statementobj.Setup(collection.GetID(), showorder);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
 
         DBID id;
 
         if(statementobj.GetObjectIDFromColumn(id, 0)) {
 
-            return SelectImageByID(guard, id);
+            auto image = SelectImageByIDSkipDeleted(guard, id);
+
+            if(image)
+                return image;
         }
     }
 
@@ -1184,7 +1215,7 @@ std::shared_ptr<Image> Database::SelectPreviousImageInCollectionByShowOrder(
     GUARD_LOCK();
 
     const char str[] = "SELECT image FROM collection_image WHERE collection = ?1 "
-                       "AND show_order - ?2 < 0 ORDER BY ABS(show_order - ?2) LIMIT 1;";
+                       "AND show_order - ?2 < 0 ORDER BY ABS(show_order - ?2);";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -1196,7 +1227,10 @@ std::shared_ptr<Image> Database::SelectPreviousImageInCollectionByShowOrder(
 
         if(statementobj.GetObjectIDFromColumn(id, 0)) {
 
-            return SelectImageByID(guard, id);
+            auto image = SelectImageByIDSkipDeleted(guard, id);
+
+            if(image)
+                return image;
         }
     }
 
@@ -1223,7 +1257,10 @@ std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollection(
 
         if(statementobj.GetObjectIDFromColumn(id, 0)) {
 
-            result.push_back(SelectImageByID(guard, id));
+            auto image = SelectImageByIDSkipDeleted(guard, id);
+
+            if(image)
+                result.push_back(image);
         }
     }
 
@@ -1235,7 +1272,7 @@ size_t Database::CountExistingTags()
 {
     GUARD_LOCK();
 
-    const char str[] = "SELECT COUNT(*) FROM tags;";
+    const char str[] = "SELECT COUNT(*) FROM tags WHERE deleted IS NOT 1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -1364,15 +1401,15 @@ std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsInFolder(
 
     std::vector<std::shared_ptr<Collection>> result;
 
-    const char str[] =
-        "SELECT collections.* FROM folder_collection "
-        "LEFT JOIN collections ON id = child "
-        "WHERE parent = ?1 AND name LIKE ?2 ORDER BY (CASE WHEN name = ?3 THEN 1 "
-        "WHEN name LIKE ?4 THEN 2 ELSE name END);";
+    const char str[] = "SELECT collections.* FROM folder_collection "
+                       "LEFT JOIN collections ON id = child "
+                       "WHERE parent = ?1 AND collections.deleted IS NOT 1 AND name LIKE ?2 "
+                       "ORDER BY (CASE WHEN name = ?3 THEN 1 "
+                       "WHEN name LIKE ?4 THEN 2 ELSE name END);";
 
-    const char strNoMatch[] =
-        "SELECT collections.* FROM folder_collection "
-        "LEFT JOIN collections ON id = child WHERE parent = ?1 ORDER BY name;";
+    const char strNoMatch[] = "SELECT collections.* FROM folder_collection "
+                              "LEFT JOIN collections ON id = child WHERE parent = ?1 "
+                              "AND collections.deleted IS NOT 1 ORDER BY name;";
 
     PreparedStatement statementobj(SQLiteDb, usePattern ? str : strNoMatch,
         usePattern ? sizeof(str) : sizeof(strNoMatch));
@@ -1540,15 +1577,15 @@ std::vector<std::shared_ptr<Folder>> Database::SelectFoldersInFolder(
 
     const auto usePattern = !matchingpattern.empty();
 
-    const char str[] =
-        "SELECT virtual_folders.* FROM folder_folder "
-        "LEFT JOIN virtual_folders ON id = child "
-        "WHERE parent = ?1 AND name LIKE ?2 ORDER BY (CASE WHEN name = ?3 THEN 1 "
-        "WHEN name LIKE ?4 THEN 2 ELSE name END);";
+    const char str[] = "SELECT virtual_folders.* FROM folder_folder "
+                       "LEFT JOIN virtual_folders ON id = child "
+                       "WHERE parent = ?1 AND virtual_folders.deleted IS NOT 1 AND "
+                       "name LIKE ?2 ORDER BY (CASE WHEN name = ?3 THEN 1 "
+                       "WHEN name LIKE ?4 THEN 2 ELSE name END);";
 
-    const char strNoMatch[] =
-        "SELECT virtual_folders.* FROM folder_folder "
-        "LEFT JOIN virtual_folders ON id = child WHERE parent = ?1 ORDER BY name;";
+    const char strNoMatch[] = "SELECT virtual_folders.* FROM folder_folder "
+                              "LEFT JOIN virtual_folders ON id = child WHERE parent = ?1 "
+                              "AND virtual_folders.deleted IS NOT 1 ORDER BY name;";
 
     PreparedStatement statementobj(SQLiteDb, usePattern ? str : strNoMatch,
         usePattern ? sizeof(str) : sizeof(strNoMatch));
@@ -1604,7 +1641,7 @@ std::shared_ptr<Tag> Database::SelectTagByID(Lock& guard, DBID id)
 
 std::shared_ptr<Tag> Database::SelectTagByName(Lock& guard, const std::string& name)
 {
-    const char str[] = "SELECT * FROM tags WHERE name = ?;";
+    const char str[] = "SELECT * FROM tags WHERE name = ? AND deleted IS NOT 1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -1626,7 +1663,8 @@ std::vector<std::shared_ptr<Tag>> Database::SelectTagsWildcard(
     std::vector<std::shared_ptr<Tag>> result;
 
     {
-        const char str[] = "SELECT * FROM tags WHERE name LIKE ? ORDER BY name LIMIT ?;";
+        const char str[] = "SELECT * FROM tags WHERE name LIKE ? AND deleted IS NOT 1 "
+                           "ORDER BY name LIMIT ?;";
 
         PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -1672,10 +1710,14 @@ std::vector<std::shared_ptr<Tag>> Database::SelectTagsWildcard(
             if(skip)
                 continue;
 
-            result.push_back(_LoadTagFromRow(guard, statementobj));
+            auto newTag = _LoadTagFromRow(guard, statementobj);
 
-            if(static_cast<int64_t>(result.size()) > max)
-                break;
+            if(!newTag->IsDeleted()) {
+                result.push_back(newTag);
+
+                if(static_cast<int64_t>(result.size()) > max)
+                    break;
+            }
         }
     }
 
@@ -1686,7 +1728,8 @@ std::shared_ptr<Tag> Database::SelectTagByAlias(Lock& guard, const std::string& 
 {
     const char str[] =
         "SELECT tags.* FROM tag_aliases "
-        "LEFT JOIN tags ON tags.id = tag_aliases.meant_tag WHERE tag_aliases.name = ?;";
+        "LEFT JOIN tags ON tags.id = tag_aliases.meant_tag WHERE tag_aliases.name = ? AND "
+        "tags.deleted IS NOT 1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -1738,7 +1781,7 @@ void Database::UpdateTag(Tag& tag)
     GUARD_LOCK();
 
     const char str[] = "UPDATE tags SET name = ?, category = ?, description = ?, "
-                       "is_private = ? WHERE id = ?;";
+                       "is_private = ?, deleted = NULL WHERE id = ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -1867,7 +1910,6 @@ void Database::DeleteTagImply(Tag& tag, const Tag& implied)
 
 std::vector<std::shared_ptr<Tag>> Database::SelectTagImpliesAsTag(const Tag& tag)
 {
-
     GUARD_LOCK();
 
     std::vector<std::shared_ptr<Tag>> result;
@@ -1891,7 +1933,6 @@ std::vector<std::shared_ptr<Tag>> Database::SelectTagImpliesAsTag(const Tag& tag
 
 std::vector<DBID> Database::SelectTagImplies(Lock& guard, const Tag& tag)
 {
-
     std::vector<DBID> result;
 
     const char str[] = "SELECT to_apply FROM tag_implies WHERE primary_tag = ?;";
@@ -1918,7 +1959,6 @@ std::vector<DBID> Database::SelectTagImplies(Lock& guard, const Tag& tag)
 //
 std::shared_ptr<AppliedTag> Database::SelectAppliedTagByID(Lock& guard, DBID id)
 {
-
     const char str[] = "SELECT * FROM applied_tag WHERE id = ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -1946,7 +1986,6 @@ std::shared_ptr<AppliedTag> Database::SelectExistingAppliedTag(
 
 DBID Database::SelectExistingAppliedTagID(Lock& guard, const AppliedTag& tag)
 {
-
     const char str[] = "SELECT id FROM applied_tag WHERE tag = ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -2125,7 +2164,6 @@ bool Database::InsertAppliedTag(Lock& guard, AppliedTag& tag)
 
 void Database::DeleteAppliedTagIfNotUsed(Lock& guard, AppliedTag& tag)
 {
-
     if(SelectIsAppliedTagUsed(guard, tag.GetID()))
         return;
 
@@ -2143,7 +2181,6 @@ void Database::DeleteAppliedTagIfNotUsed(Lock& guard, AppliedTag& tag)
 
 bool Database::SelectIsAppliedTagUsed(Lock& guard, DBID id)
 {
-
     // Check images
     {
         const char str[] = "SELECT 1 FROM image_tag WHERE tag = ? LIMIT 1;";
@@ -2195,7 +2232,6 @@ bool Database::SelectIsAppliedTagUsed(Lock& guard, DBID id)
 
 bool Database::CheckDoesAppliedTagModifiersMatch(Lock& guard, DBID id, const AppliedTag& tag)
 {
-
     const char str[] = "SELECT modifier FROM applied_tag_modifier WHERE to_tag = ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -2263,7 +2299,6 @@ bool Database::CheckDoesAppliedTagModifiersMatch(Lock& guard, DBID id, const App
 
 bool Database::CheckDoesAppliedTagCombinesMatch(Lock& guard, DBID id, const AppliedTag& tag)
 {
-
     // Determine id of the right side //
     DBID rightside = -1;
 
@@ -2318,7 +2353,6 @@ bool Database::CheckDoesAppliedTagCombinesMatch(Lock& guard, DBID id, const Appl
 
 DBID Database::SelectAppliedTagIDByOffset(Lock& guard, int64_t offset)
 {
-
     const char str[] = "SELECT id FROM applied_tag ORDER BY id ASC LIMIT 1 OFFSET ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -2340,7 +2374,6 @@ DBID Database::SelectAppliedTagIDByOffset(Lock& guard, int64_t offset)
 
 void Database::CombineAppliedTagDuplicate(Lock& guard, DBID first, DBID second)
 {
-
     LEVIATHAN_ASSERT(first != second, "CombienAppliedTagDuplicate called with the same tag");
 
     // Update references //
@@ -2393,7 +2426,6 @@ void Database::CombineAppliedTagDuplicate(Lock& guard, DBID first, DBID second)
 //
 std::shared_ptr<TagModifier> Database::SelectTagModifierByID(Lock& guard, DBID id)
 {
-
     const char str[] = "SELECT * FROM tag_modifiers WHERE id = ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -2411,7 +2443,7 @@ std::shared_ptr<TagModifier> Database::SelectTagModifierByID(Lock& guard, DBID i
 std::shared_ptr<TagModifier> Database::SelectTagModifierByName(
     Lock& guard, const std::string& name)
 {
-    const char str[] = "SELECT * FROM tag_modifiers WHERE name = ?;";
+    const char str[] = "SELECT * FROM tag_modifiers WHERE name = ? AND deleted IS NOT 1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -2431,7 +2463,7 @@ std::shared_ptr<TagModifier> Database::SelectTagModifierByAlias(
     const char str[] =
         "SELECT tag_modifiers.* FROM tag_modifier_aliases "
         "LEFT JOIN tag_modifiers ON tag_modifiers.id = tag_modifier_aliases.meant_modifier "
-        "WHERE tag_modifier_aliases.name = ?;";
+        "WHERE tag_modifier_aliases.name = ? AND tag_modifiers.deleted IS NOT 1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -2458,7 +2490,6 @@ std::shared_ptr<TagModifier> Database::SelectTagModifierByNameOrAlias(
 
 void Database::UpdateTagModifier(const TagModifier& modifier)
 {
-
     if(!modifier.IsInDatabase())
         return;
 
@@ -2497,7 +2528,6 @@ std::shared_ptr<TagBreakRule> Database::SelectTagBreakRuleByExactPattern(
 
 std::shared_ptr<TagBreakRule> Database::SelectTagBreakRuleByStr(const std::string& searchstr)
 {
-
     GUARD_LOCK();
 
     auto exact = SelectTagBreakRuleByExactPattern(guard, searchstr);
@@ -2546,7 +2576,6 @@ std::vector<std::shared_ptr<TagModifier>> Database::SelectModifiersForBreakRule(
 
 void Database::UpdateTagBreakRule(const TagBreakRule& rule)
 {
-
     GUARD_LOCK();
 }
 
@@ -2555,14 +2584,14 @@ void Database::UpdateTagBreakRule(const TagBreakRule& rule)
 //
 std::vector<DBID> Database::SelectNetGalleryIDs(bool nodownloaded)
 {
-
     GUARD_LOCK();
 
     std::vector<DBID> result;
 
-    PreparedStatement statementobj(
-        SQLiteDb, (nodownloaded ? "SELECT id FROM net_gallery WHERE is_downloaded = 0;" :
-                                  "SELECT id FROM net_gallery;"));
+    PreparedStatement statementobj(SQLiteDb,
+        (nodownloaded ?
+                "SELECT id FROM net_gallery WHERE is_downloaded = 0 AND deleted IS NOT 1;" :
+                "SELECT id FROM net_gallery WHERE deleted IS NOT 1;"));
 
     auto statementinuse = statementobj.Setup();
 
@@ -2581,7 +2610,6 @@ std::vector<DBID> Database::SelectNetGalleryIDs(bool nodownloaded)
 
 std::shared_ptr<NetGallery> Database::SelectNetGalleryByID(Lock& guard, DBID id)
 {
-
     const char str[] = "SELECT * FROM net_gallery WHERE id = ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -2598,7 +2626,6 @@ std::shared_ptr<NetGallery> Database::SelectNetGalleryByID(Lock& guard, DBID id)
 
 bool Database::InsertNetGallery(Lock& guard, std::shared_ptr<NetGallery> gallery)
 {
-
     if(gallery->IsInDatabase())
         return false;
 
@@ -2623,7 +2650,6 @@ bool Database::InsertNetGallery(Lock& guard, std::shared_ptr<NetGallery> gallery
 
 void Database::UpdateNetGallery(NetGallery& gallery)
 {
-
     if(!gallery.IsInDatabase())
         return;
 
@@ -2648,7 +2674,6 @@ void Database::UpdateNetGallery(NetGallery& gallery)
 //
 std::vector<std::shared_ptr<NetFile>> Database::SelectNetFilesFromGallery(NetGallery& gallery)
 {
-
     GUARD_LOCK();
 
     std::vector<std::shared_ptr<NetFile>> result;
@@ -2668,7 +2693,6 @@ std::vector<std::shared_ptr<NetFile>> Database::SelectNetFilesFromGallery(NetGal
 
 std::shared_ptr<NetFile> Database::SelectNetFileByID(Lock& guard, DBID id)
 {
-
     const char str[] = "SELECT * FROM net_files WHERE id = ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -2685,7 +2709,6 @@ std::shared_ptr<NetFile> Database::SelectNetFileByID(Lock& guard, DBID id)
 
 void Database::InsertNetFile(Lock& guard, NetFile& netfile, NetGallery& gallery)
 {
-
     if(!gallery.IsInDatabase())
         return;
 
@@ -2703,7 +2726,6 @@ void Database::InsertNetFile(Lock& guard, NetFile& netfile, NetGallery& gallery)
 
 void Database::UpdateNetFile(NetFile& netfile)
 {
-
     GUARD_LOCK();
 
     const char str[] = "UPDATE net_files SET file_url = ?, referrer = ?, preferred_name = ?, "
@@ -2746,7 +2768,7 @@ void Database::SelectTagNamesWildcard(
 {
     GUARD_LOCK();
 
-    const char str[] = "SELECT name FROM tags WHERE name LIKE ?;";
+    const char str[] = "SELECT name FROM tags WHERE name LIKE ? AND deleted IS NOT 1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -2780,7 +2802,8 @@ void Database::SelectTagModifierNamesWildcard(
 {
     GUARD_LOCK();
 
-    const char str[] = "SELECT name FROM tag_modifiers WHERE name LIKE ?;";
+    const char str[] =
+        "SELECT name FROM tag_modifiers WHERE name LIKE ? AND deleted IS NOT 1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -2810,10 +2833,25 @@ void Database::SelectTagSuperAliasWildcard(
 }
 
 // ------------------------------------ //
+// Complex operations
+std::shared_ptr<DatabaseAction> Database::MergeImages(
+    const std::shared_ptr<Image>& mergeTarget,
+    const std::vector<std::shared_ptr<Image>>& toMerge)
+{
+    GUARD_LOCK();
+
+    // Detect undo information
+
+
+    // Perform the operation
+
+    return nullptr;
+}
+
+// ------------------------------------ //
 // Database maintainance functions
 void Database::CombineAllPossibleAppliedTags(Lock& guard)
 {
-
     int64_t count = 0;
 
     {
@@ -2829,8 +2867,8 @@ void Database::CombineAllPossibleAppliedTags(Lock& guard)
         }
     }
 
-    LOG_INFO("Database: Maintainance combining all applied_tags that are the same. "
-             "Modifier count: " +
+    LOG_INFO("Database: Maintenance combining all applied_tags that are the same. "
+             "applied_tag count: " +
              Convert::ToString(count));
 
     // For super speed check against only other tags that have the same primary tag
@@ -2894,12 +2932,11 @@ void Database::CombineAllPossibleAppliedTags(Lock& guard)
                             "(SELECT min(rowid) FROM applied_tag_combine GROUP BY "
                             "tag_left, tag_right, combined_with);");
 
-    LOG_INFO("Database: Maintainance for combining all applied_tags finished.");
+    LOG_INFO("Database: Maintenance for combining all applied_tags finished.");
 }
 
 int64_t Database::CountAppliedTags()
 {
-
     GUARD_LOCK();
 
     const char str[] = "SELECT COUNT(*) FROM applied_tag;";
@@ -3004,7 +3041,6 @@ std::shared_ptr<TagModifier> Database::_LoadTagModifierFromRow(
 
 std::shared_ptr<Tag> Database::_LoadTagFromRow(Lock& guard, PreparedStatement& statement)
 {
-
     CheckRowID(statement, 0, "id");
 
     DBID id;
@@ -3232,6 +3268,12 @@ bool Database::_UpdateDatabase(Lock& guard, const int oldversion)
         _RunSQL(guard,
             LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_21_22.sql"));
         _SetCurrentDatabaseVersion(guard, 22);
+        return true;
+    }
+    case 22: {
+        _RunSQL(guard,
+            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_22_23.sql"));
+        _SetCurrentDatabaseVersion(guard, 23);
         return true;
     }
     default: {

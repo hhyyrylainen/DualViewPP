@@ -42,7 +42,7 @@ SuperContainer::~SuperContainer()
     Clear();
 }
 // ------------------------------------ //
-void SuperContainer::Clear(bool deselect /*= true*/)
+void SuperContainer::Clear(bool deselect /*= false*/)
 {
     DualView::IsOnMainThreadAssert();
 

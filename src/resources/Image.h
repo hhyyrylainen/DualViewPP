@@ -174,6 +174,12 @@ public:
         return TimeHelpers::format8601(LastView);
     }
 
+    //! \copydoc Image::Deleted
+    bool IsDeleted() const
+    {
+        return Deleted;
+    }
+
     //! \brief Updates the resources location. Must be called after the file at ResourcePath
     //! is moved
     void SetResourcePath(const std::string& newpath);
@@ -276,6 +282,9 @@ protected:
     //! This is stored in another table
     std::string Signature;
     bool SignatureRetrieved = false;
+
+    //! If true deleted from the database and many things should skip this image
+    bool Deleted = false;
 };
 
 } // namespace DV

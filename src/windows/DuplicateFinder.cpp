@@ -393,13 +393,78 @@ void DuplicateFinderWindow::_RedoPressed()
     _UpdateUndoRedoButtons();
 }
 // ------------------------------------ //
-void DuplicateFinderWindow::_DeleteSelectedAfterFirstPressed() {}
+void DuplicateFinderWindow::_DeleteSelectedAfterFirstPressed()
+{
+    // Get the selected things from the super container and cast them to images
+    std::vector<std::shared_ptr<ResourceWithPreview>> selected;
+    DuplicateGroupImages.GetSelectedItems(selected);
 
-void DuplicateFinderWindow::_DeleteAllAfterFirstPressed() {}
+    if(selected.size() < 2)
+        return;
+
+    std::vector<std::shared_ptr<Image>> imageList;
+
+    // The first image is skipped as that's what this method is for
+    for(auto iter = selected.begin() + 1; iter != selected.end(); ++iter) {
+
+        auto casted = std::dynamic_pointer_cast<Image>(*iter);
+
+        if(casted)
+            imageList.push_back(casted);
+    }
+
+    _MergeCurrentGroupDuplicates(imageList);
+}
+
+void DuplicateFinderWindow::_DeleteAllAfterFirstPressed()
+{
+    auto& group = DuplicateGroups[ShownDuplicateGroup];
+
+    _MergeCurrentGroupDuplicates(
+        std::vector<std::shared_ptr<Image>>{group.begin() + 1, group.end()});
+}
 
 void DuplicateFinderWindow::_MergeCurrentGroupDuplicates(
-    std::vector<std::shared_ptr<Image>>& toMerge)
-{}
+    const std::vector<std::shared_ptr<Image>>& toMerge)
+{
+    if(toMerge.empty())
+        return;
+
+    std::shared_ptr<Image> mergeTarget;
+
+    auto& group = DuplicateGroups[ShownDuplicateGroup];
+
+    // The first not selected image is the merge target
+    for(const auto& image : group) {
+        bool selected = false;
+
+        for(const auto& check : toMerge) {
+            if(check == image) {
+                selected = true;
+                break;
+            }
+        }
+
+        if(!selected) {
+            mergeTarget = image;
+            break;
+        }
+    }
+
+    if(!mergeTarget) {
+        LOG_ERROR("No merge target detected");
+        return;
+    }
+
+
+    LOG_INFO("Merging images into: " + mergeTarget->GetName() + " (" +
+             std::to_string(mergeTarget->GetID()) + ")");
+
+    for(const auto& image : toMerge)
+        LOG_WRITE("\t" + image->GetName() + " (" + std::to_string(image->GetID()) + ")");
+
+    // TODO: write the code here
+}
 // ------------------------------------ //
 void DuplicateFinderWindow::_DetectNewDuplicates(
     const std::map<DBID, std::vector<std::tuple<DBID, int>>>& duplicates)
@@ -623,7 +688,7 @@ void DuplicateFinderWindow::_UpdateDuplicateWidgets()
 
         // Reset the image view and the container
         if(!DuplicateGroupImages.IsEmpty()) {
-            DuplicateGroupImages.Clear();
+            DuplicateGroupImages.Clear(true);
         }
 
     } else {

@@ -62,7 +62,7 @@ private:
     void _DeleteSelectedAfterFirstPressed();
     void _DeleteAllAfterFirstPressed();
 
-    void _MergeCurrentGroupDuplicates(std::vector<std::shared_ptr<Image>>& toMerge);
+    void _MergeCurrentGroupDuplicates(const std::vector<std::shared_ptr<Image>>& toMerge);
 
     //! \brief Check the status of signature calculation and queue the database lookup for
     //! duplicates

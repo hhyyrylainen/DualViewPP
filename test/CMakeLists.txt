@@ -21,6 +21,7 @@ add_executable(Test
   gtk_tests.cpp
 
   db_tests.cpp
+  test_actions.cpp
 
   DummyLog.h DummyLog.cpp
   TestDualView.h

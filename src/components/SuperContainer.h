@@ -251,7 +251,9 @@ public:
     }
 
     //! \brief Empties this container completely
-    void Clear(bool deselect = true);
+    //! \param deselect If true all selected images will be deselected. This causes issues in
+    //! existing code and that's why that needs to be explicitly requested
+    void Clear(bool deselect = false);
 
     //! \brief Applies the positioning, will be called whenever Positions is changed
     void UpdatePositioning();

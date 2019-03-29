@@ -22,6 +22,7 @@
     <file compressed="true">resources/sql/migration_19_20.sql</file>
     <file compressed="true">resources/sql/migration_20_21.sql</file>
     <file compressed="true">resources/sql/migration_21_22.sql</file>
+    <file compressed="true">resources/sql/migration_22_23.sql</file>
     
     <file preprocess="to-pixdata">resources/icons/file-folder.png</file>
     <file preprocess="to-pixdata">resources/icons/folders.png</file>

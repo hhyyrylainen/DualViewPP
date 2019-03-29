@@ -146,6 +146,10 @@ void TagEditor::ReadSetTags()
             if(set)
                 continue;
 
+            // TODO: this could be shown in special colour
+            if(tag->HasDeletedParts())
+                continue;
+
             tags.push_back(std::make_tuple(tag, 1));
         }
     }
