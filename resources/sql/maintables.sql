@@ -364,6 +364,23 @@ CREATE TABLE net_gallery (
     deleted INTEGER
 );
 
+-- Undo support for DB actions
+-- There's a bunch of different action types but for simplicity they are just put into
+-- this single table with their data in JSON form in the json_data column
+CREATE TABLE action_history (
+
+   id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+   -- Type as integer from the enum DATABASE_ACTION_TYPE
+   type INTEGER NOT NULL,
+
+   -- 1 When performed 0 otherwise
+   performed INTEGER NOT NULL DEFAULT 0,
+
+   -- All the action data serialized in JSON form
+   json_data TEXT NOT NULL
+);
+
 -- Plugin management tables
 -- This table is used to initialize all plugins once
 CREATE TABLE activated_db_plugins (

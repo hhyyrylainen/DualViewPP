@@ -1,5 +1,4 @@
--- Migration from database version 22 to 23 --
-BEGIN TRANSACTION;
+-- Migration from database version 23 to 24 --
 
 CREATE TABLE action_history (
 
@@ -8,8 +7,9 @@ CREATE TABLE action_history (
    -- Type as integer from the enum DATABASE_ACTION_TYPE
    type INTEGER NOT NULL,
 
+   -- 1 When performed 0 otherwise
+   performed INTEGER NOT NULL DEFAULT 0,
+
    -- All the action data serialized in JSON form
    json_data TEXT NOT NULL
 );
-
-COMMIT TRANSACTION;

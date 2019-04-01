@@ -29,14 +29,17 @@ class TagCollection;
 class NetGallery;
 class NetFile;
 class DatabaseAction;
+class ImageDeleteAction;
 
 class Tag;
 class AppliedTag;
 class TagModifier;
 class TagBreakRule;
 
+enum class DATABASE_ACTION_TYPE : int;
+
 //! \brief The version number of the database
-constexpr auto DATABASE_CURRENT_VERSION = 23;
+constexpr auto DATABASE_CURRENT_VERSION = 24;
 constexpr auto DATABASE_CURRENT_SIGNATURES_VERSION = 1;
 
 constexpr auto IMAGE_SIGNATURE_WORD_COUNT = 100;
@@ -60,8 +63,8 @@ class Database : public Leviathan::ThreadSafe {
         std::vector<Row> Rows;
     };
 
-    //! \brief Helper class for creating prepared statements
-
+    // These actions are friends in order to call the UndoAction and RedoAction methods
+    friend ImageDeleteAction;
 
 public:
     //! \brief Normal database creation, uses the specified file
@@ -106,8 +109,13 @@ public:
     //! \brief Deletes an image from the database
     //!
     //! The image object's id will be set to -1
-    //! \returns True if succeeded
-    bool DeleteImage(Image& image);
+    //! \returns A database action that can undo the operation if it succeeded
+    std::shared_ptr<DatabaseAction> DeleteImage(Image& image);
+
+    //! \brief Only creates the action to delete an image but doesn't execute it
+    //! \note This clears the cache entries from the signature DB so it isn't completely
+    //! accurate that this doesn't do anything yet
+    std::shared_ptr<ImageDeleteAction> CreateDeleteImageAction(Lock& guard, Image& image);
 
     //! \brief Retrieves an Image based on the hash
     //! \todo All callers need to check if the image is deleted or not
@@ -624,6 +632,11 @@ public:
     // Statistics functions //
     size_t CountExistingTags();
 
+protected:
+    // These are for DatabaseAction to use
+    void RedoAction(ImageDeleteAction& action);
+    void UndoAction(ImageDeleteAction& action);
+    void PurgeAction(ImageDeleteAction& action);
 
 protected:
     //! \brief Runs a command and prints all the result rows with column headers to log
@@ -724,6 +737,11 @@ private:
     void _InsertImageSignatureParts(Lock& guard, DBID image, const std::string& signature);
 
     //
+    // Helper operations
+    //
+    void _SetActionStatus(Lock& guard, DatabaseAction& action, bool performed);
+
+    //
     // Utility stuff
     //
 
@@ -783,10 +801,14 @@ protected:
 
     //! Makes sure each NetGallery is only loaded once
     SingleLoad<NetGallery, int64_t> LoadedNetGalleries;
+
+    //! Makes sure each DatabaseAction is only loaded once
+    SingleLoad<DatabaseAction, int64_t> LoadedDatabaseActions;
 };
 
 //! \brief Helper class that automatically commits a transaction when it destructs
 //!\ todo Would be nice to be able to conditionally create these
+//! \todo Add a way for this to rollback on exception
 class DoDBTransaction {
 public:
     DoDBTransaction(Database& db, Lock& dblock, bool alsoauxiliary = false);

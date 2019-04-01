@@ -29,6 +29,7 @@ class Image : public ResourceWithPreview,
               public DatabaseResource,
               public std::enable_shared_from_this<Image> {
     friend DualView;
+    friend Database;
 
 protected:
     //! \brief Creates a non-db version of an Image.
@@ -221,6 +222,12 @@ protected:
     void _DoSave(Database& db) override;
     void _DoSave(Database& db, Lock& dblock) override;
     void _OnAdopted() override;
+
+    //! Called from Database
+    void _UpdateDeletedStatus(bool deleted)
+    {
+        Deleted = deleted;
+    }
 
 
     //! \brief Once hash is calculated this is called if this is a duplicate of an

@@ -3,21 +3,20 @@
 #include <map>
 #include <memory>
 
-namespace DV{
+namespace DV {
 
 //! \brief Helper for only allowing a single instance to be loaded with the specific ID
 template<class TObj, typename IDType>
-class SingleLoad{
+class SingleLoad {
 public:
-
     //! \brief Call when an object has been created to add it to the cache
     //! \note The object will be replaced with one from the cache if such object exists
-    void OnLoad(std::shared_ptr<TObj> &object){
-
+    void OnLoad(std::shared_ptr<TObj>& object)
+    {
         const auto id = object->GetID();
         auto iter = LoadedObjects.find(id);
 
-        if(iter == LoadedObjects.end()){
+        if(iter == LoadedObjects.end()) {
 
             // New item //
             LoadedObjects[id] = object;
@@ -26,8 +25,8 @@ public:
 
         // There's potentially an existing one //
         auto existing = iter->second.lock();
-        
-        if(!existing){
+
+        if(!existing) {
 
             // It was expired //
             iter->second = object;
@@ -38,8 +37,8 @@ public:
         object = existing;
     }
 
-    std::shared_ptr<TObj> GetIfLoaded(const IDType id){
-
+    std::shared_ptr<TObj> GetIfLoaded(const IDType id)
+    {
         auto iter = LoadedObjects.find(id);
 
         if(iter == LoadedObjects.end())
@@ -47,13 +46,13 @@ public:
 
         return iter->second.lock();
     }
-    
+
     //! Cleans up expired objects
-    void Purge(){
+    void Purge()
+    {
+        for(auto iter = LoadedObjects.begin(); iter != LoadedObjects.end();) {
 
-        for(auto iter = LoadedObjects.begin(); iter != LoadedObjects.end(); ){
-
-            if(iter->second.expired()){
+            if(iter->second.expired()) {
 
                 // Erase expired item //
                 iter = LoadedObjects.erase(iter);
@@ -63,11 +62,10 @@ public:
             }
         }
     }
-    
-    
-protected:
 
+
+protected:
     std::map<IDType, std::weak_ptr<TObj>> LoadedObjects;
 };
 
-}
+} // namespace DV

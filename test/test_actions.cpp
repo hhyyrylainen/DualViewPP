@@ -28,6 +28,22 @@ TEST_CASE("Image delete undo and redo works", "[db][action]")
     REQUIRE(collection);
 
     collection->AddImage(image1);
+    collection->AddImage(image2);
+
+    auto undo = db.DeleteImage(*image1);
+
+    REQUIRE(undo);
+
+    CHECK(collection->GetImages() == std::vector<std::shared_ptr<Image>>{image2});
+
+    CHECK(image1->IsDeleted());
+    CHECK(!image2->IsDeleted());
+
+    CHECK(undo->Undo() == true);
+
+    CHECK(!image1->IsDeleted());
+
+    CHECK(collection->GetImages() == std::vector<std::shared_ptr<Image>>{image1, image2});
 }
 
 // TEST_CASE("Image merge works correctly", "[db][action]")

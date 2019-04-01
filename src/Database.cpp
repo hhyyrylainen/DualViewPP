@@ -255,6 +255,7 @@ void Database::PurgeInactiveCache()
     LoadedFolders.Purge();
     LoadedTags.Purge();
     LoadedNetGalleries.Purge();
+    LoadedDatabaseActions.Purge();
 }
 // ------------------------------------ //
 bool Database::SelectDatabaseVersion(Lock& guard, sqlite3* db, int& result)
@@ -386,11 +387,61 @@ void Database::_InsertImageSignatureParts(
     }
 }
 
-bool Database::DeleteImage(Image& image)
+std::shared_ptr<DatabaseAction> Database::DeleteImage(Image& image)
 {
-    GUARD_LOCK();
-    // Remember to also delete from SignaturesDB
-    return false;
+    std::shared_ptr<ImageDeleteAction> action;
+
+    {
+        GUARD_LOCK();
+        action = CreateDeleteImageAction(guard, image);
+    }
+
+    if(!action)
+        return nullptr;
+
+    if(!action->Redo()) {
+
+        LOG_ERROR("Database: freshly created action failed to Redo");
+        return nullptr;
+    }
+
+    return action;
+}
+
+std::shared_ptr<ImageDeleteAction> Database::CreateDeleteImageAction(Lock& guard, Image& image)
+{
+    if(!image.IsInDatabase() || image.IsDeleted())
+        return nullptr;
+
+    // Create the action
+    auto action = std::make_shared<ImageDeleteAction>(std::vector<DBID>{image.GetID()});
+
+    // This is here for exception safety
+    const auto serialized = action->SerializeData();
+
+    {
+        DoDBSavePoint transaction(*this, guard, "create_del_img", true);
+
+        // The signature DB is a cache and it doesn't need to be restored
+        RunOnSignatureDB(guard,
+            "DELETE FROM pictures WHERE id = ?1; DELETE FROM picture_signature_words WHERE "
+            "picture_id = ?1;",
+            image.GetID());
+
+        RunSQLAsPrepared(guard, "INSERT INTO action_history (type, json_data) VALUES(?1, ?2);",
+            static_cast<int>(DATABASE_ACTION_TYPE::ImageDelete), serialized);
+
+        const auto actionId = sqlite3_last_insert_rowid(SQLiteDb);
+        action->OnAdopted(actionId, *this);
+    }
+
+    auto casted = std::static_pointer_cast<DatabaseAction>(action);
+    LoadedDatabaseActions.OnLoad(casted);
+
+    if(casted.get() != action.get())
+        LOG_ERROR("Database: action got changed on store");
+
+    return action;
 }
 
 DBID Database::SelectImageIDByHash(Lock& guard, const std::string& hash)
@@ -2953,6 +3004,48 @@ int64_t Database::CountAppliedTags()
     return 0;
 }
 
+// ------------------------------------ //
+// These are for DatabaseAction to use
+void Database::RedoAction(ImageDeleteAction& action)
+{
+    GUARD_LOCK();
+
+    // Mark the image(s) as deleted
+    for(const auto& image : action.GetImagesToDelete()) {
+        RunSQLAsPrepared(guard, "UPDATE pictures SET deleted = 1 WHERE id = ?1;", image);
+
+        auto obj = LoadedImages.GetIfLoaded(image);
+        if(obj)
+            obj->_UpdateDeletedStatus(true);
+    }
+
+    _SetActionStatus(guard, action, true);
+}
+
+void Database::UndoAction(ImageDeleteAction& action)
+{
+    GUARD_LOCK();
+
+    // Unmark the image(s) as deleted
+    for(const auto& image : action.GetImagesToDelete()) {
+        RunSQLAsPrepared(guard, "UPDATE pictures SET deleted = NULL WHERE id = ?1;", image);
+
+        auto obj = LoadedImages.GetIfLoaded(image);
+        if(obj)
+            obj->_UpdateDeletedStatus(false);
+    }
+
+    _SetActionStatus(guard, action, false);
+}
+
+void Database::PurgeAction(ImageDeleteAction& action)
+{
+    GUARD_LOCK();
+
+    // Permanently delete the images
+    for(const auto& image : action.GetImagesToDelete())
+        RunSQLAsPrepared(guard, "DELETE FROM pictures WHERE id = ?1;", image);
+}
 
 // ------------------------------------ //
 // Row parsing functions
@@ -3127,6 +3220,15 @@ std::shared_ptr<Folder> Database::_LoadFolderFromRow(Lock& guard, PreparedStatem
     LoadedFolders.OnLoad(loaded);
     return loaded;
 }
+// ------------------------------------ //
+// Helper operations
+void Database::_SetActionStatus(Lock& guard, DatabaseAction& action, bool performed)
+{
+    RunSQLAsPrepared(guard, "UPDATE action_history SET performed = ?1 WHERE id = ?2;",
+        performed ? 1 : 0, action.GetID());
+
+    action._ReportPerformedStatus(performed);
+}
 
 // ------------------------------------ //
 void Database::ThrowCurrentSqlError(Lock& guard)
@@ -3274,6 +3376,12 @@ bool Database::_UpdateDatabase(Lock& guard, const int oldversion)
         _RunSQL(guard,
             LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_22_23.sql"));
         _SetCurrentDatabaseVersion(guard, 23);
+        return true;
+    }
+    case 23: {
+        _RunSQL(guard,
+            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_23_24.sql"));
+        _SetCurrentDatabaseVersion(guard, 24);
         return true;
     }
     default: {
@@ -3537,7 +3645,15 @@ void Database::BeginTransaction(Lock& guard, bool alsoauxiliary /*= false*/)
 
 void Database::CommitTransaction(Lock& guard, bool alsoauxiliary /*= false*/)
 {
-    RunSQLAsPrepared(guard, "COMMIT TRANSACTION;");
+    try {
+        RunSQLAsPrepared(guard, "COMMIT TRANSACTION;");
+    } catch(const InvalidSQL&) {
+
+        // This failed so rollback the other one
+        if(alsoauxiliary)
+            RunOnSignatureDB(guard, "ROLLBACK;");
+        throw;
+    }
 
     if(alsoauxiliary)
         RunOnSignatureDB(guard, "COMMIT TRANSACTION;");
@@ -3555,7 +3671,15 @@ void Database::BeginSavePoint(
 void Database::ReleaseSavePoint(
     Lock& guard, const std::string& savepointname, bool alsoauxiliary /*= false*/)
 {
-    _RunSQL(guard, "RELEASE " + savepointname + ";");
+    try {
+        _RunSQL(guard, "RELEASE " + savepointname + ";");
+    } catch(const InvalidSQL&) {
+
+        // This failed so rollback the other one
+        if(alsoauxiliary)
+            RunOnSignatureDB(guard, "ROLLBACK TO " + savepointname + ";");
+        throw;
+    }
 
     if(alsoauxiliary)
         RunOnSignatureDB(guard, "RELEASE " + savepointname + ";");
