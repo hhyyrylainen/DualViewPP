@@ -221,6 +221,22 @@ void Image::_OnAdopted()
     // Reset signature status
     SignatureRetrieved = false;
 }
+
+void Image::_OnPurged()
+{
+    if(boost::filesystem::exists(ResourcePath)) {
+
+        try {
+            boost::filesystem::remove(ResourcePath);
+            LOG_INFO("Image: deleted from disk: " + ResourcePath);
+        } catch(const boost::filesystem::filesystem_error& e) {
+            LOG_ERROR(
+                "Image: failed to delete file (" + ResourcePath + ")from disk: " + e.what());
+        }
+    }
+
+    ResourcePath = "[deleted]";
+}
 // ------------------------------------ //
 std::string Image::CalculateFileHash() const
 {

@@ -222,6 +222,7 @@ protected:
     void _DoSave(Database& db) override;
     void _DoSave(Database& db, Lock& dblock) override;
     void _OnAdopted() override;
+    void _OnPurged() override;
 
     //! Called from Database
     void _UpdateDeletedStatus(bool deleted)

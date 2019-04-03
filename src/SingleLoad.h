@@ -47,7 +47,7 @@ public:
         return iter->second.lock();
     }
 
-    //! Cleans up expired objects
+    //! \brief Cleans up expired objects
     void Purge()
     {
         for(auto iter = LoadedObjects.begin(); iter != LoadedObjects.end();) {
@@ -63,6 +63,18 @@ public:
         }
     }
 
+    //! \brief Removes an entry
+    //!
+    //! Use this when permanently deleting something
+    void Remove(const IDType id)
+    {
+        auto iter = LoadedObjects.find(id);
+
+        if(iter == LoadedObjects.end())
+            return;
+
+        LoadedObjects.erase(iter);
+    }
 
 protected:
     std::map<IDType, std::weak_ptr<TObj>> LoadedObjects;

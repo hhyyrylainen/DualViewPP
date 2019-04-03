@@ -15,6 +15,37 @@ DatabaseAction::DatabaseAction(DBID id, Database& from) : DatabaseResource(id, f
 
 DatabaseAction::~DatabaseAction() {}
 // ------------------------------------ //
+std::shared_ptr<DatabaseAction> DatabaseAction::Create(
+    Database& db, Lock& dblock, PreparedStatement& statement, DBID id)
+{
+    CheckRowID(statement, 1, "type");
+    CheckRowID(statement, 2, "performed");
+    CheckRowID(statement, 3, "json_data");
+
+    const auto uncastedType = statement.GetColumnAsInt(1);
+
+    if(uncastedType <= 0 || uncastedType >= static_cast<int>(DATABASE_ACTION_TYPE::Invalid)) {
+        LOG_ERROR(
+            "DatabaseAction: from DB read type is invalid:" + std::to_string(uncastedType));
+        return nullptr;
+    }
+
+    const auto type = static_cast<DATABASE_ACTION_TYPE>(uncastedType);
+
+    switch(type) {
+    case DATABASE_ACTION_TYPE::ImageDelete:
+        return std::shared_ptr<ImageDeleteAction>(new ImageDeleteAction(
+            id, db, statement.GetColumnAsBool(2), statement.GetColumnAsString(3)));
+    case DATABASE_ACTION_TYPE::Invalid:
+        LOG_ERROR("DatabaseAction: from DB read type is DATABASE_ACTION_TYPE::Invalid");
+        return nullptr;
+    }
+
+    // GCC complains about being able to reach here
+    LEVIATHAN_ASSERT(false, "This should not be reachable");
+    return nullptr;
+}
+// ------------------------------------ //
 bool DatabaseAction::Redo()
 {
     if(IsPerformed())
@@ -29,7 +60,10 @@ bool DatabaseAction::Redo()
         return false;
     }
 
-    Performed = true;
+    if(!Performed) {
+        LOG_ERROR(
+            "DatabaseAction: performed status didn't change after completing internal redo");
+    }
     return true;
 }
 
@@ -47,7 +81,11 @@ bool DatabaseAction::Undo()
         return false;
     }
 
-    Performed = false;
+    if(Performed) {
+        LOG_ERROR(
+            "DatabaseAction: performed status didn't change after completing internal undo");
+    }
+
     return true;
 }
 // ------------------------------------ //
@@ -70,11 +108,7 @@ std::string DatabaseAction::SerializeData() const
 // ------------------------------------ //
 void DatabaseAction::_ReportPerformedStatus(bool performed)
 {
-    if(performed != Performed) {
-
-        LOG_ERROR("DatabaseAction: reported performed status: " + std::to_string(performed) +
-                  " doesn't match the current internal state");
-    }
+    Performed = performed;
 }
 // ------------------------------------ //
 void DatabaseAction::_DoSave(Database& db)
@@ -92,8 +126,12 @@ void DatabaseAction::_DoSave(Database& db, Lock& dblock)
 ImageDeleteAction::ImageDeleteAction(const std::vector<DBID>& images) : ImagesToDelete(images)
 {}
 
-ImageDeleteAction::ImageDeleteAction(DBID id, Database& from, const std::string& customdata)
+ImageDeleteAction::ImageDeleteAction(
+    DBID id, Database& from, bool performed, const std::string& customdata) :
+    DatabaseAction(id, from)
 {
+    Performed = performed;
+
     std::stringstream sstream(customdata);
 
     Json::CharReaderBuilder builder;
@@ -128,7 +166,7 @@ void ImageDeleteAction::_Undo()
     InDatabase->UndoAction(*this);
 }
 
-void ImageDeleteAction::Purge()
+void ImageDeleteAction::_OnPurged()
 {
     InDatabase->PurgeAction(*this);
 }

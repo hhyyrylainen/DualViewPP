@@ -11,9 +11,13 @@ class Value;
 namespace DV {
 
 class Database;
+class PreparedStatement;
 
 //! \brief Used to create the correct class from the action_history table
-enum class DATABASE_ACTION_TYPE : int { ImageDelete = 1 };
+enum class DATABASE_ACTION_TYPE : int {
+    ImageDelete = 1,
+    Invalid /* must be always last value */
+};
 
 //! \brief All reversible database operations result in this that can then be used to reverse
 //! it
@@ -30,21 +34,22 @@ protected:
 public:
     virtual ~DatabaseAction();
 
+    static std::shared_ptr<DatabaseAction> Create(
+        Database& db, Lock& dblock, PreparedStatement& statement, DBID id);
+
     bool Redo() override;
     bool Undo() override;
-
-    //! \brief Removes all resources needed by this action
-    //!
-    //! Called when removed from the database. This will permanently delete any resources still
-    //! held by this action. For example Image is first marked deleted and once the action is
-    //! popped off the history then the Image is permanently deleted
-    virtual void Purge() = 0;
 
     virtual DATABASE_ACTION_TYPE GetType() const = 0;
 
     virtual std::string SerializeData() const;
 
 protected:
+    //! Called when removed from the database. This will permanently delete any resources still
+    //! held by this action. For example Image is first marked deleted and once the action is
+    //! popped off the history then the Image is permanently deleted
+    virtual void _OnPurged() override = 0;
+
     virtual void _SerializeCustomData(Json::Value& value) const = 0;
 
     void _ReportPerformedStatus(bool performed);
@@ -60,14 +65,17 @@ private:
 //! \brief Image was deleted (marked deleted)
 class ImageDeleteAction final : public DatabaseAction {
     friend Database;
+    friend std::shared_ptr<DatabaseAction> DatabaseAction::Create(
+        Database& db, Lock& dblock, PreparedStatement& statement, DBID id);
+
+protected:
+    ImageDeleteAction(DBID id, Database& from, bool performed, const std::string& customdata);
 
 public:
+    //! This is public just to make std::make_shared work
+    //! \protected
     ImageDeleteAction(const std::vector<DBID>& images);
-    ImageDeleteAction(DBID id, Database& from, const std::string& customdata);
-
     ~ImageDeleteAction();
-
-    void Purge() override;
 
     DATABASE_ACTION_TYPE GetType() const override
     {
@@ -81,6 +89,8 @@ public:
 
 protected:
     void SetImagesToDelete(const std::vector<DBID>& images);
+
+    void _OnPurged() override;
 
 private:
     void _Redo() override;

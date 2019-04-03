@@ -2900,6 +2900,24 @@ std::shared_ptr<DatabaseAction> Database::MergeImages(
 }
 
 // ------------------------------------ //
+// Actions
+std::shared_ptr<DatabaseAction> Database::SelectDatabaseActionByID(Lock& guard, DBID id)
+{
+    const char str[] = "SELECT * FROM action_history WHERE id = ?1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(id);
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        return _LoadDatabaseActionFromRow(guard, statementobj);
+    }
+
+    return nullptr;
+}
+
+// ------------------------------------ //
 // Database maintainance functions
 void Database::CombineAllPossibleAppliedTags(Lock& guard)
 {
@@ -3042,9 +3060,24 @@ void Database::PurgeAction(ImageDeleteAction& action)
 {
     GUARD_LOCK();
 
+    // If this action is currently not performed no resources related to it should be deleted
+    if(!action.IsPerformed())
+        return;
+
     // Permanently delete the images
-    for(const auto& image : action.GetImagesToDelete())
+    for(const auto& image : action.GetImagesToDelete()) {
+
+        auto loadedImage = SelectImageByID(guard, image);
+
+        if(loadedImage) {
+            loadedImage->_OnPurged();
+            LoadedImages.Remove(image);
+        } else {
+            LOG_WARNING("Database: purging non-existant image");
+        }
+
         RunSQLAsPrepared(guard, "DELETE FROM pictures WHERE id = ?1;", image);
+    }
 }
 
 // ------------------------------------ //
@@ -3218,6 +3251,34 @@ std::shared_ptr<Folder> Database::_LoadFolderFromRow(Lock& guard, PreparedStatem
     loaded = std::make_shared<Folder>(*this, guard, statement, id);
 
     LoadedFolders.OnLoad(loaded);
+    return loaded;
+}
+
+std::shared_ptr<DatabaseAction> Database::_LoadDatabaseActionFromRow(
+    Lock& guard, PreparedStatement& statement)
+{
+    CheckRowID(statement, 0, "id");
+
+    DBID id;
+    if(!statement.GetObjectIDFromColumn(id, 0)) {
+
+        LOG_ERROR("Object id column is invalid");
+        return nullptr;
+    }
+
+    auto loaded = LoadedDatabaseActions.GetIfLoaded(id);
+
+    if(loaded)
+        return loaded;
+
+    loaded = DatabaseAction::Create(*this, guard, statement, id);
+
+    if(!loaded) {
+        LOG_ERROR("Database: failed to load DatabaseAction with id: " + std::to_string(id));
+        return nullptr;
+    }
+
+    LoadedDatabaseActions.OnLoad(loaded);
     return loaded;
 }
 // ------------------------------------ //

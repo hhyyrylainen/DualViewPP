@@ -585,6 +585,19 @@ public:
     std::shared_ptr<DatabaseAction> MergeImages(const std::shared_ptr<Image>& mergeTarget,
         const std::vector<std::shared_ptr<Image>>& toMerge);
 
+
+    //
+    // Actions
+    //
+    std::shared_ptr<DatabaseAction> SelectDatabaseActionByID(Lock& guard, DBID id);
+    CREATE_NON_LOCKING_WRAPPER(SelectDatabaseActionByID);
+
+    //! \brief Permanently deletes an action
+    //!
+    //! Will also permanently delete all resources assocciated with the action
+    std::shared_ptr<DatabaseAction> DeleteDatabaseAction(Lock& guard, DBID id);
+
+
     //
     // Database maintenance functions
     //
@@ -725,6 +738,10 @@ private:
 
     //! \brief Loads a Folder object from the current row
     std::shared_ptr<Folder> _LoadFolderFromRow(Lock& guard, PreparedStatement& statement);
+
+    //! \brief Loads a DatabaseAction derived object from the current row
+    std::shared_ptr<DatabaseAction> _LoadDatabaseActionFromRow(
+        Lock& guard, PreparedStatement& statement);
 
     //
     // Private insert stuff

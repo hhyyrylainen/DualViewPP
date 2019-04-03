@@ -54,6 +54,8 @@ void DatabaseResource::_BecomeDuplicateOf(const DatabaseResource& other)
 
     IsDirty = false;
 }
+
+void DatabaseResource::_OnPurged() {}
 // ------------------------------------ //
 void DatabaseResource::Save()
 {

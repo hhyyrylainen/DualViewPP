@@ -39,11 +39,35 @@ TEST_CASE("Image delete undo and redo works", "[db][action]")
     CHECK(image1->IsDeleted());
     CHECK(!image2->IsDeleted());
 
-    CHECK(undo->Undo() == true);
+    SECTION("immediate undo")
+    {
+        CHECK(undo->Undo() == true);
 
-    CHECK(!image1->IsDeleted());
+        CHECK(!image1->IsDeleted());
 
-    CHECK(collection->GetImages() == std::vector<std::shared_ptr<Image>>{image1, image2});
+        CHECK(collection->GetImages() == std::vector<std::shared_ptr<Image>>{image1, image2});
+    }
+
+    SECTION("action can be loaded from the database and undone")
+    {
+        const auto id = undo->GetID();
+        CHECK(id >= 0);
+
+        const auto oldPtr = undo.get();
+        undo.reset();
+
+        undo = db.SelectDatabaseActionByIDAG(id);
+        REQUIRE(undo);
+
+        CHECK(undo.get() != oldPtr);
+        CHECK(undo->GetID() == id);
+
+        CHECK(undo->Undo() == true);
+
+        CHECK(!image1->IsDeleted());
+
+        CHECK(collection->GetImages() == std::vector<std::shared_ptr<Image>>{image1, image2});
+    }
 }
 
 // TEST_CASE("Image merge works correctly", "[db][action]")

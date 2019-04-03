@@ -68,6 +68,10 @@ protected:
     //! When database has added this as a resource, this is called
     void OnAdopted(int64_t id, Database& from);
 
+    //! Called from Database when this resource is being permanently deleted. This is a chance
+    //! to delete external resources (for example image files)
+    virtual void _OnPurged();
+
     virtual void _DoSave(Database& db) = 0;
     //! \brief This is used in bulk saves where the DB is already locked
     //! \note If this is not overridden this probably doesn't support bulk write
