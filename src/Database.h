@@ -595,8 +595,7 @@ public:
     //! \brief Permanently deletes an action
     //!
     //! Will also permanently delete all resources assocciated with the action
-    std::shared_ptr<DatabaseAction> DeleteDatabaseAction(Lock& guard, DBID id);
-
+    void DeleteDatabaseAction(DatabaseAction& action);
 
     //
     // Database maintenance functions

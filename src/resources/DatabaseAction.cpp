@@ -120,6 +120,11 @@ void DatabaseAction::_DoSave(Database& db, Lock& dblock)
 {
     DEBUG_BREAK;
 }
+// ------------------------------------ //
+void DatabaseAction::_OnPurged()
+{
+    Deleted = true;
+}
 
 // ------------------------------------ //
 // ImageDeleteAction
@@ -168,6 +173,7 @@ void ImageDeleteAction::_Undo()
 
 void ImageDeleteAction::_OnPurged()
 {
+    DatabaseAction::_OnPurged();
     InDatabase->PurgeAction(*this);
 }
 

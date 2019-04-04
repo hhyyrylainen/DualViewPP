@@ -429,7 +429,7 @@ std::shared_ptr<ImageDeleteAction> Database::CreateDeleteImageAction(Lock& guard
             image.GetID());
 
         RunSQLAsPrepared(guard, "INSERT INTO action_history (type, json_data) VALUES(?1, ?2);",
-            static_cast<int>(DATABASE_ACTION_TYPE::ImageDelete), serialized);
+            static_cast<int>(action->GetType()), serialized);
 
         const auto actionId = sqlite3_last_insert_rowid(SQLiteDb);
         action->OnAdopted(actionId, *this);
@@ -2915,6 +2915,25 @@ std::shared_ptr<DatabaseAction> Database::SelectDatabaseActionByID(Lock& guard, 
     }
 
     return nullptr;
+}
+
+void Database::DeleteDatabaseAction(DatabaseAction& action)
+{
+    if(action.IsDeleted())
+        return;
+
+    const auto id = action.GetID();
+
+    action._OnPurged();
+
+    GUARD_LOCK();
+
+    RunSQLAsPrepared(guard, "DELETE FROM action_history WHERE id = ?1;", id);
+
+    LoadedDatabaseActions.Remove(id);
+
+    if(!action.IsDeleted())
+        LOG_ERROR("Database: delete action didn't mark it as deleted");
 }
 
 // ------------------------------------ //

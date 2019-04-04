@@ -236,6 +236,7 @@ void Image::_OnPurged()
     }
 
     ResourcePath = "[deleted]";
+    Deleted = true;
 }
 // ------------------------------------ //
 std::string Image::CalculateFileHash() const

@@ -44,11 +44,17 @@ public:
 
     virtual std::string SerializeData() const;
 
+    bool IsDeleted() const
+    {
+        return Deleted;
+    }
+
 protected:
     //! Called when removed from the database. This will permanently delete any resources still
     //! held by this action. For example Image is first marked deleted and once the action is
     //! popped off the history then the Image is permanently deleted
-    virtual void _OnPurged() override = 0;
+    //! \note This needs to be called from derived classes to set Deleted
+    virtual void _OnPurged() override;
 
     virtual void _SerializeCustomData(Json::Value& value) const = 0;
 
@@ -60,6 +66,9 @@ private:
 
     void _DoSave(Database& db) override;
     void _DoSave(Database& db, Lock& dblock) override;
+
+private:
+    bool Deleted = false;
 };
 
 //! \brief Image was deleted (marked deleted)
