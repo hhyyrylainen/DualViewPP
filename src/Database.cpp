@@ -1016,9 +1016,9 @@ void Database::DeleteCollectionTag(
 // ------------------------------------ //
 // Collection image
 bool Database::InsertImageToCollection(
-    LockT& guard, Collection& collection, Image& image, int64_t showorder)
+    LockT& guard, DBID collection, Image& image, int64_t showorder)
 {
-    if(!collection.IsInDatabase() || !image.IsInDatabase())
+    if(collection < 0 || !image.IsInDatabase())
         return false;
 
     const char str[] = "INSERT INTO collection_image (collection, image, show_order) VALUES "
@@ -1026,7 +1026,7 @@ bool Database::InsertImageToCollection(
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID(), image.GetID(), showorder);
+    auto statementinuse = statementobj.Setup(collection, image.GetID(), showorder);
 
     statementobj.StepAll(statementinuse);
 
@@ -1035,6 +1035,12 @@ bool Database::InsertImageToCollection(
     LEVIATHAN_ASSERT(changes <= 1, "InsertImageToCollection changed more than one row");
 
     return changes == 1;
+}
+
+bool Database::InsertImageToCollection(
+    LockT& guard, Collection& collection, Image& image, int64_t showorder)
+{
+    return InsertImageToCollection(guard, collection.GetID(), image, showorder);
 }
 
 bool Database::SelectIsImageInAnyCollection(LockT& guard, const Image& image)
@@ -1115,6 +1121,35 @@ std::shared_ptr<Image> Database::SelectImageInCollectionByShowOrder(
     }
 
     return nullptr;
+}
+
+std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollectionByShowOrder(
+    LockT& guard, const Collection& collection, int64_t showorder)
+{
+    if(!collection.IsInDatabase())
+        return {};
+
+    std::vector<std::shared_ptr<Image>> result;
+
+    const char str[] = "SELECT image FROM collection_image WHERE collection = ? AND "
+                       "show_order = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID(), showorder);
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        DBID id;
+        if(statementobj.GetObjectIDFromColumn(id, 0)) {
+            auto image = SelectImageByIDSkipDeleted(guard, id);
+
+            if(image)
+                result.push_back(image);
+        }
+    }
+
+    return result;
 }
 
 std::shared_ptr<Image> Database::SelectCollectionPreviewImage(const Collection& collection)
@@ -1316,6 +1351,30 @@ std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollection(
 
             if(image)
                 result.push_back(image);
+        }
+    }
+
+    return result;
+}
+
+std::vector<std::tuple<DBID, int64_t>> Database::SelectCollectionIDsImageIsIn(
+    LockT& guard, const Image& image)
+{
+    std::vector<std::tuple<DBID, int64_t>> result;
+
+    const char str[] = "SELECT collection, show_order FROM collection_image WHERE image = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(image.GetID());
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        DBID id;
+
+        if(statementobj.GetObjectIDFromColumn(id, 0)) {
+
+            result.push_back(std::make_tuple(id, statementobj.GetColumnAsInt64(1)));
         }
     }
 
@@ -2975,7 +3034,8 @@ bool Database::UpdateDatabaseAction(LockT& guard, DatabaseAction& action)
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(action.IsPerformed(), action.SerializeData());
+    auto statementinuse =
+        statementobj.Setup(action.IsPerformed(), action.SerializeData(), action.GetID());
 
     statementobj.StepAll(statementinuse);
     return true;
@@ -3157,7 +3217,22 @@ void Database::RedoAction(ImageMergeAction& action)
 {
     GUARD_LOCK();
 
+    auto target = SelectImageByID(guard, action.GetTarget());
+
+    if(!target || target->IsDeleted())
+        throw InvalidState("cannot redo action: invalid target image");
+
+    std::vector<DBID> existingCollections;
+    auto existingTags = target->GetTags();
+
+    for(const auto& idAndOrder : SelectCollectionIDsImageIsIn(guard, *target))
+        existingCollections.push_back(std::get<0>(idAndOrder));
+
     // Detect collections and tags the merged images have that the target doesn't have
+    std::vector<std::tuple<DBID, int>> collectionsToAddTo;
+    std::vector<std::string> tagsToAdd;
+
+    // TODO: ratings, image region, collection preview when they are implemented
 
     DoDBSavePoint transaction(*this, guard, "image_merge_redo", true);
     transaction.AllowCommit(false);
@@ -3170,15 +3245,92 @@ void Database::RedoAction(ImageMergeAction& action)
         if(obj) {
             obj->_UpdateDeletedStatus(true);
             obj->_UpdateMergedStatus(true);
+        } else {
+
+            obj = SelectImageByID(guard, image);
+        }
+
+        if(obj) {
+
+            // Collections
+            for(const auto& idAndOrder : SelectCollectionIDsImageIsIn(guard, *obj)) {
+
+                if(std::find(existingCollections.begin(), existingCollections.end(),
+                       std::get<0>(idAndOrder)) == existingCollections.end()) {
+
+                    // Not already added
+                    if(std::find_if(collectionsToAddTo.begin(), collectionsToAddTo.end(),
+                           [&](const std::tuple<DBID, int>& value) {
+                               return std::get<0>(value) == std::get<0>(idAndOrder);
+                           }) == collectionsToAddTo.end())
+                        collectionsToAddTo.push_back(idAndOrder);
+                }
+            }
+
+            // Tags
+            for(const auto& tag : *obj->GetTags()) {
+
+                if(!existingTags->HasTag(*tag)) {
+
+                    const auto asText = tag->ToAccurateString();
+
+
+                    // Not already added
+                    if(std::find(tagsToAdd.begin(), tagsToAdd.end(), asText) ==
+                        tagsToAdd.end())
+                        tagsToAdd.push_back(asText);
+                }
+            }
+
+        } else {
+            LOG_WARNING("Database: merged duplicate image couldn't be loaded, id: " +
+                        std::to_string(image));
         }
     }
 
     // Apply the detected properties that need to be added to the target
+    for(auto iter = tagsToAdd.begin(); iter != tagsToAdd.end();) {
+        const auto& newTag = *iter;
+        std::shared_ptr<AppliedTag> tag;
 
+        try {
+
+            tag = DualView::Get().ParseTagFromString(newTag);
+
+            if(!existingTags->Add(tag))
+                throw Leviathan::Exception("adding tag failed");
+
+        } catch(const Leviathan::Exception& e) {
+
+            LOG_ERROR("Database: merged image has invalid tag: " + newTag);
+            e.PrintToLog();
+            iter = tagsToAdd.erase(iter);
+            continue;
+        }
+
+        ++iter;
+    }
+
+    for(auto iter = collectionsToAddTo.begin(); iter != collectionsToAddTo.end();) {
+
+        const auto collection = std::get<0>(*iter);
+        const auto order = std::get<1>(*iter);
+
+        if(!InsertImageToCollection(guard, collection, *target, order)) {
+
+            LOG_ERROR("Database: merge target could not be added to collection: " +
+                      std::to_string(collection));
+            iter = collectionsToAddTo.erase(iter);
+            continue;
+        }
+
+        ++iter;
+    }
 
     _SetActionStatus(guard, action, true);
 
     // Save the detected information needed for undo
+    action.SetPropertiesToAddToTarget(collectionsToAddTo, tagsToAdd);
     action.Save();
 
     transaction.AllowCommit(true);
@@ -3187,6 +3339,11 @@ void Database::RedoAction(ImageMergeAction& action)
 void Database::UndoAction(ImageMergeAction& action)
 {
     GUARD_LOCK();
+
+    auto target = SelectImageByID(guard, action.GetTarget());
+
+    if(!target)
+        throw InvalidState("cannot undo action: invalid target image");
 
     DoDBSavePoint transaction(*this, guard, "image_merge_undo", true);
     transaction.AllowCommit(false);
@@ -3203,7 +3360,81 @@ void Database::UndoAction(ImageMergeAction& action)
     }
 
     // Undo the added extra properties on the target
+    const auto& [collectionsToAddTo, tagsToAdd] = action.GetPropertiesToAddToTarget();
 
+    auto existingTags = target->GetTags();
+
+    for(const auto& tag : tagsToAdd) {
+
+        std::shared_ptr<AppliedTag> parsed;
+
+        try {
+
+            parsed = DualView::Get().ParseTagFromString(tag);
+
+        } catch(const Leviathan::Exception& e) {
+
+            LOG_ERROR("Database: merge action has invalid tag for removal: " + tag);
+            e.PrintToLog();
+            continue;
+        }
+
+        if(parsed)
+            if(!existingTags->RemoveTag(*parsed))
+                LOG_WARNING("Database: undoing merge action was unable to remove tag:" + tag);
+    }
+
+    bool removed = false;
+
+    for(const auto& idOrder : collectionsToAddTo) {
+        auto collection = SelectCollectionByID(std::get<0>(idOrder));
+        const auto order = std::get<1>(idOrder);
+
+        if(!collection) {
+            LOG_ERROR("Database: merge action has non-existant collection: " +
+                      std::to_string(std::get<0>(idOrder)));
+            continue;
+        }
+
+        const auto actualOrder = SelectImageShowOrderInCollection(guard, *collection, *target);
+
+        if(actualOrder != order) {
+            LOG_INFO("Database: merge action undo, order has changed from: " +
+                     std::to_string(order) + " to: " + std::to_string(actualOrder));
+
+            // If there is another image with the same show order (potentially the now
+            // undeleted duplicate) then it's fine to delete
+            if(SelectImagesInCollectionByShowOrder(guard, *collection, actualOrder).size() <
+                2) {
+
+                LOG_INFO("Database: the changed order has no other image with the same order, "
+                         "assuming user wants to keep the image in this collection");
+                continue;
+            }
+        }
+
+        // Fine to remove
+        removed = true;
+        DeleteImageFromCollection(guard, *collection, *target);
+
+        // Causes spam in tests
+        // LOG_INFO("Database: merge undo, removing image: " + std::to_string(target->GetID())
+        // + " from: " + collection->GetName() + " (" +
+        //          std::to_string(collection->GetID()) + ")");
+    }
+
+    // TODO: extract this as a function
+    if(removed && !SelectIsImageInAnyCollection(guard, *target)) {
+
+        LOG_WARNING("Database: merge action undo, image is no longer in any collection. "
+                    "Adding to Uncategorized");
+
+        auto uncategorized = SelectCollectionByID(DATABASE_UNCATEGORIZED_COLLECTION_ID);
+
+        if(uncategorized)
+            InsertImageToCollection(guard, *uncategorized, *target,
+                SelectCollectionLargestShowOrder(guard, *uncategorized) + 1);
+    }
 
     _SetActionStatus(guard, action, false);
 

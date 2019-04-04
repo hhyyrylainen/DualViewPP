@@ -148,8 +148,9 @@ TEST_CASE("Deleting undone action doesn't delete Images", "[db][action]")
 
 TEST_CASE("Image merge works correctly", "[db][action]")
 {
-    DummyDualView dv;
-    TestDatabase db;
+    std::unique_ptr<Database> dbptr(new TestDatabase());
+    DummyDualView dv(std::move(dbptr));
+    auto& db = static_cast<TestDatabase&>(dv.GetDatabase());
 
     REQUIRE_NOTHROW(db.Init());
 
@@ -179,6 +180,136 @@ TEST_CASE("Image merge works correctly", "[db][action]")
 
             CHECK(!image1->IsDeleted());
             CHECK(!image2->IsDeleted());
+        }
+
+        SECTION("Undo works after loaded from DB")
+        {
+            const auto id = undo->GetID();
+            const auto oldPtr = undo.get();
+            undo.reset();
+
+            undo = db.SelectDatabaseActionByIDAG(id);
+            REQUIRE(undo);
+
+            CHECK(undo.get() != oldPtr);
+
+            CHECK(undo->Undo());
+
+            CHECK(!image1->IsDeleted());
+            CHECK(!image2->IsDeleted());
+        }
+    }
+
+    SECTION("Tags are merged")
+    {
+        const auto hair = dv.ParseTagFromString("hair");
+        const auto uniform = dv.ParseTagFromString("uniform");
+        REQUIRE(hair);
+        REQUIRE(uniform);
+
+        auto img1Tags = image1->GetTags();
+        REQUIRE(img1Tags);
+        CHECK(img1Tags->Add(hair));
+        REQUIRE(image2->GetTags());
+        CHECK(image2->GetTags()->Add(uniform));
+        // Duplicate to see if that causes issues
+        CHECK(image2->GetTags()->Add(hair));
+
+        auto undo = db.MergeImages(*image1, {image2});
+        REQUIRE(undo);
+
+        CHECK(img1Tags->HasTag(*hair));
+        CHECK(img1Tags->HasTag(*uniform));
+
+        SECTION("Undo")
+        {
+            CHECK(undo->Undo());
+
+            CHECK(img1Tags->HasTag(*hair));
+            CHECK(!img1Tags->HasTag(*uniform));
+        }
+
+        SECTION("Undo works after loaded from DB")
+        {
+            const auto oldTags =
+                dynamic_cast<ImageMergeAction*>(undo.get())->GetAddTagsToTarget();
+
+            const auto id = undo->GetID();
+            const auto oldPtr = undo.get();
+            undo.reset();
+
+            undo = db.SelectDatabaseActionByIDAG(id);
+            REQUIRE(undo);
+
+            CHECK(undo.get() != oldPtr);
+
+            const auto newTags =
+                dynamic_cast<ImageMergeAction*>(undo.get())->GetAddTagsToTarget();
+
+            CHECK(oldTags == newTags);
+
+            CHECK(undo->Undo());
+
+            CHECK(img1Tags->HasTag(*hair));
+            CHECK(!img1Tags->HasTag(*uniform));
+        }
+    }
+
+    SECTION("Contained in collections are merged")
+    {
+        auto collection1 = db.InsertCollectionAG("test collection", false);
+        REQUIRE(collection1);
+
+        auto collection2 = db.InsertCollectionAG("test2", false);
+        REQUIRE(collection2);
+
+        collection1->AddImage(image1);
+        collection1->AddImage(image2);
+
+        collection2->AddImage(image2);
+        collection2->AddImage(image3);
+
+        auto undo = db.MergeImages(*image1, {image2});
+        REQUIRE(undo);
+
+        CHECK(collection1->GetImages() == std::vector<std::shared_ptr<Image>>{image1});
+        CHECK(collection2->GetImages() == std::vector<std::shared_ptr<Image>>{image1, image3});
+
+        SECTION("Undo")
+        {
+            CHECK(undo->Undo());
+
+            CHECK(collection1->GetImages() ==
+                  std::vector<std::shared_ptr<Image>>{image1, image2});
+            CHECK(collection2->GetImages() ==
+                  std::vector<std::shared_ptr<Image>>{image2, image3});
+        }
+
+        SECTION("Undo works after loaded from DB")
+        {
+            const auto oldCollections =
+                dynamic_cast<ImageMergeAction*>(undo.get())->GetAddTargetToCollections();
+
+            const auto id = undo->GetID();
+            const auto oldPtr = undo.get();
+            undo.reset();
+
+            undo = db.SelectDatabaseActionByIDAG(id);
+            REQUIRE(undo);
+
+            CHECK(undo.get() != oldPtr);
+
+            const auto newCollections =
+                dynamic_cast<ImageMergeAction*>(undo.get())->GetAddTargetToCollections();
+
+            CHECK(oldCollections == newCollections);
+
+            CHECK(undo->Undo());
+
+            CHECK(collection1->GetImages() ==
+                  std::vector<std::shared_ptr<Image>>{image1, image2});
+            CHECK(collection2->GetImages() ==
+                  std::vector<std::shared_ptr<Image>>{image2, image3});
         }
     }
 }

@@ -240,8 +240,11 @@ public:
     //! already in use the order in which the two images that have the same show_order is
     //! random
     bool InsertImageToCollection(
-        LockT& guard, Collection& collection, Image& image, int64_t showorder);
+        LockT& guard, DBID collection, Image& image, int64_t showorder);
     CREATE_NON_LOCKING_WRAPPER(InsertImageToCollection);
+
+    bool InsertImageToCollection(
+        LockT& guard, Collection& collection, Image& image, int64_t showorder);
 
     //! \brief Returns true if image is in some collection.
     //!
@@ -263,6 +266,11 @@ public:
     std::shared_ptr<Image> SelectImageInCollectionByShowOrder(
         LockT& guard, const Collection& collection, int64_t showorder);
     CREATE_NON_LOCKING_WRAPPER(SelectImageInCollectionByShowOrder);
+
+    //! \brief It's possible to end up with multiple Images with the same show order, this
+    //! function can be used to still get all the images in that situation
+    std::vector<std::shared_ptr<Image>> SelectImagesInCollectionByShowOrder(
+        LockT& guard, const Collection& collection, int64_t showorder);
 
     //! \brief Returns the preview image for a collection
     std::shared_ptr<Image> SelectCollectionPreviewImage(const Collection& collection);
@@ -299,6 +307,11 @@ public:
 
     //! \brief Returns all images in a collection
     std::vector<std::shared_ptr<Image>> SelectImagesInCollection(const Collection& collection);
+
+    //! \brief Returns all collections and the show order an image has
+    std::vector<std::tuple<DBID, int64_t>> SelectCollectionIDsImageIsIn(
+        LockT& guard, const Image& image);
+    CREATE_NON_LOCKING_WRAPPER(SelectCollectionIDsImageIsIn);
 
     //
     // Folder

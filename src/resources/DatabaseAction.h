@@ -140,8 +140,32 @@ public:
         return ImagesToMerge;
     }
 
+    auto GetPropertiesToAddToTarget() const
+    {
+        return std::tie(AddTargetToCollections, AddTagsToTarget);
+    }
+
+    const auto& GetAddTargetToCollections() const
+    {
+        return AddTargetToCollections;
+    }
+
+    const auto& GetAddTagsToTarget() const
+    {
+        return AddTagsToTarget;
+    }
+
 protected:
     void _OnPurged() override;
+
+    void SetPropertiesToAddToTarget(
+        const std::vector<std::tuple<DBID, int>>& addtargettocollections,
+        const std::vector<std::string>& addtagstotarget)
+    {
+        AddTargetToCollections = addtargettocollections;
+        AddTagsToTarget = addtagstotarget;
+        OnMarkDirty();
+    }
 
 private:
     void _Redo() override;
@@ -151,6 +175,9 @@ private:
 private:
     DBID Target;
     std::vector<DBID> ImagesToMerge;
+
+    std::vector<std::tuple<DBID, int>> AddTargetToCollections;
+    std::vector<std::string> AddTagsToTarget;
 };
 
 } // namespace DV

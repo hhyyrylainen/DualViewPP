@@ -11,6 +11,8 @@
 
 #include "Common/StringOperations.h"
 
+#include "json/json.h"
+
 #include <memory>
 #include <thread>
 
@@ -269,4 +271,45 @@ TEST_CASE("CacheManager database path translations", "[path][db]")
                   "./private_collection/collections/users data/image1.jpg") ==
               "./private_collection/collections/users data/image1.jpg");
     }
+}
+
+TEST_CASE("JSON serialization works like it should")
+{
+    std::stringstream sstream;
+    Json::Value value;
+
+    Json::StreamWriterBuilder builder;
+    builder["commentStyle"] = "None";
+    builder["indentation"] = "";
+    auto writer = builder.newStreamWriter();
+
+    Json::Value images;
+    images.resize(2);
+    for(size_t i = 0; i < images.size(); ++i) {
+        images[static_cast<unsigned>(i)] = i + 2;
+    }
+
+    Json::Value tags;
+    tags.resize(3);
+    for(size_t i = 0; i < tags.size(); ++i) {
+        tags[static_cast<unsigned>(i)] = i * 2;
+    }
+
+    Json::Value collections;
+    collections.resize(4);
+    for(size_t i = 0; i < collections.size(); ++i) {
+        collections[static_cast<unsigned>(i)]["collection"] = i * 20;
+        collections[static_cast<unsigned>(i)]["order"] = i;
+    }
+
+    value["images"] = images;
+    value["target"] = 1;
+    value["tags"] = tags;
+    value["collections"] = collections;
+
+    writer->write(value, &sstream);
+
+    CHECK(R"({"collections":[{"collection":0,"order":0},{"collection":20,"order":1},)"
+          R"({"collection":40,"order":2},{"collection":60,"order":3}],"images":[2,3],)"
+          R"("tags":[0,2,4],"target":1})" == sstream.str());
 }

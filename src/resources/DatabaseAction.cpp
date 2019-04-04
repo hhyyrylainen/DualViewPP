@@ -212,16 +212,43 @@ ImageMergeAction::ImageMergeAction(
     if(!parseFromStream(builder, sstream, &value, &errs))
         throw InvalidArgument("invalid json:" + errs);
 
-    const auto& images = value["images"];
+    {
+        const auto& images = value["images"];
 
-    ImagesToMerge.reserve(images.size());
+        ImagesToMerge.reserve(images.size());
 
-    for(const auto& image : images) {
+        for(const auto& image : images) {
 
-        ImagesToMerge.push_back(image.asInt64());
+            ImagesToMerge.push_back(image.asInt64());
+        }
     }
 
     Target = value["target"].asInt64();
+
+    {
+        const auto& tags = value["tags"];
+
+        AddTagsToTarget.reserve(tags.size());
+
+        for(const auto& tag : tags) {
+
+            AddTagsToTarget.push_back(tag.asString());
+        }
+    }
+
+    {
+        const auto& collections = value["collections"];
+
+        AddTargetToCollections.reserve(collections.size());
+
+        for(const auto& data : collections) {
+
+            const auto collection = data["collection"].asInt64();
+            const auto order = data["order"].asInt64();
+
+            AddTargetToCollections.push_back(std::make_tuple(collection, order));
+        }
+    }
 }
 
 ImageMergeAction::~ImageMergeAction()
@@ -253,6 +280,23 @@ void ImageMergeAction::_SerializeCustomData(Json::Value& value) const
         images[static_cast<unsigned>(i)] = ImagesToMerge[i];
     }
 
+    Json::Value tags;
+    tags.resize(AddTagsToTarget.size());
+    for(size_t i = 0; i < tags.size(); ++i) {
+        tags[static_cast<unsigned>(i)] = AddTagsToTarget[i];
+    }
+
+    Json::Value collections;
+    collections.resize(AddTargetToCollections.size());
+    for(size_t i = 0; i < collections.size(); ++i) {
+        Json::Value element;
+        element["collection"] = std::get<0>(AddTargetToCollections[i]);
+        element["order"] = std::get<1>(AddTargetToCollections[i]);
+        collections[static_cast<unsigned>(i)] = element;
+    }
+
     value["images"] = images;
     value["target"] = Target;
+    value["tags"] = tags;
+    value["collections"] = collections;
 }
