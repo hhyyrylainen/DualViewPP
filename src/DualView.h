@@ -252,7 +252,6 @@ public:
     VirtualPath ResolvePathToFolder(DBID id);
 
     //! \brief Parses an AppliedTag from a string. Doesn't add it to the database automatically
-    //! \note This will lock the database, so if it already locked this causes a deadlock
     std::shared_ptr<AppliedTag> ParseTagFromString(std::string str) const;
 
 

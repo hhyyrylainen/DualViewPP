@@ -44,7 +44,7 @@ protected:
     Image();
 
     //! \brief Constructor for database loading
-    Image(Database& db, Lock& dblock, PreparedStatement& statement, int64_t id);
+    Image(Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id);
 
     //! \brief Init that must be called after a shared_ptr to this instance is created
     //!
@@ -57,7 +57,7 @@ public:
     //! \brief Loads a database image
     //! \exception InvalidSQL if data is missing in the statement
     inline static std::shared_ptr<Image> Create(
-        Database& db, Lock& dblock, PreparedStatement& statement, int64_t id)
+        Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id)
     {
         auto obj = std::shared_ptr<Image>(new Image(db, dblock, statement, id));
         obj->Init();
@@ -181,6 +181,12 @@ public:
         return Deleted;
     }
 
+    //! \copydoc Image::Merged
+    bool IsMerged() const
+    {
+        return Merged;
+    }
+
     //! \brief Updates the resources location. Must be called after the file at ResourcePath
     //! is moved
     void SetResourcePath(const std::string& newpath);
@@ -220,7 +226,7 @@ public:
 protected:
     // DatabaseResource implementation
     void _DoSave(Database& db) override;
-    void _DoSave(Database& db, Lock& dblock) override;
+    void _DoSave(Database& db, DatabaseLockT& dblock) override;
     void _OnAdopted() override;
     void _OnPurged() override;
 
@@ -228,6 +234,12 @@ protected:
     void _UpdateDeletedStatus(bool deleted)
     {
         Deleted = deleted;
+    }
+
+    //! Called from Database
+    void _UpdateMergedStatus(bool merged)
+    {
+        Merged = merged;
     }
 
 
@@ -293,6 +305,12 @@ protected:
 
     //! If true deleted from the database and many things should skip this image
     bool Deleted = false;
+
+    //! If true this has been merged into another Image (Deleted should usually be true when
+    //! this is true)
+    //! \note This is not stored in the DB so this is only available after merging until all
+    //! references to this object are removed
+    bool Merged = false;
 };
 
 } // namespace DV

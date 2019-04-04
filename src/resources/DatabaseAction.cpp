@@ -16,7 +16,7 @@ DatabaseAction::DatabaseAction(DBID id, Database& from) : DatabaseResource(id, f
 DatabaseAction::~DatabaseAction() {}
 // ------------------------------------ //
 std::shared_ptr<DatabaseAction> DatabaseAction::Create(
-    Database& db, Lock& dblock, PreparedStatement& statement, DBID id)
+    Database& db, DatabaseLockT& dblock, PreparedStatement& statement, DBID id)
 {
     CheckRowID(statement, 1, "type");
     CheckRowID(statement, 2, "performed");
@@ -35,6 +35,9 @@ std::shared_ptr<DatabaseAction> DatabaseAction::Create(
     switch(type) {
     case DATABASE_ACTION_TYPE::ImageDelete:
         return std::shared_ptr<ImageDeleteAction>(new ImageDeleteAction(
+            id, db, statement.GetColumnAsBool(2), statement.GetColumnAsString(3)));
+    case DATABASE_ACTION_TYPE::ImageMerge:
+        return std::shared_ptr<ImageMergeAction>(new ImageMergeAction(
             id, db, statement.GetColumnAsBool(2), statement.GetColumnAsString(3)));
     case DATABASE_ACTION_TYPE::Invalid:
         LOG_ERROR("DatabaseAction: from DB read type is DATABASE_ACTION_TYPE::Invalid");
@@ -57,6 +60,7 @@ bool DatabaseAction::Redo()
 
         LOG_INFO("Error happened in DatabaseAction::Redo:");
         e.PrintToLog();
+        Performed = false;
         return false;
     }
 
@@ -78,6 +82,7 @@ bool DatabaseAction::Undo()
 
         LOG_INFO("Error happened in DatabaseAction::Undo:");
         e.PrintToLog();
+        Performed = true;
         return false;
     }
 
@@ -113,12 +118,11 @@ void DatabaseAction::_ReportPerformedStatus(bool performed)
 // ------------------------------------ //
 void DatabaseAction::_DoSave(Database& db)
 {
-    // TODO: check if this needs to work
-    DEBUG_BREAK;
+    db.UpdateDatabaseActionAG(*this);
 }
-void DatabaseAction::_DoSave(Database& db, Lock& dblock)
+void DatabaseAction::_DoSave(Database& db, DatabaseLockT& dblock)
 {
-    DEBUG_BREAK;
+    db.UpdateDatabaseAction(dblock, *this);
 }
 // ------------------------------------ //
 void DatabaseAction::_OnPurged()
@@ -186,4 +190,69 @@ void ImageDeleteAction::_SerializeCustomData(Json::Value& value) const
     }
 
     value["images"] = images;
+}
+// ------------------------------------ //
+// ImageMergeAction
+ImageMergeAction::ImageMergeAction(DBID mergetarget, const std::vector<DBID>& images) :
+    Target(mergetarget), ImagesToMerge(images)
+{}
+
+ImageMergeAction::ImageMergeAction(
+    DBID id, Database& from, bool performed, const std::string& customdata) :
+    DatabaseAction(id, from)
+{
+    Performed = performed;
+
+    std::stringstream sstream(customdata);
+
+    Json::CharReaderBuilder builder;
+    Json::Value value;
+    JSONCPP_STRING errs;
+
+    if(!parseFromStream(builder, sstream, &value, &errs))
+        throw InvalidArgument("invalid json:" + errs);
+
+    const auto& images = value["images"];
+
+    ImagesToMerge.reserve(images.size());
+
+    for(const auto& image : images) {
+
+        ImagesToMerge.push_back(image.asInt64());
+    }
+
+    Target = value["target"].asInt64();
+}
+
+ImageMergeAction::~ImageMergeAction()
+{
+    DBResourceDestruct();
+}
+// ------------------------------------ //
+void ImageMergeAction::_Redo()
+{
+    InDatabase->RedoAction(*this);
+}
+
+void ImageMergeAction::_Undo()
+{
+    InDatabase->UndoAction(*this);
+}
+
+void ImageMergeAction::_OnPurged()
+{
+    DatabaseAction::_OnPurged();
+    InDatabase->PurgeAction(*this);
+}
+
+void ImageMergeAction::_SerializeCustomData(Json::Value& value) const
+{
+    Json::Value images;
+    images.resize(ImagesToMerge.size());
+    for(size_t i = 0; i < images.size(); ++i) {
+        images[static_cast<unsigned>(i)] = ImagesToMerge[i];
+    }
+
+    value["images"] = images;
+    value["target"] = Target;
 }

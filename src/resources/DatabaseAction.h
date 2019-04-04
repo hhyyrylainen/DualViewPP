@@ -16,6 +16,7 @@ class PreparedStatement;
 //! \brief Used to create the correct class from the action_history table
 enum class DATABASE_ACTION_TYPE : int {
     ImageDelete = 1,
+    ImageMerge,
     Invalid /* must be always last value */
 };
 
@@ -35,7 +36,7 @@ public:
     virtual ~DatabaseAction();
 
     static std::shared_ptr<DatabaseAction> Create(
-        Database& db, Lock& dblock, PreparedStatement& statement, DBID id);
+        Database& db, DatabaseLockT& dblock, PreparedStatement& statement, DBID id);
 
     bool Redo() override;
     bool Undo() override;
@@ -65,7 +66,7 @@ private:
     virtual void _Undo() = 0;
 
     void _DoSave(Database& db) override;
-    void _DoSave(Database& db, Lock& dblock) override;
+    void _DoSave(Database& db, DatabaseLockT& dblock) override;
 
 private:
     bool Deleted = false;
@@ -75,7 +76,7 @@ private:
 class ImageDeleteAction final : public DatabaseAction {
     friend Database;
     friend std::shared_ptr<DatabaseAction> DatabaseAction::Create(
-        Database& db, Lock& dblock, PreparedStatement& statement, DBID id);
+        Database& db, DatabaseLockT& dblock, PreparedStatement& statement, DBID id);
 
 protected:
     ImageDeleteAction(DBID id, Database& from, bool performed, const std::string& customdata);
@@ -97,8 +98,6 @@ public:
     }
 
 protected:
-    void SetImagesToDelete(const std::vector<DBID>& images);
-
     void _OnPurged() override;
 
 private:
@@ -108,6 +107,50 @@ private:
 
 private:
     std::vector<DBID> ImagesToDelete;
+};
+
+
+//! \brief Image(s) were merged
+class ImageMergeAction final : public DatabaseAction {
+    friend Database;
+    friend std::shared_ptr<DatabaseAction> DatabaseAction::Create(
+        Database& db, DatabaseLockT& dblock, PreparedStatement& statement, DBID id);
+
+protected:
+    ImageMergeAction(DBID id, Database& from, bool performed, const std::string& customdata);
+
+public:
+    //! This is public just to make std::make_shared work
+    //! \protected
+    ImageMergeAction(DBID mergetarget, const std::vector<DBID>& images);
+    ~ImageMergeAction();
+
+    DATABASE_ACTION_TYPE GetType() const override
+    {
+        return DATABASE_ACTION_TYPE::ImageMerge;
+    }
+
+    const auto GetTarget() const
+    {
+        return Target;
+    }
+
+    const auto& GetImagesToMerge() const
+    {
+        return ImagesToMerge;
+    }
+
+protected:
+    void _OnPurged() override;
+
+private:
+    void _Redo() override;
+    void _Undo() override;
+    void _SerializeCustomData(Json::Value& value) const override;
+
+private:
+    DBID Target;
+    std::vector<DBID> ImagesToMerge;
 };
 
 } // namespace DV

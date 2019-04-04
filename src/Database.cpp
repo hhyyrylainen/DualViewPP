@@ -32,6 +32,9 @@
 
 using namespace DV;
 // ------------------------------------ //
+static_assert(
+    std::is_same_v<DatabaseLockT, Database::LockT>, "DatabaseLockT is no longer up to date");
+
 std::string PreparePathForSQLite(std::string path)
 {
     CurlWrapper urlencoder;
@@ -258,7 +261,7 @@ void Database::PurgeInactiveCache()
     LoadedDatabaseActions.Purge();
 }
 // ------------------------------------ //
-bool Database::SelectDatabaseVersion(Lock& guard, sqlite3* db, int& result)
+bool Database::SelectDatabaseVersion(LockT& guard, sqlite3* db, int& result)
 {
     const char str[] = "SELECT number FROM version;";
 
@@ -287,7 +290,7 @@ bool Database::SelectDatabaseVersion(Lock& guard, sqlite3* db, int& result)
 }
 // ------------------------------------ //
 // Image
-void Database::InsertImage(Lock& guard, Image& image)
+void Database::InsertImage(LockT& guard, Image& image)
 {
     LEVIATHAN_ASSERT(image.IsReady(), "InsertImage: image not ready");
 
@@ -319,7 +322,7 @@ void Database::InsertImage(Lock& guard, Image& image)
     image.OnAdopted(id, *this);
 }
 
-bool Database::UpdateImage(Lock& guard, Image& image)
+bool Database::UpdateImage(LockT& guard, Image& image)
 {
     if(!image.IsInDatabase())
         return false;
@@ -358,7 +361,7 @@ bool Database::UpdateImage(Lock& guard, Image& image)
 }
 
 void Database::_InsertImageSignatureParts(
-    Lock& guard, DBID image, const std::string& signature)
+    LockT& guard, DBID image, const std::string& signature)
 {
     // This will also clear old entries if there were any with the foreign keys
     RunOnSignatureDB(guard, "INSERT OR REPLACE INTO pictures (id, signature) VALUES(?, ?);",
@@ -408,7 +411,8 @@ std::shared_ptr<DatabaseAction> Database::DeleteImage(Image& image)
     return action;
 }
 
-std::shared_ptr<ImageDeleteAction> Database::CreateDeleteImageAction(Lock& guard, Image& image)
+std::shared_ptr<ImageDeleteAction> Database::CreateDeleteImageAction(
+    LockT& guard, Image& image)
 {
     if(!image.IsInDatabase() || image.IsDeleted())
         return nullptr;
@@ -444,7 +448,7 @@ std::shared_ptr<ImageDeleteAction> Database::CreateDeleteImageAction(Lock& guard
     return action;
 }
 
-DBID Database::SelectImageIDByHash(Lock& guard, const std::string& hash)
+DBID Database::SelectImageIDByHash(LockT& guard, const std::string& hash)
 {
     const char str[] = "SELECT id FROM pictures WHERE file_hash = ?1;";
 
@@ -462,7 +466,7 @@ DBID Database::SelectImageIDByHash(Lock& guard, const std::string& hash)
     return -1;
 }
 
-std::string Database::SelectImageSignatureByID(Lock& guard, DBID image)
+std::string Database::SelectImageSignatureByID(LockT& guard, DBID image)
 {
     const char str[] = "SELECT signature FROM pictures WHERE id = ?1;";
 
@@ -478,7 +482,7 @@ std::string Database::SelectImageSignatureByID(Lock& guard, DBID image)
     return "";
 }
 
-std::vector<DBID> Database::SelectImageIDsWithoutSignature(Lock& guard)
+std::vector<DBID> Database::SelectImageIDsWithoutSignature(LockT& guard)
 {
     std::unordered_set<DBID> imagesWithSignature;
 
@@ -525,7 +529,7 @@ std::vector<DBID> Database::SelectImageIDsWithoutSignature(Lock& guard)
     return result;
 }
 
-std::shared_ptr<Image> Database::SelectImageByHash(Lock& guard, const std::string& hash)
+std::shared_ptr<Image> Database::SelectImageByHash(LockT& guard, const std::string& hash)
 {
     const char str[] = "SELECT * FROM pictures WHERE file_hash = ?1;";
 
@@ -541,7 +545,7 @@ std::shared_ptr<Image> Database::SelectImageByHash(Lock& guard, const std::strin
     return nullptr;
 }
 
-std::shared_ptr<Image> Database::SelectImageByID(Lock& guard, DBID id)
+std::shared_ptr<Image> Database::SelectImageByID(LockT& guard, DBID id)
 {
     const char str[] = "SELECT * FROM pictures WHERE id = ?1;";
 
@@ -557,7 +561,7 @@ std::shared_ptr<Image> Database::SelectImageByID(Lock& guard, DBID id)
     return nullptr;
 }
 
-std::shared_ptr<Image> Database::SelectImageByIDSkipDeleted(Lock& guard, DBID id)
+std::shared_ptr<Image> Database::SelectImageByIDSkipDeleted(LockT& guard, DBID id)
 {
     const char str[] = "SELECT * FROM pictures WHERE id = ?1 AND deleted IS NOT 1;";
 
@@ -573,7 +577,7 @@ std::shared_ptr<Image> Database::SelectImageByIDSkipDeleted(Lock& guard, DBID id
     return nullptr;
 }
 
-std::vector<std::shared_ptr<Image>> Database::SelectImageByTag(Lock& guard, DBID tagid)
+std::vector<std::shared_ptr<Image>> Database::SelectImageByTag(LockT& guard, DBID tagid)
 {
     std::vector<std::shared_ptr<Image>> result;
 
@@ -612,7 +616,7 @@ std::shared_ptr<TagCollection> Database::LoadImageTags(const std::shared_ptr<Ima
 }
 
 void Database::SelectImageTags(
-    Lock& guard, std::weak_ptr<Image> image, std::vector<std::shared_ptr<AppliedTag>>& tags)
+    LockT& guard, std::weak_ptr<Image> image, std::vector<std::shared_ptr<AppliedTag>>& tags)
 {
     auto imageLock = image.lock();
 
@@ -650,7 +654,7 @@ void Database::SelectImageTags(
     }
 }
 
-void Database::InsertImageTag(Lock& guard, std::weak_ptr<Image> image, AppliedTag& tag)
+void Database::InsertImageTag(LockT& guard, std::weak_ptr<Image> image, AppliedTag& tag)
 {
     auto imageLock = image.lock();
 
@@ -674,7 +678,7 @@ void Database::InsertImageTag(Lock& guard, std::weak_ptr<Image> image, AppliedTa
     InsertTagImage(guard, *imageLock, tag.GetID());
 }
 
-void Database::InsertTagImage(Lock& guard, Image& image, DBID appliedtagid)
+void Database::InsertTagImage(LockT& guard, Image& image, DBID appliedtagid)
 {
     const char str[] = "INSERT INTO image_tag (image, tag) VALUES (?, ?);";
 
@@ -685,7 +689,7 @@ void Database::InsertTagImage(Lock& guard, Image& image, DBID appliedtagid)
     statementobj.StepAll(statementinuse);
 }
 
-void Database::DeleteImageTag(Lock& guard, std::weak_ptr<Image> image, AppliedTag& tag)
+void Database::DeleteImageTag(LockT& guard, std::weak_ptr<Image> image, AppliedTag& tag)
 {
     auto imageLock = image.lock();
 
@@ -748,7 +752,7 @@ std::map<DBID, std::vector<std::tuple<DBID, int>>> Database::SelectPotentialImag
 // ------------------------------------ //
 // Collection
 std::shared_ptr<Collection> Database::InsertCollection(
-    Lock& guard, const std::string& name, bool isprivate)
+    LockT& guard, const std::string& name, bool isprivate)
 {
     const char str[] = "INSERT INTO collections (name, is_private, "
                        "add_date, modify_date, last_view) VALUES (?, ?, ?, ?, ?);";
@@ -816,7 +820,7 @@ std::shared_ptr<Collection> Database::SelectCollectionByID(DBID id)
 }
 
 std::shared_ptr<Collection> Database::SelectCollectionByName(
-    Lock& guard, const std::string& name)
+    LockT& guard, const std::string& name)
 {
     const char str[] = "SELECT * FROM collections WHERE name = ?1 AND deleted IS NOT 1;";
 
@@ -856,7 +860,7 @@ std::vector<std::string> Database::SelectCollectionNamesByWildcard(
     return result;
 }
 
-int64_t Database::SelectCollectionLargestShowOrder(Lock& guard, const Collection& collection)
+int64_t Database::SelectCollectionLargestShowOrder(LockT& guard, const Collection& collection)
 {
     if(!collection.IsInDatabase())
         return 0;
@@ -876,7 +880,7 @@ int64_t Database::SelectCollectionLargestShowOrder(Lock& guard, const Collection
     return 0;
 }
 
-int64_t Database::SelectCollectionImageCount(Lock& guard, const Collection& collection)
+int64_t Database::SelectCollectionImageCount(LockT& guard, const Collection& collection)
 {
     if(!collection.IsInDatabase())
         return 0;
@@ -915,7 +919,7 @@ std::shared_ptr<TagCollection> Database::LoadCollectionTags(
     return tags;
 }
 
-void Database::SelectCollectionTags(Lock& guard, std::weak_ptr<Collection> collection,
+void Database::SelectCollectionTags(LockT& guard, std::weak_ptr<Collection> collection,
     std::vector<std::shared_ptr<AppliedTag>>& tags)
 {
     auto collectionLock = collection.lock();
@@ -955,7 +959,7 @@ void Database::SelectCollectionTags(Lock& guard, std::weak_ptr<Collection> colle
 }
 
 void Database::InsertCollectionTag(
-    Lock& guard, std::weak_ptr<Collection> collection, AppliedTag& tag)
+    LockT& guard, std::weak_ptr<Collection> collection, AppliedTag& tag)
 {
     auto collectionLock = collection.lock();
 
@@ -979,7 +983,7 @@ void Database::InsertCollectionTag(
     InsertTagCollection(guard, *collectionLock, tag.GetID());
 }
 
-void Database::InsertTagCollection(Lock& guard, Collection& collection, DBID appliedtagid)
+void Database::InsertTagCollection(LockT& guard, Collection& collection, DBID appliedtagid)
 {
     const char str[] = "INSERT INTO collection_tag (collection, tag) VALUES (?, ?);";
 
@@ -991,7 +995,7 @@ void Database::InsertTagCollection(Lock& guard, Collection& collection, DBID app
 }
 
 void Database::DeleteCollectionTag(
-    Lock& guard, std::weak_ptr<Collection> collection, AppliedTag& tag)
+    LockT& guard, std::weak_ptr<Collection> collection, AppliedTag& tag)
 {
     auto collectionLock = collection.lock();
 
@@ -1012,7 +1016,7 @@ void Database::DeleteCollectionTag(
 // ------------------------------------ //
 // Collection image
 bool Database::InsertImageToCollection(
-    Lock& guard, Collection& collection, Image& image, int64_t showorder)
+    LockT& guard, Collection& collection, Image& image, int64_t showorder)
 {
     if(!collection.IsInDatabase() || !image.IsInDatabase())
         return false;
@@ -1033,7 +1037,7 @@ bool Database::InsertImageToCollection(
     return changes == 1;
 }
 
-bool Database::SelectIsImageInAnyCollection(Lock& guard, const Image& image)
+bool Database::SelectIsImageInAnyCollection(LockT& guard, const Image& image)
 {
     const char str[] = "SELECT 1 FROM collection_image WHERE image = ?;";
 
@@ -1049,7 +1053,7 @@ bool Database::SelectIsImageInAnyCollection(Lock& guard, const Image& image)
     return false;
 }
 
-bool Database::DeleteImageFromCollection(Lock& guard, Collection& collection, Image& image)
+bool Database::DeleteImageFromCollection(LockT& guard, Collection& collection, Image& image)
 {
     if(!collection.IsInDatabase() || !image.IsInDatabase())
         return false;
@@ -1070,7 +1074,7 @@ bool Database::DeleteImageFromCollection(Lock& guard, Collection& collection, Im
 }
 
 int64_t Database::SelectImageShowOrderInCollection(
-    Lock& guard, const Collection& collection, const Image& image)
+    LockT& guard, const Collection& collection, const Image& image)
 {
     if(!collection.IsInDatabase() || !image.IsInDatabase())
         return -1;
@@ -1091,7 +1095,7 @@ int64_t Database::SelectImageShowOrderInCollection(
 }
 
 std::shared_ptr<Image> Database::SelectImageInCollectionByShowOrder(
-    Lock& guard, const Collection& collection, int64_t showorder)
+    LockT& guard, const Collection& collection, int64_t showorder)
 {
     if(!collection.IsInDatabase())
         return nullptr;
@@ -1139,7 +1143,7 @@ std::shared_ptr<Image> Database::SelectCollectionPreviewImage(const Collection& 
 }
 
 std::shared_ptr<Image> Database::SelectFirstImageInCollection(
-    Lock& guard, const Collection& collection)
+    LockT& guard, const Collection& collection)
 {
     const char str[] = "SELECT image FROM collection_image WHERE collection = ? "
                        "ORDER BY show_order ASC;";
@@ -1164,7 +1168,7 @@ std::shared_ptr<Image> Database::SelectFirstImageInCollection(
 }
 
 std::shared_ptr<Image> Database::SelectLastImageInCollection(
-    Lock& guard, const Collection& collection)
+    LockT& guard, const Collection& collection)
 {
     const char str[] = "SELECT image FROM collection_image WHERE collection = ? "
                        "ORDER BY show_order DESC;";
@@ -1212,7 +1216,7 @@ int64_t Database::SelectImageShowIndexInCollection(
 }
 
 std::shared_ptr<Image> Database::SelectImageInCollectionByShowIndex(
-    Lock& guard, const Collection& collection, int64_t index)
+    LockT& guard, const Collection& collection, int64_t index)
 {
     const char str[] = "SELECT * FROM collection_image WHERE collection = ? ORDER BY "
                        "show_order LIMIT 1 OFFSET ?;";
@@ -1338,7 +1342,7 @@ size_t Database::CountExistingTags()
 }
 // ------------------------------------ //
 // Folder
-std::shared_ptr<Folder> Database::SelectRootFolder(Lock& guard)
+std::shared_ptr<Folder> Database::SelectRootFolder(LockT& guard)
 {
     const char str[] = "SELECT * FROM virtual_folders WHERE id = 1;";
 
@@ -1355,7 +1359,7 @@ std::shared_ptr<Folder> Database::SelectRootFolder(Lock& guard)
     return nullptr;
 }
 
-std::shared_ptr<Folder> Database::SelectFolderByID(Lock& guard, DBID id)
+std::shared_ptr<Folder> Database::SelectFolderByID(LockT& guard, DBID id)
 {
     const char str[] = "SELECT * FROM virtual_folders WHERE id = ?;";
 
@@ -1415,7 +1419,7 @@ bool Database::UpdateFolder(Folder& folder)
 // ------------------------------------ //
 // Folder collection
 bool Database::InsertCollectionToFolder(
-    Lock& guard, Folder& folder, const Collection& collection)
+    LockT& guard, Folder& folder, const Collection& collection)
 {
     if(!collection.IsInDatabase() || !folder.IsInDatabase())
         return false;
@@ -1478,7 +1482,7 @@ std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsInFolder(
     return result;
 }
 
-bool Database::SelectCollectionIsInFolder(Lock& guard, const Collection& collection)
+bool Database::SelectCollectionIsInFolder(LockT& guard, const Collection& collection)
 {
     const char str[] = "SELECT 1 FROM folder_collection WHERE child = ? LIMIT 1;";
 
@@ -1495,7 +1499,7 @@ bool Database::SelectCollectionIsInFolder(Lock& guard, const Collection& collect
 }
 
 bool Database::SelectCollectionIsInAnotherFolder(
-    Lock& guard, const Folder& folder, const Collection& collection)
+    LockT& guard, const Folder& folder, const Collection& collection)
 {
     const char str[] = "SELECT 1 FROM folder_collection WHERE child = ? AND parent != ? "
                        "LIMIT 1;";
@@ -1568,7 +1572,7 @@ void Database::InsertCollectionToRootIfInNone(const Collection& collection)
 
 // ------------------------------------ //
 // Folder folder
-void Database::InsertFolderToFolder(Lock& guard, Folder& folder, const Folder& parent)
+void Database::InsertFolderToFolder(LockT& guard, Folder& folder, const Folder& parent)
 {
     const char str[] = "INSERT INTO folder_folder (parent, child) VALUES(?, ?);";
 
@@ -1580,7 +1584,7 @@ void Database::InsertFolderToFolder(Lock& guard, Folder& folder, const Folder& p
 }
 
 std::shared_ptr<Folder> Database::SelectFolderByNameAndParent(
-    Lock& guard, const std::string& name, const Folder& parent)
+    LockT& guard, const std::string& name, const Folder& parent)
 {
     const char str[] =
         "SELECT virtual_folders.* FROM folder_folder "
@@ -1674,7 +1678,7 @@ std::shared_ptr<Tag> Database::InsertTag(
     return SelectTagByID(guard, sqlite3_last_insert_rowid(SQLiteDb));
 }
 
-std::shared_ptr<Tag> Database::SelectTagByID(Lock& guard, DBID id)
+std::shared_ptr<Tag> Database::SelectTagByID(LockT& guard, DBID id)
 {
     const char str[] = "SELECT * FROM tags WHERE id = ?;";
 
@@ -1690,7 +1694,7 @@ std::shared_ptr<Tag> Database::SelectTagByID(Lock& guard, DBID id)
     return nullptr;
 }
 
-std::shared_ptr<Tag> Database::SelectTagByName(Lock& guard, const std::string& name)
+std::shared_ptr<Tag> Database::SelectTagByName(LockT& guard, const std::string& name)
 {
     const char str[] = "SELECT * FROM tags WHERE name = ? AND deleted IS NOT 1;";
 
@@ -1775,7 +1779,7 @@ std::vector<std::shared_ptr<Tag>> Database::SelectTagsWildcard(
     return result;
 }
 
-std::shared_ptr<Tag> Database::SelectTagByAlias(Lock& guard, const std::string& alias)
+std::shared_ptr<Tag> Database::SelectTagByAlias(LockT& guard, const std::string& alias)
 {
     const char str[] =
         "SELECT tags.* FROM tag_aliases "
@@ -1982,7 +1986,7 @@ std::vector<std::shared_ptr<Tag>> Database::SelectTagImpliesAsTag(const Tag& tag
     return result;
 }
 
-std::vector<DBID> Database::SelectTagImplies(Lock& guard, const Tag& tag)
+std::vector<DBID> Database::SelectTagImplies(LockT& guard, const Tag& tag)
 {
     std::vector<DBID> result;
 
@@ -2008,7 +2012,7 @@ std::vector<DBID> Database::SelectTagImplies(Lock& guard, const Tag& tag)
 //
 // AppliedTag
 //
-std::shared_ptr<AppliedTag> Database::SelectAppliedTagByID(Lock& guard, DBID id)
+std::shared_ptr<AppliedTag> Database::SelectAppliedTagByID(LockT& guard, DBID id)
 {
     const char str[] = "SELECT * FROM applied_tag WHERE id = ?;";
 
@@ -2025,7 +2029,7 @@ std::shared_ptr<AppliedTag> Database::SelectAppliedTagByID(Lock& guard, DBID id)
 }
 
 std::shared_ptr<AppliedTag> Database::SelectExistingAppliedTag(
-    Lock& guard, const AppliedTag& tag)
+    LockT& guard, const AppliedTag& tag)
 {
     DBID id = SelectExistingAppliedTagID(guard, tag);
 
@@ -2035,7 +2039,7 @@ std::shared_ptr<AppliedTag> Database::SelectExistingAppliedTag(
     return SelectAppliedTagByID(guard, id);
 }
 
-DBID Database::SelectExistingAppliedTagID(Lock& guard, const AppliedTag& tag)
+DBID Database::SelectExistingAppliedTagID(LockT& guard, const AppliedTag& tag)
 {
     const char str[] = "SELECT id FROM applied_tag WHERE tag = ?;";
 
@@ -2065,7 +2069,7 @@ DBID Database::SelectExistingAppliedTagID(Lock& guard, const AppliedTag& tag)
 }
 
 std::vector<std::shared_ptr<TagModifier>> Database::SelectAppliedTagModifiers(
-    Lock& guard, const AppliedTag& appliedtag)
+    LockT& guard, const AppliedTag& appliedtag)
 {
     std::vector<std::shared_ptr<TagModifier>> result;
 
@@ -2089,7 +2093,7 @@ std::vector<std::shared_ptr<TagModifier>> Database::SelectAppliedTagModifiers(
 }
 
 std::tuple<std::string, std::shared_ptr<AppliedTag>> Database::SelectAppliedTagCombine(
-    Lock& guard, const AppliedTag& appliedtag)
+    LockT& guard, const AppliedTag& appliedtag)
 {
     const char str[] = "SELECT * FROM applied_tag_combine WHERE tag_left = ?;";
 
@@ -2115,7 +2119,7 @@ std::tuple<std::string, std::shared_ptr<AppliedTag>> Database::SelectAppliedTagC
     return std::make_tuple(statementobj.GetColumnAsString(2), SelectAppliedTagByID(guard, id));
 }
 
-bool Database::InsertAppliedTag(Lock& guard, AppliedTag& tag)
+bool Database::InsertAppliedTag(LockT& guard, AppliedTag& tag)
 {
 
     {
@@ -2213,7 +2217,7 @@ bool Database::InsertAppliedTag(Lock& guard, AppliedTag& tag)
     return true;
 }
 
-void Database::DeleteAppliedTagIfNotUsed(Lock& guard, AppliedTag& tag)
+void Database::DeleteAppliedTagIfNotUsed(LockT& guard, AppliedTag& tag)
 {
     if(SelectIsAppliedTagUsed(guard, tag.GetID()))
         return;
@@ -2230,7 +2234,7 @@ void Database::DeleteAppliedTagIfNotUsed(Lock& guard, AppliedTag& tag)
     tag.Orphaned();
 }
 
-bool Database::SelectIsAppliedTagUsed(Lock& guard, DBID id)
+bool Database::SelectIsAppliedTagUsed(LockT& guard, DBID id)
 {
     // Check images
     {
@@ -2281,7 +2285,7 @@ bool Database::SelectIsAppliedTagUsed(Lock& guard, DBID id)
     return false;
 }
 
-bool Database::CheckDoesAppliedTagModifiersMatch(Lock& guard, DBID id, const AppliedTag& tag)
+bool Database::CheckDoesAppliedTagModifiersMatch(LockT& guard, DBID id, const AppliedTag& tag)
 {
     const char str[] = "SELECT modifier FROM applied_tag_modifier WHERE to_tag = ?;";
 
@@ -2348,7 +2352,7 @@ bool Database::CheckDoesAppliedTagModifiersMatch(Lock& guard, DBID id, const App
     return true;
 }
 
-bool Database::CheckDoesAppliedTagCombinesMatch(Lock& guard, DBID id, const AppliedTag& tag)
+bool Database::CheckDoesAppliedTagCombinesMatch(LockT& guard, DBID id, const AppliedTag& tag)
 {
     // Determine id of the right side //
     DBID rightside = -1;
@@ -2402,7 +2406,7 @@ bool Database::CheckDoesAppliedTagCombinesMatch(Lock& guard, DBID id, const Appl
     return rightside == -1;
 }
 
-DBID Database::SelectAppliedTagIDByOffset(Lock& guard, int64_t offset)
+DBID Database::SelectAppliedTagIDByOffset(LockT& guard, int64_t offset)
 {
     const char str[] = "SELECT id FROM applied_tag ORDER BY id ASC LIMIT 1 OFFSET ?;";
 
@@ -2423,7 +2427,7 @@ DBID Database::SelectAppliedTagIDByOffset(Lock& guard, int64_t offset)
     return -1;
 }
 
-void Database::CombineAppliedTagDuplicate(Lock& guard, DBID first, DBID second)
+void Database::CombineAppliedTagDuplicate(LockT& guard, DBID first, DBID second)
 {
     LEVIATHAN_ASSERT(first != second, "CombienAppliedTagDuplicate called with the same tag");
 
@@ -2475,7 +2479,7 @@ void Database::CombineAppliedTagDuplicate(Lock& guard, DBID first, DBID second)
 //
 // TagModifier
 //
-std::shared_ptr<TagModifier> Database::SelectTagModifierByID(Lock& guard, DBID id)
+std::shared_ptr<TagModifier> Database::SelectTagModifierByID(LockT& guard, DBID id)
 {
     const char str[] = "SELECT * FROM tag_modifiers WHERE id = ?;";
 
@@ -2492,7 +2496,7 @@ std::shared_ptr<TagModifier> Database::SelectTagModifierByID(Lock& guard, DBID i
 }
 
 std::shared_ptr<TagModifier> Database::SelectTagModifierByName(
-    Lock& guard, const std::string& name)
+    LockT& guard, const std::string& name)
 {
     const char str[] = "SELECT * FROM tag_modifiers WHERE name = ? AND deleted IS NOT 1;";
 
@@ -2509,7 +2513,7 @@ std::shared_ptr<TagModifier> Database::SelectTagModifierByName(
 }
 
 std::shared_ptr<TagModifier> Database::SelectTagModifierByAlias(
-    Lock& guard, const std::string& alias)
+    LockT& guard, const std::string& alias)
 {
     const char str[] =
         "SELECT tag_modifiers.* FROM tag_modifier_aliases "
@@ -2529,7 +2533,7 @@ std::shared_ptr<TagModifier> Database::SelectTagModifierByAlias(
 }
 
 std::shared_ptr<TagModifier> Database::SelectTagModifierByNameOrAlias(
-    Lock& guard, const std::string& name)
+    LockT& guard, const std::string& name)
 {
     auto tag = SelectTagModifierByName(guard, name);
 
@@ -2561,7 +2565,7 @@ void Database::UpdateTagModifier(const TagModifier& modifier)
 // TagBreakRule
 //
 std::shared_ptr<TagBreakRule> Database::SelectTagBreakRuleByExactPattern(
-    Lock& guard, const std::string& pattern)
+    LockT& guard, const std::string& pattern)
 {
     const char str[] = "SELECT * FROM common_composite_tags WHERE tag_string = ?;";
 
@@ -2602,7 +2606,7 @@ std::shared_ptr<TagBreakRule> Database::SelectTagBreakRuleByStr(const std::strin
 }
 
 std::vector<std::shared_ptr<TagModifier>> Database::SelectModifiersForBreakRule(
-    Lock& guard, const TagBreakRule& rule)
+    LockT& guard, const TagBreakRule& rule)
 {
     std::vector<std::shared_ptr<TagModifier>> result;
 
@@ -2659,7 +2663,7 @@ std::vector<DBID> Database::SelectNetGalleryIDs(bool nodownloaded)
     return result;
 }
 
-std::shared_ptr<NetGallery> Database::SelectNetGalleryByID(Lock& guard, DBID id)
+std::shared_ptr<NetGallery> Database::SelectNetGalleryByID(LockT& guard, DBID id)
 {
     const char str[] = "SELECT * FROM net_gallery WHERE id = ?;";
 
@@ -2675,7 +2679,7 @@ std::shared_ptr<NetGallery> Database::SelectNetGalleryByID(Lock& guard, DBID id)
     return nullptr;
 }
 
-bool Database::InsertNetGallery(Lock& guard, std::shared_ptr<NetGallery> gallery)
+bool Database::InsertNetGallery(LockT& guard, std::shared_ptr<NetGallery> gallery)
 {
     if(gallery->IsInDatabase())
         return false;
@@ -2742,7 +2746,7 @@ std::vector<std::shared_ptr<NetFile>> Database::SelectNetFilesFromGallery(NetGal
     return result;
 }
 
-std::shared_ptr<NetFile> Database::SelectNetFileByID(Lock& guard, DBID id)
+std::shared_ptr<NetFile> Database::SelectNetFileByID(LockT& guard, DBID id)
 {
     const char str[] = "SELECT * FROM net_files WHERE id = ?;";
 
@@ -2758,7 +2762,7 @@ std::shared_ptr<NetFile> Database::SelectNetFileByID(Lock& guard, DBID id)
     return nullptr;
 }
 
-void Database::InsertNetFile(Lock& guard, NetFile& netfile, NetGallery& gallery)
+void Database::InsertNetFile(LockT& guard, NetFile& netfile, NetGallery& gallery)
 {
     if(!gallery.IsInDatabase())
         return;
@@ -2886,22 +2890,66 @@ void Database::SelectTagSuperAliasWildcard(
 // ------------------------------------ //
 // Complex operations
 std::shared_ptr<DatabaseAction> Database::MergeImages(
-    const std::shared_ptr<Image>& mergeTarget,
-    const std::vector<std::shared_ptr<Image>>& toMerge)
+    const Image& mergetarget, const std::vector<std::shared_ptr<Image>>& tomerge)
 {
+    if(!mergetarget.IsInDatabase() || mergetarget.IsDeleted())
+        return nullptr;
+
+    for(const auto image : tomerge)
+        if(!image->IsInDatabase() || image->IsDeleted())
+            return nullptr;
+
+    // Create the action
+    std::vector<DBID> toMergeIDs;
+    std::transform(tomerge.begin(), tomerge.end(), std::back_inserter(toMergeIDs),
+        [](const std::shared_ptr<Image>& image) { return image->GetID(); });
+
+    auto action = std::make_shared<ImageMergeAction>(mergetarget.GetID(), toMergeIDs);
+
     GUARD_LOCK();
 
-    // Detect undo information
+    {
+        DoDBSavePoint transaction(*this, guard, "image_merge", true);
+        transaction.AllowCommit(false);
 
+        // The signature DB is a cache and it doesn't need to be restored
+        for(DBID id : toMergeIDs)
+            RunOnSignatureDB(guard,
+                "DELETE FROM pictures WHERE id = ?1; DELETE FROM picture_signature_words "
+                "WHERE "
+                "picture_id = ?1;",
+                id);
 
-    // Perform the operation
+        RunSQLAsPrepared(guard,
+            "INSERT INTO action_history (type, performed, json_data) "
+            "VALUES(?1, 1, ?2);",
+            static_cast<int>(action->GetType()), action->SerializeData());
 
-    return nullptr;
+        const auto actionId = sqlite3_last_insert_rowid(SQLiteDb);
+        action->OnAdopted(actionId, *this);
+
+        // The action must be done here as this
+        if(!action->Redo()) {
+
+            LOG_ERROR("Database: freshly created MergeImages action failed");
+            return nullptr;
+        }
+
+        transaction.AllowCommit(true);
+    }
+
+    auto casted = std::static_pointer_cast<DatabaseAction>(action);
+    LoadedDatabaseActions.OnLoad(casted);
+
+    if(casted.get() != action.get())
+        LOG_ERROR("Database: action got changed on store");
+
+    return action;
 }
 
 // ------------------------------------ //
 // Actions
-std::shared_ptr<DatabaseAction> Database::SelectDatabaseActionByID(Lock& guard, DBID id)
+std::shared_ptr<DatabaseAction> Database::SelectDatabaseActionByID(LockT& guard, DBID id)
 {
     const char str[] = "SELECT * FROM action_history WHERE id = ?1;";
 
@@ -2915,6 +2963,22 @@ std::shared_ptr<DatabaseAction> Database::SelectDatabaseActionByID(Lock& guard, 
     }
 
     return nullptr;
+}
+
+bool Database::UpdateDatabaseAction(LockT& guard, DatabaseAction& action)
+{
+    if(action.IsDeleted() || !action.IsInDatabase())
+        return false;
+
+    const char str[] =
+        "UPDATE action_history SET performed = ?1, json_data = ?2 WHERE id = ?3;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(action.IsPerformed(), action.SerializeData());
+
+    statementobj.StepAll(statementinuse);
+    return true;
 }
 
 void Database::DeleteDatabaseAction(DatabaseAction& action)
@@ -2938,7 +3002,7 @@ void Database::DeleteDatabaseAction(DatabaseAction& action)
 
 // ------------------------------------ //
 // Database maintainance functions
-void Database::CombineAllPossibleAppliedTags(Lock& guard)
+void Database::CombineAllPossibleAppliedTags(LockT& guard)
 {
     int64_t count = 0;
 
@@ -3043,6 +3107,7 @@ int64_t Database::CountAppliedTags()
 
 // ------------------------------------ //
 // These are for DatabaseAction to use
+// ImageDeleteAction
 void Database::RedoAction(ImageDeleteAction& action)
 {
     GUARD_LOCK();
@@ -3084,25 +3149,83 @@ void Database::PurgeAction(ImageDeleteAction& action)
         return;
 
     // Permanently delete the images
-    for(const auto& image : action.GetImagesToDelete()) {
+    _PurgeImages(guard, action.GetImagesToDelete());
+}
 
-        auto loadedImage = SelectImageByID(guard, image);
+// ImageMergeAction
+void Database::RedoAction(ImageMergeAction& action)
+{
+    GUARD_LOCK();
 
-        if(loadedImage) {
-            loadedImage->_OnPurged();
-            LoadedImages.Remove(image);
-        } else {
-            LOG_WARNING("Database: purging non-existant image");
+    // Detect collections and tags the merged images have that the target doesn't have
+
+    DoDBSavePoint transaction(*this, guard, "image_merge_redo", true);
+    transaction.AllowCommit(false);
+
+    // Mark the image(s) as deleted and merged
+    for(const auto& image : action.GetImagesToMerge()) {
+        RunSQLAsPrepared(guard, "UPDATE pictures SET deleted = 1 WHERE id = ?1;", image);
+
+        auto obj = LoadedImages.GetIfLoaded(image);
+        if(obj) {
+            obj->_UpdateDeletedStatus(true);
+            obj->_UpdateMergedStatus(true);
         }
-
-        RunSQLAsPrepared(guard, "DELETE FROM pictures WHERE id = ?1;", image);
     }
+
+    // Apply the detected properties that need to be added to the target
+
+
+    _SetActionStatus(guard, action, true);
+
+    // Save the detected information needed for undo
+    action.Save();
+
+    transaction.AllowCommit(true);
+}
+
+void Database::UndoAction(ImageMergeAction& action)
+{
+    GUARD_LOCK();
+
+    DoDBSavePoint transaction(*this, guard, "image_merge_undo", true);
+    transaction.AllowCommit(false);
+
+    // Unmark the image(s) as deleted and merged
+    for(const auto& image : action.GetImagesToMerge()) {
+        RunSQLAsPrepared(guard, "UPDATE pictures SET deleted = NULL WHERE id = ?1;", image);
+
+        auto obj = LoadedImages.GetIfLoaded(image);
+        if(obj) {
+            obj->_UpdateDeletedStatus(false);
+            obj->_UpdateMergedStatus(false);
+        }
+    }
+
+    // Undo the added extra properties on the target
+
+
+    _SetActionStatus(guard, action, false);
+
+    transaction.AllowCommit(true);
+}
+
+void Database::PurgeAction(ImageMergeAction& action)
+{
+    GUARD_LOCK();
+
+    // If this action is currently not performed no resources related to it should be merged
+    if(!action.IsPerformed())
+        return;
+
+    // Permanently delete the images
+    _PurgeImages(guard, action.GetImagesToMerge());
 }
 
 // ------------------------------------ //
 // Row parsing functions
 std::shared_ptr<NetFile> Database::_LoadNetFileFromRow(
-    Lock& guard, PreparedStatement& statement)
+    LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
@@ -3117,7 +3240,7 @@ std::shared_ptr<NetFile> Database::_LoadNetFileFromRow(
 }
 
 std::shared_ptr<NetGallery> Database::_LoadNetGalleryFromRow(
-    Lock& guard, PreparedStatement& statement)
+    LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
@@ -3140,7 +3263,7 @@ std::shared_ptr<NetGallery> Database::_LoadNetGalleryFromRow(
 }
 
 std::shared_ptr<TagBreakRule> Database::_LoadTagBreakRuleFromRow(
-    Lock& guard, PreparedStatement& statement)
+    LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
@@ -3155,7 +3278,7 @@ std::shared_ptr<TagBreakRule> Database::_LoadTagBreakRuleFromRow(
 }
 
 std::shared_ptr<AppliedTag> Database::_LoadAppliedTagFromRow(
-    Lock& guard, PreparedStatement& statement)
+    LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
@@ -3170,7 +3293,7 @@ std::shared_ptr<AppliedTag> Database::_LoadAppliedTagFromRow(
 }
 
 std::shared_ptr<TagModifier> Database::_LoadTagModifierFromRow(
-    Lock& guard, PreparedStatement& statement)
+    LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
@@ -3184,7 +3307,7 @@ std::shared_ptr<TagModifier> Database::_LoadTagModifierFromRow(
     return std::make_shared<TagModifier>(*this, guard, statement, id);
 }
 
-std::shared_ptr<Tag> Database::_LoadTagFromRow(Lock& guard, PreparedStatement& statement)
+std::shared_ptr<Tag> Database::_LoadTagFromRow(LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
@@ -3207,7 +3330,7 @@ std::shared_ptr<Tag> Database::_LoadTagFromRow(Lock& guard, PreparedStatement& s
 }
 
 std::shared_ptr<Collection> Database::_LoadCollectionFromRow(
-    Lock& guard, PreparedStatement& statement)
+    LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
@@ -3229,7 +3352,7 @@ std::shared_ptr<Collection> Database::_LoadCollectionFromRow(
     return loaded;
 }
 
-std::shared_ptr<Image> Database::_LoadImageFromRow(Lock& guard, PreparedStatement& statement)
+std::shared_ptr<Image> Database::_LoadImageFromRow(LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
@@ -3251,7 +3374,8 @@ std::shared_ptr<Image> Database::_LoadImageFromRow(Lock& guard, PreparedStatemen
     return loaded;
 }
 
-std::shared_ptr<Folder> Database::_LoadFolderFromRow(Lock& guard, PreparedStatement& statement)
+std::shared_ptr<Folder> Database::_LoadFolderFromRow(
+    LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
@@ -3274,7 +3398,7 @@ std::shared_ptr<Folder> Database::_LoadFolderFromRow(Lock& guard, PreparedStatem
 }
 
 std::shared_ptr<DatabaseAction> Database::_LoadDatabaseActionFromRow(
-    Lock& guard, PreparedStatement& statement)
+    LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
@@ -3302,7 +3426,7 @@ std::shared_ptr<DatabaseAction> Database::_LoadDatabaseActionFromRow(
 }
 // ------------------------------------ //
 // Helper operations
-void Database::_SetActionStatus(Lock& guard, DatabaseAction& action, bool performed)
+void Database::_SetActionStatus(LockT& guard, DatabaseAction& action, bool performed)
 {
     RunSQLAsPrepared(guard, "UPDATE action_history SET performed = ?1 WHERE id = ?2;",
         performed ? 1 : 0, action.GetID());
@@ -3310,13 +3434,40 @@ void Database::_SetActionStatus(Lock& guard, DatabaseAction& action, bool perfor
     action._ReportPerformedStatus(performed);
 }
 
+void Database::_PurgeImages(LockT& guard, const std::vector<DBID>& images)
+{
+    for(const auto& image : images) {
+
+        auto loadedImage = SelectImageByID(guard, image);
+
+        if(loadedImage) {
+
+            if(loadedImage->IsDeleted()) {
+
+                loadedImage->_OnPurged();
+                LoadedImages.Remove(image);
+
+                RunSQLAsPrepared(guard, "DELETE FROM pictures WHERE id = ?1;", image);
+            } else {
+                LOG_INFO("Database: image was meant to be purged but it isn't marked as "
+                         "deleted, skipping, id: " +
+                         std::to_string(image));
+            }
+
+        } else {
+            LOG_WARNING("Database: purging non-existant image");
+        }
+    }
+}
+
+
 // ------------------------------------ //
-void Database::ThrowCurrentSqlError(Lock& guard)
+void Database::ThrowCurrentSqlError(LockT& guard)
 {
     ThrowErrorFromDB(SQLiteDb);
 }
 // ------------------------------------ //
-bool Database::_VerifyLoadedVersion(Lock& guard, int fileversion)
+bool Database::_VerifyLoadedVersion(LockT& guard, int fileversion)
 {
     if(fileversion == DATABASE_CURRENT_VERSION)
         return true;
@@ -3353,7 +3504,7 @@ bool Database::_VerifyLoadedVersion(Lock& guard, int fileversion)
     return true;
 }
 
-bool Database::_UpdateDatabase(Lock& guard, const int oldversion)
+bool Database::_UpdateDatabase(LockT& guard, const int oldversion)
 {
     if(oldversion < 14) {
 
@@ -3471,7 +3622,7 @@ bool Database::_UpdateDatabase(Lock& guard, const int oldversion)
     }
 }
 
-void Database::_SetCurrentDatabaseVersion(Lock& guard, int newversion)
+void Database::_SetCurrentDatabaseVersion(LockT& guard, int newversion)
 {
     if(sqlite3_exec(SQLiteDb,
            ("UPDATE version SET number = " + Convert::ToString(newversion) + ";").c_str(),
@@ -3480,7 +3631,7 @@ void Database::_SetCurrentDatabaseVersion(Lock& guard, int newversion)
     }
 }
 // ------------------------------------ //
-bool Database::_VerifyLoadedVersionSignatures(Lock& guard, int fileversion)
+bool Database::_VerifyLoadedVersionSignatures(LockT& guard, int fileversion)
 {
     if(fileversion == DATABASE_CURRENT_SIGNATURES_VERSION)
         return true;
@@ -3518,7 +3669,7 @@ bool Database::_VerifyLoadedVersionSignatures(Lock& guard, int fileversion)
     return true;
 }
 
-bool Database::_UpdateDatabaseSignatures(Lock& guard, const int oldversion)
+bool Database::_UpdateDatabaseSignatures(LockT& guard, const int oldversion)
 {
     // Signatures can be recalculated. no need to backup
 
@@ -3533,7 +3684,7 @@ bool Database::_UpdateDatabaseSignatures(Lock& guard, const int oldversion)
     }
 }
 
-void Database::_SetCurrentDatabaseVersionSignatures(Lock& guard, int newversion)
+void Database::_SetCurrentDatabaseVersionSignatures(LockT& guard, int newversion)
 {
     if(sqlite3_exec(PictureSignatureDb,
            ("UPDATE version SET number = " + Convert::ToString(newversion) + ";").c_str(),
@@ -3543,7 +3694,7 @@ void Database::_SetCurrentDatabaseVersionSignatures(Lock& guard, int newversion)
 }
 
 // ------------------------------------ //
-void Database::_UpdateApplyDownloadTagStrings(Lock& guard)
+void Database::_UpdateApplyDownloadTagStrings(LockT& guard)
 {
     const char str[] =
         "SELECT pictures.id, net_files.tags_string FROM net_files "
@@ -3590,8 +3741,6 @@ void Database::_UpdateApplyDownloadTagStrings(Lock& guard)
             if(line.empty())
                 continue;
 
-            guard.unlock();
-
             std::shared_ptr<AppliedTag> tag;
 
             try {
@@ -3603,8 +3752,6 @@ void Database::_UpdateApplyDownloadTagStrings(Lock& guard)
                 LOG_ERROR("DB Update applying tag failed. Invalid tag: " + line);
                 continue;
             }
-
-            guard.lock();
 
             if(!tag)
                 continue;
@@ -3618,7 +3765,7 @@ void Database::_UpdateApplyDownloadTagStrings(Lock& guard)
     }
 }
 // ------------------------------------ //
-void Database::_CreateTableStructure(Lock& guard)
+void Database::_CreateTableStructure(LockT& guard)
 {
     _RunSQL(guard, "BEGIN TRANSACTION;");
 
@@ -3643,7 +3790,7 @@ void Database::_CreateTableStructure(Lock& guard)
     _RunSQL(guard, "COMMIT TRANSACTION;");
 }
 
-void Database::_CreateTableStructureSignatures(Lock& guard)
+void Database::_CreateTableStructureSignatures(LockT& guard)
 {
     _RunSQL(guard, PictureSignatureDb, "BEGIN TRANSACTION;");
 
@@ -3658,12 +3805,12 @@ void Database::_CreateTableStructureSignatures(Lock& guard)
     _RunSQL(guard, PictureSignatureDb, "COMMIT TRANSACTION;");
 }
 // ------------------------------------ //
-void Database::_RunSQL(Lock& guard, const std::string& sql)
+void Database::_RunSQL(LockT& guard, const std::string& sql)
 {
     return _RunSQL(guard, SQLiteDb, sql);
 }
 
-void Database::_RunSQL(Lock& guard, sqlite3* db, const std::string& sql)
+void Database::_RunSQL(LockT& guard, sqlite3* db, const std::string& sql)
 {
     auto result = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, nullptr);
 
@@ -3673,7 +3820,7 @@ void Database::_RunSQL(Lock& guard, sqlite3* db, const std::string& sql)
     }
 }
 
-void Database::PrintResultingRows(Lock& guard, sqlite3* db, const std::string& str)
+void Database::PrintResultingRows(LockT& guard, sqlite3* db, const std::string& str)
 {
     PreparedStatement statementobj(db, str);
 
@@ -3715,7 +3862,7 @@ std::string Database::EscapeSql(std::string str)
 }
 
 // Transaction stuff
-void Database::BeginTransaction(Lock& guard, bool alsoauxiliary /*= false*/)
+void Database::BeginTransaction(LockT& guard, bool alsoauxiliary /*= false*/)
 {
     RunSQLAsPrepared(guard, "BEGIN TRANSACTION;");
 
@@ -3723,7 +3870,7 @@ void Database::BeginTransaction(Lock& guard, bool alsoauxiliary /*= false*/)
         RunOnSignatureDB(guard, "BEGIN TRANSACTION;");
 }
 
-void Database::CommitTransaction(Lock& guard, bool alsoauxiliary /*= false*/)
+void Database::CommitTransaction(LockT& guard, bool alsoauxiliary /*= false*/)
 {
     try {
         RunSQLAsPrepared(guard, "COMMIT TRANSACTION;");
@@ -3739,8 +3886,16 @@ void Database::CommitTransaction(Lock& guard, bool alsoauxiliary /*= false*/)
         RunOnSignatureDB(guard, "COMMIT TRANSACTION;");
 }
 
+void Database::RollbackTransaction(LockT& guard, bool alsoauxiliary /*= false*/)
+{
+    RunSQLAsPrepared(guard, "ROLLBACK;");
+
+    if(alsoauxiliary)
+        RunOnSignatureDB(guard, "ROLLBACK;");
+}
+
 void Database::BeginSavePoint(
-    Lock& guard, const std::string& savepointname, bool alsoauxiliary /*= false*/)
+    LockT& guard, const std::string& savepointname, bool alsoauxiliary /*= false*/)
 {
     _RunSQL(guard, "SAVEPOINT " + savepointname + ";");
 
@@ -3749,7 +3904,7 @@ void Database::BeginSavePoint(
 }
 
 void Database::ReleaseSavePoint(
-    Lock& guard, const std::string& savepointname, bool alsoauxiliary /*= false*/)
+    LockT& guard, const std::string& savepointname, bool alsoauxiliary /*= false*/)
 {
     try {
         _RunSQL(guard, "RELEASE " + savepointname + ";");
@@ -3765,28 +3920,43 @@ void Database::ReleaseSavePoint(
         RunOnSignatureDB(guard, "RELEASE " + savepointname + ";");
 }
 
-bool Database::HasActiveTransaction(Lock& guard)
+void Database::RollbackSavePoint(
+    LockT& guard, const std::string& savepointname, bool alsoauxiliary /*= false*/)
+{
+    _RunSQL(guard, "ROLLBACK TO " + savepointname + ";");
+
+    if(alsoauxiliary)
+        RunOnSignatureDB(guard, "ROLLBACK TO " + savepointname + ";");
+}
+
+bool Database::HasActiveTransaction(LockT& guard)
 {
     return sqlite3_get_autocommit(SQLiteDb) == 0;
 }
 
 // ------------------------------------ //
 // DoDBTransaction
-DoDBTransaction::DoDBTransaction(Database& db, Lock& dblock, bool alsoauxiliary /*= false*/) :
-    DB(db), Locked(dblock), Auxiliary(alsoauxiliary)
+DoDBTransaction::DoDBTransaction(
+    Database& db, RecursiveLock& dblock, bool alsoauxiliary /*= false*/) :
+    DB(db),
+    Locked(dblock), Auxiliary(alsoauxiliary)
 {
     DB.BeginTransaction(Locked, Auxiliary);
 }
 
 DoDBTransaction::~DoDBTransaction()
 {
-    DB.CommitTransaction(Locked, Auxiliary);
+    if(Success) {
+        DB.CommitTransaction(Locked, Auxiliary);
+    } else {
+        DB.RollbackTransaction(Locked, Auxiliary);
+    }
 }
 
 // ------------------------------------ //
 // DoDBSavePoint
-DoDBSavePoint::DoDBSavePoint(
-    Database& db, Lock& dblock, const std::string& savepoint, bool alsoauxiliary /*= false*/) :
+DoDBSavePoint::DoDBSavePoint(Database& db, RecursiveLock& dblock, const std::string& savepoint,
+    bool alsoauxiliary /*= false*/) :
     DB(db),
     Locked(dblock), SavePoint(savepoint), Auxiliary(alsoauxiliary)
 {
@@ -3795,5 +3965,9 @@ DoDBSavePoint::DoDBSavePoint(
 
 DoDBSavePoint::~DoDBSavePoint()
 {
-    DB.ReleaseSavePoint(Locked, SavePoint, Auxiliary);
+    if(Success) {
+        DB.ReleaseSavePoint(Locked, SavePoint, Auxiliary);
+    } else {
+        DB.RollbackSavePoint(Locked, SavePoint, Auxiliary);
+    }
 }

@@ -146,28 +146,39 @@ TEST_CASE("Deleting undone action doesn't delete Images", "[db][action]")
     CHECK(collection->GetImages() == std::vector<std::shared_ptr<Image>>{image1, image2});
 }
 
-// TEST_CASE("Image merge works correctly", "[db][action]")
-// {
-//     DummyDualView dv;
-//     TestDatabase db;
+TEST_CASE("Image merge works correctly", "[db][action]")
+{
+    DummyDualView dv;
+    TestDatabase db;
 
-//     REQUIRE_NOTHROW(db.Init());
+    REQUIRE_NOTHROW(db.Init());
 
-//     // Insert the images for testing
-//     auto image1 = db.InsertTestImage("image1", "hash1");
-//     REQUIRE(image1);
+    // Insert the images for testing
+    auto image1 = db.InsertTestImage("image1", "hash1");
+    REQUIRE(image1);
 
-//     auto image2 = db.InsertTestImage("image2", "hash2");
-//     REQUIRE(image2);
+    auto image2 = db.InsertTestImage("image2", "hash2");
+    REQUIRE(image2);
 
-//     auto image3 = db.InsertTestImage("image3", "hash3");
-//     REQUIRE(image3);
+    const auto id2 = image2->GetID();
 
-//     SECTION("Basic merge without collections or tags")
-//     {
-//         auto undo = db.MergeImages(image1, {image2});
-//         CHECK(undo);
+    auto image3 = db.InsertTestImage("image3", "hash3");
+    REQUIRE(image3);
 
-//         CHECK(image1->GetID() == image2->GetID());
-//     }
-// }
+    SECTION("Basic merge without collections or tags")
+    {
+        auto undo = db.MergeImages(*image1, {image2});
+        REQUIRE(undo);
+
+        CHECK(!image1->IsDeleted());
+        CHECK(image2->IsDeleted());
+
+        SECTION("Undo")
+        {
+            CHECK(undo->Undo());
+
+            CHECK(!image1->IsDeleted());
+            CHECK(!image2->IsDeleted());
+        }
+    }
+}

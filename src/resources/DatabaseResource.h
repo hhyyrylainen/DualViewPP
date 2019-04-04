@@ -8,6 +8,8 @@
 namespace DV {
 
 class Database;
+//! Forward declaration for the type of Database::LockT
+using DatabaseLockT = std::lock_guard<std::recursive_mutex>;
 
 //! \brief Base class for all resources that can be saved and loaded from the database
 class DatabaseResource : public Leviathan::BaseNotifierAll {
@@ -27,7 +29,7 @@ public:
     void Save();
 
     //! \brief Bulk save variant (db is already locked)
-    void Save(Database& db, Lock& dblock);
+    void Save(Database& db, DatabaseLockT& dblock);
 
     //! \brief Called when this gets marked dirty, used to notify listeners to update
     //! their cached values
@@ -77,7 +79,7 @@ protected:
     //! \note If this is not overridden this probably doesn't support bulk write
     //! \todo Find a way to enforce that only types that support bulk saving can call the bulk
     //! save variant
-    virtual void _DoSave(Database& db, Lock& dblock);
+    virtual void _DoSave(Database& db, DatabaseLockT& dblock);
 
     //! \brief Callback for child classes to reload resources when added to the database
     virtual void _OnAdopted();

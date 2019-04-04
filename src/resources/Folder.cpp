@@ -8,7 +8,7 @@
 using namespace DV;
 // ------------------------------------ //
 
-Folder::Folder(Database& db, Lock& dblock, PreparedStatement& statement, int64_t id) :
+Folder::Folder(Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id) :
 
     DatabaseResource(id, db)
 {

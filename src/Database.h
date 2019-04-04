@@ -30,6 +30,7 @@ class NetGallery;
 class NetFile;
 class DatabaseAction;
 class ImageDeleteAction;
+class ImageMergeAction;
 
 class Tag;
 class AppliedTag;
@@ -38,7 +39,7 @@ class TagBreakRule;
 
 enum class DATABASE_ACTION_TYPE : int;
 
-//! \brief The version number of the database
+// The version number of the database
 constexpr auto DATABASE_CURRENT_VERSION = 24;
 constexpr auto DATABASE_CURRENT_SIGNATURES_VERSION = 1;
 
@@ -48,7 +49,9 @@ constexpr auto IMAGE_SIGNATURE_WORD_LENGTH = 10;
 //! \brief All database manipulation happens through this class
 //!
 //! There should be only one database object at a time. It is contained in DualView
-class Database : public Leviathan::ThreadSafe {
+//! \note This is recursively lockable because otherwise the acrobatics needed to pass around
+//! the single lock is way too much
+class Database : public Leviathan::ThreadSafeRecursive {
 
     //! \brief Holds data in Database::SqliteExecGrabResult
     struct GrabResultHolder {
@@ -65,6 +68,7 @@ class Database : public Leviathan::ThreadSafe {
 
     // These actions are friends in order to call the UndoAction and RedoAction methods
     friend ImageDeleteAction;
+    friend ImageMergeAction;
 
 public:
     //! \brief Normal database creation, uses the specified file
@@ -85,7 +89,7 @@ public:
 
     //! \brief Selects the database version
     //! \returns True if succeeded, false if no version exists.
-    bool SelectDatabaseVersion(Lock& guard, sqlite3* db, int& result);
+    bool SelectDatabaseVersion(LockT& guard, sqlite3* db, int& result);
 
     //! \brief Removes objects that no longer have external references from the database
     //! \todo Call this periodically from the database thread in DualView
@@ -99,11 +103,11 @@ public:
     //!
     //! Also sets the id in the image object
     //! \exception InvalidSQL if the image violates unique constraints (same hash)
-    void InsertImage(Lock& guard, Image& image);
+    void InsertImage(LockT& guard, Image& image);
 
     //! \brief Updates an images properties in the database
     //! \returns False if the update fails
-    bool UpdateImage(Lock& guard, Image& image);
+    bool UpdateImage(LockT& guard, Image& image);
     CREATE_NON_LOCKING_WRAPPER(UpdateImage);
 
     //! \brief Deletes an image from the database
@@ -115,35 +119,35 @@ public:
     //! \brief Only creates the action to delete an image but doesn't execute it
     //! \note This clears the cache entries from the signature DB so it isn't completely
     //! accurate that this doesn't do anything yet
-    std::shared_ptr<ImageDeleteAction> CreateDeleteImageAction(Lock& guard, Image& image);
+    std::shared_ptr<ImageDeleteAction> CreateDeleteImageAction(LockT& guard, Image& image);
 
     //! \brief Retrieves an Image based on the hash
     //! \todo All callers need to check if the image is deleted or not
-    std::shared_ptr<Image> SelectImageByHash(Lock& guard, const std::string& hash);
+    std::shared_ptr<Image> SelectImageByHash(LockT& guard, const std::string& hash);
     CREATE_NON_LOCKING_WRAPPER(SelectImageByHash);
 
     //! \brief Retrieves an Image based on the id
-    std::shared_ptr<Image> SelectImageByID(Lock& guard, DBID id);
+    std::shared_ptr<Image> SelectImageByID(LockT& guard, DBID id);
     CREATE_NON_LOCKING_WRAPPER(SelectImageByID);
 
     //! \brief Retrieves an Image based on the id but doesn't retrieve deleted images
-    std::shared_ptr<Image> SelectImageByIDSkipDeleted(Lock& guard, DBID id);
+    std::shared_ptr<Image> SelectImageByIDSkipDeleted(LockT& guard, DBID id);
     CREATE_NON_LOCKING_WRAPPER(SelectImageByIDSkipDeleted);
 
     //! \brief Retrieves images based on tags
-    std::vector<std::shared_ptr<Image>> SelectImageByTag(Lock& guard, DBID tagid);
+    std::vector<std::shared_ptr<Image>> SelectImageByTag(LockT& guard, DBID tagid);
     CREATE_NON_LOCKING_WRAPPER(SelectImageByTag);
 
     //! \brief Retrieves an Image's id based on the hash
-    DBID SelectImageIDByHash(Lock& guard, const std::string& hash);
+    DBID SelectImageIDByHash(LockT& guard, const std::string& hash);
     CREATE_NON_LOCKING_WRAPPER(SelectImageIDByHash);
 
     //! \brief Retrieves signature (or empty string) for image id
-    std::string SelectImageSignatureByID(Lock& guard, DBID image);
+    std::string SelectImageSignatureByID(LockT& guard, DBID image);
     CREATE_NON_LOCKING_WRAPPER(SelectImageSignatureByID);
 
     //! \brief Retrieves image ids that don't have a signature
-    std::vector<DBID> SelectImageIDsWithoutSignature(Lock& guard);
+    std::vector<DBID> SelectImageIDsWithoutSignature(LockT& guard);
     CREATE_NON_LOCKING_WRAPPER(SelectImageIDsWithoutSignature);
 
     //! \brief Loads a TagCollection for the specified image.
@@ -151,14 +155,14 @@ public:
     std::shared_ptr<TagCollection> LoadImageTags(const std::shared_ptr<Image>& image);
 
     //! \brief Retrieves all tags added to an image
-    void SelectImageTags(Lock& guard, std::weak_ptr<Image> image,
+    void SelectImageTags(LockT& guard, std::weak_ptr<Image> image,
         std::vector<std::shared_ptr<AppliedTag>>& tags);
 
     //! \brief Adds a tag to an image
-    void InsertImageTag(Lock& guard, std::weak_ptr<Image> image, AppliedTag& tag);
+    void InsertImageTag(LockT& guard, std::weak_ptr<Image> image, AppliedTag& tag);
 
     //! \brief Removes a tag from an image
-    void DeleteImageTag(Lock& guard, std::weak_ptr<Image> image, AppliedTag& tag);
+    void DeleteImageTag(LockT& guard, std::weak_ptr<Image> image, AppliedTag& tag);
 
     //! \brief Queries the signature words table to find potentially duplicate images
     //! \param sensitivity How many parts need to match before returning a result. Strength of
@@ -177,7 +181,7 @@ public:
     //! \brief Inserts a new collection to the database
     //! \exception InvalidSQL if the collection violates unique constraints (same name)
     std::shared_ptr<Collection> InsertCollection(
-        Lock& guard, const std::string& name, bool isprivate);
+        LockT& guard, const std::string& name, bool isprivate);
     CREATE_NON_LOCKING_WRAPPER(InsertCollection);
 
     //! \brief Updates an images properties in the database
@@ -191,7 +195,7 @@ public:
     bool DeleteCollection(Collection& collection);
 
     //! \brief Retrieves a Collection based on the name
-    std::shared_ptr<Collection> SelectCollectionByName(Lock& guard, const std::string& name);
+    std::shared_ptr<Collection> SelectCollectionByName(LockT& guard, const std::string& name);
     CREATE_NON_LOCKING_WRAPPER(SelectCollectionByName);
 
     std::vector<std::string> SelectCollectionNamesByWildcard(
@@ -202,11 +206,11 @@ public:
 
     //! \brief Returns the largest value used for an image in the collection
     //! If the collection is empty returns 0
-    int64_t SelectCollectionLargestShowOrder(Lock& guard, const Collection& collection);
+    int64_t SelectCollectionLargestShowOrder(LockT& guard, const Collection& collection);
     CREATE_NON_LOCKING_WRAPPER(SelectCollectionLargestShowOrder);
 
     //! \brief Returns the number of images in a collection
-    int64_t SelectCollectionImageCount(Lock& guard, const Collection& collection);
+    int64_t SelectCollectionImageCount(LockT& guard, const Collection& collection);
     CREATE_NON_LOCKING_WRAPPER(SelectCollectionImageCount);
 
     //! \brief Loads a TagCollection for the specified collection.
@@ -215,16 +219,16 @@ public:
         const std::shared_ptr<Collection>& collection);
 
     //! \brief Retrieves all tags added to an collection
-    void SelectCollectionTags(Lock& guard, std::weak_ptr<Collection> collection,
+    void SelectCollectionTags(LockT& guard, std::weak_ptr<Collection> collection,
         std::vector<std::shared_ptr<AppliedTag>>& tags);
 
     //! \brief Adds a tag to an collection
     void InsertCollectionTag(
-        Lock& guard, std::weak_ptr<Collection> collection, AppliedTag& tag);
+        LockT& guard, std::weak_ptr<Collection> collection, AppliedTag& tag);
 
     //! \brief Removes a tag from an collection
     void DeleteCollectionTag(
-        Lock& guard, std::weak_ptr<Collection> collection, AppliedTag& tag);
+        LockT& guard, std::weak_ptr<Collection> collection, AppliedTag& tag);
 
     //
     // Collection image
@@ -236,28 +240,28 @@ public:
     //! already in use the order in which the two images that have the same show_order is
     //! random
     bool InsertImageToCollection(
-        Lock& guard, Collection& collection, Image& image, int64_t showorder);
+        LockT& guard, Collection& collection, Image& image, int64_t showorder);
     CREATE_NON_LOCKING_WRAPPER(InsertImageToCollection);
 
     //! \brief Returns true if image is in some collection.
     //!
     //! If false it should be added to one otherwise it cannot be viewed
-    bool SelectIsImageInAnyCollection(Lock& guard, const Image& image);
+    bool SelectIsImageInAnyCollection(LockT& guard, const Image& image);
 
     //! \brief Removes an image from the collection
     //! \returns True if removed. False if the image wasn't in the collection
-    bool DeleteImageFromCollection(Lock& guard, Collection& collection, Image& image);
+    bool DeleteImageFromCollection(LockT& guard, Collection& collection, Image& image);
 
     //! \brief Returns the show_order image has in collection. Or -1
     int64_t SelectImageShowOrderInCollection(
-        Lock& guard, const Collection& collection, const Image& image);
+        LockT& guard, const Collection& collection, const Image& image);
     CREATE_NON_LOCKING_WRAPPER(SelectImageShowOrderInCollection);
 
     //! \brief Returns the image with the show order
     //! \note If for some reason there are multiples with the same show_order one of them
     //! is returned
     std::shared_ptr<Image> SelectImageInCollectionByShowOrder(
-        Lock& guard, const Collection& collection, int64_t showorder);
+        LockT& guard, const Collection& collection, int64_t showorder);
     CREATE_NON_LOCKING_WRAPPER(SelectImageInCollectionByShowOrder);
 
     //! \brief Returns the preview image for a collection
@@ -265,12 +269,12 @@ public:
 
     //! \brief Returns the first image in a collection, or null if empty
     std::shared_ptr<Image> SelectFirstImageInCollection(
-        Lock& guard, const Collection& collection);
+        LockT& guard, const Collection& collection);
     CREATE_NON_LOCKING_WRAPPER(SelectFirstImageInCollection);
 
     //! \brief Returns the last image in a collection, or null if empty
     std::shared_ptr<Image> SelectLastImageInCollection(
-        Lock& guard, const Collection& collection);
+        LockT& guard, const Collection& collection);
     CREATE_NON_LOCKING_WRAPPER(SelectLastImageInCollection);
 
     //! \brief Counts the index image has in a collection based on the show_orders
@@ -282,7 +286,7 @@ public:
     //! \note If for some reason there are multiples with the same show_order one of them
     //! is returned
     std::shared_ptr<Image> SelectImageInCollectionByShowIndex(
-        Lock& guard, const Collection& collection, int64_t index);
+        LockT& guard, const Collection& collection, int64_t index);
     CREATE_NON_LOCKING_WRAPPER(SelectImageInCollectionByShowIndex);
 
     //! \brief Selects the image that has the next show order
@@ -300,11 +304,11 @@ public:
     // Folder
     //
     //! \todo Make this cache the result after the first call to improve performance
-    std::shared_ptr<Folder> SelectRootFolder(Lock& guard);
+    std::shared_ptr<Folder> SelectRootFolder(LockT& guard);
     CREATE_NON_LOCKING_WRAPPER(SelectRootFolder);
 
     //! \brief Returns a folder by id
-    std::shared_ptr<Folder> SelectFolderByID(Lock& guard, DBID id);
+    std::shared_ptr<Folder> SelectFolderByID(LockT& guard, DBID id);
     CREATE_NON_LOCKING_WRAPPER(SelectFolderByID);
 
     //! \brief Creates a new folder, must have a parent folder
@@ -318,7 +322,7 @@ public:
     //
     // Folder collection
     //
-    bool InsertCollectionToFolder(Lock& guard, Folder& folder, const Collection& collection);
+    bool InsertCollectionToFolder(LockT& guard, Folder& folder, const Collection& collection);
     CREATE_NON_LOCKING_WRAPPER(InsertCollectionToFolder);
 
     void DeleteCollectionFromFolder(Folder& folder, const Collection& collection);
@@ -329,12 +333,12 @@ public:
         const Folder& folder, const std::string& matchingpattern = "");
 
     //! \brief Returns true if collection is in a Folder
-    bool SelectCollectionIsInFolder(Lock& guard, const Collection& collection);
+    bool SelectCollectionIsInFolder(LockT& guard, const Collection& collection);
 
     //! \brief Returns true if Collection is in another folder than folder
     //! \todo This doesn't handle deleted properly
     bool SelectCollectionIsInAnotherFolder(
-        Lock& guard, const Folder& folder, const Collection& collection);
+        LockT& guard, const Folder& folder, const Collection& collection);
 
     //! \brief Returs Folders Collection is in
     //! \todo This doesn't handle deleted properly
@@ -356,7 +360,7 @@ public:
     //! \brief Adds a folder to folder
     //! \exception InvalidSQL If fails
     //! \note This doesn't check for name conflicts
-    void InsertFolderToFolder(Lock& guard, Folder& folder, const Folder& parent);
+    void InsertFolderToFolder(LockT& guard, Folder& folder, const Folder& parent);
 
     //! \brief Returns Folders that are directly in folder. And their name contains
     //! matching pattern
@@ -365,7 +369,7 @@ public:
 
     //! \brief Selects a folder based on parent folder and name
     std::shared_ptr<Folder> SelectFolderByNameAndParent(
-        Lock& guard, const std::string& name, const Folder& parent);
+        LockT& guard, const std::string& name, const Folder& parent);
     CREATE_NON_LOCKING_WRAPPER(SelectFolderByNameAndParent);
 
     //! \brief Selects all parents of a Folder
@@ -380,10 +384,10 @@ public:
         std::string name, std::string description, TAG_CATEGORY category, bool isprivate);
 
     //! \brief Returns tag based on id
-    std::shared_ptr<Tag> SelectTagByID(Lock& guard, DBID id);
+    std::shared_ptr<Tag> SelectTagByID(LockT& guard, DBID id);
     CREATE_NON_LOCKING_WRAPPER(SelectTagByID);
 
-    std::shared_ptr<Tag> SelectTagByName(Lock& guard, const std::string& name);
+    std::shared_ptr<Tag> SelectTagByName(LockT& guard, const std::string& name);
     CREATE_NON_LOCKING_WRAPPER(SelectTagByName);
 
     //! \brief Selects tags containing pattern
@@ -391,7 +395,7 @@ public:
         const std::string& pattern, int64_t max = 50, bool aliases = true);
 
     //! \brief Selects a tag based on an alias name
-    std::shared_ptr<Tag> SelectTagByAlias(Lock& guard, const std::string& alias);
+    std::shared_ptr<Tag> SelectTagByAlias(LockT& guard, const std::string& alias);
     CREATE_NON_LOCKING_WRAPPER(SelectTagByAlias);
 
     //! \brief Selects a tag matching the name or has an alias for the name
@@ -428,13 +432,13 @@ public:
     std::vector<std::shared_ptr<Tag>> SelectTagImpliesAsTag(const Tag& tag);
 
     //! \brief Returns the ids of tags implied by tag
-    std::vector<DBID> SelectTagImplies(Lock& guard, const Tag& tag);
+    std::vector<DBID> SelectTagImplies(LockT& guard, const Tag& tag);
 
 
     //
     // AppliedTag
     //
-    std::shared_ptr<AppliedTag> SelectAppliedTagByID(Lock& guard, DBID id);
+    std::shared_ptr<AppliedTag> SelectAppliedTagByID(LockT& guard, DBID id);
     CREATE_NON_LOCKING_WRAPPER(SelectAppliedTagByID);
 
     //! \brief If the tag is in the database (same main tag and other properties)
@@ -442,66 +446,67 @@ public:
     //!
     //! Used when inserting to prefer using existing tags instead of creating a new AppliedTag
     //! for every image and every tag combination
-    std::shared_ptr<AppliedTag> SelectExistingAppliedTag(Lock& guard, const AppliedTag& tag);
+    std::shared_ptr<AppliedTag> SelectExistingAppliedTag(LockT& guard, const AppliedTag& tag);
     CREATE_NON_LOCKING_WRAPPER(SelectExistingAppliedTag);
 
     //! \brief Returns an existing tag with the same properties as tag
     //! \returns -1 when tag doesn't exist, id on success
-    DBID SelectExistingAppliedTagID(Lock& guard, const AppliedTag& tag);
+    DBID SelectExistingAppliedTagID(LockT& guard, const AppliedTag& tag);
     CREATE_NON_LOCKING_WRAPPER(SelectExistingAppliedTagID);
 
     std::vector<std::shared_ptr<TagModifier>> SelectAppliedTagModifiers(
-        Lock& guard, const AppliedTag& appliedtag);
+        LockT& guard, const AppliedTag& appliedtag);
 
     //! \brief Returns the right side of a tag combine, appliedtag is the left side
     std::tuple<std::string, std::shared_ptr<AppliedTag>> SelectAppliedTagCombine(
-        Lock& guard, const AppliedTag& appliedtag);
+        LockT& guard, const AppliedTag& appliedtag);
 
     //! \brief Inserts a new AppliedTag to the database
     //! \todo Break this into smaller functions
-    bool InsertAppliedTag(Lock& guard, AppliedTag& tag);
+    bool InsertAppliedTag(LockT& guard, AppliedTag& tag);
 
     //! \brief Deletes an AppliedTag if it isn't used anymore
     //! \todo Check should this only be called when cleaning up the databse
     //! as there probably won't be infinitely many tags that aren't used
-    void DeleteAppliedTagIfNotUsed(Lock& guard, AppliedTag& tag);
+    void DeleteAppliedTagIfNotUsed(LockT& guard, AppliedTag& tag);
 
     //! \brief Returns true if applied tag id is referenced somewhere
-    bool SelectIsAppliedTagUsed(Lock& guard, DBID id);
+    bool SelectIsAppliedTagUsed(LockT& guard, DBID id);
 
     //! \brief Checks that the TagModifiers set in the database to id, match the ones in tag
-    bool CheckDoesAppliedTagModifiersMatch(Lock& guard, DBID id, const AppliedTag& tag);
+    bool CheckDoesAppliedTagModifiersMatch(LockT& guard, DBID id, const AppliedTag& tag);
 
     //! \brief Checks that the tag combines set in the database to id, match the ones in tag
-    bool CheckDoesAppliedTagCombinesMatch(Lock& guard, DBID id, const AppliedTag& tag);
+    bool CheckDoesAppliedTagCombinesMatch(LockT& guard, DBID id, const AppliedTag& tag);
 
     //! \brief Helper for looping all applied_tag
     //! \returns -1 on error
-    DBID SelectAppliedTagIDByOffset(Lock& guard, int64_t offset);
+    DBID SelectAppliedTagIDByOffset(LockT& guard, int64_t offset);
 
     //! \brief Combines two applied tags into one
     //!
     //! Used after checking that to applied_tag entries match to remove the duplicate.
     //! First is the ID that will be preserved and all references to second will be changed
     //! to first
-    void CombineAppliedTagDuplicate(Lock& guard, DBID first, DBID second);
+    void CombineAppliedTagDuplicate(LockT& guard, DBID first, DBID second);
 
 
 
     //
     // TagModifier
     //
-    std::shared_ptr<TagModifier> SelectTagModifierByID(Lock& guard, DBID id);
+    std::shared_ptr<TagModifier> SelectTagModifierByID(LockT& guard, DBID id);
 
-    std::shared_ptr<TagModifier> SelectTagModifierByName(Lock& guard, const std::string& name);
+    std::shared_ptr<TagModifier> SelectTagModifierByName(
+        LockT& guard, const std::string& name);
     CREATE_NON_LOCKING_WRAPPER(SelectTagModifierByName);
 
     std::shared_ptr<TagModifier> SelectTagModifierByAlias(
-        Lock& guard, const std::string& alias);
+        LockT& guard, const std::string& alias);
     CREATE_NON_LOCKING_WRAPPER(SelectTagModifierByAlias);
 
     std::shared_ptr<TagModifier> SelectTagModifierByNameOrAlias(
-        Lock& guard, const std::string& name);
+        LockT& guard, const std::string& name);
     CREATE_NON_LOCKING_WRAPPER(SelectTagModifierByNameOrAlias);
 
 
@@ -514,10 +519,10 @@ public:
     std::shared_ptr<TagBreakRule> SelectTagBreakRuleByStr(const std::string& str);
 
     std::shared_ptr<TagBreakRule> SelectTagBreakRuleByExactPattern(
-        Lock& guard, const std::string& pattern);
+        LockT& guard, const std::string& pattern);
 
     std::vector<std::shared_ptr<TagModifier>> SelectModifiersForBreakRule(
-        Lock& guard, const TagBreakRule& rule);
+        LockT& guard, const TagBreakRule& rule);
 
     //! \todo Implement
     void UpdateTagBreakRule(const TagBreakRule& rule);
@@ -531,12 +536,12 @@ public:
     std::vector<DBID> SelectNetGalleryIDs(bool nodownloaded);
 
     //! \brief Returns a NetGallery by id
-    std::shared_ptr<NetGallery> SelectNetGalleryByID(Lock& guard, DBID id);
+    std::shared_ptr<NetGallery> SelectNetGalleryByID(LockT& guard, DBID id);
     CREATE_NON_LOCKING_WRAPPER(SelectNetGalleryByID);
 
     //! \brief Adds a new NetGallery to the database
     //! \returns True if added, false if it is already added
-    bool InsertNetGallery(Lock& guard, std::shared_ptr<NetGallery> gallery);
+    bool InsertNetGallery(LockT& guard, std::shared_ptr<NetGallery> gallery);
 
     void UpdateNetGallery(NetGallery& gallery);
 
@@ -549,10 +554,10 @@ public:
     std::vector<std::shared_ptr<NetFile>> SelectNetFilesFromGallery(NetGallery& gallery);
 
     //! \brief Returns a NetFile by id
-    std::shared_ptr<NetFile> SelectNetFileByID(Lock& guard, DBID id);
+    std::shared_ptr<NetFile> SelectNetFileByID(LockT& guard, DBID id);
 
     //! \brief Adds a new NetFile to the database
-    void InsertNetFile(Lock& guard, NetFile& netfile, NetGallery& gallery);
+    void InsertNetFile(LockT& guard, NetFile& netfile, NetGallery& gallery);
 
     void UpdateNetFile(NetFile& netfile);
 
@@ -582,26 +587,40 @@ public:
     //! This will copy all non-duplicate tags from the merged images and add the target to
     //! collections from the merged images that it wasn't in.
     //! \returns A performed action that can be used to undo the action
-    std::shared_ptr<DatabaseAction> MergeImages(const std::shared_ptr<Image>& mergeTarget,
-        const std::vector<std::shared_ptr<Image>>& toMerge);
+    std::shared_ptr<DatabaseAction> MergeImages(
+        const Image& mergetarget, const std::vector<std::shared_ptr<Image>>& tomerge);
 
 
     //
     // Actions
     //
-    std::shared_ptr<DatabaseAction> SelectDatabaseActionByID(Lock& guard, DBID id);
+    std::shared_ptr<DatabaseAction> SelectDatabaseActionByID(LockT& guard, DBID id);
     CREATE_NON_LOCKING_WRAPPER(SelectDatabaseActionByID);
+
+    //! \brief Updates the JSON data and Performed of the action
+    bool UpdateDatabaseAction(LockT& guard, DatabaseAction& action);
+    CREATE_NON_LOCKING_WRAPPER(UpdateDatabaseAction);
 
     //! \brief Permanently deletes an action
     //!
     //! Will also permanently delete all resources assocciated with the action
     void DeleteDatabaseAction(DatabaseAction& action);
 
+    //! \brief Purges old actions while the number of actions is over MaxActions
+    void PurgeOldActionsUntilUnderLimit(LockT& guard);
+
+    //! \brief Updates the maximum action count
+    //!
+    //! Doesn't immediately purge old actions only applies when a new action is performed
+    //! \param maxactions Then number of actions to keep. Must be 1 or more otherwise the
+    //! action purging and undo mechanism breaks
+    void SetMaxActionHistory(uint32_t maxactions);
+
     //
     // Database maintenance functions
     //
     //! \brief Finds all AppliedTags that have the same properties and combines them
-    void CombineAllPossibleAppliedTags(Lock& guard);
+    void CombineAllPossibleAppliedTags(LockT& guard);
 
     //! \brief Returns the number of rows in applied_tag
     int64_t CountAppliedTags();
@@ -623,9 +642,11 @@ public:
     //! The database must be locked until the transaction is committed
     //! \param alsoauxiliary If true a transaction is also started on the secondary databases
     //! \see CommitTransaction
-    void BeginTransaction(Lock& guardLocked, bool alsoauxiliary = false);
+    void BeginTransaction(LockT& guardLocked, bool alsoauxiliary = false);
 
-    void CommitTransaction(Lock& guardLocked, bool alsoauxiliary = false);
+    void CommitTransaction(LockT& guardLocked, bool alsoauxiliary = false);
+
+    void RollbackTransaction(LockT& guardLocked, bool alsoauxiliary = false);
 
     //! \brief Alternative to transaction that can be nested
     //!
@@ -633,13 +654,16 @@ public:
     //! \warning The savepoint name is not sent as a prepared statement, SQL injection is
     //! possible!
     void BeginSavePoint(
-        Lock& guard, const std::string& savepointname, bool alsoauxiliary = false);
+        LockT& guard, const std::string& savepointname, bool alsoauxiliary = false);
 
     void ReleaseSavePoint(
-        Lock& guard, const std::string& savepointname, bool alsoauxiliary = false);
+        LockT& guard, const std::string& savepointname, bool alsoauxiliary = false);
+
+    void RollbackSavePoint(
+        LockT& guard, const std::string& savepointname, bool alsoauxiliary = false);
 
     //! \brief Returns true if a transaction is in progress
-    bool HasActiveTransaction(Lock& guard);
+    bool HasActiveTransaction(LockT& guard);
 
     // Statistics functions //
     size_t CountExistingTags();
@@ -650,16 +674,20 @@ protected:
     void UndoAction(ImageDeleteAction& action);
     void PurgeAction(ImageDeleteAction& action);
 
+    void RedoAction(ImageMergeAction& action);
+    void UndoAction(ImageMergeAction& action);
+    void PurgeAction(ImageMergeAction& action);
+
 protected:
     //! \brief Runs a command and prints all the result rows with column headers to log
-    void PrintResultingRows(Lock& guard, sqlite3* db, const std::string& str);
+    void PrintResultingRows(LockT& guard, sqlite3* db, const std::string& str);
 
     //! \brief Runs a command and prints all the result rows with column headers to log
     //!
     //! This version allows settings parameters
     template<typename... TBindTypes>
     void PrintResultingRows(
-        Lock& guard, sqlite3* db, const std::string& str, TBindTypes&&... valuestobind)
+        LockT& guard, sqlite3* db, const std::string& str, TBindTypes&&... valuestobind)
     {
         PreparedStatement statementobj(db, str);
 
@@ -671,7 +699,7 @@ protected:
 
     //! \brief Runs SQL statement as a prepared statement with the values
     template<typename... TBindTypes>
-    void RunSQLAsPrepared(Lock& guard, const std::string& str, TBindTypes&&... valuestobind)
+    void RunSQLAsPrepared(LockT& guard, const std::string& str, TBindTypes&&... valuestobind)
     {
         PreparedStatement statementobj(SQLiteDb, str);
 
@@ -683,7 +711,7 @@ protected:
 
     //! \brief Runs SQL statement as a prepared statement with the values on the signature DB
     template<typename... TBindTypes>
-    void RunOnSignatureDB(Lock& guard, const std::string& str, TBindTypes&&... valuestobind)
+    void RunOnSignatureDB(LockT& guard, const std::string& str, TBindTypes&&... valuestobind)
     {
         PreparedStatement statementobj(PictureSignatureDb, str);
 
@@ -694,105 +722,107 @@ protected:
 
     //! \brief Runs a raw sql query.
     //! \note Don't use unless absolutely necessary prefer to use Database::RunSqlAsPrepared
-    void _RunSQL(Lock& guard, const std::string& sql);
+    void _RunSQL(LockT& guard, const std::string& sql);
 
     //! \brief Variant for auxiliary dbs
-    void _RunSQL(Lock& guard, sqlite3* db, const std::string& sql);
+    void _RunSQL(LockT& guard, sqlite3* db, const std::string& sql);
 
     //! \brief Throws an InvalidSQL exception, filling it with values from the database
     //! connection
-    void ThrowCurrentSqlError(Lock& guard);
+    void ThrowCurrentSqlError(LockT& guard);
 
 private:
     //
     // Row parsing functions
     //
 
-    std::shared_ptr<NetFile> _LoadNetFileFromRow(Lock& guard, PreparedStatement& statement);
+    std::shared_ptr<NetFile> _LoadNetFileFromRow(LockT& guard, PreparedStatement& statement);
 
     std::shared_ptr<NetGallery> _LoadNetGalleryFromRow(
-        Lock& guard, PreparedStatement& statement);
+        LockT& guard, PreparedStatement& statement);
 
     //! \brief Loads a TagBreakRule object from the current row
     std::shared_ptr<TagBreakRule> _LoadTagBreakRuleFromRow(
-        Lock& guard, PreparedStatement& statement);
+        LockT& guard, PreparedStatement& statement);
 
     //! \brief Loads an AppliedTag object from the current row
     std::shared_ptr<AppliedTag> _LoadAppliedTagFromRow(
-        Lock& guard, PreparedStatement& statement);
+        LockT& guard, PreparedStatement& statement);
 
     //! \brief Loads a TagModifier object from the current row
     std::shared_ptr<TagModifier> _LoadTagModifierFromRow(
-        Lock& guard, PreparedStatement& statement);
+        LockT& guard, PreparedStatement& statement);
 
     //! \brief Loads a Tag object from the current row
-    std::shared_ptr<Tag> _LoadTagFromRow(Lock& guard, PreparedStatement& statement);
+    std::shared_ptr<Tag> _LoadTagFromRow(LockT& guard, PreparedStatement& statement);
 
     //! \brief Loads a Collection object from the current row
     std::shared_ptr<Collection> _LoadCollectionFromRow(
-        Lock& guard, PreparedStatement& statement);
+        LockT& guard, PreparedStatement& statement);
 
     //! \brief Loads an Image object from the current row
-    std::shared_ptr<Image> _LoadImageFromRow(Lock& guard, PreparedStatement& statement);
+    std::shared_ptr<Image> _LoadImageFromRow(LockT& guard, PreparedStatement& statement);
 
     //! \brief Loads a Folder object from the current row
-    std::shared_ptr<Folder> _LoadFolderFromRow(Lock& guard, PreparedStatement& statement);
+    std::shared_ptr<Folder> _LoadFolderFromRow(LockT& guard, PreparedStatement& statement);
 
     //! \brief Loads a DatabaseAction derived object from the current row
     std::shared_ptr<DatabaseAction> _LoadDatabaseActionFromRow(
-        Lock& guard, PreparedStatement& statement);
+        LockT& guard, PreparedStatement& statement);
 
     //
     // Private insert stuff
     //
-    void InsertTagImage(Lock& guard, Image& image, DBID appliedtagid);
+    void InsertTagImage(LockT& guard, Image& image, DBID appliedtagid);
 
-    void InsertTagCollection(Lock& guard, Collection& image, DBID appliedtagid);
+    void InsertTagCollection(LockT& guard, Collection& image, DBID appliedtagid);
 
     //! \brief Inserts the image signature to the auxiliary DB
-    void _InsertImageSignatureParts(Lock& guard, DBID image, const std::string& signature);
+    void _InsertImageSignatureParts(LockT& guard, DBID image, const std::string& signature);
 
     //
     // Helper operations
     //
-    void _SetActionStatus(Lock& guard, DatabaseAction& action, bool performed);
+    void _SetActionStatus(LockT& guard, DatabaseAction& action, bool performed);
+
+    void _PurgeImages(LockT& guard, const std::vector<DBID>& images);
 
     //
     // Utility stuff
     //
 
     //! \brief Creates default tables and also calls _InsertDefaultTags
-    void _CreateTableStructure(Lock& guard);
+    void _CreateTableStructure(LockT& guard);
 
     //! \brief Variant for the picture signature auxiliary db
-    void _CreateTableStructureSignatures(Lock& guard);
+    void _CreateTableStructureSignatures(LockT& guard);
 
     //! \brief Verifies that the specified version is compatible with the current version
-    bool _VerifyLoadedVersion(Lock& guard, int fileversion);
+    bool _VerifyLoadedVersion(LockT& guard, int fileversion);
 
     //! \brief Variant for the picture signature auxiliary db
-    bool _VerifyLoadedVersionSignatures(Lock& guard, int fileversion);
+    bool _VerifyLoadedVersionSignatures(LockT& guard, int fileversion);
 
     //! \brief Called if a loaded database version is older than DATABASE_CURRENT_VERSION
     //! \param oldversion The version from which the update is done, will contain the new
     //! version after this returns. Can be called again to update to the next version
     //! \returns True if succeeded, false if update is not supported
-    bool _UpdateDatabase(Lock& guard, const int oldversion);
+    bool _UpdateDatabase(LockT& guard, const int oldversion);
 
     //! \brief Variant for the picture signature auxiliary db
-    bool _UpdateDatabaseSignatures(Lock& guard, const int oldversion);
+    bool _UpdateDatabaseSignatures(LockT& guard, const int oldversion);
 
     //! \brief Sets the database version. Should only be called from _UpdateDatabase
-    void _SetCurrentDatabaseVersion(Lock& guard, int newversion);
+    void _SetCurrentDatabaseVersion(LockT& guard, int newversion);
 
     //! \brief Variant for the picture signature auxiliary db
-    void _SetCurrentDatabaseVersionSignatures(Lock& guard, int newversion);
+    void _SetCurrentDatabaseVersionSignatures(LockT& guard, int newversion);
 
     //! \brief Helper for updates. Might be useful integrity checks later
     //! \note This can only be ran while doing a database update because the database
     //! needs to parse tags and to do that it needs to be unlocked and it might mess with
     //! the result that is being iterated
-    void _UpdateApplyDownloadTagStrings(Lock& guard);
+    void _UpdateApplyDownloadTagStrings(LockT& guard);
 
 protected:
     sqlite3* SQLiteDb = nullptr;
@@ -827,7 +857,7 @@ protected:
 //! \todo Add a way for this to rollback on exception
 class DoDBTransaction {
 public:
-    DoDBTransaction(Database& db, Lock& dblock, bool alsoauxiliary = false);
+    DoDBTransaction(Database& db, RecursiveLock& dblock, bool alsoauxiliary = false);
 
     DoDBTransaction(DoDBTransaction&& other) = delete;
     DoDBTransaction(const DoDBTransaction& other) = delete;
@@ -835,10 +865,18 @@ public:
 
     ~DoDBTransaction();
 
+    //! \brief Prevent commit on scope exit before end
+    void AllowCommit(bool success)
+    {
+        Success = success;
+    }
+
 private:
     Database& DB;
-    Lock& Locked;
+    RecursiveLock& Locked;
     bool Auxiliary;
+
+    bool Success = true;
 };
 
 //! \brief Helper class that automatically handles a savepoint
@@ -846,8 +884,8 @@ private:
 //! \warning The savepoint name is not sent as a prepared statement, SQL injection is possible!
 class DoDBSavePoint {
 public:
-    DoDBSavePoint(
-        Database& db, Lock& dblock, const std::string& savepoint, bool alsoauxiliary = false);
+    DoDBSavePoint(Database& db, RecursiveLock& dblock, const std::string& savepoint,
+        bool alsoauxiliary = false);
 
     DoDBSavePoint(DoDBSavePoint&& other) = delete;
     DoDBSavePoint(const DoDBSavePoint& other) = delete;
@@ -855,11 +893,19 @@ public:
 
     ~DoDBSavePoint();
 
+    //! \brief Prevent commit on scope exit before end
+    void AllowCommit(bool success)
+    {
+        Success = success;
+    }
+
 private:
     Database& DB;
-    Lock& Locked;
+    RecursiveLock& Locked;
     const std::string SavePoint;
     bool Auxiliary;
+
+    bool Success = true;
 };
 
 } // namespace DV

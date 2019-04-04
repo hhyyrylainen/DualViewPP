@@ -29,7 +29,8 @@ Collection::Collection(const std::string& name) :
     Leviathan::StringOperations::RemovePreceedingTrailingSpaces(Name);
 }
 
-Collection::Collection(Database& db, Lock& dblock, PreparedStatement& statement, int64_t id) :
+Collection::Collection(
+    Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id) :
     DatabaseResource(id, db),
 
     AddDate(TimeHelpers::GetStaleZonedTime()), ModifyDate(AddDate), LastView(AddDate)
@@ -97,14 +98,14 @@ std::string Collection::GetNameForFolder() const
     return sanitized;
 }
 // ------------------------------------ //
-bool Collection::AddTags(const TagCollection& tags, Lock& databaselock)
+bool Collection::AddTags(const TagCollection& tags, DatabaseLockT& dblock)
 {
     auto currenttags = GetTags();
 
     if(!currenttags)
         return false;
 
-    currenttags->Add(tags, databaselock);
+    currenttags->Add(tags, dblock);
     return true;
 }
 
@@ -126,12 +127,12 @@ int64_t Collection::GetLastShowOrder() const
     return InDatabase->SelectCollectionLargestShowOrder(guard, *this);
 }
 
-int64_t Collection::GetLastShowOrder(Lock& databaselock) const
+int64_t Collection::GetLastShowOrder(DatabaseLockT& dblock) const
 {
     if(!IsInDatabase())
         return 0;
 
-    return InDatabase->SelectCollectionLargestShowOrder(databaselock, *this);
+    return InDatabase->SelectCollectionLargestShowOrder(dblock, *this);
 }
 // ------------------------------------ //
 bool Collection::AddImage(std::shared_ptr<Image> image)
@@ -142,13 +143,13 @@ bool Collection::AddImage(std::shared_ptr<Image> image)
     return InDatabase->InsertImageToCollectionAG(*this, *image, GetLastShowOrder() + 1);
 }
 
-bool Collection::AddImage(std::shared_ptr<Image> image, Lock& databaselock)
+bool Collection::AddImage(std::shared_ptr<Image> image, DatabaseLockT& dblock)
 {
     if(!image || !IsInDatabase())
         return false;
 
     return InDatabase->InsertImageToCollection(
-        databaselock, *this, *image, GetLastShowOrder(databaselock) + 1);
+        dblock, *this, *image, GetLastShowOrder(dblock) + 1);
 }
 
 bool Collection::AddImage(std::shared_ptr<Image> image, int64_t order)
@@ -159,20 +160,20 @@ bool Collection::AddImage(std::shared_ptr<Image> image, int64_t order)
     return InDatabase->InsertImageToCollectionAG(*this, *image, order);
 }
 
-bool Collection::AddImage(std::shared_ptr<Image> image, int64_t order, Lock& databaselock)
+bool Collection::AddImage(std::shared_ptr<Image> image, int64_t order, DatabaseLockT& dblock)
 {
     if(!image || !IsInDatabase())
         return false;
 
-    return InDatabase->InsertImageToCollection(databaselock, *this, *image, order);
+    return InDatabase->InsertImageToCollection(dblock, *this, *image, order);
 }
 
-bool Collection::RemoveImage(std::shared_ptr<Image> image, Lock& databaselock)
+bool Collection::RemoveImage(std::shared_ptr<Image> image, DatabaseLockT& dblock)
 {
     if(!image || !IsInDatabase())
         return false;
 
-    return InDatabase->DeleteImageFromCollection(databaselock, *this, *image);
+    return InDatabase->DeleteImageFromCollection(dblock, *this, *image);
 }
 
 int64_t Collection::GetImageCount() const
@@ -183,12 +184,12 @@ int64_t Collection::GetImageCount() const
     return InDatabase->SelectCollectionImageCountAG(*this);
 }
 
-int64_t Collection::GetImageCount(Lock& databaselock) const
+int64_t Collection::GetImageCount(DatabaseLockT& dblock) const
 {
     if(!IsInDatabase())
         return 0;
 
-    return InDatabase->SelectCollectionImageCount(databaselock, *this);
+    return InDatabase->SelectCollectionImageCount(dblock, *this);
 }
 
 int64_t Collection::GetImageShowOrder(std::shared_ptr<Image> image) const
@@ -199,12 +200,13 @@ int64_t Collection::GetImageShowOrder(std::shared_ptr<Image> image) const
     return InDatabase->SelectImageShowOrderInCollectionAG(*this, *image);
 }
 
-int64_t Collection::GetImageShowOrder(std::shared_ptr<Image> image, Lock& databaselock) const
+int64_t Collection::GetImageShowOrder(
+    std::shared_ptr<Image> image, DatabaseLockT& dblock) const
 {
     if(!image || !IsInDatabase())
         return -1;
 
-    return InDatabase->SelectImageShowOrderInCollection(databaselock, *this, *image);
+    return InDatabase->SelectImageShowOrderInCollection(dblock, *this, *image);
 }
 
 std::shared_ptr<Image> Collection::GetPreviewIcon() const

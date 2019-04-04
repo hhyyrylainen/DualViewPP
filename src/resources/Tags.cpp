@@ -16,7 +16,7 @@ using namespace DV;
 // ------------------------------------ //
 // TagModifier
 TagModifier::TagModifier(
-    Database& db, Lock& dblock, PreparedStatement& statement, int64_t id) :
+    Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id) :
     DatabaseResource(id, db)
 {
     CheckRowID(statement, 1, "name");
@@ -110,7 +110,7 @@ Tag::Tag(std::string name, std::string description, TAG_CATEGORY category,
     Category = category;
 }
 
-Tag::Tag(Database& db, Lock& dblock, PreparedStatement& statement, int64_t id) :
+Tag::Tag(Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id) :
     DatabaseResource(id, db)
 {
     CheckRowID(statement, 1, "name");
@@ -237,7 +237,8 @@ AppliedTag::AppliedTag(
     CombinedWith = std::make_tuple(std::get<1>(composite), std::get<2>(composite));
 }
 
-AppliedTag::AppliedTag(Database& db, Lock& dblock, PreparedStatement& statement, int64_t id) :
+AppliedTag::AppliedTag(
+    Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id) :
     ID(id)
 {
     CheckRowID(statement, 1, "tag");
@@ -375,7 +376,7 @@ bool AppliedTag::IsSame(const AppliedTag& other) const
 // TagBreakRule
 
 TagBreakRule::TagBreakRule(
-    Database& db, Lock& dblock, PreparedStatement& statement, int64_t id) :
+    Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id) :
     DatabaseResource(id, db)
 {
     // Load properties //
@@ -629,7 +630,7 @@ bool TagCollection::Add(std::shared_ptr<AppliedTag> tag)
     return true;
 }
 
-bool TagCollection::Add(std::shared_ptr<AppliedTag> tag, Lock& dblock)
+bool TagCollection::Add(std::shared_ptr<AppliedTag> tag, DatabaseLockT& dblock)
 {
     if(!tag || HasTag(*tag))
         return false;
@@ -652,7 +653,7 @@ void TagCollection::Add(const TagCollection& other)
     }
 }
 
-void TagCollection::Add(const TagCollection& other, Lock& dblock)
+void TagCollection::Add(const TagCollection& other, DatabaseLockT& dblock)
 {
     CheckIsLoaded(dblock);
 
@@ -773,7 +774,7 @@ void DatabaseTagCollection::_OnCheckTagsLoaded()
     LoadTags(guard, Tags);
 }
 
-void DatabaseTagCollection::_OnCheckTagsLoaded(Lock& dblock)
+void DatabaseTagCollection::_OnCheckTagsLoaded(DatabaseLockT& dblock)
 {
     if(TagsLoaded)
         return;
@@ -796,7 +797,7 @@ void DatabaseTagCollection::_TagAdded(AppliedTag& tag)
     OnAddTag(guard, tag);
 }
 
-void DatabaseTagCollection::_TagAdded(AppliedTag& tag, Lock& dblock)
+void DatabaseTagCollection::_TagAdded(AppliedTag& tag, DatabaseLockT& dblock)
 {
     OnAddTag(dblock, tag);
 }

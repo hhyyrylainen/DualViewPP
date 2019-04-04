@@ -76,7 +76,7 @@ void DatabaseResource::Save()
     IsDirty = false;
 }
 
-void DatabaseResource::Save(Database& db, Lock& dblock)
+void DatabaseResource::Save(Database& db, DatabaseLockT& dblock)
 {
     if(!IsDirty || !InDatabase)
         return;
@@ -97,7 +97,7 @@ void DatabaseResource::Save(Database& db, Lock& dblock)
     IsDirty = false;
 }
 
-void DatabaseResource::_DoSave(Database& db, Lock& dblock)
+void DatabaseResource::_DoSave(Database& db, DatabaseLockT& dblock)
 {
     LOG_FATAL(
         "_DoSave variant for bulk save called on an object that doesn't support bulk save");

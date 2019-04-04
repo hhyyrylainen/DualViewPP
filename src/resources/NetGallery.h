@@ -18,7 +18,7 @@ public:
         const std::string& tagstr = "");
 
     //! \brief Constructor for database loading
-    NetFile(Database& db, Lock& dblock, PreparedStatement& statement, int64_t id);
+    NetFile(Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id);
 
     ~NetFile();
 
@@ -66,7 +66,7 @@ public:
     NetGallery(const std::string& url, const std::string& targetgallery);
 
     //! \brief Constructor for database loading
-    NetGallery(Database& db, Lock& dblock, PreparedStatement& statement, int64_t id);
+    NetGallery(Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id);
 
     ~NetGallery();
 
@@ -143,8 +143,8 @@ public:
 
     //! \brief Adds all images to this gallery
     //! \note Doesn't check for duplicates
-    void AddFilesToDownload(
-        const std::vector<std::shared_ptr<InternetImage>>& images, Lock& databaselock);
+    void AddFilesToDownload(const std::vector<std::shared_ptr<InternetImage>>& images,
+        DatabaseLockT& databaselock);
 
 protected:
     void _DoSave(Database& db) override;

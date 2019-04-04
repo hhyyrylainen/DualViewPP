@@ -1595,127 +1595,128 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
 
     LEVIATHAN_ASSERT(addtocollection, "Failed to get collection object");
 
-    GUARD_LOCK_OTHER(_Database);
-
-    auto transaction = std::make_unique<DoDBTransaction>(*_Database, guard);
-
-    if(canapplytags)
-        addtocollection->AddTags(addcollectiontags, guard);
-
-    size_t currentitem = 0;
-    const auto maxitems = resources.size();
-
-    auto order = addtocollection->GetLastShowOrder(guard);
-
     std::vector<std::string> filestodelete;
 
-    // Some lambdas to run after success. used to simplify this
-    std::vector<std::function<void()>> onSuccessFunctions;
+    {
+        GUARD_LOCK_OTHER(_Database);
 
-    // Save resources to database if not loaded from the database //
+        auto transaction = std::make_unique<DoDBTransaction>(*_Database, guard);
 
-    for(auto& resource : resources) {
+        if(canapplytags)
+            addtocollection->AddTags(addcollectiontags, guard);
 
-        std::shared_ptr<Image> actualresource;
+        size_t currentitem = 0;
+        const auto maxitems = resources.size();
 
-        if(!resource->IsInDatabase()) {
+        auto order = addtocollection->GetLastShowOrder(guard);
 
-            // If the image hash is in the collection then we shouldn't be here //
-            // But just in case we should check to make absolutely sure
-            auto existingimage = _Database->SelectImageByHash(guard, resource->GetHash());
+        // Some lambdas to run after success. used to simplify this
+        std::vector<std::function<void()>> onSuccessFunctions;
 
-            if(existingimage) {
+        // Save resources to database if not loaded from the database //
 
-                LOG_WARNING("Trying to import a duplicate hash image");
+        for(auto& resource : resources) {
 
-                if(existingimage->IsDeleted()) {
+            std::shared_ptr<Image> actualresource;
+
+            if(!resource->IsInDatabase()) {
+
+                // If the image hash is in the collection then we shouldn't be here //
+                // But just in case we should check to make absolutely sure
+                auto existingimage = _Database->SelectImageByHash(guard, resource->GetHash());
+
+                if(existingimage) {
+
+                    LOG_WARNING("Trying to import a duplicate hash image");
+
+                    if(existingimage->IsDeleted()) {
+                    }
+
+                    // Delete original file if moving //
+                    if(move) {
+
+                        const auto path = resource->GetResourcePath();
+
+                        onSuccessFunctions.push_back([path]() {
+                            LOG_INFO("Deleting moved (duplicate) file: " + path);
+
+                            boost::filesystem::remove(path);
+                        });
+                    }
+
+                    if(resource->GetTags()->HasTags(guard))
+                        existingimage->GetTags()->Add(*resource->GetTags(), guard);
+
+                    actualresource = existingimage;
+
+                } else {
+
+                    // TODO: unmove if fails to add
+                    if(!MoveFileToCollectionFolder(resource, addtocollection, move)) {
+
+                        LOG_ERROR("Failed to move file to collection's folder");
+                        return false;
+                    }
+
+                    std::shared_ptr<TagCollection> tagstoapply;
+
+                    // Store tags for applying //
+                    if(resource->GetTags()->HasTags(guard))
+                        tagstoapply = resource->GetTags();
+
+                    try {
+                        _Database->InsertImage(guard, *resource);
+
+                    } catch(const InvalidSQL& e) {
+
+                        // We have already moved the image so this is a problem
+                        LOG_INFO("TODO: move file back after adding fails");
+                        LOG_ERROR("Sql error adding image to collection: ");
+                        e.PrintToLog();
+                        return false;
+                    }
+
+                    // Apply tags //
+                    if(tagstoapply)
+                        resource->GetTags()->Add(*tagstoapply, guard);
+
+                    actualresource = resource;
                 }
-
-                // Delete original file if moving //
-                if(move) {
-
-                    const auto path = resource->GetResourcePath();
-
-                    onSuccessFunctions.push_back([path]() {
-                        LOG_INFO("Deleting moved (duplicate) file: " + path);
-
-                        boost::filesystem::remove(path);
-                    });
-                }
-
-                if(resource->GetTags()->HasTags(guard))
-                    existingimage->GetTags()->Add(*resource->GetTags(), guard);
-
-                actualresource = existingimage;
 
             } else {
 
-                // TODO: unmove if fails to add
-                if(!MoveFileToCollectionFolder(resource, addtocollection, move)) {
-
-                    LOG_ERROR("Failed to move file to collection's folder");
-                    return false;
-                }
-
-                std::shared_ptr<TagCollection> tagstoapply;
-
-                // Store tags for applying //
-                if(resource->GetTags()->HasTags(guard))
-                    tagstoapply = resource->GetTags();
-
-                try {
-                    _Database->InsertImage(guard, *resource);
-
-                } catch(const InvalidSQL& e) {
-
-                    // We have already moved the image so this is a problem
-                    LOG_INFO("TODO: move file back after adding fails");
-                    LOG_ERROR("Sql error adding image to collection: ");
-                    e.PrintToLog();
-                    return false;
-                }
-
-                // Apply tags //
-                if(tagstoapply)
-                    resource->GetTags()->Add(*tagstoapply, guard);
-
                 actualresource = resource;
+
+                // Remove from uncategorized if not adding to that //
+                if(addtocollection != uncategorized) {
+
+                    uncategorized->RemoveImage(actualresource, guard);
+                }
             }
 
-        } else {
+            LEVIATHAN_ASSERT(
+                actualresource, "actualresource not set in DualView import image");
 
-            actualresource = resource;
+            // Associate with collection //
+            addtocollection->AddImage(actualresource, ++order, guard);
 
-            // Remove from uncategorized if not adding to that //
-            if(addtocollection != uncategorized) {
+            currentitem++;
 
-                uncategorized->RemoveImage(actualresource, guard);
-            }
+            if(progresscallback)
+                progresscallback(currentitem / (float)maxitems);
         }
 
-        LEVIATHAN_ASSERT(actualresource, "actualresource not set in DualView import image");
+        // Commit transaction //
+        // by reseting the smart pointer
+        transaction.reset();
 
-        // Associate with collection //
-        addtocollection->AddImage(actualresource, ++order, guard);
+        for(const auto& func : onSuccessFunctions) {
 
-        currentitem++;
+            func();
+        }
 
-        if(progresscallback)
-            progresscallback(currentitem / (float)maxitems);
+        // We no longer use the database
     }
-
-    // Commit transaction //
-    // by reseting the smart pointer
-    transaction.reset();
-
-    for(const auto& func : onSuccessFunctions) {
-
-        func();
-    }
-
-    // We no longer use the database
-    guard.unlock();
-
 
 
     // These are duplicate files of already existing ones

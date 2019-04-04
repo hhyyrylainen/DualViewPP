@@ -33,7 +33,7 @@ public:
 
 public:
     //! \brief Database load function
-    Collection(Database& db, Lock& dblock, PreparedStatement& statement, int64_t id);
+    Collection(Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id);
 
     ~Collection();
 
@@ -47,7 +47,7 @@ public:
     //! \brief Adds tags to this collection
     //! \note Only works if this is in the database
     //! \return True if successfully added
-    bool AddTags(const TagCollection& tags, Lock& databaselock);
+    bool AddTags(const TagCollection& tags, DatabaseLockT& dblock);
 
 
     //! \brief Adds an image to this Collection
@@ -56,7 +56,7 @@ public:
     bool AddImage(std::shared_ptr<Image> image);
 
     //! \see AddImage
-    bool AddImage(std::shared_ptr<Image> image, Lock& databaselock);
+    bool AddImage(std::shared_ptr<Image> image, DatabaseLockT& dblock);
 
     //! \brief Adds an image to this Collection
     //!
@@ -64,29 +64,29 @@ public:
     bool AddImage(std::shared_ptr<Image> image, int64_t order);
 
     //! \see AddImage
-    bool AddImage(std::shared_ptr<Image> image, int64_t order, Lock& databaselock);
+    bool AddImage(std::shared_ptr<Image> image, int64_t order, DatabaseLockT& dblock);
 
     //! \brief Removes an image from this collection
     //! \returns True if the image was removed, false if it wasn't in this collection
-    bool RemoveImage(std::shared_ptr<Image> image, Lock& databaselock);
+    bool RemoveImage(std::shared_ptr<Image> image, DatabaseLockT& dblock);
 
     //! \brief Gets the largest show_order used in the collection
     int64_t GetLastShowOrder() const;
 
     //! \see GetLastShowOrder
-    int64_t GetLastShowOrder(Lock& databaselock) const;
+    int64_t GetLastShowOrder(DatabaseLockT& dblock) const;
 
     //! \brief Returns the image count
     int64_t GetImageCount() const;
 
     //! \see GetImageCount
-    int64_t GetImageCount(Lock& databaselock) const;
+    int64_t GetImageCount(DatabaseLockT& dblock) const;
 
     //! \brief Returns image's show_order in this collection. Or -1
     int64_t GetImageShowOrder(std::shared_ptr<Image> image) const;
 
     //! \see GetImageShowOrder
-    int64_t GetImageShowOrder(std::shared_ptr<Image> image, Lock& databaselock) const;
+    int64_t GetImageShowOrder(std::shared_ptr<Image> image, DatabaseLockT& dblock) const;
 
     //! \brief Returns the preview icon for this Collection
     //!

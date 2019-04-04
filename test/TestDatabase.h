@@ -21,7 +21,7 @@ public:
     }
 
     std::shared_ptr<Image> InsertTestImage(
-        Lock& guard, const std::string& file, const std::string& hash)
+        Database::LockT& guard, const std::string& file, const std::string& hash)
     {
         const char str[] =
             "INSERT INTO pictures (relative_path, name, extension, file_hash, "

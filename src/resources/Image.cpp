@@ -75,7 +75,7 @@ Image::Image() :
 }
 
 
-Image::Image(Database& db, Lock& dblock, PreparedStatement& statement, int64_t id) :
+Image::Image(Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id) :
     DatabaseResource(id, db), AddDate(TimeHelpers::GetStaleZonedTime()), LastView(AddDate)
 {
     IsReadyToAdd = true;
@@ -208,7 +208,7 @@ void Image::_DoSave(Database& db)
     db.UpdateImageAG(*this);
 }
 
-void Image::_DoSave(Database& db, Lock& dblock)
+void Image::_DoSave(Database& db, DatabaseLockT& dblock)
 {
     db.UpdateImage(dblock, *this);
 }

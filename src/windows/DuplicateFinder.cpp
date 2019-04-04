@@ -425,9 +425,9 @@ void DuplicateFinderWindow::_DeleteAllAfterFirstPressed()
 }
 
 void DuplicateFinderWindow::_MergeCurrentGroupDuplicates(
-    const std::vector<std::shared_ptr<Image>>& toMerge)
+    const std::vector<std::shared_ptr<Image>>& tomerge)
 {
-    if(toMerge.empty())
+    if(tomerge.empty())
         return;
 
     std::shared_ptr<Image> mergeTarget;
@@ -438,7 +438,7 @@ void DuplicateFinderWindow::_MergeCurrentGroupDuplicates(
     for(const auto& image : group) {
         bool selected = false;
 
-        for(const auto& check : toMerge) {
+        for(const auto& check : tomerge) {
             if(check == image) {
                 selected = true;
                 break;
@@ -460,7 +460,7 @@ void DuplicateFinderWindow::_MergeCurrentGroupDuplicates(
     LOG_INFO("Merging images into: " + mergeTarget->GetName() + " (" +
              std::to_string(mergeTarget->GetID()) + ")");
 
-    for(const auto& image : toMerge)
+    for(const auto& image : tomerge)
         LOG_WRITE("\t" + image->GetName() + " (" + std::to_string(image->GetID()) + ")");
 
     // TODO: write the code here

@@ -13,7 +13,8 @@ NetGallery::NetGallery(const std::string& url, const std::string& targetgallery)
     DatabaseResource(true), GalleryURL(url), TargetGalleryName(targetgallery)
 {}
 
-NetGallery::NetGallery(Database& db, Lock& dblock, PreparedStatement& statement, int64_t id) :
+NetGallery::NetGallery(
+    Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id) :
     DatabaseResource(id, db)
 {
     // Load properties //
@@ -43,7 +44,7 @@ NetGallery::~NetGallery()
 }
 // ------------------------------------ //
 void NetGallery::AddFilesToDownload(
-    const std::vector<std::shared_ptr<InternetImage>>& images, Lock& databaselock)
+    const std::vector<std::shared_ptr<InternetImage>>& images, DatabaseLockT& databaselock)
 {
     if(!IsInDatabase())
         throw Leviathan::InvalidState("NetGallery not in database");
@@ -80,7 +81,8 @@ NetFile::NetFile(const std::string& url, const std::string& referrer, const std:
     FileURL(url), PageReferrer(referrer), PreferredName(name), TagsString(tagstr)
 {}
 
-NetFile::NetFile(Database& db, Lock& dblock, PreparedStatement& statement, int64_t id) :
+NetFile::NetFile(
+    Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id) :
     DatabaseResource(id, db)
 {
     // Load properties //
