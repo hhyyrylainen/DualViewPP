@@ -41,7 +41,7 @@ void FolderListItem::SetItemSize(LIST_ITEM_SIZE newsize)
         Container.set_homogeneous(true);
         break;
     }
-    case LIST_ITEM_SIZE::SMALL: {
+    default: {
         Container.set_homogeneous(false);
         break;
     }

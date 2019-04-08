@@ -1,6 +1,7 @@
 // ------------------------------------ //
 #include "DatabaseAction.h"
 
+#include "resources/ResourceWithPreview.h"
 
 #include "Database.h"
 #include "SQLHelpers.h"
@@ -132,6 +133,12 @@ void DatabaseAction::_OnPurged()
     Deleted = true;
 }
 
+std::vector<std::shared_ptr<ResourceWithPreview>> DatabaseAction::LoadPreviewItems(
+    int max /*= 10*/) const
+{
+    return {};
+}
+
 // ------------------------------------ //
 // ImageDeleteAction
 ImageDeleteAction::ImageDeleteAction(const std::vector<DBID>& images) : ImagesToDelete(images)
@@ -192,6 +199,44 @@ void ImageDeleteAction::_SerializeCustomData(Json::Value& value) const
     }
 
     value["images"] = images;
+}
+// ------------------------------------ //
+std::string ImageDeleteAction::GenerateDescription() const
+{
+    std::stringstream description;
+
+    description << "Deleted ";
+
+    if(ImagesToDelete.size() > 1) {
+        description << ImagesToDelete.size() << " images";
+    } else {
+        description << "an image";
+    }
+
+    return description.str();
+}
+
+std::vector<std::shared_ptr<ResourceWithPreview>> ImageDeleteAction::LoadPreviewItems(
+    int max) const
+{
+    if(!InDatabase || ImagesToDelete.empty())
+        return {};
+
+    std::vector<std::shared_ptr<ResourceWithPreview>> result;
+    result.reserve(std::min<size_t>(max, ImagesToDelete.size()));
+
+    GUARD_LOCK_OTHER(InDatabase);
+
+    for(size_t i = 0; i < ImagesToDelete.size() && i < static_cast<size_t>(max); ++i) {
+
+        auto casted = std::dynamic_pointer_cast<ResourceWithPreview>(
+            InDatabase->SelectImageByID(guard, ImagesToDelete[i]));
+
+        if(casted)
+            result.push_back(casted);
+    }
+
+    return result;
 }
 // ------------------------------------ //
 // ImageMergeAction
@@ -314,4 +359,54 @@ void ImageMergeAction::_SerializeCustomData(Json::Value& value) const
     value["target"] = Target;
     value["tags"] = tags;
     value["collections"] = collections;
+}
+// ------------------------------------ //
+std::string ImageMergeAction::GenerateDescription() const
+{
+    std::stringstream description;
+
+    description << "Merged ";
+
+    if(ImagesToMerge.size() > 1) {
+        description << ImagesToMerge.size() << " images ";
+    } else {
+        description << "an image ";
+    }
+
+    description << "into "
+                << (InDatabase ? InDatabase->SelectImageNameByIDAG(Target) :
+                                 std::to_string(Target));
+
+    return description.str();
+}
+
+std::vector<std::shared_ptr<ResourceWithPreview>> ImageMergeAction::LoadPreviewItems(
+    int max) const
+{
+    if(!InDatabase || max <= 0)
+        return {};
+
+    std::vector<std::shared_ptr<ResourceWithPreview>> result;
+    result.reserve(std::min<size_t>(max, ImagesToMerge.size()));
+
+    max -= 1;
+
+    GUARD_LOCK_OTHER(InDatabase);
+
+    auto casted = std::dynamic_pointer_cast<ResourceWithPreview>(
+        InDatabase->SelectImageByID(guard, Target));
+
+    if(casted)
+        result.push_back(casted);
+
+    for(size_t i = 0; i < ImagesToMerge.size() && i < static_cast<size_t>(max); ++i) {
+
+        auto casted = std::dynamic_pointer_cast<ResourceWithPreview>(
+            InDatabase->SelectImageByID(guard, ImagesToMerge[i]));
+
+        if(casted)
+            result.push_back(casted);
+    }
+
+    return result;
 }

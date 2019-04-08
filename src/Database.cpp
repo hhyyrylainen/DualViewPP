@@ -422,6 +422,7 @@ std::shared_ptr<ImageDeleteAction> Database::CreateDeleteImageAction(
 
     // This is here for exception safety
     const auto serialized = action->SerializeData();
+    const auto description = action->GenerateDescription();
 
     {
         DoDBSavePoint transaction(*this, guard, "create_del_img", true);
@@ -432,8 +433,9 @@ std::shared_ptr<ImageDeleteAction> Database::CreateDeleteImageAction(
             "picture_id = ?1;",
             image.GetID());
 
-        RunSQLAsPrepared(guard, "INSERT INTO action_history (type, json_data) VALUES(?1, ?2);",
-            static_cast<int>(action->GetType()), serialized);
+        RunSQLAsPrepared(guard,
+            "INSERT INTO action_history (type, json_data, description) VALUES(?1, ?2);",
+            static_cast<int>(action->GetType()), serialized, description);
 
         const auto actionId = sqlite3_last_insert_rowid(SQLiteDb);
         action->OnAdopted(actionId, *this);
@@ -464,6 +466,22 @@ DBID Database::SelectImageIDByHash(LockT& guard, const std::string& hash)
     }
 
     return -1;
+}
+
+std::string Database::SelectImageNameByID(LockT& guard, DBID id)
+{
+    const char str[] = "SELECT name FROM pictures WHERE id = ?1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(id);
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        return statementobj.GetColumnAsString(0);
+    }
+
+    return "";
 }
 
 std::string Database::SelectImageSignatureByID(LockT& guard, DBID image)
@@ -2980,9 +2998,10 @@ std::shared_ptr<DatabaseAction> Database::MergeImages(
                 id);
 
         RunSQLAsPrepared(guard,
-            "INSERT INTO action_history (type, performed, json_data) "
+            "INSERT INTO action_history (type, performed, json_data, description) "
             "VALUES(?1, 1, ?2);",
-            static_cast<int>(action->GetType()), action->SerializeData());
+            static_cast<int>(action->GetType()), action->SerializeData(),
+            action->GenerateDescription());
 
         const auto actionId = sqlite3_last_insert_rowid(SQLiteDb);
         action->OnAdopted(actionId, *this);
@@ -3024,18 +3043,46 @@ std::shared_ptr<DatabaseAction> Database::SelectDatabaseActionByID(LockT& guard,
     return nullptr;
 }
 
+std::vector<std::shared_ptr<DatabaseAction>> Database::SelectLatestDatabaseActions(
+    const std::string& search /*= ""*/, int limit /*= -1*/)
+{
+    GUARD_LOCK();
+
+    std::string query =
+        search != "" ? "SELECT * FROM action_history WHERE json_data LIKE ?1 COLLATE NOCASE "
+                       "OR description LIKE ?1 COLLATE NOCASE ORDER BY ID DESC LIMIT ?2;" :
+                       "SELECT * FROM action_history ORDER BY ID DESC LIMIT ?1";
+    std::vector<std::shared_ptr<DatabaseAction>> result;
+
+    PreparedStatement statementobj(SQLiteDb, query);
+
+    auto statementinuse = search != "" ? statementobj.Setup("%" + search + "%", limit) :
+                                         statementobj.Setup(limit);
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        auto action = _LoadDatabaseActionFromRow(guard, statementobj);
+
+        if(action)
+            result.push_back(action);
+    }
+
+
+    return result;
+}
+
 bool Database::UpdateDatabaseAction(LockT& guard, DatabaseAction& action)
 {
     if(action.IsDeleted() || !action.IsInDatabase())
         return false;
 
-    const char str[] =
-        "UPDATE action_history SET performed = ?1, json_data = ?2 WHERE id = ?3;";
+    const char str[] = "UPDATE action_history SET performed = ?1, json_data = ?2, description "
+                       "= ?3 WHERE id = ?4;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse =
-        statementobj.Setup(action.IsPerformed(), action.SerializeData(), action.GetID());
+    auto statementinuse = statementobj.Setup(action.IsPerformed(), action.SerializeData(),
+        action.GenerateDescription(), action.GetID());
 
     statementobj.StepAll(statementinuse);
     return true;
@@ -3163,6 +3210,38 @@ int64_t Database::CountAppliedTags()
     }
 
     return 0;
+}
+
+void Database::GenerateMissingDatabaseActionDescriptions(LockT& guard)
+{
+    DoDBTransaction transaction(*this, guard);
+
+    const char str[] =
+        "SELECT * FROM action_history WHERE description IS NULL OR description IS '';";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup();
+
+
+    const char str2[] = "UPDATE action_history SET description = ?1 WHERE id = ?2;";
+
+    PreparedStatement updateStatement(SQLiteDb, str2, sizeof(str2));
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        auto action = _LoadDatabaseActionFromRow(guard, statementobj);
+
+        if(action) {
+            updateStatement.StepAll(
+                updateStatement.Setup(action->GenerateDescription(), action->GetID()));
+        } else {
+            LOG_WARNING(
+                "Database: can't generate description for DatabaseAction that failed to load");
+        }
+    }
+
+    PurgeInactiveCache();
 }
 
 // ------------------------------------ //
@@ -3844,6 +3923,13 @@ bool Database::_UpdateDatabase(LockT& guard, const int oldversion)
         _RunSQL(guard,
             LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_23_24.sql"));
         _SetCurrentDatabaseVersion(guard, 24);
+        return true;
+    }
+    case 24: {
+        _RunSQL(guard,
+            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_24_25.sql"));
+        GenerateMissingDatabaseActionDescriptions(guard);
+        _SetCurrentDatabaseVersion(guard, 25);
         return true;
     }
     default: {

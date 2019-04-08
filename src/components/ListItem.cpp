@@ -98,6 +98,11 @@ void ListItem::get_preferred_width_vfunc(int& minimum_width, int& natural_width)
         natural_width = 82;
         break;
     }
+    case LIST_ITEM_SIZE::TINY: {
+        minimum_width = 38;
+        natural_width = 56;
+        break;
+    }
     }
 }
 
@@ -116,6 +121,11 @@ void ListItem::get_preferred_height_vfunc(int& minimum_height, int& natural_heig
     case LIST_ITEM_SIZE::SMALL: {
         minimum_height = 64;
         natural_height = 92;
+        break;
+    }
+    case LIST_ITEM_SIZE::TINY: {
+        minimum_height = 38;
+        natural_height = 60;
         break;
     }
     }
@@ -177,6 +187,16 @@ void ListItem::SetSelected(bool selected)
     _OnSelectionUpdated();
 }
 // ------------------------------------ //
+void ListItem::SetItemSize(LIST_ITEM_SIZE newsize)
+{
+    ItemSize = newsize;
+
+    switch(ItemSize) {
+    case LIST_ITEM_SIZE::TINY: NameLabel.set_lines(1); break;
+    default: NameLabel.set_lines(4);
+    }
+}
+
 std::shared_ptr<Image> ListItem::GetPrimaryImage() const
 {
     return ImageIcon.GetImage();

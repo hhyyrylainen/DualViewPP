@@ -82,7 +82,10 @@ enum class LIST_ITEM_SIZE {
     NORMAL,
 
     //! Small items, used for FolderSelector
-    SMALL
+    SMALL,
+
+    //! Even smaller items for small previews
+    TINY
 };
 
 } // namespace DV

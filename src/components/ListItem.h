@@ -53,10 +53,7 @@ public:
     //! \note The parent container needs to call this or be otherwise notified
     //! that this has changed, otherwise the size won't actually change.
     //! This is virtual so that FolderListItem can change to non-homogeneous layout
-    virtual void SetItemSize(LIST_ITEM_SIZE newsize)
-    {
-        ItemSize = newsize;
-    }
+    virtual void SetItemSize(LIST_ITEM_SIZE newsize);
 
     //! \brief Returns the image shown in ImageIcon
     std::shared_ptr<Image> GetPrimaryImage() const;

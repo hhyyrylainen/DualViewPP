@@ -378,7 +378,10 @@ CREATE TABLE action_history (
    performed INTEGER NOT NULL DEFAULT 0,
 
    -- All the action data serialized in JSON form
-   json_data TEXT NOT NULL
+   json_data TEXT NOT NULL,
+
+   -- Generated description for making searching by string more effective
+   description TEXT
 );
 
 -- Plugin management tables

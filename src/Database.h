@@ -40,7 +40,7 @@ class TagBreakRule;
 enum class DATABASE_ACTION_TYPE : int;
 
 // The version number of the database
-constexpr auto DATABASE_CURRENT_VERSION = 24;
+constexpr auto DATABASE_CURRENT_VERSION = 25;
 constexpr auto DATABASE_CURRENT_SIGNATURES_VERSION = 1;
 
 constexpr auto IMAGE_SIGNATURE_WORD_COUNT = 100;
@@ -141,6 +141,11 @@ public:
     //! \brief Retrieves an Image's id based on the hash
     DBID SelectImageIDByHash(LockT& guard, const std::string& hash);
     CREATE_NON_LOCKING_WRAPPER(SelectImageIDByHash);
+
+    //! \brief Return Image name by ID
+    std::string SelectImageNameByID(LockT& guard, DBID id);
+    CREATE_NON_LOCKING_WRAPPER(SelectImageNameByID);
+
 
     //! \brief Retrieves signature (or empty string) for image id
     std::string SelectImageSignatureByID(LockT& guard, DBID image);
@@ -610,6 +615,14 @@ public:
     std::shared_ptr<DatabaseAction> SelectDatabaseActionByID(LockT& guard, DBID id);
     CREATE_NON_LOCKING_WRAPPER(SelectDatabaseActionByID);
 
+
+    //! \brief Returns the latest actions matching the optional search string
+    //! \param search String that must be found either in the json data or the description of
+    //! an action
+    //! \param limit The max number of items returned. -1 is unlimited
+    std::vector<std::shared_ptr<DatabaseAction>> SelectLatestDatabaseActions(
+        const std::string& search = "", int limit = -1);
+
     //! \brief Updates the JSON data and Performed of the action
     bool UpdateDatabaseAction(LockT& guard, DatabaseAction& action);
     CREATE_NON_LOCKING_WRAPPER(UpdateDatabaseAction);
@@ -637,6 +650,8 @@ public:
 
     //! \brief Returns the number of rows in applied_tag
     int64_t CountAppliedTags();
+
+    void GenerateMissingDatabaseActionDescriptions(LockT& guard);
 
     //! \brief Tries to escape quotes in a string for insertion to sql statements
     static std::string EscapeSql(std::string str);

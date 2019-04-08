@@ -13,6 +13,7 @@ namespace DV {
 class Database;
 class PreparedStatement;
 class Image;
+class ResourceWithPreview;
 
 //! \brief Used to create the correct class from the action_history table
 enum class DATABASE_ACTION_TYPE : int {
@@ -45,6 +46,13 @@ public:
     virtual DATABASE_ACTION_TYPE GetType() const = 0;
 
     virtual std::string SerializeData() const;
+
+    //! \note This may retrieve data from the database to fill the string
+    virtual std::string GenerateDescription() const = 0;
+
+    //! \note This does database loading
+    virtual std::vector<std::shared_ptr<ResourceWithPreview>> LoadPreviewItems(
+        int max = 10) const;
 
     bool IsDeleted() const
     {
@@ -97,6 +105,9 @@ public:
     {
         return ImagesToDelete;
     }
+
+    std::string GenerateDescription() const override;
+    std::vector<std::shared_ptr<ResourceWithPreview>> LoadPreviewItems(int max) const override;
 
 protected:
     void _OnPurged() override;
@@ -161,6 +172,9 @@ public:
     {
         return AddTagsToTarget;
     }
+
+    std::string GenerateDescription() const override;
+    std::vector<std::shared_ptr<ResourceWithPreview>> LoadPreviewItems(int max) const override;
 
 protected:
     void _OnPurged() override;
