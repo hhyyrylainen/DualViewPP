@@ -3,6 +3,7 @@
 
 #include "Database.h"
 #include "DualView.h"
+#include "resources/DatabaseAction.h"
 
 using namespace DV;
 // ------------------------------------ //
@@ -202,21 +203,77 @@ bool DuplicateFinderWindow::PerformAction(HistoryItem& action)
 
     auto& group = DuplicateGroups[action.GroupsVectorIndexToRemoveAt];
 
-    // Remove the items specified by the action
-    group.erase(std::remove_if(group.begin(), group.end(),
-                    [&](const std::shared_ptr<Image>& item) {
-                        for(const auto& toErase : action.RemovedImages)
-                            if(item == toErase)
-                                return true;
-                        return false;
-                    }),
-        group.end());
+    std::vector<std::shared_ptr<Image>> confirmedRemoved;
+    confirmedRemoved.reserve(action.RemovedImages.size());
+
+    // Remove the items specified by the action and check which images actually existed to
+    // avoid problems in applying merges
+    for(auto iter = group.begin(); iter != group.end();) {
+
+        bool found = std::find(action.RemovedImages.begin(), action.RemovedImages.end(),
+                         *iter) != action.RemovedImages.end();
+
+        if(found) {
+
+            confirmedRemoved.push_back(*iter);
+            iter = group.erase(iter);
+        } else {
+
+            ++iter;
+        }
+    }
+
+    // Actions with extra things
+    // We don't return false here as we have already performed a part of the action and that
+    // would need code to undo that first before this part is allowed to bail out
+    switch(action.Type) {
+    case ACTION_TYPE::Merge: {
+        if(group.size() < 1) {
+
+            LOG_ERROR("Cannot perform Image merge as target group is empty after removes");
+
+        } else {
+
+            if(action.AdditionalAction && action.AdditionalAction->IsPerformed()) {
+
+                LOG_ERROR("DuplicateFinder: Redo: abandoning performed action!");
+            }
+
+            // If the already created action is fine we don't want to recreate it
+            auto casted = std::dynamic_pointer_cast<ImageMergeAction>(action.AdditionalAction);
+
+            // TODO: catch exceptions
+            if(casted && casted->IsSame(*group.front(), confirmedRemoved)) {
+
+                LOG_INFO("DuplicateFinder: Redo: reusing existing action, id: " +
+                         std::to_string(casted->GetID()));
+                if(!action.AdditionalAction->Redo()) {
+                    LOG_ERROR("DuplicateFinder: Redo: existing extra action failed to redo");
+                }
+            } else {
+
+                action.AdditionalAction = DualView::Get().GetDatabase().MergeImages(
+                    *group.front(), confirmedRemoved);
+            }
+        }
+
+        break;
+    }
+    case ACTION_TYPE::NotDuplicate:
+        // TODO: implement
+        DEBUG_BREAK;
+    case ACTION_TYPE::Remove: break;
+    }
 
     // If the group only has a single item (or none) left remove it as well and move to the
     // next
     if(group.size() == 1) {
 
-        action.ExtraRemovedGroupImages.push_back(group.front());
+        // Add the removed image to the extra (if not already)
+        if(std::find(action.ExtraRemovedGroupImages.begin(),
+               action.ExtraRemovedGroupImages.end(),
+               group.front()) == action.ExtraRemovedGroupImages.end())
+            action.ExtraRemovedGroupImages.push_back(group.front());
         group.pop_back();
     }
 
@@ -241,6 +298,22 @@ bool DuplicateFinderWindow::UndoAction(HistoryItem& action)
 {
     if(action.GroupsVectorIndexToRemoveAt > DuplicateGroups.size())
         return false;
+
+    // Undo any additional action
+    if(action.AdditionalAction) {
+
+        if(!action.AdditionalAction->IsPerformed()) {
+            LOG_ERROR(
+                "DuplicateFinder: Undo: additional action exists but it is not performed");
+        } else {
+
+            LOG_INFO("Undoing additional action");
+            if(!action.AdditionalAction->Undo()) {
+                LOG_ERROR("DuplicateFinder: Undo: failed to undo additional action");
+                return false;
+            }
+        }
+    }
 
     // Restore a fully removed group
     if(action.GroupsVectorIndexToRemoveAt == DuplicateGroups.size()) {
@@ -357,7 +430,7 @@ void DuplicateFinderWindow::_SkipPressed()
 
     // Create a proper action out of this
     auto action = std::make_shared<HistoryItem>(
-        *this, DuplicateGroups[ShownDuplicateGroup], ShownDuplicateGroup);
+        *this, DuplicateGroups[ShownDuplicateGroup], ShownDuplicateGroup, ACTION_TYPE::Remove);
 
     // And put it into the history which will call Redo on it
     History.AddAction(action);
@@ -434,7 +507,19 @@ void DuplicateFinderWindow::_MergeCurrentGroupDuplicates(
 
     auto& group = DuplicateGroups[ShownDuplicateGroup];
 
+    // Make sure that everything in tomerge is found
+    if(std::find_if(tomerge.begin(), tomerge.end(), [&](const std::shared_ptr<Image>& image) {
+           return std::find(group.begin(), group.end(), image) == group.end();
+       }) != tomerge.end()) {
+
+        LOG_ERROR("DuplicateFinder: merge list contained an image that is not part of the "
+                  "current group");
+        return;
+    }
+
     // The first not selected image is the merge target
+    // NOTE: this code doesn't store this detection anywhere this is just for sanity checking
+    // and logging. Similar detection is in the action redo method
     for(const auto& image : group) {
         bool selected = false;
 
@@ -456,14 +541,20 @@ void DuplicateFinderWindow::_MergeCurrentGroupDuplicates(
         return;
     }
 
-
     LOG_INFO("Merging images into: " + mergeTarget->GetName() + " (" +
              std::to_string(mergeTarget->GetID()) + ")");
 
     for(const auto& image : tomerge)
         LOG_WRITE("\t" + image->GetName() + " (" + std::to_string(image->GetID()) + ")");
 
-    // TODO: write the code here
+    // Create a proper action out of this
+    auto action =
+        std::make_shared<HistoryItem>(*this, tomerge, ShownDuplicateGroup, ACTION_TYPE::Merge);
+
+    // And put it into the history which will call Redo on it
+    History.AddAction(action);
+
+    _UpdateUndoRedoButtons();
 }
 // ------------------------------------ //
 void DuplicateFinderWindow::_DetectNewDuplicates(
@@ -703,7 +794,6 @@ void DuplicateFinderWindow::_UpdateDuplicateWidgets()
 
         active = true;
 
-
         text = "Resolving duplicate group " +
                std::to_string(
                    TotalGroupsFound + 1 - (DuplicateGroups.size() - ShownDuplicateGroup)) +
@@ -730,9 +820,9 @@ void DuplicateFinderWindow::_UpdateUndoRedoButtons()
 // DuplicateFinderWindow::HistoryItem
 DuplicateFinderWindow::HistoryItem::HistoryItem(DuplicateFinderWindow& target,
     const std::vector<std::shared_ptr<Image>>& removedimages,
-    size_t groupsvectorindextoremoveat) :
+    size_t groupsvectorindextoremoveat, ACTION_TYPE type) :
     RemovedImages(removedimages),
-    GroupsVectorIndexToRemoveAt(groupsvectorindextoremoveat), Target(target)
+    GroupsVectorIndexToRemoveAt(groupsvectorindextoremoveat), Target(target), Type(type)
 {}
 // ------------------------------------ //
 bool DuplicateFinderWindow::HistoryItem::Redo()

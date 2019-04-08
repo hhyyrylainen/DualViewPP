@@ -16,15 +16,19 @@
 
 namespace DV {
 
+class DatabaseAction;
+
 //! \brief Manages letting the user undo and redo actions and edit them
 class DuplicateFinderWindow final : public BaseWindow, public Gtk::Window, public IsAlive {
+    enum class ACTION_TYPE { Remove, Merge, NotDuplicate };
+
     class HistoryItem final : public ReversibleAction {
         friend DuplicateFinderWindow;
 
     public:
         HistoryItem(DuplicateFinderWindow& target,
             const std::vector<std::shared_ptr<Image>>& removedimages,
-            size_t groupsvectorindextoremoveat);
+            size_t groupsvectorindextoremoveat, ACTION_TYPE type);
 
         bool Redo() override;
         bool Undo() override;
@@ -36,6 +40,11 @@ class DuplicateFinderWindow final : public BaseWindow, public Gtk::Window, publi
 
         // Things for applying the effects and storing info
         DuplicateFinderWindow& Target;
+
+        ACTION_TYPE Type;
+
+        //! For Types that perform additional actions that is stored here for undo purposes
+        std::shared_ptr<DatabaseAction> AdditionalAction;
 
         //! This is used when an entire group is removed to restore extra items not in
         //! RemovedImages

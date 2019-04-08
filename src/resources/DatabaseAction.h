@@ -12,6 +12,7 @@ namespace DV {
 
 class Database;
 class PreparedStatement;
+class Image;
 
 //! \brief Used to create the correct class from the action_history table
 enum class DATABASE_ACTION_TYPE : int {
@@ -129,6 +130,12 @@ public:
     {
         return DATABASE_ACTION_TYPE::ImageMerge;
     }
+
+    //! \brief Determines if this action contains the specified data
+    //!
+    //! This is used to not have to recreate actions in some cases where a previous one can be
+    //! redone
+    bool IsSame(const Image& target, const std::vector<std::shared_ptr<Image>>& images) const;
 
     const auto GetTarget() const
     {

@@ -89,7 +89,6 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
 SingleView::~SingleView()
 {
-
     Close();
 
     LOG_INFO("SingleView window destructed");
@@ -97,7 +96,6 @@ SingleView::~SingleView()
 // ------------------------------------ //
 void SingleView::Open(std::shared_ptr<Image> image, std::shared_ptr<ImageListScroll> scroll)
 {
-
     // Detach old image, if there is one //
     GUARD_LOCK();
 
@@ -132,7 +130,6 @@ void SingleView::OnNotified(
 
 void SingleView::OnTagsUpdated(Lock& guard)
 {
-
     auto img = ImageView->GetImage();
 
     if(!img) {
@@ -184,7 +181,6 @@ void SingleView::OnTagsUpdated(Lock& guard)
 
 void SingleView::UpdateImageNumber()
 {
-
     DualView::IsOnMainThreadAssert();
 
     auto img = ImageView->GetImage();
@@ -229,15 +225,10 @@ void SingleView::UpdateImageNumber()
     }
 }
 // ------------------------------------ //
-void SingleView::_OnClose()
-{
-
-    LOG_INFO("SingleView window closed");
-}
+void SingleView::_OnClose() {}
 // ------------------------------------ //
 void SingleView::ToggleTagEditor()
 {
-
     if(ImageTags->get_visible()) {
 
         ImageTags->SetEditedTags({});
@@ -253,7 +244,6 @@ void SingleView::ToggleTagEditor()
 
 void SingleView::ToggleInfo()
 {
-
     if(ImageProperties->get_visible()) {
 
         // Hide //
@@ -271,7 +261,6 @@ void SingleView::ToggleInfo()
 
 void SingleView::_LoadImageInfo()
 {
-
     DualView::IsOnMainThreadAssert();
 
     auto alive = GetAliveMarker();
@@ -284,6 +273,8 @@ void SingleView::_LoadImageInfo()
         std::string Extension = img->GetExtension();
 
         const auto IsPrivate = img->GetIsPrivate() ? "true" : "false";
+
+        const auto isDeleted = img->IsDeleted() ? "true" : " false";
 
         std::string AddDate = img->GetAddDateStr();
 
@@ -313,7 +304,8 @@ void SingleView::_LoadImageInfo()
             std::stringstream stream;
             stream << "ID: " << id << "\nHash: " << Hash << "\nName: " << ResourceName
                    << "\nExtension: " << Extension << " is private: " << IsPrivate
-                   << " dimensions: " << Width << "x" << Height << "\nPath: " << ResourcePath
+                   << " is marked for deletion: " << isDeleted << " dimensions: " << Width
+                   << "x" << Height << "\nPath: " << ResourcePath
                    << "\nImported from: " << ImportLocation << "\nAdded: " << AddDate
                    << "\nLast View: " << LastView;
 
@@ -324,6 +316,5 @@ void SingleView::_LoadImageInfo()
 // ------------------------------------ //
 void SingleView::OpenImporter()
 {
-
     DualView::Get().OpenImporter({ImageView->GetImage()});
 }

@@ -1,8 +1,10 @@
 // ------------------------------------ //
 #include "DatabaseAction.h"
 
+
 #include "Database.h"
 #include "SQLHelpers.h"
+#include "resources/Image.h"
 
 #include "Exceptions.h"
 #include "json/json.h"
@@ -254,6 +256,19 @@ ImageMergeAction::ImageMergeAction(
 ImageMergeAction::~ImageMergeAction()
 {
     DBResourceDestruct();
+}
+// ------------------------------------ //
+bool ImageMergeAction::IsSame(
+    const Image& target, const std::vector<std::shared_ptr<Image>>& images) const
+{
+    if(images.size() != ImagesToMerge.size())
+        return false;
+
+    return Target == target.GetID() &&
+           std::equal(ImagesToMerge.begin(), ImagesToMerge.end(), images.begin(),
+               [](DBID first, const std::shared_ptr<Image>& second) {
+                   return first == second->GetID();
+               });
 }
 // ------------------------------------ //
 void ImageMergeAction::_Redo()
