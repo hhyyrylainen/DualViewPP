@@ -434,7 +434,7 @@ std::shared_ptr<ImageDeleteAction> Database::CreateDeleteImageAction(
             image.GetID());
 
         RunSQLAsPrepared(guard,
-            "INSERT INTO action_history (type, json_data, description) VALUES(?1, ?2);",
+            "INSERT INTO action_history (type, json_data, description) VALUES(?1, ?2, ?3);",
             static_cast<int>(action->GetType()), serialized, description);
 
         const auto actionId = sqlite3_last_insert_rowid(SQLiteDb);
@@ -2999,7 +2999,7 @@ std::shared_ptr<DatabaseAction> Database::MergeImages(
 
         RunSQLAsPrepared(guard,
             "INSERT INTO action_history (type, performed, json_data, description) "
-            "VALUES(?1, 1, ?2);",
+            "VALUES(?1, 1, ?2, ?3);",
             static_cast<int>(action->GetType()), action->SerializeData(),
             action->GenerateDescription());
 
