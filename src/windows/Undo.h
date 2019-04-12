@@ -75,6 +75,7 @@ protected:
 
     //! \brief Applies the max history item size
     void _ApplyPrimaryMenuSettings();
+
     void _ClearHistory();
 
 private:

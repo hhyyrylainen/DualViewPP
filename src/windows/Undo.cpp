@@ -176,6 +176,9 @@ void UndoWindow::_FinishedQueryingDB(
 // ------------------------------------ //
 void UndoWindow::_ApplyPrimaryMenuSettings()
 {
+    // This makes sure the up to date value is available for reading
+    HistorySize.update();
+
     int newSize = static_cast<int>(HistorySize.property_value());
 
     auto& settings = DualView::Get().GetSettings();
