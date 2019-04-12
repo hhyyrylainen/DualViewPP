@@ -68,6 +68,16 @@ public:
             Save();
     }
 
+    void SetActionHistorySize(int newsize, bool save = true)
+    {
+        IsDirty = true;
+
+        ActionHistorySize = std::clamp(newsize, 1, 1000);
+
+        if(save)
+            Save();
+    }
+
     auto GetCurlDebug() const
     {
         return CurlDebug;
@@ -86,6 +96,11 @@ public:
     auto GetMaxDLRetries() const
     {
         return MaxDLRetries;
+    }
+
+    auto GetActionHistorySize() const
+    {
+        return ActionHistorySize;
     }
 
     //! \brief Returns true if loadversion is compatible with SETTINGS_VERSION
@@ -143,6 +158,9 @@ protected:
 
     //! Folder where plugin files are stored in
     std::string PluginFolder = "plugins/";
+
+    //! Number of actions to keep for undo purposes
+    int ActionHistorySize = 50;
 
     //! Settings storage object
     //! \todo This will be used to preserve comments in the file, currently does nothing

@@ -447,6 +447,7 @@ std::shared_ptr<ImageDeleteAction> Database::CreateDeleteImageAction(
     if(casted.get() != action.get())
         LOG_ERROR("Database: action got changed on store");
 
+    PurgeOldActionsUntilUnderLimit(guard);
     return action;
 }
 
@@ -1405,6 +1406,24 @@ size_t Database::CountExistingTags()
     GUARD_LOCK();
 
     const char str[] = "SELECT COUNT(*) FROM tags WHERE deleted IS NOT 1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup();
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        return statementobj.GetColumnAsInt64(0);
+    }
+
+    return 0;
+}
+
+size_t Database::CountDatabaseActions()
+{
+    GUARD_LOCK();
+
+    const char str[] = "SELECT COUNT(*) FROM action_history;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -3022,6 +3041,7 @@ std::shared_ptr<DatabaseAction> Database::MergeImages(
     if(casted.get() != action.get())
         LOG_ERROR("Database: action got changed on store");
 
+    PurgeOldActionsUntilUnderLimit(guard);
     return action;
 }
 
@@ -3034,6 +3054,22 @@ std::shared_ptr<DatabaseAction> Database::SelectDatabaseActionByID(LockT& guard,
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
     auto statementinuse = statementobj.Setup(id);
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        return _LoadDatabaseActionFromRow(guard, statementobj);
+    }
+
+    return nullptr;
+}
+
+std::shared_ptr<DatabaseAction> Database::SelectOldestDatabaseAction(LockT& guard)
+{
+    const char str[] = "SELECT * FROM action_history ORDER BY id ASC LIMIT 1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup();
 
     if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
 
@@ -3105,6 +3141,37 @@ void Database::DeleteDatabaseAction(DatabaseAction& action)
 
     if(!action.IsDeleted())
         LOG_ERROR("Database: delete action didn't mark it as deleted");
+}
+
+// ------------------------------------ //
+void Database::PurgeOldActionsUntilUnderLimit(LockT& guard)
+{
+    PurgeOldActionsUntilSpecificCount(guard, ActionsToKeep);
+}
+
+void Database::PurgeOldActionsUntilSpecificCount(LockT& guard, uint32_t actionstokeep)
+{
+    while(CountDatabaseActions() > actionstokeep) {
+
+        auto action = SelectOldestDatabaseAction(guard);
+
+        if(!action) {
+
+            LOG_ERROR("Database: action count is over the number of actions to keep but "
+                      "loading oldest action failed");
+            break;
+        }
+
+        LOG_INFO("Database: purging an action to reduce count under " +
+                 std::to_string(actionstokeep) + ", id: " + std::to_string(action->GetID()));
+
+        DeleteDatabaseAction(*action);
+    }
+}
+
+void Database::SetMaxActionHistory(uint32_t maxactions)
+{
+    ActionsToKeep = std::clamp<uint32_t>(maxactions, 1, 1000);
 }
 
 // ------------------------------------ //

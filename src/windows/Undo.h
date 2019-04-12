@@ -71,6 +71,10 @@ protected:
 
     void _FinishedQueryingDB(const std::vector<std::shared_ptr<DatabaseAction>>& actions);
 
+    //! \brief Applies the max history item size
+    void _ApplyPrimaryMenuSettings();
+    void _ClearHistory();
+
 private:
     // Titlebar widgets
     Gtk::HeaderBar HeaderBar;

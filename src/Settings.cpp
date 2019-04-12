@@ -67,6 +67,9 @@ void Settings::Save()
         collectionList->AddVariable(std::make_shared<NamedVariableList>(
             "PrivateCollection", new StringBlock(PrivateCollection)));
 
+        collectionList->AddVariable(std::make_shared<NamedVariableList>(
+            "ActionHistorySize", new IntBlock(ActionHistorySize)));
+
         collection->AddVariableList(std::move(collectionList));
 
         data.AddObject(collection);
@@ -216,6 +219,10 @@ void Settings::_Load()
 
             Leviathan::ObjectFileProcessor::LoadValueFromNamedVars(settings->GetVariables(),
                 "PrivateCollection", PrivateCollection, PrivateCollection, log,
+                "Settings: Load:");
+
+            Leviathan::ObjectFileProcessor::LoadValueFromNamedVars(settings->GetVariables(),
+                "ActionHistorySize", ActionHistorySize, ActionHistorySize, log,
                 "Settings: Load:");
 
         } else {

@@ -616,6 +616,9 @@ public:
     CREATE_NON_LOCKING_WRAPPER(SelectDatabaseActionByID);
 
 
+    std::shared_ptr<DatabaseAction> SelectOldestDatabaseAction(LockT& guard);
+
+
     //! \brief Returns the latest actions matching the optional search string
     //! \param search String that must be found either in the json data or the description of
     //! an action
@@ -634,6 +637,9 @@ public:
 
     //! \brief Purges old actions while the number of actions is over MaxActions
     void PurgeOldActionsUntilUnderLimit(LockT& guard);
+
+    //! \brief Purges old actions while the number of actions is over actionstokeep
+    void PurgeOldActionsUntilSpecificCount(LockT& guard, uint32_t actionstokeep);
 
     //! \brief Updates the maximum action count
     //!
@@ -695,6 +701,7 @@ public:
 
     // Statistics functions //
     size_t CountExistingTags();
+    size_t CountDatabaseActions();
 
 protected:
     // These are for DatabaseAction to use
@@ -860,6 +867,9 @@ protected:
 
     //! Used for backups before potentially dangerous operations
     std::string DatabaseFile;
+
+    //! Number of actions to keep
+    uint32_t ActionsToKeep = 50;
 
     //! Makes sure each Collection is only loaded once
     SingleLoad<Collection, int64_t> LoadedCollections;

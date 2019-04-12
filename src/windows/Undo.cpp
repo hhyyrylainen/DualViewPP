@@ -5,6 +5,7 @@
 
 #include "Database.h"
 #include "DualView.h"
+#include "Settings.h"
 
 using namespace DV;
 // ------------------------------------ //
@@ -27,6 +28,7 @@ UndoWindow::UndoWindow() :
 
     // Window specific controls
     ClearHistory.property_relief() = Gtk::RELIEF_NONE;
+    ClearHistory.signal_clicked().connect(sigc::mem_fun(*this, &UndoWindow::_ClearHistory));
     MenuPopover.Container.pack_start(ClearHistory);
     MenuPopover.Container.pack_start(Separator1);
     MenuPopover.Container.pack_start(HistorySizeLabel);
@@ -38,13 +40,14 @@ UndoWindow::UndoWindow() :
     HistorySize.set_range(1, 250);
     HistorySize.set_increments(1, 10);
     HistorySize.set_digits(0);
-    // TODO: implement logic
-    HistorySize.set_value(50);
+    HistorySize.set_value(DualView::Get().GetSettings().GetActionHistorySize());
 
     MenuPopover.Container.pack_start(HistorySize);
 
     MenuPopover.show_all_children();
 
+    MenuPopover.signal_closed().connect(
+        sigc::mem_fun(*this, &UndoWindow::_ApplyPrimaryMenuSettings));
     Menu.set_popover(MenuPopover);
 
     SearchButton.set_image_from_icon_name("edit-find-symbolic");
@@ -170,6 +173,56 @@ void UndoWindow::_FinishedQueryingDB(
     if(FoundActions.empty())
         NothingToShow.property_visible() = true;
 }
+// ------------------------------------ //
+void UndoWindow::_ApplyPrimaryMenuSettings()
+{
+    int newSize = static_cast<int>(HistorySize.property_value());
+
+    auto& settings = DualView::Get().GetSettings();
+
+    // TODO: it isn't the cleanest thing to do all of this manipulation here
+    if(newSize != settings.GetActionHistorySize()) {
+
+        settings.SetActionHistorySize(newSize);
+        LOG_INFO("Updating setting max history size to: " +
+                 std::to_string(settings.GetActionHistorySize()));
+
+        DualView::Get().GetDatabase().SetMaxActionHistory(settings.GetActionHistorySize());
+    }
+}
+
+void UndoWindow::_ClearHistory()
+{
+    auto dialog = Gtk::MessageDialog(*this, "Clear action history?", false,
+        Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
+
+    dialog.set_secondary_text("It is NOT possible to undo this action.");
+    int result = dialog.run();
+
+    if(result != Gtk::RESPONSE_YES) {
+
+        return;
+    }
+
+    set_sensitive(false);
+
+    auto isalive = GetAliveMarker();
+
+    DualView::Get().QueueDBThreadFunction([=]() {
+        auto& db = DualView::Get().GetDatabase();
+        GUARD_LOCK_OTHER(db);
+        db.PurgeOldActionsUntilSpecificCount(guard, 0);
+
+        DualView::Get().InvokeFunction([this, isalive]() {
+            INVOKE_CHECK_ALIVE_MARKER(isalive);
+
+            Clear();
+            set_sensitive(true);
+            _SearchUpdated();
+        });
+    });
+}
+
 // ------------------------------------ //
 // ActionDisplay
 ActionDisplay::ActionDisplay(const std::shared_ptr<DatabaseAction>& action) :

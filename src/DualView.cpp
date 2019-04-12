@@ -466,6 +466,8 @@ bool DualView::_DoInitThreadAction()
     // Database object
     _Database = std::make_unique<Database>(_Settings->GetDatabaseFile());
 
+    _Database->SetMaxActionHistory(_Settings->GetActionHistorySize());
+
     try {
         _Database->Init();
 
