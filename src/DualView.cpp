@@ -1158,6 +1158,10 @@ void DualView::OpenMainWindow(bool present /*= true*/)
     AssertIfNotMainThread();
 
     if(MainMenu) {
+
+        if(!MainMenu->is_visible())
+            Application->add_window(*MainMenu);
+
         MainMenu->show();
 
         if(present)
