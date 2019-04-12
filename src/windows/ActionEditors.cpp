@@ -27,12 +27,8 @@ void EditActionHelper(
 }
 
 
-ActionEditor::ActionEditor(BaseNotifiableAll* notify) :
-    Apply("Apply"), MainContainer(Gtk::ORIENTATION_VERTICAL)
+ActionEditor::ActionEditor() : Apply("Apply"), MainContainer(Gtk::ORIENTATION_VERTICAL)
 {
-    if(notify)
-        ConnectToNotifiable(notify);
-
     signal_delete_event().connect(sigc::mem_fun(*this, &BaseWindow::_OnClosed));
     set_default_size(500, 300);
 
@@ -65,11 +61,7 @@ ActionEditor::ActionEditor(BaseNotifiableAll* notify) :
     add(MainArea);
 }
 
-ActionEditor::~ActionEditor()
-{
-    GUARD_LOCK();
-    ReleaseChildHooks(guard);
-}
+ActionEditor::~ActionEditor() {}
 
 void ActionEditor::_OnClose() {}
 // ------------------------------------ //
@@ -95,8 +87,6 @@ void ActionEditor::_OnApplyPressed()
         _PerformApply();
 
         // The action succeeded so we can close this window now
-        GUARD_LOCK();
-        NotifyAll(guard);
         close();
 
     } catch(const Leviathan::Exception& e) {
@@ -116,9 +106,7 @@ void ActionEditor::_OnApplyPressed()
 
 // ------------------------------------ //
 // MergeActionEditor
-MergeActionEditor::MergeActionEditor(
-    const std::shared_ptr<ImageMergeAction>& action, BaseNotifiableAll* notify) :
-    ActionEditor(notify),
+MergeActionEditor::MergeActionEditor(const std::shared_ptr<ImageMergeAction>& action) :
     Action(action),
     TargetImageViewer(nullptr, SuperViewer::ENABLED_EVENTS::ALL_BUT_MOVE, false),
     RemoveSelected("_Remove Selected", true)

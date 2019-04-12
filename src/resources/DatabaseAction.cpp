@@ -118,6 +118,9 @@ std::string DatabaseAction::SerializeData() const
 void DatabaseAction::_ReportPerformedStatus(bool performed)
 {
     Performed = performed;
+
+    GUARD_LOCK();
+    NotifyAll(guard);
 }
 // ------------------------------------ //
 void DatabaseAction::_DoSave(Database& db)
@@ -132,6 +135,9 @@ void DatabaseAction::_DoSave(Database& db, DatabaseLockT& dblock)
 void DatabaseAction::_OnPurged()
 {
     Deleted = true;
+
+    GUARD_LOCK();
+    NotifyAll(guard);
 }
 
 std::vector<std::shared_ptr<ResourceWithPreview>> DatabaseAction::LoadPreviewItems(
@@ -140,8 +146,7 @@ std::vector<std::shared_ptr<ResourceWithPreview>> DatabaseAction::LoadPreviewIte
     return {};
 }
 
-void DatabaseAction::OpenEditingWindow(
-    Leviathan::BaseNotifiableAll* notifyafteredit /*= nullptr*/)
+void DatabaseAction::OpenEditingWindow()
 {
     throw Leviathan::InvalidType("This action does not support opening editing window");
 }
@@ -425,10 +430,8 @@ std::vector<std::shared_ptr<ResourceWithPreview>> ImageMergeAction::LoadPreviewI
     return result;
 }
 // ------------------------------------ //
-void ImageMergeAction::OpenEditingWindow(
-    Leviathan::BaseNotifiableAll* notifyafteredit /*= nullptr*/)
+void ImageMergeAction::OpenEditingWindow()
 {
     DualView::Get().OpenActionEdit(
-        std::dynamic_pointer_cast<std::remove_pointer_t<decltype(this)>>(shared_from_this()),
-        notifyafteredit);
+        std::dynamic_pointer_cast<std::remove_pointer_t<decltype(this)>>(shared_from_this()));
 }

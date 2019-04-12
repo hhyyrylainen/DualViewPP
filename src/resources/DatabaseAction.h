@@ -65,7 +65,7 @@ public:
     //! \brief Opens a window for editing this action
     //!
     //! Should only be called if SupportsEditing()
-    virtual void OpenEditingWindow(Leviathan::BaseNotifiableAll* notifyafteredit = nullptr);
+    virtual void OpenEditingWindow();
 
     bool IsDeleted() const
     {
@@ -201,7 +201,7 @@ public:
         return true;
     }
 
-    void OpenEditingWindow(Leviathan::BaseNotifiableAll* notifyafteredit = nullptr) override;
+    void OpenEditingWindow() override;
 
 protected:
     void _OnPurged() override;

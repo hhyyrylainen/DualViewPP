@@ -276,6 +276,9 @@ ActionDisplay::ActionDisplay(const std::shared_ptr<DatabaseAction>& action) :
     show_all_children();
 
     RefreshData();
+
+    // Start listening for changes
+    action->ConnectToNotifiable(this);
 }
 
 ActionDisplay::~ActionDisplay()
@@ -312,6 +315,9 @@ void ActionDisplay::RefreshData()
 void ActionDisplay::_OnDataRetrieved(const std::string& description,
     const std::vector<std::shared_ptr<ResourceWithPreview>>& previewitems)
 {
+    // There's a small chance that this isn't always fully up to date but this is good enough
+    FetchingData = false;
+
     DualView::IsOnMainThreadAssert();
 
     Description.property_label() = description;
@@ -364,8 +370,6 @@ void ActionDisplay::_UndoRedoPressed()
         }
     } catch(const Leviathan::Exception& e) {
 
-        _UpdateStatusButtons();
-
         Gtk::Window* parent = dynamic_cast<Gtk::Window*>(this->get_toplevel());
 
         if(!parent)
@@ -377,20 +381,33 @@ void ActionDisplay::_UndoRedoPressed()
         dialog.set_secondary_text("Error: " + std::string(e.what()));
         dialog.run();
     }
-
-    _UpdateStatusButtons();
 }
 
 void ActionDisplay::_EditPressed()
 {
-    LOG_INFO("Opening editing window for action");
-    Action->OpenEditingWindow(this);
+    try {
+        Action->OpenEditingWindow();
+    } catch(const Leviathan::Exception& e) {
+        Gtk::Window* parent = dynamic_cast<Gtk::Window*>(this->get_toplevel());
+
+        if(!parent)
+            return;
+
+        auto dialog = Gtk::MessageDialog(*parent, "Can't edit this action", false,
+            Gtk::MESSAGE_ERROR, Gtk::BUTTONS_CLOSE, true);
+
+        dialog.set_secondary_text("Error: " + std::string(e.what()));
+        dialog.run();
+    }
 }
 
 void ActionDisplay::OnNotified(
     Lock& ownlock, Leviathan::BaseNotifierAll* parent, Lock& parentlock)
 {
-    LOG_INFO("ActionDisplay: notified of a changed action");
+    if(FetchingData)
+        return;
+
+    FetchingData = true;
 
     auto isalive = GetAliveMarker();
 

@@ -40,6 +40,8 @@ private:
 
 private:
     std::shared_ptr<DatabaseAction> Action;
+    //! Used to skip duplicate fetches
+    bool FetchingData = false;
 
     Gtk::Box MainBox;
 

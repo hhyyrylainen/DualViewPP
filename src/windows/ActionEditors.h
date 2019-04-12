@@ -7,9 +7,6 @@
 #include "components/SuperContainer.h"
 #include "components/SuperViewer.h"
 
-
-#include "Common/BaseNotifier.h"
-
 #include <gtkmm.h>
 
 #include <atomic>
@@ -19,12 +16,9 @@ namespace DV {
 class ImageMergeAction;
 
 //! \brief Base for all windows that allow editing actions
-class ActionEditor : public BaseWindow,
-                     public Gtk::Window,
-                     public IsAlive,
-                     public BaseNotifierAll {
+class ActionEditor : public BaseWindow, public Gtk::Window, public IsAlive {
 public:
-    ActionEditor(BaseNotifiableAll* notify);
+    ActionEditor();
     ~ActionEditor();
 
 protected:
@@ -64,8 +58,7 @@ protected:
 //! \brief Editor for ImageMergeAction
 class MergeActionEditor final : public ActionEditor {
 public:
-    MergeActionEditor(
-        const std::shared_ptr<ImageMergeAction>& action, BaseNotifiableAll* notify);
+    MergeActionEditor(const std::shared_ptr<ImageMergeAction>& action);
     ~MergeActionEditor();
 
     void RefreshData();

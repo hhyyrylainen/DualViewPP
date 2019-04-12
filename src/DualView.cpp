@@ -1350,15 +1350,14 @@ void DualView::OpenReorder(const std::shared_ptr<Collection>& collection)
     window->show();
 }
 
-void DualView::OpenActionEdit(const std::shared_ptr<ImageMergeAction>& action,
-    Leviathan::BaseNotifiableAll* notifyafteredit)
+void DualView::OpenActionEdit(const std::shared_ptr<ImageMergeAction>& action)
 {
     if(!action)
         return;
 
     AssertIfNotMainThread();
 
-    auto window = std::make_shared<MergeActionEditor>(action, notifyafteredit);
+    auto window = std::make_shared<MergeActionEditor>(action);
     _AddOpenWindow(window, *window);
     window->show();
 }
