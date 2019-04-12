@@ -174,7 +174,7 @@ void UndoWindow::_FinishedQueryingDB(
 // ActionDisplay
 ActionDisplay::ActionDisplay(const std::shared_ptr<DatabaseAction>& action) :
     Action(action), MainBox(Gtk::ORIENTATION_HORIZONTAL), LeftSide(Gtk::ORIENTATION_VERTICAL),
-    RightSide(Gtk::ORIENTATION_HORIZONTAL), UndoRedoButton("Undo"), EditButton("Edit")
+    RightSide(Gtk::ORIENTATION_HORIZONTAL), UndoRedoButton("Loading"), EditButton("Edit")
 {
     if(!Action)
         throw InvalidState("given nullptr for action");
@@ -201,12 +201,16 @@ ActionDisplay::ActionDisplay(const std::shared_ptr<DatabaseAction>& action) :
 
     UndoRedoButton.property_valign() = Gtk::ALIGN_CENTER;
     UndoRedoButton.property_halign() = Gtk::ALIGN_CENTER;
+    UndoRedoButton.property_always_show_image() = true;
     UndoRedoButton.property_sensitive() = false;
+    UndoRedoButton.signal_clicked().connect(
+        sigc::mem_fun(*this, &ActionDisplay::_UndoRedoPressed));
     RightSide.pack_start(UndoRedoButton, false, false);
 
     EditButton.property_valign() = Gtk::ALIGN_CENTER;
     EditButton.property_halign() = Gtk::ALIGN_CENTER;
     EditButton.property_sensitive() = false;
+    EditButton.signal_clicked().connect(sigc::mem_fun(*this, &ActionDisplay::_EditPressed));
     RightSide.pack_start(EditButton, false, false);
     RightSide.set_homogeneous(true);
     RightSide.set_spacing(2);
@@ -232,14 +236,20 @@ void ActionDisplay::RefreshData()
 
         auto previewItems = action->LoadPreviewItems(10);
 
+        if(action->IsDeleted()) {
+
+            description = "DELETED FROM HISTORY " + description;
+        }
+
         DualView::Get().InvokeFunction(
             [this, isalive, description, previewItems = std::move(previewItems)]() {
                 INVOKE_CHECK_ALIVE_MARKER(isalive);
 
-
                 _OnDataRetrieved(description, previewItems);
             });
     });
+
+    _UpdateStatusButtons();
 }
 
 void ActionDisplay::_OnDataRetrieved(const std::string& description,
@@ -260,3 +270,58 @@ void ActionDisplay::_OnDataRetrieved(const std::string& description,
         ResourcePreviews.SetShownItems(previewitems.begin(), previewitems.end());
     }
 }
+
+void ActionDisplay::_UpdateStatusButtons()
+{
+    if(Action->IsDeleted()) {
+
+        UndoRedoButton.property_sensitive() = false;
+        EditButton.property_sensitive() = false;
+        return;
+    }
+
+    UndoRedoButton.property_sensitive() = true;
+
+    if(Action->IsPerformed()) {
+
+        UndoRedoButton.set_image_from_icon_name("edit-undo-symbolic");
+        UndoRedoButton.property_label() = "Undo";
+    } else {
+
+        UndoRedoButton.set_image_from_icon_name("edit-redo-symbolic");
+        UndoRedoButton.property_label() = "Redo";
+    }
+
+    EditButton.property_sensitive() = false;
+}
+// ------------------------------------ //
+void ActionDisplay::_UndoRedoPressed()
+{
+    try {
+        if(Action->IsPerformed()) {
+            if(!Action->Undo())
+                throw Leviathan::Exception("Unknown error in action undo");
+        } else {
+            if(!Action->Redo())
+                throw Leviathan::Exception("Unknown error in action redo");
+        }
+    } catch(const Leviathan::Exception& e) {
+
+        _UpdateStatusButtons();
+
+        Gtk::Window* parent = dynamic_cast<Gtk::Window*>(this->get_toplevel());
+
+        if(!parent)
+            return;
+
+        auto dialog = Gtk::MessageDialog(*parent, "Performing the action failed", false,
+            Gtk::MESSAGE_ERROR, Gtk::BUTTONS_CLOSE, true);
+
+        dialog.set_secondary_text("Error: " + std::string(e.what()));
+        dialog.run();
+    }
+
+    _UpdateStatusButtons();
+}
+
+void ActionDisplay::_EditPressed() {}

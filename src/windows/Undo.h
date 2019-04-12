@@ -30,6 +30,11 @@ private:
     void _OnDataRetrieved(const std::string& description,
         const std::vector<std::shared_ptr<ResourceWithPreview>>& previewitems);
 
+    void _UpdateStatusButtons();
+
+    void _UndoRedoPressed();
+    void _EditPressed();
+
 private:
     std::shared_ptr<DatabaseAction> Action;
 

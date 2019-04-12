@@ -220,7 +220,6 @@ void DownloadSetup::_OnFinishAccept(bool success)
 
 void DownloadSetup::OnUserAcceptSettings()
 {
-
     if(State != STATE::URL_OK) {
 
         LOG_ERROR("DownloadSetup: trying to accept in not URL_OK state");
@@ -349,7 +348,6 @@ void DownloadSetup::OnUserAcceptSettings()
 // ------------------------------------ //
 void DownloadSetup::AddSubpage(const std::string& url)
 {
-
     for(const auto& existing : PagesToScan) {
 
         if(existing == url)
@@ -361,7 +359,6 @@ void DownloadSetup::AddSubpage(const std::string& url)
 
 void DownloadSetup::OnFoundContent(const ScanFoundImage& content)
 {
-
     DualView::IsOnMainThreadAssert();
 
     for(auto& existinglink : ImagesToDownload) {
@@ -444,7 +441,6 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage& content)
 
 bool DownloadSetup::IsValidTargetForImageAdd() const
 {
-
     switch(State) {
     case STATE::URL_CHANGED:
     case STATE::URL_OK: return ActiveAsAddTarget->get_active();
@@ -465,7 +461,6 @@ void DownloadSetup::AddExternallyFoundLink(const std::string& url, const std::st
 
 bool DownloadSetup::IsValidForNewPageScan() const
 {
-
     if((State != STATE::URL_CHANGED && State != STATE::URL_OK) || UrlBeingChecked) {
 
         return false;
@@ -480,14 +475,12 @@ bool DownloadSetup::IsValidForNewPageScan() const
 
 void DownloadSetup::SetNewUrlToDl(const std::string& url)
 {
-
     URLEntry->set_text(url);
     OnURLChanged();
 }
 
 bool DownloadSetup::IsValidTargetForScanLink() const
 {
-
     switch(State) {
     case STATE::URL_CHANGED:
     case STATE::URL_OK: return ActiveAsAddTarget->get_active();
@@ -497,7 +490,6 @@ bool DownloadSetup::IsValidTargetForScanLink() const
 
 void DownloadSetup::AddExternalScanLink(const std::string& url)
 {
-
     DualView::IsOnMainThreadAssert();
 
     switch(State) {
@@ -516,7 +508,6 @@ void DownloadSetup::AddExternalScanLink(const std::string& url)
 
 void DownloadSetup::DisableAddActive()
 {
-
     DualView::IsOnMainThreadAssert();
 
     DownloadSetup* usPtr = this;
@@ -527,7 +518,6 @@ void DownloadSetup::DisableAddActive()
 
 void DownloadSetup::EnableAddActive()
 {
-
     DualView::IsOnMainThreadAssert();
 
     // Do we need to steal? //
@@ -556,7 +546,6 @@ void DownloadSetup::EnableAddActive()
 
 bool DownloadSetup::_AddActivePressed(bool state)
 {
-
     // If the new state doesn't match what the add active variable
     // points to call the change methods
     const bool isUs = IsSomeGloballyActive.load() == this;
@@ -578,14 +567,12 @@ bool DownloadSetup::_AddActivePressed(bool state)
 
 void DownloadSetup::_OnActiveSlotStolen(DownloadSetup* stealer)
 {
-
     LOG_INFO("Active slot stolen from us");
     DisableAddActive();
 }
 // ------------------------------------ //
 bool DownloadSetup::_FullViewToggled(bool state)
 {
-
     if(state) {
 
         // Show everyhing //
@@ -606,7 +593,6 @@ bool DownloadSetup::_FullViewToggled(bool state)
 // ------------------------------------ //
 void DownloadSetup::OnItemSelected(ListItem& item)
 {
-
     // Deselect others if only one is wanted //
     if(SelectOnlyOneImage->get_active() && item.IsSelected()) {
 
@@ -619,7 +605,6 @@ void DownloadSetup::OnItemSelected(ListItem& item)
 
 void DownloadSetup::UpdateEditedImages()
 {
-
     const auto result = GetSelectedImages();
 
     // Preview image //
@@ -647,7 +632,6 @@ void DownloadSetup::UpdateEditedImages()
 
 std::vector<std::shared_ptr<InternetImage>> DownloadSetup::GetSelectedImages()
 {
-
     std::vector<std::shared_ptr<InternetImage>> result;
 
     std::vector<std::shared_ptr<ResourceWithPreview>> SelectedItems;
@@ -673,9 +657,6 @@ std::vector<std::shared_ptr<InternetImage>> DownloadSetup::GetSelectedImages()
 // ------------------------------------ //
 void DownloadSetup::SelectAllImages()
 {
-
-    LOG_INFO("DownloadSetup: selecting all");
-
     // Fix selecting all when "select only one" is active
     const auto oldonlyone = SelectOnlyOneImage->get_active();
     SelectOnlyOneImage->set_active(false);
@@ -688,26 +669,22 @@ void DownloadSetup::SelectAllImages()
 
 void DownloadSetup::DeselectAllImages()
 {
-
     ImageSelection->DeselectAllItems();
     UpdateEditedImages();
 }
 
 void DownloadSetup::SelectNextImage()
 {
-
     ImageSelection->SelectNextItem();
 }
 
 void DownloadSetup::SelectPreviousImage()
 {
-
     ImageSelection->SelectPreviousItem();
 }
 
 void DownloadSetup::RemoveSelectedImages()
 {
-
     const auto selected = GetSelectedImages();
 
     for(size_t i = 0; i < ImageObjects.size();) {
@@ -736,7 +713,6 @@ void DownloadSetup::RemoveSelectedImages()
 // ------------------------------------ //
 void DownloadSetup::OnURLChanged()
 {
-
     if(UrlBeingChecked)
         return;
 
@@ -853,7 +829,6 @@ void DownloadSetup::OnURLChanged()
 
 void DownloadSetup::OnInvalidateURL()
 {
-
     // This gets called if an url rewrite happens in OnURLChanged
     if(UrlBeingChecked)
         return;
@@ -873,7 +848,6 @@ void DownloadSetup::OnInvalidateURL()
 
 void DownloadSetup::UrlCheckFinished(bool wasvalid, const std::string& message)
 {
-
     DualView::IsOnMainThreadAssert();
 
     UrlBeingChecked = false;
@@ -999,7 +973,6 @@ void DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
 
 void DownloadSetup::StartPageScanning()
 {
-
     DualView::IsOnMainThreadAssert();
 
     auto expectedstate = STATE::URL_OK;
@@ -1024,14 +997,12 @@ void DownloadSetup::StartPageScanning()
 // ------------------------------------ //
 void DownloadSetup::SetTargetCollectionName(const std::string& str)
 {
-
     TargetCollectionName->set_text(
         Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(str, "/\\", ' '));
 }
 // ------------------------------------ //
 void DownloadSetup::_SetState(STATE newstate)
 {
-
     if(State == newstate)
         return;
 
@@ -1047,7 +1018,6 @@ void DownloadSetup::_SetState(STATE newstate)
 
 void DownloadSetup::_UpdateWidgetStates()
 {
-
     DualView::IsOnMainThreadAssert();
 
     // Spinners //
@@ -1130,7 +1100,6 @@ void DownloadSetup::_UpdateWidgetStates()
 
 void DownloadSetup::UpdateReadyStatus()
 {
-
     const auto selected = ImageSelection->CountSelectedItems();
     const auto total = ImageObjects.size();
 
@@ -1145,7 +1114,6 @@ void DownloadSetup::UpdateReadyStatus()
 
 bool DownloadSetup::IsReadyToDownload() const
 {
-
     if(State != STATE::URL_OK)
         return false;
 
@@ -1157,7 +1125,6 @@ bool DownloadSetup::IsReadyToDownload() const
 
 void DownloadSetup::_DoQuickSwapPages()
 {
-
     if(WindowTabs->get_current_page() == 0) {
 
         WindowTabs->set_current_page(1);
