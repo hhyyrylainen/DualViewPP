@@ -1,2 +1,2 @@
 #!/bin/sh
-cloc cmake core doc gui plugins sql test
+cloc cmake src doc resources plugins test
