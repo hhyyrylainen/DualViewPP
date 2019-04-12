@@ -4,6 +4,7 @@
 #include "resources/ResourceWithPreview.h"
 
 #include "Database.h"
+#include "DualView.h"
 #include "SQLHelpers.h"
 #include "resources/Image.h"
 
@@ -137,6 +138,12 @@ std::vector<std::shared_ptr<ResourceWithPreview>> DatabaseAction::LoadPreviewIte
     int max /*= 10*/) const
 {
     return {};
+}
+
+void DatabaseAction::OpenEditingWindow(
+    Leviathan::BaseNotifiableAll* notifyafteredit /*= nullptr*/)
+{
+    throw Leviathan::InvalidType("This action does not support opening editing window");
 }
 
 // ------------------------------------ //
@@ -316,6 +323,13 @@ bool ImageMergeAction::IsSame(
                });
 }
 // ------------------------------------ //
+void ImageMergeAction::UpdateProperties(DBID target, const std::vector<DBID>& imagestomerge)
+{
+    Target = target;
+    ImagesToMerge = imagestomerge;
+    OnMarkDirty();
+}
+// ------------------------------------ //
 void ImageMergeAction::_Redo()
 {
     InDatabase->RedoAction(*this);
@@ -367,7 +381,7 @@ std::string ImageMergeAction::GenerateDescription() const
 
     description << "Merged ";
 
-    if(ImagesToMerge.size() > 1) {
+    if(ImagesToMerge.size() != 1) {
         description << ImagesToMerge.size() << " images ";
     } else {
         description << "an image ";
@@ -409,4 +423,12 @@ std::vector<std::shared_ptr<ResourceWithPreview>> ImageMergeAction::LoadPreviewI
     }
 
     return result;
+}
+// ------------------------------------ //
+void ImageMergeAction::OpenEditingWindow(
+    Leviathan::BaseNotifiableAll* notifyafteredit /*= nullptr*/)
+{
+    DualView::Get().OpenActionEdit(
+        std::dynamic_pointer_cast<std::remove_pointer_t<decltype(this)>>(shared_from_this()),
+        notifyafteredit);
 }

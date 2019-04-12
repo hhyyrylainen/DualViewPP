@@ -174,7 +174,7 @@ void UndoWindow::_FinishedQueryingDB(
 // ActionDisplay
 ActionDisplay::ActionDisplay(const std::shared_ptr<DatabaseAction>& action) :
     Action(action), MainBox(Gtk::ORIENTATION_HORIZONTAL), LeftSide(Gtk::ORIENTATION_VERTICAL),
-    RightSide(Gtk::ORIENTATION_HORIZONTAL), UndoRedoButton("Loading"), EditButton("Edit")
+    RightSide(Gtk::ORIENTATION_HORIZONTAL), Edit("Edit"), UndoRedo("Loading")
 {
     if(!Action)
         throw InvalidState("given nullptr for action");
@@ -199,19 +199,19 @@ ActionDisplay::ActionDisplay(const std::shared_ptr<DatabaseAction>& action) :
 
     MainBox.pack_start(LeftSide, true, true);
 
-    UndoRedoButton.property_valign() = Gtk::ALIGN_CENTER;
-    UndoRedoButton.property_halign() = Gtk::ALIGN_CENTER;
-    UndoRedoButton.property_always_show_image() = true;
-    UndoRedoButton.property_sensitive() = false;
-    UndoRedoButton.signal_clicked().connect(
-        sigc::mem_fun(*this, &ActionDisplay::_UndoRedoPressed));
-    RightSide.pack_start(UndoRedoButton, false, false);
+    Edit.property_valign() = Gtk::ALIGN_CENTER;
+    Edit.property_halign() = Gtk::ALIGN_CENTER;
+    Edit.property_sensitive() = false;
+    Edit.signal_clicked().connect(sigc::mem_fun(*this, &ActionDisplay::_EditPressed));
+    RightSide.pack_start(Edit, false, false);
 
-    EditButton.property_valign() = Gtk::ALIGN_CENTER;
-    EditButton.property_halign() = Gtk::ALIGN_CENTER;
-    EditButton.property_sensitive() = false;
-    EditButton.signal_clicked().connect(sigc::mem_fun(*this, &ActionDisplay::_EditPressed));
-    RightSide.pack_start(EditButton, false, false);
+    UndoRedo.property_valign() = Gtk::ALIGN_CENTER;
+    UndoRedo.property_halign() = Gtk::ALIGN_CENTER;
+    UndoRedo.property_always_show_image() = true;
+    UndoRedo.property_sensitive() = false;
+    UndoRedo.signal_clicked().connect(sigc::mem_fun(*this, &ActionDisplay::_UndoRedoPressed));
+    RightSide.pack_start(UndoRedo, false, false);
+
     RightSide.set_homogeneous(true);
     RightSide.set_spacing(2);
 
@@ -225,7 +225,11 @@ ActionDisplay::ActionDisplay(const std::shared_ptr<DatabaseAction>& action) :
     RefreshData();
 }
 
-ActionDisplay::~ActionDisplay() {}
+ActionDisplay::~ActionDisplay()
+{
+    GUARD_LOCK();
+    ReleaseParentHooks(guard);
+}
 // ------------------------------------ //
 void ActionDisplay::RefreshData()
 {
@@ -275,24 +279,24 @@ void ActionDisplay::_UpdateStatusButtons()
 {
     if(Action->IsDeleted()) {
 
-        UndoRedoButton.property_sensitive() = false;
-        EditButton.property_sensitive() = false;
+        UndoRedo.property_sensitive() = false;
+        Edit.property_sensitive() = false;
         return;
     }
 
-    UndoRedoButton.property_sensitive() = true;
+    UndoRedo.property_sensitive() = true;
 
     if(Action->IsPerformed()) {
 
-        UndoRedoButton.set_image_from_icon_name("edit-undo-symbolic");
-        UndoRedoButton.property_label() = "Undo";
+        UndoRedo.set_image_from_icon_name("edit-undo-symbolic");
+        UndoRedo.property_label() = "Undo";
     } else {
 
-        UndoRedoButton.set_image_from_icon_name("edit-redo-symbolic");
-        UndoRedoButton.property_label() = "Redo";
+        UndoRedo.set_image_from_icon_name("edit-redo-symbolic");
+        UndoRedo.property_label() = "Redo";
     }
 
-    EditButton.property_sensitive() = false;
+    Edit.property_sensitive() = Action->SupportsEditing();
 }
 // ------------------------------------ //
 void ActionDisplay::_UndoRedoPressed()
@@ -324,4 +328,22 @@ void ActionDisplay::_UndoRedoPressed()
     _UpdateStatusButtons();
 }
 
-void ActionDisplay::_EditPressed() {}
+void ActionDisplay::_EditPressed()
+{
+    LOG_INFO("Opening editing window for action");
+    Action->OpenEditingWindow(this);
+}
+
+void ActionDisplay::OnNotified(
+    Lock& ownlock, Leviathan::BaseNotifierAll* parent, Lock& parentlock)
+{
+    LOG_INFO("ActionDisplay: notified of a changed action");
+
+    auto isalive = GetAliveMarker();
+
+    DualView::Get().InvokeFunction([this, isalive]() {
+        INVOKE_CHECK_ALIVE_MARKER(isalive);
+
+        RefreshData();
+    });
+}

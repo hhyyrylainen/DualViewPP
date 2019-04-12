@@ -29,6 +29,7 @@ class AppliedTag;
 class Tag;
 class TagModifier;
 class ImageListScroll;
+class ImageMergeAction;
 
 class PluginManager;
 class CacheManager;
@@ -108,6 +109,10 @@ public:
 
     //! \brief Opens a window for reordering the collection
     void OpenReorder(const std::shared_ptr<Collection>& collection);
+
+    //! \brief Opens a window for merge action editing
+    void OpenActionEdit(const std::shared_ptr<ImageMergeAction>& action,
+        Leviathan::BaseNotifiableAll* notifyafteredit);
 
     //! \brief Opens a setup window for a new downloadable gallery
     //! \param useropened True when the user clicked something and this was opened. If this is

@@ -2,7 +2,7 @@
 #include "DualView.h"
 #include "Common.h"
 
-
+#include "windows/ActionEditors.h"
 #include "windows/AddToFolder.h"
 #include "windows/CollectionView.h"
 #include "windows/DebugWindow.h"
@@ -1340,6 +1340,19 @@ void DualView::OpenReorder(const std::shared_ptr<Collection>& collection)
     AssertIfNotMainThread();
 
     auto window = std::make_shared<ReorderWindow>(collection);
+    _AddOpenWindow(window, *window);
+    window->show();
+}
+
+void DualView::OpenActionEdit(const std::shared_ptr<ImageMergeAction>& action,
+    Leviathan::BaseNotifiableAll* notifyafteredit)
+{
+    if(!action)
+        return;
+
+    AssertIfNotMainThread();
+
+    auto window = std::make_shared<MergeActionEditor>(action, notifyafteredit);
     _AddOpenWindow(window, *window);
     window->show();
 }

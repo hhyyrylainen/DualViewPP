@@ -14,6 +14,7 @@ class Database;
 class PreparedStatement;
 class Image;
 class ResourceWithPreview;
+class BaseWindow;
 
 //! \brief Used to create the correct class from the action_history table
 enum class DATABASE_ACTION_TYPE : int {
@@ -27,7 +28,9 @@ enum class DATABASE_ACTION_TYPE : int {
 //!
 //! The action data is stored as JSON in the database and this class doesn't really understand
 //! what this contains. The Database is given the JSON data for all processing
-class DatabaseAction : public ReversibleAction, public DatabaseResource {
+class DatabaseAction : public ReversibleAction,
+                       public DatabaseResource,
+                       public std::enable_shared_from_this<DatabaseAction> {
     friend Database;
 
 protected:
@@ -53,6 +56,16 @@ public:
     //! \note This does database loading
     virtual std::vector<std::shared_ptr<ResourceWithPreview>> LoadPreviewItems(
         int max = 10) const;
+
+    virtual bool SupportsEditing() const
+    {
+        return false;
+    }
+
+    //! \brief Opens a window for editing this action
+    //!
+    //! Should only be called if SupportsEditing()
+    virtual void OpenEditingWindow(Leviathan::BaseNotifiableAll* notifyafteredit = nullptr);
 
     bool IsDeleted() const
     {
@@ -107,7 +120,8 @@ public:
     }
 
     std::string GenerateDescription() const override;
-    std::vector<std::shared_ptr<ResourceWithPreview>> LoadPreviewItems(int max) const override;
+    std::vector<std::shared_ptr<ResourceWithPreview>> LoadPreviewItems(
+        int max = 10) const override;
 
 protected:
     void _OnPurged() override;
@@ -148,6 +162,10 @@ public:
     //! redone
     bool IsSame(const Image& target, const std::vector<std::shared_ptr<Image>>& images) const;
 
+    //! \brief Updates the properties of this action. This should not be in performed state
+    //! when the change is made
+    void UpdateProperties(DBID target, const std::vector<DBID>& imagestomerge);
+
     const auto GetTarget() const
     {
         return Target;
@@ -174,7 +192,16 @@ public:
     }
 
     std::string GenerateDescription() const override;
-    std::vector<std::shared_ptr<ResourceWithPreview>> LoadPreviewItems(int max) const override;
+    //! \brief Returns the merge target as the first image and then the merged images
+    std::vector<std::shared_ptr<ResourceWithPreview>> LoadPreviewItems(
+        int max = 10) const override;
+
+    bool SupportsEditing() const override
+    {
+        return true;
+    }
+
+    void OpenEditingWindow(Leviathan::BaseNotifiableAll* notifyafteredit = nullptr) override;
 
 protected:
     void _OnPurged() override;

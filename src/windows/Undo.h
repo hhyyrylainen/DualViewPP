@@ -19,12 +19,15 @@ class DatabaseAction;
 class ResourceWithPreview;
 
 //! \brief Shows a single action
-class ActionDisplay : public Gtk::Frame, public IsAlive {
+class ActionDisplay : public Gtk::Frame, public IsAlive, public Leviathan::BaseNotifiableAll {
 public:
     ActionDisplay(const std::shared_ptr<DatabaseAction>& action);
     ~ActionDisplay();
 
     void RefreshData();
+
+    void OnNotified(
+        Lock& ownlock, Leviathan::BaseNotifierAll* parent, Lock& parentlock) override;
 
 private:
     void _OnDataRetrieved(const std::string& description,
@@ -46,8 +49,8 @@ private:
     Gtk::Box LeftSide;
 
     Gtk::Box RightSide;
-    Gtk::Button UndoRedoButton;
-    Gtk::Button EditButton;
+    Gtk::Button Edit;
+    Gtk::Button UndoRedo;
 };
 
 //! \brief Manages letting the user undo and redo actions and edit them
