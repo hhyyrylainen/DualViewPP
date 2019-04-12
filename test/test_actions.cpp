@@ -313,3 +313,20 @@ TEST_CASE("Image merge works correctly", "[db][action]")
         }
     }
 }
+
+TEST_CASE("Searching action by description works", "[db][action]")
+{
+    DummyDualView dv;
+    TestDatabase db;
+
+    REQUIRE_NOTHROW(db.Init());
+
+    auto image1 = db.InsertTestImage("image1", "hash1");
+    REQUIRE(image1);
+
+    auto undo = db.DeleteImage(*image1);
+
+    const auto found = db.SelectLatestDatabaseActions("deleted");
+    REQUIRE(!found.empty());
+    CHECK(undo == found[0]);
+}
