@@ -33,6 +33,8 @@ class DuplicateFinderWindow final : public BaseWindow, public Gtk::Window, publi
         bool Redo() override;
         bool Undo() override;
 
+        std::vector<std::tuple<DBID, DBID>> GenerateIgnorePairs() const;
+
     protected:
         int StoredShownDuplicateGroup = -1;
         std::vector<std::shared_ptr<Image>> RemovedImages;
@@ -70,6 +72,8 @@ private:
     void _RedoPressed();
     void _DeleteSelectedAfterFirstPressed();
     void _DeleteAllAfterFirstPressed();
+    void _NotDuplicatesPressed();
+    void _ClearNotDuplicatesPressed();
 
     void _MergeCurrentGroupDuplicates(const std::vector<std::shared_ptr<Image>>& tomerge);
 
@@ -104,6 +108,7 @@ private:
     // Primary menu
     PrimaryMenu MenuPopover;
     Gtk::Button ResetResults;
+    Gtk::Button ClearNotDuplicates;
     Gtk::Separator Separator1;
     Gtk::Label SensitivityLabel;
     Gtk::Scale Sensitivity;

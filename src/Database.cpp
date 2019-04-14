@@ -733,7 +733,13 @@ std::map<DBID, std::vector<std::tuple<DBID, int>>> Database::SelectPotentialImag
     std::map<DBID, std::vector<std::tuple<DBID, int>>> result;
 
     // TODO: have a separate lock for PictureSignatureDb as this takes a long, long time to run
+    // TODO: if that change is done then the ignore check step needs to be changed
     GUARD_LOCK();
+
+    const char checkIgnoreSql[] =
+        "SELECT 1 FROM ignored_duplicates WHERE primary_image = ?1 AND other_image = ?2;";
+
+    PreparedStatement checkStatement(SQLiteDb, checkIgnoreSql, sizeof(checkIgnoreSql));
 
     const char sql[] =
         "SELECT isw.picture_id, COUNT(isw.sig_word) as strength, isw_search.picture_id FROM "
@@ -752,6 +758,14 @@ std::map<DBID, std::vector<std::tuple<DBID, int>>> Database::SelectPotentialImag
 
         if(statementobj.GetObjectIDFromColumn(original, 0) &&
             statementobj.GetObjectIDFromColumn(duplicate, 2)) {
+
+            auto usedCheck = checkStatement.Setup(original, duplicate);
+
+            if(checkStatement.Step(usedCheck) == PreparedStatement::STEP_RESULT::ROW) {
+                // Ignored
+                continue;
+            }
+
 
             int strength = statementobj.GetColumnAsInt(1);
 
@@ -3173,6 +3187,48 @@ void Database::SetMaxActionHistory(uint32_t maxactions)
 {
     ActionsToKeep = std::clamp<uint32_t>(maxactions, 1, 1000);
 }
+// ------------------------------------ //
+// Ignore pairs
+void Database::InsertIgnorePairs(const std::vector<std::tuple<DBID, DBID>>& pairs)
+{
+    GUARD_LOCK();
+
+    DoDBSavePoint transaction(*this, guard, "insert_ignore_pair");
+
+    const char str[] =
+        "INSERT INTO ignored_duplicates (primary_image, other_image) VALUES (?1, ?2);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    for(const auto& pair : pairs) {
+
+        statementobj.StepAll(statementobj.Setup(std::get<0>(pair), std::get<1>(pair)));
+    }
+}
+
+void Database::DeleteIgnorePairs(const std::vector<std::tuple<DBID, DBID>>& pairs)
+{
+    GUARD_LOCK();
+
+    DoDBSavePoint transaction(*this, guard, "delete_ignore_pair");
+
+    const char str[] =
+        "DELETE FROM ignored_duplicates WHERE primary_image = ?1 AND other_image = ?2;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    for(const auto& pair : pairs) {
+
+        statementobj.StepAll(statementobj.Setup(std::get<0>(pair), std::get<1>(pair)));
+    }
+}
+
+void Database::DeleteAllIgnorePairs()
+{
+    GUARD_LOCK();
+
+    RunSQLAsPrepared(guard, "DELETE FROM ignored_duplicates");
+}
 
 // ------------------------------------ //
 // Database maintainance functions
@@ -3997,6 +4053,12 @@ bool Database::_UpdateDatabase(LockT& guard, const int oldversion)
             LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_24_25.sql"));
         GenerateMissingDatabaseActionDescriptions(guard);
         _SetCurrentDatabaseVersion(guard, 25);
+        return true;
+    }
+    case 25: {
+        _RunSQL(guard,
+            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_25_26.sql"));
+        _SetCurrentDatabaseVersion(guard, 26);
         return true;
     }
     default: {

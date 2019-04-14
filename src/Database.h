@@ -40,7 +40,7 @@ class TagBreakRule;
 enum class DATABASE_ACTION_TYPE : int;
 
 // The version number of the database
-constexpr auto DATABASE_CURRENT_VERSION = 25;
+constexpr auto DATABASE_CURRENT_VERSION = 26;
 constexpr auto DATABASE_CURRENT_SIGNATURES_VERSION = 1;
 
 constexpr auto IMAGE_SIGNATURE_WORD_COUNT = 100;
@@ -647,6 +647,15 @@ public:
     //! \param maxactions Then number of actions to keep. Must be 1 or more otherwise the
     //! action purging and undo mechanism breaks
     void SetMaxActionHistory(uint32_t maxactions);
+
+    //
+    // Ignore pairs
+    //
+    void InsertIgnorePairs(const std::vector<std::tuple<DBID, DBID>>& pairs);
+
+    void DeleteIgnorePairs(const std::vector<std::tuple<DBID, DBID>>& pairs);
+
+    void DeleteAllIgnorePairs();
 
     //
     // Database maintenance functions

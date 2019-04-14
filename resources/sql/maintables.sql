@@ -384,6 +384,17 @@ CREATE TABLE action_history (
    description TEXT
 );
 
+-- Stores images that user has manually confirmed to not be duplicates
+CREATE TABLE ignored_duplicates (
+
+    primary_image INTEGER NOT NULL,
+
+    other_image INTEGER NOT NULL,
+
+    UNIQUE(primary_image, other_image) ON CONFLICT IGNORE
+);
+
+
 -- Plugin management tables
 -- This table is used to initialize all plugins once
 CREATE TABLE activated_db_plugins (

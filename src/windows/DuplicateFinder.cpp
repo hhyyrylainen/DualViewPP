@@ -10,7 +10,8 @@ using namespace DV;
 const auto PROGRESS_LABEL_INITIAL_TEXT = "Scan not started";
 
 DuplicateFinderWindow::DuplicateFinderWindow() :
-    ScanControl("Start"), ResetResults("Reset Results"), SensitivityLabel("Sensitivity"),
+    ScanControl("Start"), ResetResults("Reset Results"),
+    ClearNotDuplicates("Clear manually ignored duplicates"), SensitivityLabel("Sensitivity"),
     Sensitivity(Gtk::ORIENTATION_HORIZONTAL), MainContainer(Gtk::ORIENTATION_VERTICAL),
     ProgressContainer(Gtk::ORIENTATION_VERTICAL), ProgressLabel(PROGRESS_LABEL_INITIAL_TEXT),
     CurrentlyShownGroup("No duplicates found"), ImagesContainer(Gtk::ORIENTATION_HORIZONTAL),
@@ -43,7 +44,16 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
     ResetResults.signal_clicked().connect(
         sigc::mem_fun(*this, &DuplicateFinderWindow::ResetState));
     ResetResults.property_relief() = Gtk::RELIEF_NONE;
+
+
+
     MenuPopover.Container.pack_start(ResetResults);
+
+    ClearNotDuplicates.signal_clicked().connect(
+        sigc::mem_fun(*this, &DuplicateFinderWindow::_ClearNotDuplicatesPressed));
+    ClearNotDuplicates.property_relief() = Gtk::RELIEF_NONE;
+    MenuPopover.Container.pack_start(ClearNotDuplicates);
+
     MenuPopover.Container.pack_start(Separator1);
     SensitivityLabel.property_tooltip_text() =
         "Higher sensitivity requires images to be more similar before reporting a duplicate";
@@ -153,6 +163,8 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
     BottomRightContainer.pack_end(DeleteAllAfterFirst);
     NotDuplicates.property_valign() = Gtk::ALIGN_END;
     NotDuplicates.property_sensitive() = false;
+    NotDuplicates.signal_clicked().connect(
+        sigc::mem_fun(*this, &DuplicateFinderWindow::_NotDuplicatesPressed));
     BottomRightContainer.pack_end(NotDuplicates);
     Skip.property_valign() = Gtk::ALIGN_END;
     Skip.property_sensitive() = false;
@@ -259,9 +271,14 @@ bool DuplicateFinderWindow::PerformAction(HistoryItem& action)
 
         break;
     }
-    case ACTION_TYPE::NotDuplicate:
-        // TODO: implement
-        DEBUG_BREAK;
+    case ACTION_TYPE::NotDuplicate: {
+
+        auto ignorePairs = action.GenerateIgnorePairs();
+
+        DualView::Get().GetDatabase().InsertIgnorePairs(ignorePairs);
+        break;
+    }
+
     case ACTION_TYPE::Remove: break;
     }
 
@@ -313,6 +330,17 @@ bool DuplicateFinderWindow::UndoAction(HistoryItem& action)
                 return false;
             }
         }
+    }
+
+    // Special actions based on type
+    switch(action.Type) {
+    case ACTION_TYPE::NotDuplicate: {
+        auto ignorePairs = action.GenerateIgnorePairs();
+
+        DualView::Get().GetDatabase().DeleteIgnorePairs(ignorePairs);
+        break;
+    }
+    default: break;
     }
 
     // Restore a fully removed group
@@ -557,6 +585,52 @@ void DuplicateFinderWindow::_MergeCurrentGroupDuplicates(
     _UpdateUndoRedoButtons();
 }
 // ------------------------------------ //
+void DuplicateFinderWindow::_NotDuplicatesPressed()
+{
+    if(DuplicateGroups.empty() || ShownDuplicateGroup < 0 ||
+        ShownDuplicateGroup >= static_cast<int>(DuplicateGroups.size()))
+        return;
+
+    // Create a proper action out of this
+    auto action = std::make_shared<HistoryItem>(*this, DuplicateGroups[ShownDuplicateGroup],
+        ShownDuplicateGroup, ACTION_TYPE::NotDuplicate);
+
+    // And put it into the history which will call Redo on it
+    History.AddAction(action);
+
+    _UpdateUndoRedoButtons();
+}
+
+void DuplicateFinderWindow::_ClearNotDuplicatesPressed()
+{
+    auto dialog = Gtk::MessageDialog(*this, "Clear all ignored duplicates?", false,
+        Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
+
+    dialog.set_secondary_text(
+        "If you have marked images as not duplicates in the past this action undoes all of "
+        "them. It is NOT possible to undo this action.");
+    int result = dialog.run();
+
+    if(result != Gtk::RESPONSE_YES) {
+
+        return;
+    }
+
+    set_sensitive(false);
+
+    auto isalive = GetAliveMarker();
+
+    DualView::Get().QueueDBThreadFunction([=]() {
+        DualView::Get().GetDatabase().DeleteAllIgnorePairs();
+
+        DualView::Get().InvokeFunction([this, isalive]() {
+            INVOKE_CHECK_ALIVE_MARKER(isalive);
+
+            set_sensitive(true);
+        });
+    });
+}
+// ------------------------------------ //
 void DuplicateFinderWindow::_DetectNewDuplicates(
     const std::map<DBID, std::vector<std::tuple<DBID, int>>>& duplicates)
 {
@@ -621,7 +695,7 @@ void DuplicateFinderWindow::_DetectNewDuplicates(
 
                     for(DBID image : group) {
                         auto loaded = db.SelectImageByID(guard, image);
-                        if(loaded)
+                        if(loaded && !loaded->IsDeleted())
                             loadedGroup.push_back(loaded);
                     }
 
@@ -685,6 +759,9 @@ void DuplicateFinderWindow::_CheckScanStatus()
                 if(DoneWithSignatures) {
                     NoMoreQueryResults = true;
                     ScanProgress.property_fraction() = 1.f;
+                    // Update the info label to tell the user that the search has finished
+                    ProgressLabel.property_label() =
+                        "Signature calculation complete. Duplicate detection is complete";
                     LOG_INFO("Final batch of duplicates read");
                 }
 
@@ -847,4 +924,30 @@ bool DuplicateFinderWindow::HistoryItem::Undo()
 
     Performed = false;
     return true;
+}
+// ------------------------------------ //
+std::vector<std::tuple<DBID, DBID>>
+    DuplicateFinderWindow::HistoryItem::GenerateIgnorePairs() const
+{
+    std::vector<std::tuple<DBID, DBID>> result;
+
+    if(RemovedImages.size() < 2) {
+        LOG_ERROR("DuplicateFinderWindow: HistoryItem: GenerateIgnorePairs: less than 2 "
+                  "items, not generating anything");
+        return result;
+    }
+
+    result.reserve(RemovedImages.size());
+
+    auto iter = RemovedImages.begin();
+
+    DBID first = (*iter)->GetID();
+    ++iter;
+
+    for(; iter != RemovedImages.end(); ++iter) {
+
+        result.emplace_back(first, (*iter)->GetID());
+    }
+
+    return result;
 }
