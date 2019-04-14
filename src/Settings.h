@@ -78,6 +78,16 @@ public:
             Save();
     }
 
+    void SetDuplicateSensitivity(int newvalue, bool save = true)
+    {
+        IsDirty = true;
+
+        DuplicateSensitivity = std::clamp(newvalue, 10, 100);
+
+        if(save)
+            Save();
+    }
+
     auto GetCurlDebug() const
     {
         return CurlDebug;
@@ -102,6 +112,13 @@ public:
     {
         return ActionHistorySize;
     }
+
+    auto GetDuplicateSensitivity() const
+    {
+        return DuplicateSensitivity;
+    }
+
+
 
     //! \brief Returns true if loadversion is compatible with SETTINGS_VERSION
     static bool IsVersionCompatible(int loadversion);
@@ -161,6 +178,9 @@ protected:
 
     //! Number of actions to keep for undo purposes
     int ActionHistorySize = 50;
+
+    //! The sensitivy in the libpuzzle duplicate search
+    int DuplicateSensitivity = 20;
 
     //! Settings storage object
     //! \todo This will be used to preserve comments in the file, currently does nothing

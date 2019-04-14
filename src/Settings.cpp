@@ -70,6 +70,9 @@ void Settings::Save()
         collectionList->AddVariable(std::make_shared<NamedVariableList>(
             "ActionHistorySize", new IntBlock(ActionHistorySize)));
 
+        collectionList->AddVariable(std::make_shared<NamedVariableList>(
+            "DuplicateSensitivity", new IntBlock(DuplicateSensitivity)));
+
         collection->AddVariableList(std::move(collectionList));
 
         data.AddObject(collection);
@@ -223,6 +226,10 @@ void Settings::_Load()
 
             Leviathan::ObjectFileProcessor::LoadValueFromNamedVars(settings->GetVariables(),
                 "ActionHistorySize", ActionHistorySize, ActionHistorySize, log,
+                "Settings: Load:");
+
+            Leviathan::ObjectFileProcessor::LoadValueFromNamedVars(settings->GetVariables(),
+                "DuplicateSensitivity", DuplicateSensitivity, DuplicateSensitivity, log,
                 "Settings: Load:");
 
         } else {

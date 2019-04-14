@@ -3,6 +3,7 @@
 
 #include "Database.h"
 #include "DualView.h"
+#include "Settings.h"
 #include "resources/DatabaseAction.h"
 
 using namespace DV;
@@ -55,19 +56,24 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
     MenuPopover.Container.pack_start(ClearNotDuplicates);
 
     MenuPopover.Container.pack_start(Separator1);
-    SensitivityLabel.property_tooltip_text() =
+    const auto sensitivityToolTip =
         "Higher sensitivity requires images to be more similar before reporting a duplicate";
+    SensitivityLabel.property_tooltip_text() = sensitivityToolTip;
     MenuPopover.Container.pack_start(SensitivityLabel);
 
+    Sensitivity.property_tooltip_text() = sensitivityToolTip;
     Sensitivity.set_digits(0);
-    Sensitivity.set_range(1, 100);
+    Sensitivity.set_range(10, 100);
     Sensitivity.property_draw_value() = false;
     Sensitivity.property_has_origin() = true;
-    Sensitivity.add_mark(90, Gtk::POS_BOTTOM, "default");
-    // TODO: hook this up
-    Sensitivity.set_value(90);
+    Sensitivity.add_mark(20, Gtk::POS_BOTTOM, "default");
+    // Sensitivity.add_mark(15, Gtk::POS_BOTTOM, "low");
+    // Sensitivity.add_mark(25, Gtk::POS_BOTTOM, "high");
+    Sensitivity.set_value(DualView::Get().GetSettings().GetDuplicateSensitivity());
     MenuPopover.Container.pack_start(Sensitivity);
 
+    MenuPopover.signal_closed().connect(
+        sigc::mem_fun(*this, &DuplicateFinderWindow::_ApplyPrimaryMenuSettings));
     MenuPopover.show_all_children();
 
     Menu.set_popover(MenuPopover);
@@ -745,8 +751,11 @@ void DuplicateFinderWindow::_CheckScanStatus()
 
         auto isalive = GetAliveMarker();
 
+        const auto sensitivity = static_cast<int>(Sensitivity.get_value());
+
         DualView::Get().QueueDBThreadFunction([=]() {
-            auto duplicates = DualView::Get().GetDatabase().SelectPotentialImageDuplicates();
+            auto duplicates =
+                DualView::Get().GetDatabase().SelectPotentialImageDuplicates(sensitivity);
 
             DualView::Get().InvokeFunction([this, isalive, duplicates]() {
                 INVOKE_CHECK_ALIVE_MARKER(isalive);
@@ -892,6 +901,20 @@ void DuplicateFinderWindow::_UpdateUndoRedoButtons()
 {
     Undo.property_sensitive() = History.CanUndo();
     Redo.property_sensitive() = History.CanRedo();
+}
+
+void DuplicateFinderWindow::_ApplyPrimaryMenuSettings()
+{
+    const auto newValue = static_cast<int>(Sensitivity.get_value());
+
+    auto& settings = DualView::Get().GetSettings();
+
+    if(newValue != settings.GetDuplicateSensitivity()) {
+
+        settings.SetDuplicateSensitivity(newValue);
+        LOG_INFO(
+            "Updating sensitivity to: " + std::to_string(settings.GetDuplicateSensitivity()));
+    }
 }
 // ------------------------------------ //
 // DuplicateFinderWindow::HistoryItem

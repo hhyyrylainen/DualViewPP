@@ -74,6 +74,7 @@ private:
     void _DeleteAllAfterFirstPressed();
     void _NotDuplicatesPressed();
     void _ClearNotDuplicatesPressed();
+    void _ApplyPrimaryMenuSettings();
 
     void _MergeCurrentGroupDuplicates(const std::vector<std::shared_ptr<Image>>& tomerge);
 
