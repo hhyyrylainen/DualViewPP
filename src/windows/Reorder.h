@@ -3,6 +3,8 @@
 #include "BaseWindow.h"
 #include "IsAlive.h"
 
+#include "ReversibleAction.h"
+
 #include "components/PrimaryMenu.h"
 #include "components/SuperContainer.h"
 #include "components/SuperViewer.h"
@@ -15,21 +17,37 @@ namespace DV {
 
 class Collection;
 
-//! \brief Allows user to reorder images in a collection
+//! \brief Allows user to reorder images in a Collection
 class ReorderWindow : public BaseWindow, public Gtk::Window, public IsAlive {
 public:
     ReorderWindow(const std::shared_ptr<Collection>& collection);
     ~ReorderWindow();
 
+    //! \brief Applies the changes and closes this window
+    void Apply();
+
+    void Reset();
+
+    std::vector<std::shared_ptr<Image>> GetSelected() const;
+
 protected:
     void _OnClose() override;
+
+    bool _OnClosed(GdkEventAny* event);
+
+    void _UpdateButtonStatus();
+
+    void _OpenSelectedInImporterPressed();
+    void _DeleteSelectedPressed();
+
+    void _UpdateShownItems();
 
 private:
     // Titlebar widgets
     Gtk::HeaderBar HeaderBar;
     Gtk::MenuButton Menu;
-    Gtk::MenuButton Undo;
-    Gtk::MenuButton Redo;
+    Gtk::Button Undo;
+    Gtk::Button Redo;
 
     // Primary menu
     PrimaryMenu MenuPopover;
@@ -65,8 +83,16 @@ private:
     // Bottom buttons
     Gtk::Button RemoveSelected;
     Gtk::Button OpenSelectedInImporter;
-    Gtk::Button Apply;
+    Gtk::Button ApplyButton;
     Gtk::Box BottomButtons;
+
+    // Other resources
+    bool DoneChanges = false;
+    const std::shared_ptr<Collection> TargetCollection;
+    std::vector<std::shared_ptr<Image>> CollectionImages;
+
+    //! Undo / Redo
+    ActionHistory History;
 };
 
 } // namespace DV

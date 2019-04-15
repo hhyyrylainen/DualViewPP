@@ -39,10 +39,6 @@ private:
     void _EditPressed();
 
 private:
-    std::shared_ptr<DatabaseAction> Action;
-    //! Used to skip duplicate fetches
-    bool FetchingData = false;
-
     Gtk::Box MainBox;
 
     Gtk::Label Description;
@@ -53,6 +49,11 @@ private:
     Gtk::Box RightSide;
     Gtk::Button Edit;
     Gtk::Button UndoRedo;
+
+    // Other resources
+    std::shared_ptr<DatabaseAction> Action;
+    //! Used to skip duplicate fetches
+    bool FetchingData = false;
 };
 
 //! \brief Manages letting the user undo and redo actions and edit them

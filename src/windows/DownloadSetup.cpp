@@ -176,7 +176,6 @@ void DownloadSetup::_OnClose()
 // ------------------------------------ //
 void DownloadSetup::_OnFinishAccept(bool success)
 {
-
     // Restore cursor
     auto window = get_window();
     if(window)

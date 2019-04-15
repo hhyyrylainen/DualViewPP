@@ -268,6 +268,9 @@ public:
     //! \brief Returns the number of lines the shown items take
     size_t CountRows() const;
 
+    //! \returns The number of items
+    size_t CountItems() const;
+
     //! \brief Sets the sizes of contained ListItems
     void SetItemSize(LIST_ITEM_SIZE newsize);
 

@@ -176,7 +176,7 @@ private:
     //! is usually 0 unless the user is browsing around between the groups)
     int ShownDuplicateGroup = -1;
 
-    // Image delete action history to allow going back
+    //! Image delete action history to allow going back
     ActionHistory History;
 };
 

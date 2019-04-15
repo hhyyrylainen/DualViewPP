@@ -145,6 +145,22 @@ size_t SuperContainer::CountRows() const
 
     return count;
 }
+
+size_t SuperContainer::CountItems() const
+{
+    size_t count = 0;
+
+    for(auto& position : Positions) {
+
+        // Stop once empty position is reached //
+        if(!position.WidgetToPosition)
+            break;
+
+        ++count;
+    }
+
+    return count;
+}
 // ------------------------------------ //
 size_t SuperContainer::CountSelectedItems() const
 {
