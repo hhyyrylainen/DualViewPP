@@ -44,9 +44,6 @@ public:
     static std::shared_ptr<DatabaseAction> Create(
         Database& db, DatabaseLockT& dblock, PreparedStatement& statement, DBID id);
 
-    bool Redo() override;
-    bool Undo() override;
-
     virtual DATABASE_ACTION_TYPE GetType() const = 0;
 
     virtual std::string SerializeData() const;
@@ -74,6 +71,11 @@ public:
     }
 
 protected:
+    // Overrides from ReversibleAction. These in turn call _Redo and _Undo in order to catch
+    // any DB errors thrown from them
+    bool DoRedo() override;
+    bool DoUndo() override;
+
     //! Called when removed from the database. This will permanently delete any resources still
     //! held by this action. For example Image is first marked deleted and once the action is
     //! popped off the history then the Image is permanently deleted

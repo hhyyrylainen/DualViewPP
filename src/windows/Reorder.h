@@ -19,6 +19,23 @@ class Collection;
 
 //! \brief Allows user to reorder images in a Collection
 class ReorderWindow : public BaseWindow, public Gtk::Window, public IsAlive {
+    class HistoryItem final : public ReversibleAction {
+        friend ReorderWindow;
+
+    public:
+        HistoryItem(ReorderWindow& target);
+
+    protected:
+        bool DoRedo() override;
+        bool DoUndo() override;
+
+    protected:
+        std::vector<std::shared_ptr<Image>> ExtraRemovedGroupImages;
+
+
+        ReorderWindow& Target;
+    };
+
 public:
     ReorderWindow(const std::shared_ptr<Collection>& collection);
     ~ReorderWindow();
@@ -29,6 +46,9 @@ public:
     void Reset();
 
     std::vector<std::shared_ptr<Image>> GetSelected() const;
+
+    bool PerformAction(HistoryItem& action);
+    bool UndoAction(HistoryItem& action);
 
 protected:
     void _OnClose() override;

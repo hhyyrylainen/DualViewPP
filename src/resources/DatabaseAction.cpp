@@ -58,11 +58,8 @@ std::shared_ptr<DatabaseAction> DatabaseAction::Create(
     return nullptr;
 }
 // ------------------------------------ //
-bool DatabaseAction::Redo()
+bool DatabaseAction::DoRedo()
 {
-    if(IsPerformed())
-        return false;
-
     try {
         _Redo();
     } catch(const InvalidSQL& e) {
@@ -80,11 +77,8 @@ bool DatabaseAction::Redo()
     return true;
 }
 
-bool DatabaseAction::Undo()
+bool DatabaseAction::DoUndo()
 {
-    if(!IsPerformed())
-        return false;
-
     try {
         _Undo();
     } catch(const InvalidSQL& e) {

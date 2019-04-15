@@ -30,10 +30,11 @@ class DuplicateFinderWindow final : public BaseWindow, public Gtk::Window, publi
             const std::vector<std::shared_ptr<Image>>& removedimages,
             size_t groupsvectorindextoremoveat, ACTION_TYPE type);
 
-        bool Redo() override;
-        bool Undo() override;
-
         std::vector<std::tuple<DBID, DBID>> GenerateIgnorePairs() const;
+
+    protected:
+        bool DoRedo() override;
+        bool DoUndo() override;
 
     protected:
         int StoredShownDuplicateGroup = -1;

@@ -15,15 +15,40 @@ public:
     virtual ~ReversibleAction();
     //! \brief Applies this action again. Or if this hasn't been applied yet also applies this
     //! for the first time
-    virtual bool Redo() = 0;
+    virtual bool Redo()
+    {
+        if(IsPerformed())
+            return false;
+
+        if(!DoRedo())
+            return false;
+
+        Performed = true;
+        return true;
+    }
 
     //! \brief Undoes this action
-    virtual bool Undo() = 0;
+    virtual bool Undo()
+    {
+        if(!IsPerformed())
+            return false;
+
+        if(!DoUndo())
+            return false;
+
+        Performed = false;
+        return true;
+    }
 
     virtual bool IsPerformed() const
     {
         return Performed;
     }
+
+protected:
+    // Callbacks for child classes
+    virtual bool DoRedo() = 0;
+    virtual bool DoUndo() = 0;
 
 protected:
     //! True when this action has been done and can be undone with Undo
@@ -76,23 +101,16 @@ public:
         RedoFunction(redo), UndoFunction(undo)
     {}
 
-    bool Redo() override
+protected:
+    bool DoRedo() override
     {
-        if(IsPerformed())
-            return false;
-
         RedoFunction();
-        Performed = true;
         return true;
     }
 
-    bool Undo() override
+    bool DoUndo() override
     {
-        if(!IsPerformed())
-            return false;
-
         UndoFunction();
-        Performed = false;
         return true;
     }
 

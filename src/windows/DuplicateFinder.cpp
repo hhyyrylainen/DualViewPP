@@ -927,28 +927,14 @@ DuplicateFinderWindow::HistoryItem::HistoryItem(DuplicateFinderWindow& target,
     GroupsVectorIndexToRemoveAt(groupsvectorindextoremoveat), Target(target), Type(type)
 {}
 // ------------------------------------ //
-bool DuplicateFinderWindow::HistoryItem::Redo()
+bool DuplicateFinderWindow::HistoryItem::DoRedo()
 {
-    if(IsPerformed())
-        return false;
-
-    if(!Target.PerformAction(*this))
-        return false;
-
-    Performed = true;
-    return true;
+    return Target.PerformAction(*this);
 }
 
-bool DuplicateFinderWindow::HistoryItem::Undo()
+bool DuplicateFinderWindow::HistoryItem::DoUndo()
 {
-    if(!IsPerformed())
-        return false;
-
-    if(!Target.UndoAction(*this))
-        return false;
-
-    Performed = false;
-    return true;
+    return Target.UndoAction(*this);
 }
 // ------------------------------------ //
 std::vector<std::tuple<DBID, DBID>>

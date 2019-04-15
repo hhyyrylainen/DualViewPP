@@ -248,6 +248,16 @@ std::vector<std::shared_ptr<Image>> ReorderWindow::GetSelected() const
     return casted;
 }
 // ------------------------------------ //
+bool ReorderWindow::PerformAction(HistoryItem& action)
+{
+    return false;
+}
+
+bool ReorderWindow::UndoAction(HistoryItem& action)
+{
+    return false;
+}
+// ------------------------------------ //
 void ReorderWindow::_UpdateButtonStatus()
 {
     Undo.property_sensitive() = History.CanUndo();
@@ -312,4 +322,17 @@ void ReorderWindow::_UpdateShownItems()
         std::make_shared<ItemSelectable>([=](ListItem& item) { _UpdateButtonStatus(); }));
 
     _UpdateButtonStatus();
+}
+
+
+// ------------------------------------ //
+// ReorderWindow::HistoryItem
+bool ReorderWindow::HistoryItem::DoRedo()
+{
+    return Target.PerformAction(*this);
+}
+
+bool ReorderWindow::HistoryItem::DoUndo()
+{
+    return Target.UndoAction(*this);
 }
