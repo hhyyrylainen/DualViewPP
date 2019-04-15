@@ -12,7 +12,7 @@ const auto PROGRESS_LABEL_INITIAL_TEXT = "Scan not started";
 
 DuplicateFinderWindow::DuplicateFinderWindow() :
     ScanControl("Start"), ResetResults("Reset Results"),
-    ClearNotDuplicates("Clear manually ignored duplicates"), SensitivityLabel("Sensitivity"),
+    ClearNotDuplicates("Clear Manually Ignored Duplicates"), SensitivityLabel("Sensitivity"),
     Sensitivity(Gtk::ORIENTATION_HORIZONTAL), MainContainer(Gtk::ORIENTATION_VERTICAL),
     ProgressContainer(Gtk::ORIENTATION_VERTICAL), ProgressLabel(PROGRESS_LABEL_INITIAL_TEXT),
     CurrentlyShownGroup("No duplicates found"), ImagesContainer(Gtk::ORIENTATION_HORIZONTAL),
@@ -83,11 +83,13 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
     Redo.set_image_from_icon_name("edit-redo-symbolic");
     Redo.signal_clicked().connect(sigc::mem_fun(*this, &DuplicateFinderWindow::_RedoPressed));
     Redo.property_sensitive() = false;
+    Redo.property_tooltip_text() = "Redo last change";
     HeaderBar.pack_end(Redo);
 
     Undo.set_image_from_icon_name("edit-undo-symbolic");
     Undo.signal_clicked().connect(sigc::mem_fun(*this, &DuplicateFinderWindow::_UndoPressed));
     Undo.property_sensitive() = false;
+    Undo.property_tooltip_text() = "Undo last change";
     HeaderBar.pack_end(Undo);
 
 
@@ -166,16 +168,16 @@ DuplicateFinderWindow::DuplicateFinderWindow() :
     DeleteAllAfterFirst.property_sensitive() = false;
     DeleteAllAfterFirst.signal_clicked().connect(
         sigc::mem_fun(*this, &DuplicateFinderWindow::_DeleteAllAfterFirstPressed));
-    BottomRightContainer.pack_end(DeleteAllAfterFirst);
+    BottomRightContainer.pack_start(DeleteAllAfterFirst);
     NotDuplicates.property_valign() = Gtk::ALIGN_END;
     NotDuplicates.property_sensitive() = false;
     NotDuplicates.signal_clicked().connect(
         sigc::mem_fun(*this, &DuplicateFinderWindow::_NotDuplicatesPressed));
-    BottomRightContainer.pack_end(NotDuplicates);
+    BottomRightContainer.pack_start(NotDuplicates);
     Skip.property_valign() = Gtk::ALIGN_END;
     Skip.property_sensitive() = false;
     Skip.signal_clicked().connect(sigc::mem_fun(*this, &DuplicateFinderWindow::_SkipPressed));
-    BottomRightContainer.pack_end(Skip);
+    BottomRightContainer.pack_start(Skip);
 
     BottomRightContainer.property_vexpand() = false;
     BottomRightContainer.property_hexpand() = false;
