@@ -266,9 +266,7 @@ void ReorderWindow::_UpdateButtonStatus()
 // ------------------------------------ //
 void ReorderWindow::_OpenSelectedInImporterPressed()
 {
-    const auto selected = GetSelected();
-    if(!selected.empty())
-        DualView::Get().OpenImporter(selected);
+    DualView::Get().OpenImporter(GetSelected());
 }
 
 void ReorderWindow::_DeleteSelectedPressed()
@@ -289,6 +287,8 @@ void ReorderWindow::_DeleteSelectedPressed()
 
         return;
     }
+
+
 
     CollectionImages.erase(std::remove_if(CollectionImages.begin(), CollectionImages.end(),
                                [&](const std::shared_ptr<Image>& image) {

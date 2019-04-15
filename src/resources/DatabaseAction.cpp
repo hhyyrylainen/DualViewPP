@@ -1,12 +1,13 @@
 // ------------------------------------ //
 #include "DatabaseAction.h"
 
+#include "resources/Collection.h"
+#include "resources/Image.h"
 #include "resources/ResourceWithPreview.h"
 
 #include "Database.h"
 #include "DualView.h"
 #include "SQLHelpers.h"
-#include "resources/Image.h"
 
 #include "Exceptions.h"
 #include "json/json.h"
@@ -43,6 +44,10 @@ std::shared_ptr<DatabaseAction> DatabaseAction::Create(
     case DATABASE_ACTION_TYPE::ImageMerge:
         return std::shared_ptr<ImageMergeAction>(new ImageMergeAction(
             id, db, statement.GetColumnAsBool(2), statement.GetColumnAsString(3)));
+    case DATABASE_ACTION_TYPE::ImageRemovedFromCollection:
+        return std::shared_ptr<ImageDeleteFromCollectionAction>(
+            new ImageDeleteFromCollectionAction(
+                id, db, statement.GetColumnAsBool(2), statement.GetColumnAsString(3)));
     case DATABASE_ACTION_TYPE::Invalid:
         LOG_ERROR("DatabaseAction: from DB read type is DATABASE_ACTION_TYPE::Invalid");
         return nullptr;
@@ -436,3 +441,142 @@ void ImageMergeAction::OpenEditingWindow()
     DualView::Get().OpenActionEdit(
         std::dynamic_pointer_cast<std::remove_pointer_t<decltype(this)>>(shared_from_this()));
 }
+// ------------------------------------ //
+// ImageDeleteFromCollectionAction
+ImageDeleteFromCollectionAction::ImageDeleteFromCollectionAction(
+    DBID collection, const std::vector<std::tuple<DBID, int64_t>>& images) :
+    DeletedFromCollection(collection),
+    ImagesToDelete(images)
+{}
+
+ImageDeleteFromCollectionAction::ImageDeleteFromCollectionAction(
+    DBID id, Database& from, bool performed, const std::string& customdata) :
+    DatabaseAction(id, from)
+{
+    Performed = performed;
+
+    std::stringstream sstream(customdata);
+
+    Json::CharReaderBuilder builder;
+    Json::Value value;
+    JSONCPP_STRING errs;
+
+    if(!parseFromStream(builder, sstream, &value, &errs))
+        throw InvalidArgument("invalid json:" + errs);
+
+    {
+        const auto& images = value["images"];
+
+        ImagesToDelete.reserve(images.size());
+
+        for(const auto& obj : images) {
+
+            const auto order = obj["order"].asInt64();
+            const auto image = obj["image"].asInt64();
+
+            ImagesToDelete.emplace_back(image, order);
+        }
+    }
+
+    DeletedFromCollection = value["target"].asInt64();
+
+    {
+        const auto& added = value["added_to_uncategorized"];
+
+        ImagesAddedToUncategorized.reserve(added.size());
+
+        for(const auto& element : added) {
+
+            ImagesAddedToUncategorized.push_back(element.asInt64());
+        }
+    }
+}
+
+ImageDeleteFromCollectionAction::~ImageDeleteFromCollectionAction()
+{
+    DBResourceDestruct();
+}
+// ------------------------------------ //
+void ImageDeleteFromCollectionAction::_Redo()
+{
+    InDatabase->RedoAction(*this);
+}
+
+void ImageDeleteFromCollectionAction::_Undo()
+{
+    InDatabase->UndoAction(*this);
+}
+
+void ImageDeleteFromCollectionAction::_SerializeCustomData(Json::Value& value) const
+{
+    Json::Value images;
+    images.resize(ImagesToDelete.size());
+    for(size_t i = 0; i < images.size(); ++i) {
+        Json::Value element;
+        element["image"] = std::get<0>(ImagesToDelete[i]);
+        element["order"] = std::get<1>(ImagesToDelete[i]);
+        images[static_cast<unsigned>(i)] = element;
+    }
+
+    Json::Value added;
+    added.resize(ImagesAddedToUncategorized.size());
+    for(size_t i = 0; i < added.size(); ++i) {
+        added[static_cast<unsigned>(i)] = ImagesAddedToUncategorized[i];
+    }
+
+    value["images"] = images;
+    value["target"] = DeletedFromCollection;
+    value["added_to_uncategorized"] = added;
+}
+// ------------------------------------ //
+std::string ImageDeleteFromCollectionAction::GenerateDescription() const
+{
+    std::stringstream description;
+
+    description << "Removed ";
+
+    if(ImagesToDelete.size() != 1) {
+        description << ImagesToDelete.size() << " images ";
+    } else {
+        description << "an image ";
+    }
+
+    description << "from '"
+                << (InDatabase ? InDatabase->SelectCollectionNameByID(DeletedFromCollection) :
+                                 std::to_string(DeletedFromCollection))
+                << "'";
+
+    return description.str();
+}
+
+std::vector<std::shared_ptr<ResourceWithPreview>>
+    ImageDeleteFromCollectionAction::LoadPreviewItems(int max) const
+{
+    if(!InDatabase || max <= 0)
+        return {};
+
+    std::vector<std::shared_ptr<ResourceWithPreview>> result;
+    result.reserve(std::min<size_t>(max, ImagesToDelete.size() + 1));
+
+    max -= 1;
+
+    GUARD_LOCK_OTHER(InDatabase);
+
+    auto casted = std::dynamic_pointer_cast<ResourceWithPreview>(
+        InDatabase->SelectCollectionByID(DeletedFromCollection));
+
+    if(casted)
+        result.push_back(casted);
+
+    for(size_t i = 0; i < ImagesToDelete.size() && i < static_cast<size_t>(max); ++i) {
+
+        auto casted = std::dynamic_pointer_cast<ResourceWithPreview>(
+            InDatabase->SelectImageByID(guard, std::get<0>(ImagesToDelete[i])));
+
+        if(casted)
+            result.push_back(casted);
+    }
+
+    return result;
+}
+// ------------------------------------ //

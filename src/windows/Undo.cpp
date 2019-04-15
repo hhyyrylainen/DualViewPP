@@ -232,8 +232,8 @@ void UndoWindow::_ClearHistory()
 // ------------------------------------ //
 // ActionDisplay
 ActionDisplay::ActionDisplay(const std::shared_ptr<DatabaseAction>& action) :
-    Action(action), MainBox(Gtk::ORIENTATION_HORIZONTAL), LeftSide(Gtk::ORIENTATION_VERTICAL),
-    RightSide(Gtk::ORIENTATION_HORIZONTAL), Edit("Edit"), UndoRedo("Loading")
+    MainBox(Gtk::ORIENTATION_HORIZONTAL), LeftSide(Gtk::ORIENTATION_VERTICAL),
+    RightSide(Gtk::ORIENTATION_HORIZONTAL), Edit("Edit"), UndoRedo("Loading"), Action(action)
 {
     if(!Action)
         throw InvalidState("given nullptr for action");

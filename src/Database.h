@@ -31,6 +31,7 @@ class NetFile;
 class DatabaseAction;
 class ImageDeleteAction;
 class ImageMergeAction;
+class ImageDeleteFromCollectionAction;
 
 class Tag;
 class AppliedTag;
@@ -69,6 +70,7 @@ class Database : public Leviathan::ThreadSafeRecursive {
     // These actions are friends in order to call the UndoAction and RedoAction methods
     friend ImageDeleteAction;
     friend ImageMergeAction;
+    friend ImageDeleteFromCollectionAction;
 
 public:
     //! \brief Normal database creation, uses the specified file
@@ -203,6 +205,8 @@ public:
     std::shared_ptr<Collection> SelectCollectionByName(LockT& guard, const std::string& name);
     CREATE_NON_LOCKING_WRAPPER(SelectCollectionByName);
 
+    std::string SelectCollectionNameByID(DBID id);
+
     std::vector<std::string> SelectCollectionNamesByWildcard(
         const std::string& pattern, int64_t max = 50);
 
@@ -251,14 +255,29 @@ public:
     bool InsertImageToCollection(
         LockT& guard, Collection& collection, Image& image, int64_t showorder);
 
+    bool InsertImageToCollection(
+        LockT& guard, Collection& collection, DBID image, int64_t showorder);
+
+    bool InsertImageToCollection(LockT& guard, DBID collection, DBID image, int64_t showorder);
+
     //! \brief Returns true if image is in some collection.
     //!
     //! If false it should be added to one otherwise it cannot be viewed
     bool SelectIsImageInAnyCollection(LockT& guard, const Image& image);
+    CREATE_NON_LOCKING_WRAPPER(SelectIsImageInAnyCollection);
+
+    bool SelectIsImageInCollection(LockT& guard, DBID collection, DBID image);
 
     //! \brief Removes an image from the collection
     //! \returns True if removed. False if the image wasn't in the collection
+    //!
+    //! The image will be added to uncategorized if it ends up in no collection
+    //! This is a variant that can't be undone
     bool DeleteImageFromCollection(LockT& guard, Collection& collection, Image& image);
+
+    //! \brief Removes images from a collection in a way that can be undone
+    std::shared_ptr<DatabaseAction> DeleteImagesFromCollection(
+        Collection& collection, const std::vector<std::shared_ptr<Image>>& images);
 
     //! \brief Returns the show_order image has in collection. Or -1
     int64_t SelectImageShowOrderInCollection(
@@ -271,6 +290,10 @@ public:
     std::shared_ptr<Image> SelectImageInCollectionByShowOrder(
         LockT& guard, const Collection& collection, int64_t showorder);
     CREATE_NON_LOCKING_WRAPPER(SelectImageInCollectionByShowOrder);
+
+    //! \returns Image ID at show order in collection or -1 if not found
+    DBID SelectImageIDInCollectionByShowOrder(
+        LockT& guard, DBID collection, int64_t showorder);
 
     //! \brief It's possible to end up with multiple Images with the same show order, this
     //! function can be used to still get all the images in that situation
@@ -316,7 +339,15 @@ public:
     //! \brief Returns all collections and the show order an image has
     std::vector<std::tuple<DBID, int64_t>> SelectCollectionIDsImageIsIn(
         LockT& guard, const Image& image);
+
+    std::vector<std::tuple<DBID, int64_t>> SelectCollectionIDsImageIsIn(
+        LockT& guard, DBID image);
     CREATE_NON_LOCKING_WRAPPER(SelectCollectionIDsImageIsIn);
+
+    //! \brief Used to push back images in a collection to make space in the middle
+    //! \returns Number of changed rows
+    int UpdateShowOrdersInCollection(
+        LockT& guard, DBID collection, int64_t startpoint, int incrementby = 1);
 
     //
     // Folder
@@ -618,6 +649,11 @@ public:
 
     std::shared_ptr<DatabaseAction> SelectOldestDatabaseAction(LockT& guard);
 
+    //! \brief Adds a new action to the DB
+    //!
+    //! May not be called with an action that is already in the DB
+    void InsertDatabaseAction(LockT& guard, DatabaseAction& action);
+
 
     //! \brief Returns the latest actions matching the optional search string
     //! \param search String that must be found either in the json data or the description of
@@ -721,6 +757,9 @@ protected:
     void RedoAction(ImageMergeAction& action);
     void UndoAction(ImageMergeAction& action);
     void PurgeAction(ImageMergeAction& action);
+
+    void RedoAction(ImageDeleteFromCollectionAction& action);
+    void UndoAction(ImageDeleteFromCollectionAction& action);
 
 protected:
     //! \brief Runs a command and prints all the result rows with column headers to log

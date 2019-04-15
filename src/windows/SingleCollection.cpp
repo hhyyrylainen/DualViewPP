@@ -8,6 +8,7 @@
 #include "components/TagEditor.h"
 
 #include "Common.h"
+#include "Database.h"
 #include "DualView.h"
 
 using namespace DV;
@@ -170,8 +171,7 @@ void SingleCollection::_OnDeleteSelected()
         return;
 
     DualView::Get().QueueDBThreadFunction([=]() {
-        for(const auto& image : images)
-            DualView::Get().RemoveImageFromCollection(image, collection);
+        DualView::Get().GetDatabase().DeleteImagesFromCollection(*collection, images);
 
         DualView::Get().InvokeFunction([=]() {
             INVOKE_CHECK_ALIVE_MARKER(isalive);

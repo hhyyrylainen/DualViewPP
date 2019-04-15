@@ -20,6 +20,7 @@ class BaseWindow;
 enum class DATABASE_ACTION_TYPE : int {
     ImageDelete = 1,
     ImageMerge,
+    ImageRemovedFromCollection,
     Invalid /* must be always last value */
 };
 
@@ -226,6 +227,72 @@ private:
 
     std::vector<std::tuple<DBID, int>> AddTargetToCollections;
     std::vector<std::string> AddTagsToTarget;
+};
+
+
+
+//! \brief Image(s) were removed from a collection
+class ImageDeleteFromCollectionAction final : public DatabaseAction {
+    friend Database;
+    friend std::shared_ptr<DatabaseAction> DatabaseAction::Create(
+        Database& db, DatabaseLockT& dblock, PreparedStatement& statement, DBID id);
+
+protected:
+    ImageDeleteFromCollectionAction(
+        DBID id, Database& from, bool performed, const std::string& customdata);
+
+public:
+    //! This is public just to make std::make_shared work
+    //! \protected
+    ImageDeleteFromCollectionAction(
+        DBID collection, const std::vector<std::tuple<DBID, int64_t>>& images);
+    ~ImageDeleteFromCollectionAction();
+
+    DATABASE_ACTION_TYPE GetType() const override
+    {
+        return DATABASE_ACTION_TYPE::ImageRemovedFromCollection;
+    }
+
+    const auto& GetImagesToDelete() const
+    {
+        return ImagesToDelete;
+    }
+
+    const auto& GetAddedToUncategorized() const
+    {
+        return ImagesAddedToUncategorized;
+    }
+
+    auto GetDeletedFromCollection() const
+    {
+        return DeletedFromCollection;
+    }
+
+
+    std::string GenerateDescription() const override;
+    std::vector<std::shared_ptr<ResourceWithPreview>> LoadPreviewItems(
+        int max = 10) const override;
+
+protected:
+    void _OnPurged() override {}
+
+    void SetAddedToUncategorized(const std::vector<DBID>& addedtouncategorized)
+    {
+        ImagesAddedToUncategorized = addedtouncategorized;
+        OnMarkDirty();
+    }
+
+private:
+    void _Redo() override;
+    void _Undo() override;
+    void _SerializeCustomData(Json::Value& value) const override;
+
+private:
+    DBID DeletedFromCollection;
+    //! The removed images along with their original show order positions
+    std::vector<std::tuple<DBID, int64_t>> ImagesToDelete;
+
+    std::vector<DBID> ImagesAddedToUncategorized;
 };
 
 } // namespace DV

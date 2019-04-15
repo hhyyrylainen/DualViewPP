@@ -330,3 +330,64 @@ TEST_CASE("Searching action by description works", "[db][action]")
     REQUIRE(!found.empty());
     CHECK(undo == found[0]);
 }
+
+TEST_CASE("Image removal from a collection can be undone", "[db][action]")
+{
+    DummyDualView dv;
+    TestDatabase db;
+
+    REQUIRE_NOTHROW(db.Init());
+
+    // Insert test data
+    auto image1 = db.InsertTestImage("image1", "hash1");
+    REQUIRE(image1);
+
+    auto image2 = db.InsertTestImage("image2", "hash2");
+    REQUIRE(image2);
+
+    auto collection = db.InsertCollectionAG("test collection", false);
+    REQUIRE(collection);
+
+    collection->AddImage(image1);
+    collection->AddImage(image2);
+
+    auto undo = db.DeleteImagesFromCollection(*collection, {image1});
+
+    REQUIRE(undo);
+
+    CHECK(collection->GetImages() == std::vector<std::shared_ptr<Image>>{image2});
+
+    // Image must always be in some collection
+    CHECK(db.SelectIsImageInAnyCollectionAG(*image1));
+    CHECK(!image1->IsDeleted());
+
+    SECTION("works normally")
+    {
+        CHECK(undo->Undo());
+
+        CHECK(collection->GetImages() == std::vector<std::shared_ptr<Image>>{image1, image2});
+    }
+
+    SECTION("works after loading from DB")
+    {
+        const auto id = undo->GetID();
+        const auto oldPtr = undo.get();
+        undo.reset();
+
+        undo = db.SelectDatabaseActionByIDAG(id);
+        REQUIRE(undo);
+
+        CHECK(undo.get() != oldPtr);
+
+        CHECK(undo->Undo());
+
+        CHECK(collection->GetImages() == std::vector<std::shared_ptr<Image>>{image1, image2});
+
+        SECTION("It gets removed from uncategorized")
+        {
+            auto uncategorized = db.SelectCollectionByID(DATABASE_UNCATEGORIZED_COLLECTION_ID);
+
+            CHECK(uncategorized->GetImages() == std::vector<std::shared_ptr<Image>>{});
+        }
+    }
+}

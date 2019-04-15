@@ -420,12 +420,9 @@ std::shared_ptr<ImageDeleteAction> Database::CreateDeleteImageAction(
     // Create the action
     auto action = std::make_shared<ImageDeleteAction>(std::vector<DBID>{image.GetID()});
 
-    // This is here for exception safety
-    const auto serialized = action->SerializeData();
-    const auto description = action->GenerateDescription();
-
     {
         DoDBSavePoint transaction(*this, guard, "create_del_img", true);
+        transaction.AllowCommit(false);
 
         // The signature DB is a cache and it doesn't need to be restored
         RunOnSignatureDB(guard,
@@ -433,12 +430,9 @@ std::shared_ptr<ImageDeleteAction> Database::CreateDeleteImageAction(
             "picture_id = ?1;",
             image.GetID());
 
-        RunSQLAsPrepared(guard,
-            "INSERT INTO action_history (type, json_data, description) VALUES(?1, ?2, ?3);",
-            static_cast<int>(action->GetType()), serialized, description);
+        InsertDatabaseAction(guard, *action);
 
-        const auto actionId = sqlite3_last_insert_rowid(SQLiteDb);
-        action->OnAdopted(actionId, *this);
+        transaction.AllowCommit(true);
     }
 
     auto casted = std::static_pointer_cast<DatabaseAction>(action);
@@ -870,6 +864,22 @@ std::shared_ptr<Collection> Database::SelectCollectionByName(
     return nullptr;
 }
 
+std::string Database::SelectCollectionNameByID(DBID id)
+{
+    const char str[] = "SELECT name FROM collections WHERE id = ?1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(id);
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        return statementobj.GetColumnAsString(0);
+    }
+
+    return "";
+}
+
 std::vector<std::string> Database::SelectCollectionNamesByWildcard(
     const std::string& pattern, int64_t max /*= 50*/)
 {
@@ -1049,17 +1059,28 @@ void Database::DeleteCollectionTag(
 // ------------------------------------ //
 // Collection image
 bool Database::InsertImageToCollection(
-    LockT& guard, DBID collection, Image& image, int64_t showorder)
+    LockT& guard, DBID collection, DBID image, int64_t showorder)
 {
-    if(collection < 0 || !image.IsInDatabase())
+    if(collection < 0 || image < 0)
         return false;
+
+    // Skip if the image is in this collection
+    if(SelectIsImageInCollection(guard, collection, image))
+        return false;
+
+    // Push back all show orders that are equal or more than showorder *if* there is a
+    // duplicate
+    if(SelectImageIDInCollectionByShowOrder(guard, collection, showorder) != -1) {
+
+        UpdateShowOrdersInCollection(guard, collection, showorder);
+    }
 
     const char str[] = "INSERT INTO collection_image (collection, image, show_order) VALUES "
                        "(?1, ?2, ?3);";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection, image.GetID(), showorder);
+    auto statementinuse = statementobj.Setup(collection, image, showorder);
 
     statementobj.StepAll(statementinuse);
 
@@ -1071,7 +1092,19 @@ bool Database::InsertImageToCollection(
 }
 
 bool Database::InsertImageToCollection(
+    LockT& guard, DBID collection, Image& image, int64_t showorder)
+{
+    return InsertImageToCollection(guard, collection, image.GetID(), showorder);
+}
+
+bool Database::InsertImageToCollection(
     LockT& guard, Collection& collection, Image& image, int64_t showorder)
+{
+    return InsertImageToCollection(guard, collection.GetID(), image.GetID(), showorder);
+}
+
+bool Database::InsertImageToCollection(
+    LockT& guard, Collection& collection, DBID image, int64_t showorder)
 {
     return InsertImageToCollection(guard, collection.GetID(), image, showorder);
 }
@@ -1083,6 +1116,22 @@ bool Database::SelectIsImageInAnyCollection(LockT& guard, const Image& image)
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
     auto statementinuse = statementobj.Setup(image.GetID());
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        return true;
+    }
+
+    return false;
+}
+
+bool Database::SelectIsImageInCollection(LockT& guard, DBID collection, DBID image)
+{
+    const char str[] = "SELECT 1 FROM collection_image WHERE collection = ?1 AND image = ?2;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection, image);
 
     if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
 
@@ -1109,7 +1158,79 @@ bool Database::DeleteImageFromCollection(LockT& guard, Collection& collection, I
 
     LEVIATHAN_ASSERT(changes <= 1, "DeleteImageFromCollection changed more than one row");
 
-    return changes == 1;
+    if(changes < 1)
+        return false;
+
+    // Make sure it is in some collection
+    if(!SelectIsImageInAnyCollection(guard, image)) {
+
+        LOG_INFO("Adding removed image to Uncategorized");
+        auto uncategorized = SelectCollectionByID(DATABASE_UNCATEGORIZED_COLLECTION_ID);
+
+        if(uncategorized)
+            InsertImageToCollection(guard, *uncategorized, image,
+                SelectCollectionLargestShowOrder(guard, *uncategorized) + 1);
+    }
+
+    return true;
+}
+
+std::shared_ptr<DatabaseAction> Database::DeleteImagesFromCollection(
+    Collection& collection, const std::vector<std::shared_ptr<Image>>& images)
+{
+    if(!collection.IsInDatabase())
+        return nullptr;
+
+    for(const auto image : images)
+        if(!image || !image->IsInDatabase())
+            return nullptr;
+
+    GUARD_LOCK();
+
+    // Create the action
+    std::vector<std::tuple<DBID, int64_t>> removeData;
+    removeData.reserve(images.size());
+
+    for(const auto image : images) {
+
+        const auto order = SelectImageShowOrderInCollection(guard, collection, *image);
+
+        if(order < 0) {
+            LOG_ERROR("Database: DeleteImagesFromCollection: called with an image that is not "
+                      "in the collection");
+            return nullptr;
+        }
+
+        removeData.emplace_back(image->GetID(), order);
+    }
+
+    auto action =
+        std::make_shared<ImageDeleteFromCollectionAction>(collection.GetID(), removeData);
+
+    {
+        DoDBSavePoint transaction(*this, guard, "image_del_from_collection");
+        transaction.AllowCommit(false);
+
+        InsertDatabaseAction(guard, *action);
+
+        // The action must be done here as this
+        if(!action->Redo()) {
+
+            LOG_ERROR("Database: freshly created ImageDeleteFromCollection action failed");
+            return nullptr;
+        }
+
+        transaction.AllowCommit(true);
+    }
+
+    auto casted = std::static_pointer_cast<DatabaseAction>(action);
+    LoadedDatabaseActions.OnLoad(casted);
+
+    if(casted.get() != action.get())
+        LOG_ERROR("Database: action got changed on store");
+
+    PurgeOldActionsUntilUnderLimit(guard);
+    return action;
 }
 
 int64_t Database::SelectImageShowOrderInCollection(
@@ -1154,6 +1275,26 @@ std::shared_ptr<Image> Database::SelectImageInCollectionByShowOrder(
     }
 
     return nullptr;
+}
+
+DBID Database::SelectImageIDInCollectionByShowOrder(
+    LockT& guard, DBID collection, int64_t showorder)
+{
+    const char str[] = "SELECT image FROM collection_image WHERE collection = ? AND "
+                       "show_order = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection, showorder);
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        DBID id;
+        if(statementobj.GetObjectIDFromColumn(id, 0))
+            return id;
+    }
+
+    return -1;
 }
 
 std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollectionByShowOrder(
@@ -1393,13 +1534,19 @@ std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollection(
 std::vector<std::tuple<DBID, int64_t>> Database::SelectCollectionIDsImageIsIn(
     LockT& guard, const Image& image)
 {
+    return SelectCollectionIDsImageIsIn(guard, image.GetID());
+}
+
+std::vector<std::tuple<DBID, int64_t>> Database::SelectCollectionIDsImageIsIn(
+    LockT& guard, DBID image)
+{
     std::vector<std::tuple<DBID, int64_t>> result;
 
     const char str[] = "SELECT collection, show_order FROM collection_image WHERE image = ?;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(image.GetID());
+    auto statementinuse = statementobj.Setup(image);
 
     while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
 
@@ -1412,6 +1559,19 @@ std::vector<std::tuple<DBID, int64_t>> Database::SelectCollectionIDsImageIsIn(
     }
 
     return result;
+}
+
+int Database::UpdateShowOrdersInCollection(
+    LockT& guard, DBID collection, int64_t startpoint, int incrementby /*= 1*/)
+{
+    const char str[] = "UPDATE collection_image SET show_order = show_order + ?3 WHERE "
+                       "collection = ?1 AND show_order >= ?2;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    statementobj.StepAll(statementobj.Setup(collection, startpoint, incrementby));
+
+    return sqlite3_changes(SQLiteDb);
 }
 
 // ------------------------------------ //
@@ -3030,16 +3190,9 @@ std::shared_ptr<DatabaseAction> Database::MergeImages(
                 "picture_id = ?1;",
                 id);
 
-        RunSQLAsPrepared(guard,
-            "INSERT INTO action_history (type, performed, json_data, description) "
-            "VALUES(?1, 1, ?2, ?3);",
-            static_cast<int>(action->GetType()), action->SerializeData(),
-            action->GenerateDescription());
+        InsertDatabaseAction(guard, *action);
 
-        const auto actionId = sqlite3_last_insert_rowid(SQLiteDb);
-        action->OnAdopted(actionId, *this);
-
-        // The action must be done here as this
+        // The action must be done here as this captures undo information
         if(!action->Redo()) {
 
             LOG_ERROR("Database: freshly created MergeImages action failed");
@@ -3119,6 +3272,21 @@ std::vector<std::shared_ptr<DatabaseAction>> Database::SelectLatestDatabaseActio
 
 
     return result;
+}
+// ------------------------------------ //
+void Database::InsertDatabaseAction(LockT& guard, DatabaseAction& action)
+{
+    if(action.IsInDatabase())
+        return;
+
+    RunSQLAsPrepared(guard,
+        "INSERT INTO action_history (type, performed, json_data, description) "
+        "VALUES(?1, 1, ?2, ?3);",
+        static_cast<int>(action.GetType()), action.SerializeData(),
+        action.GenerateDescription());
+
+    const auto actionId = sqlite3_last_insert_rowid(SQLiteDb);
+    action.OnAdopted(actionId, *this);
 }
 
 bool Database::UpdateDatabaseAction(LockT& guard, DatabaseAction& action)
@@ -3413,7 +3581,7 @@ void Database::PurgeAction(ImageDeleteAction& action)
     // Permanently delete the images
     _PurgeImages(guard, action.GetImagesToDelete());
 }
-
+// ------------------------------------ //
 // ImageMergeAction
 void Database::RedoAction(ImageMergeAction& action)
 {
@@ -3653,6 +3821,144 @@ void Database::PurgeAction(ImageMergeAction& action)
 
     // Permanently delete the images
     _PurgeImages(guard, action.GetImagesToMerge());
+}
+// ------------------------------------ //
+// ImageDeleteFromCollectionAction
+void Database::RedoAction(ImageDeleteFromCollectionAction& action)
+{
+    GUARD_LOCK();
+
+    const auto targetID = action.GetDeletedFromCollection();
+    auto target = SelectCollectionByID(targetID);
+
+    if(!target /*|| target->IsDeleted()*/)
+        throw InvalidState("cannot redo action: invalid target collection");
+
+    // TODO: it's possible that the collection is reordered after this action is created so for
+    // best amount of support for undoing that this should capture the new positions if they
+    // have changed
+
+    std::vector<DBID> imagesToAddToUncategorized;
+
+    const auto& images = action.GetImagesToDelete();
+
+    const char deleteImageSql[] =
+        "DELETE FROM collection_image WHERE collection = ?1 AND image = ?2;";
+
+    PreparedStatement deleteStatement(SQLiteDb, deleteImageSql, sizeof(deleteImageSql));
+
+    {
+        DoDBSavePoint transaction(*this, guard, "image_remove_from_col_redo");
+        transaction.AllowCommit(false);
+
+        // Remove the wanted images
+        for(const auto& imageOrderPair : images) {
+
+            const auto& image = std::get<0>(imageOrderPair);
+
+            const auto collections = SelectCollectionIDsImageIsIn(guard, image);
+
+            bool found = false;
+
+            for(const auto& collectionPair : collections) {
+
+                if(std::get<0>(collectionPair) == targetID) {
+                    found = true;
+                }
+            }
+
+            if(!found) {
+
+                LOG_WARNING(
+                    "Database: ImageDeleteFromCollectionAction redo: image is not in this "
+                    "collection, image: " +
+                    std::to_string(image) + ", collection: " + std::to_string(targetID));
+                continue;
+            }
+
+            // Needs to add to uncategorized if the removed from collection is the only one
+            if(collections.size() < 2)
+                imagesToAddToUncategorized.push_back(image);
+
+            deleteStatement.StepAll(deleteStatement.Setup(targetID, image));
+        }
+
+        // Add the orphan images to uncategorized
+        if(!imagesToAddToUncategorized.empty()) {
+
+            auto uncategorized = SelectCollectionByID(DATABASE_UNCATEGORIZED_COLLECTION_ID);
+
+            if(uncategorized) {
+
+                for(auto image : imagesToAddToUncategorized) {
+                    InsertImageToCollection(guard, *uncategorized, image,
+                        SelectCollectionLargestShowOrder(guard, *uncategorized) + 1);
+                }
+            }
+        }
+
+        _SetActionStatus(guard, action, true);
+
+        // Save the detected information needed for undo
+        action.SetAddedToUncategorized(imagesToAddToUncategorized);
+        action.Save();
+
+        transaction.AllowCommit(true);
+    }
+
+    GUARD_LOCK_OTHER_NAME(target, targetLock);
+    target->NotifyAll(targetLock);
+}
+
+void Database::UndoAction(ImageDeleteFromCollectionAction& action)
+{
+    GUARD_LOCK();
+
+    const auto targetID = action.GetDeletedFromCollection();
+    auto target = SelectCollectionByID(targetID);
+
+    if(!target /*|| target->IsDeleted()*/)
+        throw InvalidState("cannot undo action: invalid target collection");
+
+    const char deleteImageSql[] =
+        "DELETE FROM collection_image WHERE collection = ?1 AND image = ?2;";
+
+    PreparedStatement deleteStatement(SQLiteDb, deleteImageSql, sizeof(deleteImageSql));
+
+
+    {
+        DoDBSavePoint transaction(*this, guard, "image_remove_from_col_redo");
+        transaction.AllowCommit(false);
+
+        // Remove the images from uncategorized
+        const auto removeFromUncategorized = action.GetAddedToUncategorized();
+
+        if(!removeFromUncategorized.empty()) {
+
+            // Don't need to take into account the possibility that the image is no longer in
+            // any collection as all of these will be added to the target collection next
+            for(auto image : removeFromUncategorized) {
+
+                deleteStatement.StepAll(
+                    deleteStatement.Setup(DATABASE_UNCATEGORIZED_COLLECTION_ID, image));
+            }
+        }
+
+        // Add them to the target collection
+        for(const auto& imageOrder : action.GetImagesToDelete()) {
+
+            const auto image = std::get<0>(imageOrder);
+            const auto order = std::get<1>(imageOrder);
+
+            InsertImageToCollection(guard, targetID, image, order);
+        }
+
+        _SetActionStatus(guard, action, false);
+        transaction.AllowCommit(true);
+    }
+
+    GUARD_LOCK_OTHER_NAME(target, targetLock);
+    target->NotifyAll(targetLock);
 }
 
 // ------------------------------------ //
