@@ -392,9 +392,10 @@ std::string ImageMergeAction::GenerateDescription() const
         description << "an image ";
     }
 
-    description << "into "
+    description << "into '"
                 << (InDatabase ? InDatabase->SelectImageNameByIDAG(Target) :
-                                 std::to_string(Target));
+                                 std::to_string(Target))
+                << "'";
 
     return description.str();
 }

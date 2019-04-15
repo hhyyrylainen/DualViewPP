@@ -199,7 +199,10 @@ void UndoWindow::_ClearHistory()
     auto dialog = Gtk::MessageDialog(*this, "Clear action history?", false,
         Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
 
-    dialog.set_secondary_text("It is NOT possible to undo this action.");
+
+    dialog.set_secondary_text("It is <b>NOT</b> possible to undo this action. This will "
+                              "permanently delete all deleted images.",
+        true);
     int result = dialog.run();
 
     if(result != Gtk::RESPONSE_YES) {
@@ -258,6 +261,7 @@ ActionDisplay::ActionDisplay(const std::shared_ptr<DatabaseAction>& action) :
     Edit.property_valign() = Gtk::ALIGN_CENTER;
     Edit.property_halign() = Gtk::ALIGN_CENTER;
     Edit.property_sensitive() = false;
+    Edit.property_tooltip_text() = "Edit this action and redo it";
     Edit.signal_clicked().connect(sigc::mem_fun(*this, &ActionDisplay::_EditPressed));
     RightSide.pack_start(Edit, false, false);
 
