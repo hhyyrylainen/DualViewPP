@@ -70,6 +70,11 @@ public:
     //! \returns True if the image was removed, false if it wasn't in this collection
     bool RemoveImage(std::shared_ptr<Image> image, DatabaseLockT& dblock);
 
+    //! \brief Removes images from this collection
+    //! \returns True if the image was removed, false if it wasn't in this collection or
+    //! something else failed
+    bool RemoveImage(const std::vector<std::shared_ptr<Image>>& images);
+
     //! \brief Gets the largest show_order used in the collection
     int64_t GetLastShowOrder() const;
 

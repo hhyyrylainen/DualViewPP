@@ -176,6 +176,14 @@ bool Collection::RemoveImage(std::shared_ptr<Image> image, DatabaseLockT& dblock
     return InDatabase->DeleteImageFromCollection(dblock, *this, *image);
 }
 
+bool Collection::RemoveImage(const std::vector<std::shared_ptr<Image>>& images)
+{
+    if(images.empty() || !IsInDatabase())
+        return false;
+
+    return InDatabase->DeleteImagesFromCollection(*this, images) != nullptr;
+}
+
 int64_t Collection::GetImageCount() const
 {
     if(!IsInDatabase())

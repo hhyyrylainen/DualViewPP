@@ -288,7 +288,13 @@ void ReorderWindow::_DeleteSelectedPressed()
         return;
     }
 
+    // Do this in the background to not interrupt the user
+    DualView::Get().QueueDBThreadFunction([collection = TargetCollection, selected]() {
+        if(!collection->RemoveImage(selected)) {
 
+            LOG_ERROR("ReorderWindow: failed to remove selected from current collection");
+        }
+    });
 
     CollectionImages.erase(std::remove_if(CollectionImages.begin(), CollectionImages.end(),
                                [&](const std::shared_ptr<Image>& image) {
