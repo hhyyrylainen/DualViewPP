@@ -75,10 +75,14 @@ ReorderWindow::ReorderWindow(const std::shared_ptr<Collection>& collection) :
 
     UpArrow.set_image_from_icon_name("go-up-symbolic");
     UpArrow.get_style_context()->add_class("ArrowButton");
+    UpArrow.signal_clicked().connect(
+        sigc::mem_fun(*this, &ReorderWindow::_MoveToWorkspacePressed));
     MiddleBox.pack_end(UpArrow, false, false);
 
     DownArrow.set_image_from_icon_name("go-down-symbolic");
     DownArrow.get_style_context()->add_class("ArrowButton");
+    DownArrow.signal_clicked().connect(
+        sigc::mem_fun(*this, &ReorderWindow::_MoveBackFromWorkspacePressed));
     MiddleBox.pack_end(DownArrow, false, false);
 
     MiddleBox.set_spacing(3);
@@ -273,6 +277,14 @@ void ReorderWindow::_UpdateButtonStatus()
     RemoveSelected.property_sensitive() = selectedInLower;
     OpenSelectedInImporter.property_sensitive() = selectedInLower;
 }
+
+void ReorderWindow::_UpdateShownItems()
+{
+    ImageList.SetShownItems(CollectionImages.begin(), CollectionImages.end(),
+        std::make_shared<ItemSelectable>([=](ListItem& item) { _UpdateButtonStatus(); }));
+
+    _UpdateButtonStatus();
+}
 // ------------------------------------ //
 void ReorderWindow::_OpenSelectedInImporterPressed()
 {
@@ -316,17 +328,42 @@ void ReorderWindow::_DeleteSelectedPressed()
     _UpdateShownItems();
 }
 // ------------------------------------ //
-void ReorderWindow::_UpdateShownItems()
+void ReorderWindow::_MoveToWorkspacePressed()
 {
-    ImageList.SetShownItems(CollectionImages.begin(), CollectionImages.end(),
-        std::make_shared<ItemSelectable>([=](ListItem& item) { _UpdateButtonStatus(); }));
+    auto images = GetSelected();
+
+    // Calculate indexes
+    std::vector<size_t> indexes(images.size(), -1);
+
+    for(size_t fillSpot = 0; fillSpot < images.size(); ++fillSpot) {
+        for(size_t i = 0; i < CollectionImages.size(); ++i) {
+
+            if(CollectionImages[i] == images[fillSpot])
+                indexes[fillSpot] = i;
+        }
+    }
+
+    auto action = std::make_shared<HistoryItem>(
+        *this, MOVE_GROUP::MainList, indexes, images, MOVE_GROUP::Workspace, -1);
+
+    // Putting the action into the history performs it
+    History.AddAction(action);
 
     _UpdateButtonStatus();
 }
 
-
+void ReorderWindow::_MoveBackFromWorkspacePressed() {}
 // ------------------------------------ //
 // ReorderWindow::HistoryItem
+ReorderWindow::HistoryItem::HistoryItem(ReorderWindow& target, MOVE_GROUP movedfrom,
+    const std::vector<size_t>& movedfromindex,
+    const std::vector<std::shared_ptr<Image>>& imagestomove, MOVE_GROUP moveto,
+    size_t movetargetindex) :
+    Target(target),
+    MovedFrom(movedfrom), MovedFromIndex(movedfromindex), ImagesToMove(imagestomove),
+    MoveTo(moveto), MoveTargetIndex(movetargetindex)
+{}
+
 bool ReorderWindow::HistoryItem::DoRedo()
 {
     return Target.PerformAction(*this);

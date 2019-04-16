@@ -19,21 +19,31 @@ class Collection;
 
 //! \brief Allows user to reorder images in a Collection
 class ReorderWindow : public BaseWindow, public Gtk::Window, public IsAlive {
+    enum class MOVE_GROUP { Workspace, MainList };
+
     class HistoryItem final : public ReversibleAction {
         friend ReorderWindow;
 
     public:
-        HistoryItem(ReorderWindow& target);
+        HistoryItem(ReorderWindow& target, MOVE_GROUP movedfrom,
+            const std::vector<size_t>& movedfromindex,
+            const std::vector<std::shared_ptr<Image>>& imagestomove, MOVE_GROUP moveto,
+            size_t movetargetindex);
 
     protected:
         bool DoRedo() override;
         bool DoUndo() override;
 
     protected:
-        std::vector<std::shared_ptr<Image>> ExtraRemovedGroupImages;
-
-
         ReorderWindow& Target;
+
+        MOVE_GROUP MovedFrom;
+        std::vector<size_t> MovedFromIndex;
+
+        std::vector<std::shared_ptr<Image>> ImagesToMove;
+
+        MOVE_GROUP MoveTo;
+        size_t MoveTargetIndex;
     };
 
 public:
@@ -56,11 +66,13 @@ protected:
     bool _OnClosed(GdkEventAny* event);
 
     void _UpdateButtonStatus();
+    void _UpdateShownItems();
 
     void _OpenSelectedInImporterPressed();
     void _DeleteSelectedPressed();
+    void _MoveToWorkspacePressed();
+    void _MoveBackFromWorkspacePressed();
 
-    void _UpdateShownItems();
 
 private:
     // Titlebar widgets
