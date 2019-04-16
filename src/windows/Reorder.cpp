@@ -198,6 +198,7 @@ void ReorderWindow::Reset()
     History.Clear();
     Workspace.Clear();
     LastSelectedImage.RemoveImage();
+    LastSelectedImage.SetImageList(nullptr);
     ImageList.Clear();
 
     _UpdateButtonStatus();
@@ -281,8 +282,23 @@ void ReorderWindow::_UpdateButtonStatus()
 void ReorderWindow::_UpdateShownItems()
 {
     ImageList.SetShownItems(CollectionImages.begin(), CollectionImages.end(),
-        std::make_shared<ItemSelectable>([=](ListItem& item) { _UpdateButtonStatus(); }));
+        std::make_shared<ItemSelectable>([=](ListItem& item) {
+            _UpdateButtonStatus();
 
+            std::vector<std::shared_ptr<ResourceWithPreview>> selected;
+            ImageList.GetSelectedItems(selected);
+
+            if(selected.size() > 0) {
+                LastSelectedImage.SetImage(std::dynamic_pointer_cast<Image>(selected.back()));
+                LastSelectedImage.SetImageList(TargetCollection);
+            } else {
+                LastSelectedImage.RemoveImage();
+                LastSelectedImage.SetImageList(nullptr);
+            }
+        }));
+
+    LastSelectedImage.RemoveImage();
+    LastSelectedImage.SetImageList(nullptr);
     _UpdateButtonStatus();
 }
 // ------------------------------------ //
