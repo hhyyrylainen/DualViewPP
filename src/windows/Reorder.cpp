@@ -346,13 +346,10 @@ bool ReorderWindow::PerformAction(HistoryItem& action)
 
     size_t insertPoint = action.MoveTargetIndex;
 
-    LOG_WRITE("got 1");
-
     // Items in the mainlist are not deleted, only marked inactive.
     // Unless the move is within the main list
     if(action.MovedFrom != MOVE_GROUP::MainList || action.MoveTo == MOVE_GROUP::MainList) {
         // Remove the old items while trying to keep the insert point correct
-        LOG_WRITE("got 2");
         for(const auto& image : action.ImagesToMove) {
 
             for(size_t i = 0; i < source.size(); ++i) {
@@ -371,14 +368,12 @@ bool ReorderWindow::PerformAction(HistoryItem& action)
 
     if(action.MovedFrom == MOVE_GROUP::MainList && action.MoveTo != MOVE_GROUP::MainList) {
 
-        LOG_WRITE("got 4");
         InactiveItems.insert(
             InactiveItems.end(), action.ImagesToMove.begin(), action.ImagesToMove.end());
     }
 
     if(action.MovedFrom != MOVE_GROUP::MainList && action.MoveTo == MOVE_GROUP::MainList) {
 
-        LOG_WRITE("got 5");
         // Moved to mainlist. Now it should be removed from inactive and from the main list
 
         // First store that information for undo
@@ -412,9 +407,6 @@ bool ReorderWindow::PerformAction(HistoryItem& action)
                                 }),
             InactiveItems.end());
     }
-
-
-    LOG_WRITE("end");
 
     // Perform the move
     auto insertIterator =
