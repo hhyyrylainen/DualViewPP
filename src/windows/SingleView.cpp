@@ -106,6 +106,7 @@ void SingleView::Open(std::shared_ptr<Image> image, std::shared_ptr<ImageListScr
     ImageView->SetImage(image);
     ImageView->SetImageList(scroll);
     ImageView->RegisterSetImageNotify([&]() {
+        DualView::IsOnMainThreadAssert();
         UpdateImageNumber();
 
         // Update properties //
@@ -201,26 +202,26 @@ void SingleView::UpdateImageNumber()
         auto alive = GetAliveMarker();
 
         DualView::Get().QueueDBThreadFunction([=]() {
-            std::string title;
+            std::stringstream stream;
 
             if(collectionBrowse->SupportsRandomAccess() && collectionBrowse->HasCount()) {
 
-                std::stringstream stream;
                 stream << (collectionBrowse->GetImageIndex(*img) + 1) << "/"
-                       << InCollection->GetCount() << " in " << desc
+                       << collectionBrowse->GetCount() << " in " << desc
                        << " image: " << img->GetName();
-
-                title = stream.str();
 
             } else {
 
-                std::stringstream stream;
                 stream << "image in " << desc << " image: " << img->GetName();
-
-                title = stream.str();
             }
 
-            DualView::Get().InvokeFunction([=]() { set_title(title + " | DualView++"); });
+            std::string title = stream.str();
+
+            DualView::Get().InvokeFunction([title = std::move(title), alive, this]() {
+                INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                set_title(title + " | DualView++");
+            });
         });
     }
 }
