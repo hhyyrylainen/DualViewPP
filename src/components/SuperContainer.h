@@ -55,6 +55,8 @@ protected:
         //! \returns True if sizes have changed
         bool SwapWidgets(GridPosition& other);
 
+        std::string ToString() const;
+
         //! Topleft coordinates of this position
         int32_t X, Y;
 

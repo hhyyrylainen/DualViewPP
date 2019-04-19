@@ -71,8 +71,10 @@ void SuperContainer::UpdatePositioning()
     LayoutDirty = false;
     WidestRow = Margin;
 
-    if(Positions.empty())
+    if(Positions.empty()) {
+        _PositionIndicator();
         return;
+    }
 
     int32_t CurrentRow = Margin;
     int32_t CurrentY = Positions.front().Y;
@@ -391,6 +393,7 @@ void SuperContainer::UpdateMarginAndPadding(int newmargin, int newpadding)
     Margin = newmargin;
     Padding = newpadding;
 
+    LayoutDirty = true;
     Reflow(0);
     UpdatePositioning();
 }
@@ -415,8 +418,6 @@ void SuperContainer::Reflow(size_t index)
     //_CheckPositions();
 
     for(size_t i = index; i < Positions.size(); ++i) {
-
-        LEVIATHAN_ASSERT(i > 0, "Positions reflow loop started too early");
 
         _PositionGridPosition(Positions[i], &Positions[i - 1], i - 1);
     }
@@ -839,14 +840,15 @@ void SuperContainer::SuperContainer::_PositionIndicator()
     // Optimization for last
     if(IndicatorPosition >= Positions.size()) {
 
-        for(size_t i = Positions.size();; --i) {
+        for(size_t i = Positions.size() - 1;; --i) {
 
-            if(Positions[i].WidgetToPosition) {
+            const auto& position = Positions[i];
+
+            if(position.WidgetToPosition) {
 
                 // Found the end
-                Container.move(PositionIndicator,
-                    Positions[i].X + Positions[i].Width + Padding / 2,
-                    Positions[i].Y + indicatorHeightSmallerBy / 2);
+                Container.move(PositionIndicator, position.X + position.Width + Padding / 2,
+                    position.Y + indicatorHeightSmallerBy / 2);
                 return;
             }
 
@@ -1014,4 +1016,11 @@ bool SuperContainer::GridPosition::SwapWidgets(GridPosition& other)
     }
 
     return false;
+}
+
+std::string SuperContainer::GridPosition::ToString() const
+{
+    return "[" + std::to_string(X) + ", " + std::to_string(Y) +
+           " dim: " + std::to_string(Width) + ", " + std::to_string(Height) + " " +
+           (WidgetToPosition ? "(filled)" : "(empty)");
 }

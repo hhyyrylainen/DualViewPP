@@ -691,8 +691,7 @@ void ReorderWindow::_MoveToWorkspacePressed()
 
 void ReorderWindow::_MoveBackFromWorkspacePressed()
 {
-    // TODO: insert position selecting
-    size_t insertPosition = -1;
+    size_t insertPosition = ImageList.GetIndicatorPosition();
 
     auto action = std::make_shared<HistoryItem>(*this, MOVE_GROUP::Workspace,
         GetSelectedInWorkspace(), MOVE_GROUP::MainList, insertPosition);
