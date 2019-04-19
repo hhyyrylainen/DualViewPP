@@ -44,12 +44,15 @@ ReorderWindow::ReorderWindow(const std::shared_ptr<Collection>& collection) :
     HeaderBar.pack_end(Menu);
 
     Redo.set_image_from_icon_name("edit-redo-symbolic");
-    HeaderBar.pack_end(Redo);
+    Redo.signal_clicked().connect(sigc::mem_fun(*this, &ReorderWindow::_RedoPressed));
     Redo.property_sensitive() = false;
+    HeaderBar.pack_end(Redo);
 
     Undo.set_image_from_icon_name("edit-undo-symbolic");
-    HeaderBar.pack_end(Undo);
+    Undo.signal_clicked().connect(sigc::mem_fun(*this, &ReorderWindow::_UndoPressed));
     Undo.property_sensitive() = false;
+    HeaderBar.pack_end(Undo);
+
 
     set_titlebar(HeaderBar);
 
@@ -255,12 +258,88 @@ std::vector<std::shared_ptr<Image>> ReorderWindow::GetSelected() const
 // ------------------------------------ //
 bool ReorderWindow::PerformAction(HistoryItem& action)
 {
-    return false;
+    auto& source = _GetCollectionForMoveGroup(action.MovedFrom);
+    auto& target = _GetCollectionForMoveGroup(action.MoveTo);
+    action.MovedFromIndex.clear();
+
+    // Store the original image indexes
+    for(const auto& image : action.ImagesToMove) {
+
+        for(size_t i = 0; i < source.size(); ++i) {
+
+            if(source[i] == image) {
+
+                action.MovedFromIndex.push_back(i);
+                break;
+            }
+        }
+    }
+
+    if(action.MovedFromIndex.size() != action.ImagesToMove.size()) {
+
+        LOG_ERROR("ReorderWindow: perform couldn't find all the images to move in the source "
+                  "vector. When undoing images will be placed wrong");
+
+        action.MovedFromIndex.resize(action.ImagesToMove.size(), -1);
+    }
+
+    size_t insertPoint = action.MoveTargetIndex;
+
+    // Remove the old items while trying to keep the insert point correct
+    for(const auto& image : action.ImagesToMove) {
+
+        for(size_t i = 0; i < source.size(); ++i) {
+
+            if(source[i] == image) {
+
+                if(i < insertPoint)
+                    --insertPoint;
+
+                source.erase(source.begin() + i);
+                break;
+            }
+        }
+    }
+
+    // Perform the move
+    auto insertIterator =
+        insertPoint < target.size() ? target.begin() + insertPoint : target.end();
+
+    for(const auto& image : action.ImagesToMove) {
+
+        // The + 1 here makes the next image to be inserted after and not before the just
+        // inserted image
+        insertIterator = target.insert(insertIterator, image) + 1;
+    }
+
+    _UpdateListsTouchedByAction(action);
+    return true;
 }
 
 bool ReorderWindow::UndoAction(HistoryItem& action)
 {
+
+    _UpdateListsTouchedByAction(action);
     return false;
+}
+
+void ReorderWindow::_UpdateListsTouchedByAction(HistoryItem& action)
+{
+    if(action.MoveTo == MOVE_GROUP::Workspace || action.MovedFrom == MOVE_GROUP::Workspace)
+        _UpdateShownWorkspaceItems();
+    if(action.MoveTo == MOVE_GROUP::MainList || action.MovedFrom == MOVE_GROUP::MainList)
+        _UpdateShownItems();
+}
+// ------------------------------------ //
+std::vector<std::shared_ptr<Image>>& ReorderWindow::_GetCollectionForMoveGroup(
+    MOVE_GROUP group)
+{
+    switch(group) {
+    case MOVE_GROUP::MainList: return CollectionImages;
+    case MOVE_GROUP::Workspace: return WorkspaceImages;
+    }
+
+    LEVIATHAN_ASSERT(false, "unreachable");
 }
 // ------------------------------------ //
 void ReorderWindow::_UpdateButtonStatus()
@@ -299,6 +378,14 @@ void ReorderWindow::_UpdateShownItems()
 
     LastSelectedImage.RemoveImage();
     LastSelectedImage.SetImageList(nullptr);
+    _UpdateButtonStatus();
+}
+
+void ReorderWindow::_UpdateShownWorkspaceItems()
+{
+    Workspace.SetShownItems(WorkspaceImages.begin(), WorkspaceImages.end(),
+        std::make_shared<ItemSelectable>([=](ListItem& item) { _UpdateButtonStatus(); }));
+
     _UpdateButtonStatus();
 }
 // ------------------------------------ //
@@ -369,6 +456,34 @@ void ReorderWindow::_MoveToWorkspacePressed()
 }
 
 void ReorderWindow::_MoveBackFromWorkspacePressed() {}
+// ------------------------------------ //
+void ReorderWindow::_UndoPressed()
+{
+    try {
+        if(!History.Undo())
+            throw Leviathan::Exception("unknown error in undo");
+
+    } catch(const Leviathan::Exception& e) {
+        LOG_ERROR("Undo failed:");
+        e.PrintToLog();
+    }
+
+    _UpdateButtonStatus();
+}
+
+void ReorderWindow::_RedoPressed()
+{
+    try {
+        if(!History.Redo())
+            throw Leviathan::Exception("unknown error in redo");
+
+    } catch(const Leviathan::Exception& e) {
+        LOG_ERROR("Redo failed:");
+        e.PrintToLog();
+    }
+
+    _UpdateButtonStatus();
+}
 // ------------------------------------ //
 // ReorderWindow::HistoryItem
 ReorderWindow::HistoryItem::HistoryItem(ReorderWindow& target, MOVE_GROUP movedfrom,

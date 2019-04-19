@@ -65,14 +65,20 @@ protected:
 
     bool _OnClosed(GdkEventAny* event);
 
+private:
+    std::vector<std::shared_ptr<Image>>& _GetCollectionForMoveGroup(MOVE_GROUP group);
+    void _UpdateListsTouchedByAction(HistoryItem& action);
+
     void _UpdateButtonStatus();
     void _UpdateShownItems();
+    void _UpdateShownWorkspaceItems();
 
     void _OpenSelectedInImporterPressed();
     void _DeleteSelectedPressed();
     void _MoveToWorkspacePressed();
     void _MoveBackFromWorkspacePressed();
-
+    void _UndoPressed();
+    void _RedoPressed();
 
 private:
     // Titlebar widgets
@@ -122,6 +128,7 @@ private:
     bool DoneChanges = false;
     const std::shared_ptr<Collection> TargetCollection;
     std::vector<std::shared_ptr<Image>> CollectionImages;
+    std::vector<std::shared_ptr<Image>> WorkspaceImages;
 
     //! Undo / Redo
     ActionHistory History;
