@@ -287,6 +287,19 @@ public:
     //! \brief Calculates positions for GridPositions starting at index
     void Reflow(size_t index);
 
+    //! \brief Change the marging around the contents and padding between items
+    void UpdateMarginAndPadding(int newmargin, int newpadding);
+
+    auto GetMargin() const
+    {
+        return Margin;
+    }
+
+    auto GetPadding() const
+    {
+        return Padding;
+    }
+
     //! \brief Returns the number of lines the shown items take
     size_t CountRows() const;
 
@@ -313,7 +326,23 @@ public:
     //! \brief Returns the offset of the widget that has resource, or 0
     double GetResourceOffset(std::shared_ptr<ResourceWithPreview> resource) const;
 
-    // Callbacks for contained items //
+    //
+    // Position indicator features
+    //
+
+    //! \brief Enables the position indicator feature
+    //!
+    //! The position indicator is a vertical line shown between the items indicating a target
+    //! position. The user can change the position by clicking between the items.
+    //! \note It is recommended to increase the marging and padding when using this
+    void EnablePositionIndicator();
+
+    //! \returns The indicator position. Will return -1 (ie. size_t max) if the position is is
+    //! set to be after the last item
+    size_t GetIndicatorPosition() const;
+
+    //! \brief Updates the indicator position
+    void SetIndicatorPosition(size_t position);
 
 private:
     void _CommonCtor();
@@ -375,6 +404,9 @@ protected:
     //! \brief A debug helper, errors if there are duplicates in Positions
     void _CheckPositions() const;
 
+    //! \brief Positions the indicator
+    void _PositionIndicator();
+
     // Callbacks //
     //! \brief Repositions GridPositions if size has changed enough
     //! \note For some reason this doesn't get always called so horizontal scrollbars try
@@ -382,10 +414,18 @@ protected:
     //! \todo Check if `Container.check_resize();` is a performance problem and is there a
     //! alternative fix to forcing position updates when maximizing
     void _OnResize(Gtk::Allocation& allocation);
+    bool _OnMouseButtonPressed(GdkEventButton* event);
 
 private:
     Gtk::Viewport View;
     Gtk::Fixed Container;
+
+    int Padding = SUPERCONTAINER_PADDING;
+    int Margin = SUPERCONTAINER_MARGIN;
+
+    Gtk::Separator PositionIndicator;
+    size_t IndicatorPosition = -1;
+    bool PositionIndicatorEnabled = false;
 
     //! True when Positions or widgets have changed and UpdatePositioning should be called
     bool LayoutDirty = true;

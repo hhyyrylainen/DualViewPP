@@ -141,7 +141,7 @@ void ListItem::get_preferred_height_for_width_vfunc(
 // ------------------------------------ //
 bool ListItem::_OnMouseButtonPressed(GdkEventButton* event)
 {
-    // Right mouse
+    // Double click
     if(event->type == GDK_2BUTTON_PRESS) {
 
         if(Selectable->UsesCustomPopup) {

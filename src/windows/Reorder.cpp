@@ -116,7 +116,8 @@ ReorderWindow::ReorderWindow(const std::shared_ptr<Collection>& collection) :
     ImageList.property_vexpand() = true;
     ImageList.set_min_content_height(250);
     ImageList.property_tooltip_text() = "Set insert point by clicking";
-
+    ImageList.EnablePositionIndicator();
+    ImageList.UpdateMarginAndPadding(8, 14);
     ImageListFrame.add(ImageList);
     MainContainer.pack_start(ImageListFrame, true, true);
 

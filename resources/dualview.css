@@ -19,3 +19,7 @@ progressbar > trough, progress{
     padding-left: 30px;
     padding-right: 30px;
 }
+
+.PositionIndicator{
+    background-color: black;
+}

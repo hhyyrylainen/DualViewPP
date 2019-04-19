@@ -29,8 +29,15 @@ void SuperContainer::_CommonCtor()
     View.add(Container);
     View.show();
     Container.show();
+    PositionIndicator.property_width_request() = 2;
+    PositionIndicator.get_style_context()->add_class("PositionIndicator");
+    Container.add(PositionIndicator);
+    PositionIndicator.hide();
 
     signal_size_allocate().connect(sigc::mem_fun(*this, &SuperContainer::_OnResize));
+
+    signal_button_press_event().connect(
+        sigc::mem_fun(*this, &SuperContainer::_OnMouseButtonPressed));
 
     // Both scrollbars need to be able to appear, otherwise the width cannot be reduced
     // so that wrapping occurs
@@ -52,6 +59,7 @@ void SuperContainer::Clear(bool deselect /*= false*/)
 
     // This will delete all the widgets //
     Positions.clear();
+    _PositionIndicator();
     LayoutDirty = false;
 }
 // ------------------------------------ //
@@ -61,12 +69,12 @@ void SuperContainer::UpdatePositioning()
         return;
 
     LayoutDirty = false;
-    WidestRow = SUPERCONTAINER_MARGIN;
+    WidestRow = Margin;
 
     if(Positions.empty())
         return;
 
-    int32_t CurrentRow = SUPERCONTAINER_MARGIN;
+    int32_t CurrentRow = Margin;
     int32_t CurrentY = Positions.front().Y;
 
     for(auto& position : Positions) {
@@ -81,7 +89,7 @@ void SuperContainer::UpdatePositioning()
             CurrentY = position.Y;
         }
 
-        CurrentRow += position.Width + SUPERCONTAINER_PADDING;
+        CurrentRow += position.Width + Padding;
 
         _ApplyWidgetPosition(position);
     }
@@ -91,14 +99,16 @@ void SuperContainer::UpdatePositioning()
         WidestRow = CurrentRow;
 
     // Add margin
-    WidestRow += SUPERCONTAINER_MARGIN;
+    WidestRow += Margin;
+
+    _PositionIndicator();
 }
 
 void SuperContainer::UpdateRowWidths()
 {
-    WidestRow = SUPERCONTAINER_MARGIN;
+    WidestRow = Margin;
 
-    int32_t CurrentRow = SUPERCONTAINER_MARGIN;
+    int32_t CurrentRow = Margin;
     int32_t CurrentY = Positions.front().Y;
 
     for(auto& position : Positions) {
@@ -113,7 +123,7 @@ void SuperContainer::UpdateRowWidths()
             CurrentY = position.Y;
         }
 
-        CurrentRow += position.Width + SUPERCONTAINER_PADDING;
+        CurrentRow += position.Width + Padding;
     }
 
     // Last row needs to be included, too //
@@ -121,7 +131,7 @@ void SuperContainer::UpdateRowWidths()
         WidestRow = CurrentRow;
 
     // Add margin
-    WidestRow += SUPERCONTAINER_MARGIN;
+    WidestRow += Margin;
 }
 // ------------------------------------ //
 size_t SuperContainer::CountRows() const
@@ -376,6 +386,15 @@ double SuperContainer::GetResourceOffset(std::shared_ptr<ResourceWithPreview> re
     return -1;
 }
 // ------------------------------------ //
+void SuperContainer::UpdateMarginAndPadding(int newmargin, int newpadding)
+{
+    Margin = newmargin;
+    Padding = newpadding;
+
+    Reflow(0);
+    UpdatePositioning();
+}
+// ------------------------------------ //
 void SuperContainer::Reflow(size_t index)
 {
     if(Positions.empty() || index >= Positions.size())
@@ -409,8 +428,8 @@ void SuperContainer::_PositionGridPosition(
     // First is at fixed position //
     if(previous == nullptr) {
 
-        current.X = SUPERCONTAINER_MARGIN;
-        current.Y = SUPERCONTAINER_MARGIN;
+        current.X = Margin;
+        current.Y = Margin;
         return;
     }
 
@@ -418,11 +437,11 @@ void SuperContainer::_PositionGridPosition(
 
     // Check does it fit on the line //
 
-    if(previous->X + previous->Width + SUPERCONTAINER_PADDING + current.Width <= get_width()) {
+    if(previous->X + previous->Width + Padding + current.Width <= get_width()) {
 
         // It fits on the line //
         current.Y = previous->Y;
-        current.X = previous->X + previous->Width + SUPERCONTAINER_PADDING;
+        current.X = previous->X + previous->Width + Padding;
         return;
     }
 
@@ -458,8 +477,8 @@ void SuperContainer::_PositionGridPosition(
     }
 
     // Position according to the maximum height of the last row
-    current.X = SUPERCONTAINER_MARGIN;
-    current.Y = previous->Y + lastRowMaxHeight + SUPERCONTAINER_PADDING;
+    current.X = Margin;
+    current.Y = previous->Y + lastRowMaxHeight + Padding;
 }
 
 SuperContainer::GridPosition& SuperContainer::_AddNewGridPosition(
@@ -651,6 +670,7 @@ void SuperContainer::_SetWidget(
 
             _ApplyWidgetPosition(Positions[index]);
             UpdateRowWidths();
+            _PositionIndicator();
         }
     }
 }
@@ -725,6 +745,7 @@ void SuperContainer::_AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item,
 
         _ApplyWidgetPosition(pos);
         UpdateRowWidths();
+        _PositionIndicator();
     }
 }
 // ------------------------------------ //
@@ -758,6 +779,119 @@ void SuperContainer::_CheckPositions() const
     }
 }
 // ------------------------------------ //
+// Position indicator
+void SuperContainer::EnablePositionIndicator()
+{
+    if(PositionIndicatorEnabled)
+        return;
+    PositionIndicatorEnabled = true;
+
+    // Enable the click to change indicator position
+    add_events(Gdk::BUTTON_PRESS_MASK);
+
+    _PositionIndicator();
+}
+
+size_t SuperContainer::GetIndicatorPosition() const
+{
+    return IndicatorPosition;
+}
+
+void SuperContainer::SetIndicatorPosition(size_t position)
+{
+    if(IndicatorPosition == position)
+        return;
+
+    IndicatorPosition = position;
+    _PositionIndicator();
+}
+
+void SuperContainer::SuperContainer::_PositionIndicator()
+{
+    if(!PositionIndicatorEnabled) {
+        return;
+    }
+
+    constexpr auto indicatorHeightSmallerBy = 6;
+
+    // Detect emptyness, but also the widget size
+    bool found = false;
+
+    for(const auto& position : Positions) {
+
+        if(position.WidgetToPosition) {
+
+            found = true;
+            PositionIndicator.property_height_request() =
+                position.WidgetToPosition->Height - indicatorHeightSmallerBy;
+            break;
+        }
+    }
+
+    if(!found) {
+        // Empty
+        PositionIndicator.property_visible() = false;
+        return;
+    }
+
+    PositionIndicator.property_visible() = true;
+
+    // Optimization for last
+    if(IndicatorPosition >= Positions.size()) {
+
+        for(size_t i = Positions.size();; --i) {
+
+            if(Positions[i].WidgetToPosition) {
+
+                // Found the end
+                Container.move(PositionIndicator,
+                    Positions[i].X + Positions[i].Width + Padding / 2,
+                    Positions[i].Y + indicatorHeightSmallerBy / 2);
+                return;
+            }
+
+            if(i == 0) {
+                break;
+            }
+        }
+    } else {
+        if(IndicatorPosition == 0) {
+            // Optimization for first
+            Container.move(
+                PositionIndicator, Margin / 2, Margin + indicatorHeightSmallerBy / 2);
+            return;
+
+        } else {
+            // Find a suitable position (or leave hidden)
+            bool after = false;
+
+            for(size_t i = IndicatorPosition;; --i) {
+
+                const auto& position = Positions[i];
+
+                if(position.WidgetToPosition) {
+
+                    Container.move(PositionIndicator,
+                        after ? position.X + Positions[i].Width + Padding / 2 :
+                                position.X - Padding / 2,
+                        position.Y + indicatorHeightSmallerBy / 2);
+                    return;
+
+                } else {
+                    after = true;
+                }
+
+                if(i == 0) {
+                    break;
+                }
+            }
+        }
+    }
+
+    LOG_ERROR("SuperContainer: failed to find position for indicator");
+    PositionIndicator.property_visible() = false;
+}
+// ------------------------------------ //
 // Callbacks
 void SuperContainer::_OnResize(Gtk::Allocation& allocation)
 {
@@ -773,7 +907,7 @@ void SuperContainer::_OnResize(Gtk::Allocation& allocation)
     bool reflow = false;
 
     // If doesn't fit dual margins
-    if(allocation.get_width() < WidestRow + SUPERCONTAINER_MARGIN) {
+    if(allocation.get_width() < WidestRow + Margin) {
 
         // Rows don't fit anymore //
         reflow = true;
@@ -790,9 +924,7 @@ void SuperContainer::_OnResize(Gtk::Allocation& allocation)
 
                 // Row changed //
 
-                if(SUPERCONTAINER_MARGIN + CurrentRow + SUPERCONTAINER_PADDING +
-                        position.Width <
-                    allocation.get_width()) {
+                if(Margin + CurrentRow + Padding + position.Width < allocation.get_width()) {
                     // The previous row (this is the first position of the first row) could
                     // now fit this widget
                     reflow = true;
@@ -820,6 +952,35 @@ void SuperContainer::_OnResize(Gtk::Allocation& allocation)
         // Forces update of positions
         Container.check_resize();
     }
+}
+
+bool SuperContainer::_OnMouseButtonPressed(GdkEventButton* event)
+{
+    if(event->type == GDK_BUTTON_PRESS) {
+
+        // Determine where to place the indicator
+        size_t newPosition = -1;
+
+        for(size_t i = 0; i < Positions.size(); ++i) {
+
+            const auto& position = Positions[i];
+
+            if(!position.WidgetToPosition)
+                break;
+
+            // If click is to the left of position this is the target
+            if(event->y >= position.Y - Padding &&
+                event->y < position.Y + position.Height + Padding && position.X >= event->x) {
+                newPosition = i;
+                break;
+            }
+        }
+
+        SetIndicatorPosition(newPosition);
+        return true;
+    }
+
+    return false;
 }
 
 // ------------------------------------ //
