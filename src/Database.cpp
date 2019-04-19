@@ -1141,6 +1141,22 @@ bool Database::SelectIsImageInCollection(LockT& guard, DBID collection, DBID ima
     return false;
 }
 
+int64_t Database::SelectCollectionCountImageIsIn(LockT& guard, const Image& image)
+{
+    const char str[] = "SELECT COUNT(*) FROM collection_image WHERE image = ?1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(image.GetID());
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        return statementobj.GetColumnAsInt64(0);
+    }
+
+    return 0;
+}
+
 bool Database::DeleteImageFromCollection(LockT& guard, Collection& collection, Image& image)
 {
     if(!collection.IsInDatabase() || !image.IsInDatabase())

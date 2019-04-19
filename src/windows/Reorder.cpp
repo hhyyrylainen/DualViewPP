@@ -3,6 +3,7 @@
 
 #include "resources/Collection.h"
 
+#include "Database.h"
 #include "DualView.h"
 
 using namespace DV;
@@ -597,6 +598,7 @@ void ReorderWindow::_DeleteSelectedPressed()
     if(selected.empty())
         return;
 
+    // Ask the user to confirm the remove
     auto dialog = Gtk::MessageDialog(*this, "Remove selected images from this collection?",
         false, Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
 
@@ -608,6 +610,38 @@ void ReorderWindow::_DeleteSelectedPressed()
     if(result != Gtk::RESPONSE_YES) {
 
         return;
+    }
+
+    int imagesWithoutCollection = 0;
+
+    {
+        auto& db = DualView::Get().GetDatabase();
+        GUARD_LOCK_OTHER(db);
+
+        // Check is some image not going to be in any collection anymore
+        for(const auto& image : selected) {
+
+            if(image)
+                if(db.SelectCollectionCountImageIsIn(guard, *image) < 2)
+                    ++imagesWithoutCollection;
+        }
+    }
+
+    if(imagesWithoutCollection > 0) {
+
+        auto dialog = Gtk::MessageDialog(*this, "Continue with remove?", false,
+            Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
+
+        dialog.set_secondary_text(
+            "Deleting " + std::to_string(imagesWithoutCollection) +
+            " out of the selected images will result in them not being in any collection. "
+            "These images will be added to Uncategorized automatically.");
+        int result = dialog.run();
+
+        if(result != Gtk::RESPONSE_YES) {
+
+            return;
+        }
     }
 
     // Do this in the background to not interrupt the user
@@ -625,7 +659,22 @@ void ReorderWindow::_DeleteSelectedPressed()
                                }),
         CollectionImages.end());
 
+    WorkspaceImages.erase(std::remove_if(WorkspaceImages.begin(), WorkspaceImages.end(),
+                              [&](const std::shared_ptr<Image>& image) {
+                                  return std::find(selected.begin(), selected.end(), image) !=
+                                         selected.end();
+                              }),
+        WorkspaceImages.end());
+
+    InactiveItems.erase(std::remove_if(InactiveItems.begin(), InactiveItems.end(),
+                            [&](const std::shared_ptr<Image>& image) {
+                                return std::find(selected.begin(), selected.end(), image) !=
+                                       selected.end();
+                            }),
+        InactiveItems.end());
+
     _UpdateShownItems();
+    _UpdateShownWorkspaceItems();
 }
 // ------------------------------------ //
 void ReorderWindow::_MoveToWorkspacePressed()

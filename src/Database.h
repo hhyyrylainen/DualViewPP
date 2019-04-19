@@ -268,6 +268,8 @@ public:
 
     bool SelectIsImageInCollection(LockT& guard, DBID collection, DBID image);
 
+    int64_t SelectCollectionCountImageIsIn(LockT& guard, const Image& image);
+
     //! \brief Removes an image from the collection
     //! \returns True if removed. False if the image wasn't in the collection
     //!
