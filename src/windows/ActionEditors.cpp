@@ -203,7 +203,7 @@ void MergeActionEditor::_RemoveSelectedPressed()
     std::vector<std::shared_ptr<ResourceWithPreview>> selected;
     MergedImageContainer.GetSelectedItems(selected);
 
-    MergedImages.erase(std::remove_if(MergedImages.begin(), MergedImages.begin(),
+    MergedImages.erase(std::remove_if(MergedImages.begin(), MergedImages.end(),
                            [&](const std::shared_ptr<Image>& image) {
                                return std::find(selected.begin(), selected.end(), image) !=
                                       selected.end();
