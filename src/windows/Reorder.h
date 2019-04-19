@@ -26,7 +26,6 @@ class ReorderWindow : public BaseWindow, public Gtk::Window, public IsAlive {
 
     public:
         HistoryItem(ReorderWindow& target, MOVE_GROUP movedfrom,
-            const std::vector<size_t>& movedfromindex,
             const std::vector<std::shared_ptr<Image>>& imagestomove, MOVE_GROUP moveto,
             size_t movetargetindex);
 
@@ -38,6 +37,7 @@ class ReorderWindow : public BaseWindow, public Gtk::Window, public IsAlive {
         ReorderWindow& Target;
 
         MOVE_GROUP MovedFrom;
+        //! This is calculated on Redo
         std::vector<size_t> MovedFromIndex;
 
         std::vector<std::shared_ptr<Image>> ImagesToMove;
@@ -56,6 +56,7 @@ public:
     void Reset();
 
     std::vector<std::shared_ptr<Image>> GetSelected() const;
+    std::vector<std::shared_ptr<Image>> GetSelectedInWorkspace() const;
 
     bool PerformAction(HistoryItem& action);
     bool UndoAction(HistoryItem& action);
@@ -68,6 +69,9 @@ protected:
 private:
     std::vector<std::shared_ptr<Image>>& _GetCollectionForMoveGroup(MOVE_GROUP group);
     void _UpdateListsTouchedByAction(HistoryItem& action);
+    //! \todo This could be moved to a helper file
+    static std::vector<std::shared_ptr<Image>> _CastToImages(
+        std::vector<std::shared_ptr<ResourceWithPreview>>& items);
 
     void _UpdateButtonStatus();
     void _UpdateShownItems();
@@ -79,6 +83,7 @@ private:
     void _MoveBackFromWorkspacePressed();
     void _UndoPressed();
     void _RedoPressed();
+    void _SelectAllPressed();
 
 private:
     // Titlebar widgets

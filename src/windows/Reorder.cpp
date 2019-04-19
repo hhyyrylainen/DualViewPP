@@ -61,6 +61,8 @@ ReorderWindow::ReorderWindow(const std::shared_ptr<Collection>& collection) :
     //
     WorkspaceLabel.property_valign() = Gtk::ALIGN_END;
     VeryTopLeftContainer.pack_start(WorkspaceLabel, false, false);
+    SelectAllInWorkspace.signal_clicked().connect(
+        sigc::mem_fun(*this, &ReorderWindow::_SelectAllPressed));
     VeryTopLeftContainer.pack_end(SelectAllInWorkspace, false, false);
 
     TopLeftSide.pack_start(VeryTopLeftContainer, false, false);
@@ -240,9 +242,22 @@ void ReorderWindow::Reset()
 std::vector<std::shared_ptr<Image>> ReorderWindow::GetSelected() const
 {
     std::vector<std::shared_ptr<ResourceWithPreview>> items;
-
     ImageList.GetSelectedItems(items);
 
+    return _CastToImages(items);
+}
+
+std::vector<std::shared_ptr<Image>> ReorderWindow::GetSelectedInWorkspace() const
+{
+    std::vector<std::shared_ptr<ResourceWithPreview>> items;
+    Workspace.GetSelectedItems(items);
+
+    return _CastToImages(items);
+}
+
+std::vector<std::shared_ptr<Image>> ReorderWindow::_CastToImages(
+    std::vector<std::shared_ptr<ResourceWithPreview>>& items)
+{
     std::vector<std::shared_ptr<Image>> casted;
     casted.reserve(items.size());
 
@@ -318,9 +333,62 @@ bool ReorderWindow::PerformAction(HistoryItem& action)
 
 bool ReorderWindow::UndoAction(HistoryItem& action)
 {
+    auto& source = _GetCollectionForMoveGroup(action.MovedFrom);
+    auto& target = _GetCollectionForMoveGroup(action.MoveTo);
+
+    if(action.MovedFromIndex.empty() ||
+        action.MovedFromIndex.size() != action.ImagesToMove.size()) {
+        LOG_ERROR(
+            "ReorderWindow: undo moved from index is empty / doesn't contain everything");
+    }
+
+    // First remove from the target
+    target.erase(std::remove_if(target.begin(), target.end(),
+                     [&](const std::shared_ptr<Image>& image) {
+                         return std::find(action.ImagesToMove.begin(),
+                                    action.ImagesToMove.end(),
+                                    image) != action.ImagesToMove.end();
+                     }),
+        target.end());
+
+    // Then add to the source trying to place all images at the right stored index. To do this
+    // move by the lowest index first
+    std::vector<std::tuple<size_t, std::shared_ptr<Image>>> inserts;
+    inserts.reserve(action.ImagesToMove.size());
+
+    for(size_t i = 0; i < action.ImagesToMove.size(); ++i) {
+
+        if(i < action.MovedFromIndex.size()) {
+            inserts.emplace_back(action.MovedFromIndex[i], action.ImagesToMove[i]);
+
+        } else {
+            inserts.emplace_back(-1, action.ImagesToMove[i]);
+        }
+    }
+
+    std::stable_sort(inserts.begin(), inserts.end(),
+        [](const std::tuple<size_t, const std::shared_ptr<Image>&>& first,
+            const std::tuple<size_t, const std::shared_ptr<Image>&>& second) {
+            return std::get<0>(first) < std::get<0>(second);
+        });
+
+    for(const auto& operation : inserts) {
+
+        const auto& position = std::get<0>(operation);
+        const auto& image = std::get<1>(operation);
+
+        if(position >= source.size()) {
+
+            source.push_back(image);
+
+        } else {
+
+            source.insert(source.begin() + position, image);
+        }
+    }
 
     _UpdateListsTouchedByAction(action);
-    return false;
+    return true;
 }
 
 void ReorderWindow::_UpdateListsTouchedByAction(HistoryItem& action)
@@ -433,21 +501,8 @@ void ReorderWindow::_DeleteSelectedPressed()
 // ------------------------------------ //
 void ReorderWindow::_MoveToWorkspacePressed()
 {
-    auto images = GetSelected();
-
-    // Calculate indexes
-    std::vector<size_t> indexes(images.size(), -1);
-
-    for(size_t fillSpot = 0; fillSpot < images.size(); ++fillSpot) {
-        for(size_t i = 0; i < CollectionImages.size(); ++i) {
-
-            if(CollectionImages[i] == images[fillSpot])
-                indexes[fillSpot] = i;
-        }
-    }
-
     auto action = std::make_shared<HistoryItem>(
-        *this, MOVE_GROUP::MainList, indexes, images, MOVE_GROUP::Workspace, -1);
+        *this, MOVE_GROUP::MainList, GetSelected(), MOVE_GROUP::Workspace, -1);
 
     // Putting the action into the history performs it
     History.AddAction(action);
@@ -455,7 +510,27 @@ void ReorderWindow::_MoveToWorkspacePressed()
     _UpdateButtonStatus();
 }
 
-void ReorderWindow::_MoveBackFromWorkspacePressed() {}
+void ReorderWindow::_MoveBackFromWorkspacePressed()
+{
+    // TODO: insert position selecting
+    size_t insertPosition = -1;
+
+    auto action = std::make_shared<HistoryItem>(*this, MOVE_GROUP::Workspace,
+        GetSelectedInWorkspace(), MOVE_GROUP::MainList, insertPosition);
+
+    // Putting the action into the history performs it
+    History.AddAction(action);
+
+    _UpdateButtonStatus();
+
+    // TODO: this could be handled better with regards to undo
+    DoneChanges = true;
+}
+
+void ReorderWindow::_SelectAllPressed()
+{
+    Workspace.SelectAllItems();
+}
 // ------------------------------------ //
 void ReorderWindow::_UndoPressed()
 {
@@ -487,12 +562,11 @@ void ReorderWindow::_RedoPressed()
 // ------------------------------------ //
 // ReorderWindow::HistoryItem
 ReorderWindow::HistoryItem::HistoryItem(ReorderWindow& target, MOVE_GROUP movedfrom,
-    const std::vector<size_t>& movedfromindex,
     const std::vector<std::shared_ptr<Image>>& imagestomove, MOVE_GROUP moveto,
     size_t movetargetindex) :
     Target(target),
-    MovedFrom(movedfrom), MovedFromIndex(movedfromindex), ImagesToMove(imagestomove),
-    MoveTo(moveto), MoveTargetIndex(movetargetindex)
+    MovedFrom(movedfrom), ImagesToMove(imagestomove), MoveTo(moveto),
+    MoveTargetIndex(movetargetindex)
 {}
 
 bool ReorderWindow::HistoryItem::DoRedo()
