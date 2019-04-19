@@ -81,7 +81,6 @@ public:
     //! \brief Gets the shown image
     inline auto GetImage() const
     {
-
         return DisplayedResource;
     }
 

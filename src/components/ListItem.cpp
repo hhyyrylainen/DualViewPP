@@ -1,6 +1,7 @@
 // ------------------------------------ //
 #include "ListItem.h"
 
+#include "ItemDragInformationProvider.h"
 
 using namespace DV;
 // ------------------------------------ //
@@ -13,6 +14,8 @@ ListItem::ListItem(std::shared_ptr<Image> showimage, const std::string& name,
         true),
     Selectable(selectable)
 {
+    // This above child property is needed for some reason to get mouse up events
+    Events.property_above_child() = true;
     add(Events);
     Events.add(Container);
     Events.show();
@@ -50,13 +53,27 @@ ListItem::ListItem(std::shared_ptr<Image> showimage, const std::string& name,
     // TextAreaOverlay.set_valign(Gtk::ALIGN_CENTER);
 
     // Click events //
-    if(Selectable && (Selectable->Selectable || Selectable->UsesCustomPopup)) {
+    if(Selectable && (Selectable->Selectable || Selectable->UsesCustomPopup ||
+                         Selectable->DragInformation)) {
 
-        // LOG_INFO("Registered for events");
         Events.add_events(Gdk::BUTTON_PRESS_MASK);
 
         Events.signal_button_press_event().connect(
             sigc::mem_fun(*this, &ListItem::_OnMouseButtonPressed));
+
+        if(Selectable->DragInformation) {
+
+            Events.add_events(Gdk::POINTER_MOTION_MASK | Gdk::BUTTON_RELEASE_MASK);
+
+            Events.signal_button_release_event().connect(
+                sigc::mem_fun(*this, &ListItem::_OnMouseButtonReleased));
+
+            Events.signal_motion_notify_event().connect(
+                sigc::mem_fun(*this, &ListItem::_OnMouseMove));
+
+            signal_drag_data_get().connect(sigc::mem_fun(*this, &ListItem::_OnDragDataGet));
+            signal_drag_end().connect(sigc::mem_fun(*this, &ListItem::_OnDragFinished));
+        }
     }
 
     // TODO: allow editing name
@@ -142,7 +159,7 @@ void ListItem::get_preferred_height_for_width_vfunc(
 bool ListItem::_OnMouseButtonPressed(GdkEventButton* event)
 {
     // Double click
-    if(event->type == GDK_2BUTTON_PRESS) {
+    if(event->type == GDK_2BUTTON_PRESS && event->button == 1) {
 
         if(Selectable->UsesCustomPopup) {
 
@@ -156,11 +173,18 @@ bool ListItem::_OnMouseButtonPressed(GdkEventButton* event)
     // Left mouse //
     if(event->button == 1) {
 
+        if(Active) {
+            MouseDownPos = Point(event->x, event->y);
+            MouseDown = true;
+        }
+
         if(Active && Selectable && Selectable->Selectable) {
 
             SetSelected(!CurrentlySelected);
             return true;
         }
+
+        return true;
 
     } else if(event->button == 3) {
 
@@ -170,6 +194,66 @@ bool ListItem::_OnMouseButtonPressed(GdkEventButton* event)
     return false;
 }
 
+bool ListItem::_OnMouseButtonReleased(GdkEventButton* event)
+{
+    // Left mouse //
+    if(event->button == 1) {
+
+        DoingDrag = false;
+        MouseDown = false;
+        return true;
+    }
+
+    return false;
+}
+
+bool ListItem::_OnMouseMove(GdkEventMotion* motion_event)
+{
+    if(!(motion_event->state & Gdk::BUTTON_MOTION_MASK))
+        return false;
+
+    if(!MouseDown || !Active)
+        return false;
+
+    if(!DoingDrag) {
+        float moved = (MouseDownPos - Point(motion_event->x, motion_event->y)).HAddAbs();
+
+        if(moved > StartDragAfter && Selectable && Selectable->DragInformation) {
+
+            LOG_INFO("Starting drag from ListItem");
+
+            drag_begin(Gtk::TargetList::create(Selectable->DragInformation->GetDragTypes()),
+                Gdk::DragAction::ACTION_COPY, motion_event->state,
+                reinterpret_cast<GdkEvent*>(motion_event), motion_event->x, motion_event->y);
+            DoingDrag = true;
+            MouseDown = false;
+
+            if(Active && Selectable && Selectable->Selectable) {
+
+                SetSelected(!CurrentlySelected);
+                return true;
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void ListItem::_OnDragDataGet(const Glib::RefPtr<Gdk::DragContext>& context,
+    Gtk::SelectionData& selection_data, guint info, guint time)
+{
+    selection_data.set(selection_data.get_target(), 8 /* 8 bits format */,
+        (const guchar*)"I'm Data!", 9 /* the length of I'm Data! in bytes */);
+}
+
+void ListItem::_OnDragFinished(const Glib::RefPtr<Gdk::DragContext>& context)
+{
+    DoingDrag = false;
+}
+
+// ------------------------------------ //
 void ListItem::SetSelected(bool selected)
 {
     if(CurrentlySelected == selected)

@@ -13,6 +13,8 @@ namespace DV {
 
 //! \brief Base class for all widget types that are used with a SuperContainer
 class ListItem : public Gtk::Frame, public IsAlive {
+    using Point = Leviathan::Float2;
+
 public:
     //! \param showimage The image to show
     //! \param name The text to show under the display image
@@ -101,6 +103,13 @@ protected:
     //     int& minimum_width, int& natural_width) const override;
 
     bool _OnMouseButtonPressed(GdkEventButton* event);
+    bool _OnMouseButtonReleased(GdkEventButton* event);
+    bool _OnMouseMove(GdkEventMotion* motion_event);
+
+    void _OnDragDataGet(const Glib::RefPtr<Gdk::DragContext>& context,
+        Gtk::SelectionData& selection_data, guint info, guint time);
+
+    void _OnDragFinished(const Glib::RefPtr<Gdk::DragContext>& context);
 
 
     //! \brief Called when selection status has been updated
@@ -139,5 +148,11 @@ protected:
     //! If false doesn't listen for mouse clicks
     //! When true updates selected state when clicked
     std::shared_ptr<ItemSelectable> Selectable = nullptr;
+
+    // Variables for drag support
+    Point MouseDownPos = Point(0, 0);
+    float StartDragAfter = 30;
+    bool DoingDrag = false;
+    bool MouseDown = false;
 };
 } // namespace DV

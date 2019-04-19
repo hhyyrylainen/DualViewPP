@@ -5,6 +5,7 @@
 
 #include "ReversibleAction.h"
 
+#include "components/ItemDragInformationProvider.h"
 #include "components/PrimaryMenu.h"
 #include "components/SuperContainer.h"
 #include "components/SuperViewer.h"
@@ -49,6 +50,19 @@ class ReorderWindow : public BaseWindow, public Gtk::Window, public IsAlive {
         std::vector<std::tuple<size_t, std::shared_ptr<Image>>> ReplacedInactive;
     };
 
+    class DragProvider final : public ItemDragInformationProvider {
+    public:
+        DragProvider(ReorderWindow& source, bool workspace) :
+            InfoSource(source), Workspace(workspace)
+        {}
+
+        std::vector<Gtk::TargetEntry> GetDragTypes() override;
+
+    protected:
+        ReorderWindow& InfoSource;
+        bool Workspace;
+    };
+
 public:
     ReorderWindow(const std::shared_ptr<Collection>& collection);
     ~ReorderWindow();
@@ -87,6 +101,9 @@ private:
     void _UndoPressed();
     void _RedoPressed();
     void _SelectAllPressed();
+
+    void _OnDrop(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y,
+        const Gtk::SelectionData& selection_data, guint info, guint time);
 
 private:
     // Titlebar widgets
@@ -140,6 +157,9 @@ private:
 
     //! Used to always properly apply the inactive status to right items
     std::vector<std::shared_ptr<Image>> InactiveItems;
+
+    std::shared_ptr<DragProvider> DragMain;
+    std::shared_ptr<DragProvider> DragWorkspace;
 
     //! Undo / Redo
     ActionHistory History;

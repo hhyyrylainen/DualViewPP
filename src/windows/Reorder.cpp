@@ -16,7 +16,8 @@ ReorderWindow::ReorderWindow(const std::shared_ptr<Collection>& collection) :
     TopRightSide(Gtk::ORIENTATION_VERTICAL), CurrentImageOrder("Current image order:"),
     RemoveSelected("Remove Selected"),
     OpenSelectedInImporter("_Open Selected In Importer", true), ApplyButton("_Apply", true),
-    TargetCollection(collection)
+    TargetCollection(collection), DragMain(std::make_shared<DragProvider>(*this, false)),
+    DragWorkspace(std::make_shared<DragProvider>(*this, true))
 {
     LEVIATHAN_ASSERT(collection, "reorder window must be given a collection");
 
@@ -140,6 +141,17 @@ ReorderWindow::ReorderWindow(const std::shared_ptr<Collection>& collection) :
     BottomButtons.set_spacing(3);
     MainContainer.pack_end(BottomButtons, false, false);
 
+    std::vector<Gtk::TargetEntry> listTargets;
+    listTargets.push_back(Gtk::TargetEntry("dualview/images"));
+    ImageList.drag_source_set(listTargets);
+    ImageList.signal_drag_data_received().connect(
+        sigc::mem_fun(*this, &ReorderWindow::_OnDrop));
+    ImageList.drag_dest_set(listTargets);
+
+
+    Workspace.signal_drag_data_received().connect(
+        sigc::mem_fun(*this, &ReorderWindow::_OnDrop));
+    Workspace.drag_dest_set(listTargets);
 
     // Add the main container
     MainContainer.set_spacing(3);
@@ -148,6 +160,17 @@ ReorderWindow::ReorderWindow(const std::shared_ptr<Collection>& collection) :
     show_all_children();
 
     Reset();
+}
+
+void ReorderWindow::_OnDrop(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y,
+    const Gtk::SelectionData& selection_data, guint info, guint time)
+{
+    const int length = selection_data.get_length();
+    if((length >= 0) && (selection_data.get_format() == 8)) {
+        LOG_INFO("Received \"" + selection_data.get_data_as_string());
+    }
+
+    context->drag_finish(false, false, time);
 }
 
 ReorderWindow::~ReorderWindow()
@@ -557,21 +580,23 @@ void ReorderWindow::_UpdateButtonStatus()
 
 void ReorderWindow::_UpdateShownItems()
 {
-    ImageList.SetShownItems(CollectionImages.begin(), CollectionImages.end(),
-        std::make_shared<ItemSelectable>([=](ListItem& item) {
-            _UpdateButtonStatus();
+    auto select = std::make_shared<ItemSelectable>([=](ListItem& item) {
+        _UpdateButtonStatus();
 
-            std::vector<std::shared_ptr<ResourceWithPreview>> selected;
-            ImageList.GetSelectedItems(selected);
+        std::vector<std::shared_ptr<ResourceWithPreview>> selected;
+        ImageList.GetSelectedItems(selected);
 
-            if(selected.size() > 0) {
-                LastSelectedImage.SetImage(std::dynamic_pointer_cast<Image>(selected.back()));
-                LastSelectedImage.SetImageList(TargetCollection);
-            } else {
-                LastSelectedImage.RemoveImage();
-                LastSelectedImage.SetImageList(nullptr);
-            }
-        }));
+        if(selected.size() > 0) {
+            LastSelectedImage.SetImage(std::dynamic_pointer_cast<Image>(selected.back()));
+            LastSelectedImage.SetImageList(TargetCollection);
+        } else {
+            LastSelectedImage.RemoveImage();
+            LastSelectedImage.SetImageList(nullptr);
+        }
+    });
+
+    select->AddDragSource(DragMain);
+    ImageList.SetShownItems(CollectionImages.begin(), CollectionImages.end(), select);
 
     ImageList.SetInactiveItems(InactiveItems.begin(), InactiveItems.end());
 
@@ -582,8 +607,10 @@ void ReorderWindow::_UpdateShownItems()
 
 void ReorderWindow::_UpdateShownWorkspaceItems()
 {
-    Workspace.SetShownItems(WorkspaceImages.begin(), WorkspaceImages.end(),
-        std::make_shared<ItemSelectable>([=](ListItem& item) { _UpdateButtonStatus(); }));
+    auto select =
+        std::make_shared<ItemSelectable>([=](ListItem& item) { _UpdateButtonStatus(); });
+    select->AddDragSource(DragWorkspace);
+    Workspace.SetShownItems(WorkspaceImages.begin(), WorkspaceImages.end(), select);
 
     _UpdateButtonStatus();
 }
@@ -755,4 +782,13 @@ bool ReorderWindow::HistoryItem::DoRedo()
 bool ReorderWindow::HistoryItem::DoUndo()
 {
     return Target.UndoAction(*this);
+}
+
+// ------------------------------------ //
+// ReorderWindow::DragProvider
+std::vector<Gtk::TargetEntry> ReorderWindow::DragProvider::GetDragTypes()
+{
+    std::vector<Gtk::TargetEntry> listTargets;
+    listTargets.push_back(Gtk::TargetEntry("dualview/images"));
+    return listTargets;
 }
