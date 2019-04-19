@@ -80,12 +80,14 @@ ReorderWindow::ReorderWindow(const std::shared_ptr<Collection>& collection) :
 
     UpArrow.set_image_from_icon_name("go-up-symbolic");
     UpArrow.get_style_context()->add_class("ArrowButton");
+    UpArrow.property_tooltip_text() = "Move selected to workspace";
     UpArrow.signal_clicked().connect(
         sigc::mem_fun(*this, &ReorderWindow::_MoveToWorkspacePressed));
     MiddleBox.pack_end(UpArrow, false, false);
 
     DownArrow.set_image_from_icon_name("go-down-symbolic");
     DownArrow.get_style_context()->add_class("ArrowButton");
+    DownArrow.property_tooltip_text() = "Move selected in workspace to insert point";
     DownArrow.signal_clicked().connect(
         sigc::mem_fun(*this, &ReorderWindow::_MoveBackFromWorkspacePressed));
     MiddleBox.pack_end(DownArrow, false, false);
@@ -112,6 +114,7 @@ ReorderWindow::ReorderWindow(const std::shared_ptr<Collection>& collection) :
     ImageList.property_hexpand() = true;
     ImageList.property_vexpand() = true;
     ImageList.set_min_content_height(250);
+    ImageList.property_tooltip_text() = "Set insert point by clicking";
 
     ImageListFrame.add(ImageList);
     MainContainer.pack_start(ImageListFrame, true, true);
@@ -128,6 +131,7 @@ ReorderWindow::ReorderWindow(const std::shared_ptr<Collection>& collection) :
 
     ApplyButton.set_image_from_icon_name("emblem-ok-symbolic");
     ApplyButton.set_always_show_image(true);
+    ApplyButton.property_tooltip_text() = "Save the new order";
     ApplyButton.signal_clicked().connect(sigc::mem_fun(*this, &ReorderWindow::Apply));
     BottomButtons.pack_end(ApplyButton, false, false);
 
@@ -157,7 +161,7 @@ bool ReorderWindow::_OnClosed(GdkEventAny* event)
             Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
 
         dialog.set_secondary_text(
-            "You have made unsaved changes. Closing this window will discard them.", true);
+            "You have made unsaved changes. Closing this window will discard them.");
         int result = dialog.run();
 
         if(result != Gtk::RESPONSE_YES) {
@@ -176,6 +180,19 @@ void ReorderWindow::_OnClose() {}
 // ------------------------------------ //
 void ReorderWindow::Apply()
 {
+    // Warn about items in workspace
+    auto dialog = Gtk::MessageDialog(*this, "Continue with items in workspace?", false,
+        Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
+
+    dialog.set_secondary_text("You have items in the workspace. Continuing will keep these at "
+                              "their previous positions");
+    int result = dialog.run();
+
+    if(result != Gtk::RESPONSE_YES) {
+
+        return;
+    }
+
     if(!DoneChanges) {
         // No changes have been done
         close();
