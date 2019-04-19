@@ -30,6 +30,7 @@ void SuperContainer::_CommonCtor()
     View.show();
     Container.show();
     PositionIndicator.property_width_request() = 2;
+    PositionIndicator.set_orientation(Gtk::ORIENTATION_VERTICAL);
     PositionIndicator.get_style_context()->add_class("PositionIndicator");
     Container.add(PositionIndicator);
     PositionIndicator.hide();
