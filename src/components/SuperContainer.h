@@ -250,6 +250,28 @@ public:
         }
     }
 
+    //! \brief Replaces which items are set inactive with the ones in the iterator range
+    template<class Iterator>
+    void SetInactiveItems(Iterator begin, Iterator end)
+    {
+        for(auto& position : Positions) {
+
+            // Stop once empty position is reached //
+            if(!position.WidgetToPosition)
+                break;
+
+            bool setInactive = false;
+
+            if(position.WidgetToPosition->CreatedFrom) {
+
+                setInactive =
+                    std::find(begin, end, position.WidgetToPosition->CreatedFrom) != end;
+            }
+
+            position.WidgetToPosition->Widget->SetActive(!setInactive);
+        }
+    }
+
     //! \brief Empties this container completely
     //! \param deselect If true all selected images will be deselected. This causes issues in
     //! existing code and that's why that needs to be explicitly requested
@@ -300,7 +322,6 @@ protected:
     //! \brief Applies the position of a widget
     inline void _ApplyWidgetPosition(const GridPosition& position)
     {
-
         auto& element = position.WidgetToPosition;
 
         if(!element || !element->Widget) {

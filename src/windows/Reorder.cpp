@@ -181,16 +181,19 @@ void ReorderWindow::_OnClose() {}
 void ReorderWindow::Apply()
 {
     // Warn about items in workspace
-    auto dialog = Gtk::MessageDialog(*this, "Continue with items in workspace?", false,
-        Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
+    if(!WorkspaceImages.empty()) {
+        auto dialog = Gtk::MessageDialog(*this, "Continue with items in workspace?", false,
+            Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
 
-    dialog.set_secondary_text("You have items in the workspace. Continuing will keep these at "
-                              "their previous positions");
-    int result = dialog.run();
+        dialog.set_secondary_text(
+            "You have items in the workspace. Continuing will keep these at "
+            "their previous positions");
+        int result = dialog.run();
 
-    if(result != Gtk::RESPONSE_YES) {
+        if(result != Gtk::RESPONSE_YES) {
 
-        return;
+            return;
+        }
     }
 
     if(!DoneChanges) {
@@ -207,7 +210,30 @@ void ReorderWindow::Apply()
         window->set_cursor(Gdk::Cursor::create(window->get_display(), Gdk::WATCH));
 
     // Apply the change
-    LOG_WRITE("TODO: apply change");
+    try {
+        throw Leviathan::Exception("not implemented");
+        // TargetCollection->ApplyNewImageOrder(
+
+    } catch(const Leviathan::Exception& e) {
+
+        set_sensitive(true);
+
+        // Restore cursor as this will stay open
+        if(window)
+            window->set_cursor();
+
+        Gtk::Window* parent = dynamic_cast<Gtk::Window*>(this->get_toplevel());
+
+        if(!parent)
+            return;
+
+        auto dialog = Gtk::MessageDialog(*parent, "Applying the changes failed", false,
+            Gtk::MESSAGE_ERROR, Gtk::BUTTONS_CLOSE, true);
+
+        dialog.set_secondary_text("Error: " + std::string(e.what()));
+        dialog.run();
+        return;
+    }
 
     // And then close this
     // This is set to false to skip any questions
@@ -222,6 +248,8 @@ void ReorderWindow::Reset()
     LastSelectedImage.RemoveImage();
     LastSelectedImage.SetImageList(nullptr);
     ImageList.Clear();
+    InactiveItems.clear();
+    DoneChanges = false;
 
     _UpdateButtonStatus();
 
@@ -293,6 +321,7 @@ bool ReorderWindow::PerformAction(HistoryItem& action)
     auto& source = _GetCollectionForMoveGroup(action.MovedFrom);
     auto& target = _GetCollectionForMoveGroup(action.MoveTo);
     action.MovedFromIndex.clear();
+    action.ReplacedInactive.clear();
 
     // Store the original image indexes
     for(const auto& image : action.ImagesToMove) {
@@ -317,21 +346,75 @@ bool ReorderWindow::PerformAction(HistoryItem& action)
 
     size_t insertPoint = action.MoveTargetIndex;
 
-    // Remove the old items while trying to keep the insert point correct
-    for(const auto& image : action.ImagesToMove) {
+    LOG_WRITE("got 1");
 
-        for(size_t i = 0; i < source.size(); ++i) {
+    // Items in the mainlist are not deleted, only marked inactive.
+    // Unless the move is within the main list
+    if(action.MovedFrom != MOVE_GROUP::MainList || action.MoveTo == MOVE_GROUP::MainList) {
+        // Remove the old items while trying to keep the insert point correct
+        LOG_WRITE("got 2");
+        for(const auto& image : action.ImagesToMove) {
 
-            if(source[i] == image) {
+            for(size_t i = 0; i < source.size(); ++i) {
 
-                if(i < insertPoint)
-                    --insertPoint;
+                if(source[i] == image) {
 
-                source.erase(source.begin() + i);
-                break;
+                    if(i < insertPoint)
+                        --insertPoint;
+
+                    source.erase(source.begin() + i);
+                    break;
+                }
             }
         }
     }
+
+    if(action.MovedFrom == MOVE_GROUP::MainList && action.MoveTo != MOVE_GROUP::MainList) {
+
+        LOG_WRITE("got 4");
+        InactiveItems.insert(
+            InactiveItems.end(), action.ImagesToMove.begin(), action.ImagesToMove.end());
+    }
+
+    if(action.MovedFrom != MOVE_GROUP::MainList && action.MoveTo == MOVE_GROUP::MainList) {
+
+        LOG_WRITE("got 5");
+        // Moved to mainlist. Now it should be removed from inactive and from the main list
+
+        // First store that information for undo
+        for(const auto& image : action.ImagesToMove) {
+
+            for(size_t i = 0; i < target.size(); ++i) {
+
+                if(target[i] == image) {
+
+                    action.ReplacedInactive.emplace_back(i, image);
+                    break;
+                }
+            }
+        }
+
+        // Remove from main list
+        target.erase(std::remove_if(target.begin(), target.end(),
+                         [&](const std::shared_ptr<Image>& image) {
+                             return std::find(action.ImagesToMove.begin(),
+                                        action.ImagesToMove.end(),
+                                        image) != action.ImagesToMove.end();
+                         }),
+            target.end());
+
+        // Remove from inactive
+        InactiveItems.erase(std::remove_if(InactiveItems.begin(), InactiveItems.end(),
+                                [&](const std::shared_ptr<Image>& image) {
+                                    return std::find(action.ImagesToMove.begin(),
+                                               action.ImagesToMove.end(),
+                                               image) != action.ImagesToMove.end();
+                                }),
+            InactiveItems.end());
+    }
+
+
+    LOG_WRITE("end");
 
     // Perform the move
     auto insertIterator =
@@ -346,6 +429,32 @@ bool ReorderWindow::PerformAction(HistoryItem& action)
 
     _UpdateListsTouchedByAction(action);
     return true;
+}
+
+template<class T>
+void InsertToListWithPositions(
+    std::vector<std::tuple<size_t, std::shared_ptr<Image>>>& inserts, T& target)
+{
+    std::stable_sort(inserts.begin(), inserts.end(),
+        [](const std::tuple<size_t, const std::shared_ptr<Image>&>& first,
+            const std::tuple<size_t, const std::shared_ptr<Image>&>& second) {
+            return std::get<0>(first) < std::get<0>(second);
+        });
+
+    for(const auto& operation : inserts) {
+
+        const auto& position = std::get<0>(operation);
+        const auto& image = std::get<1>(operation);
+
+        if(position >= target.size()) {
+
+            target.push_back(image);
+
+        } else {
+
+            target.insert(target.begin() + position, image);
+        }
+    }
 }
 
 bool ReorderWindow::UndoAction(HistoryItem& action)
@@ -368,40 +477,49 @@ bool ReorderWindow::UndoAction(HistoryItem& action)
                      }),
         target.end());
 
-    // Then add to the source trying to place all images at the right stored index. To do this
-    // move by the lowest index first
-    std::vector<std::tuple<size_t, std::shared_ptr<Image>>> inserts;
-    inserts.reserve(action.ImagesToMove.size());
+    // Items in the mainlist are not deleted, only marked inactive.
+    // Unless the move is within the main list
+    if(action.MovedFrom == MOVE_GROUP::MainList && action.MoveTo != MOVE_GROUP::MainList) {
 
-    for(size_t i = 0; i < action.ImagesToMove.size(); ++i) {
+        // Remove from inactive
+        InactiveItems.erase(std::remove_if(InactiveItems.begin(), InactiveItems.end(),
+                                [&](const std::shared_ptr<Image>& image) {
+                                    return std::find(action.ImagesToMove.begin(),
+                                               action.ImagesToMove.end(),
+                                               image) != action.ImagesToMove.end();
+                                }),
+            InactiveItems.end());
 
-        if(i < action.MovedFromIndex.size()) {
-            inserts.emplace_back(action.MovedFromIndex[i], action.ImagesToMove[i]);
+    } else {
 
-        } else {
-            inserts.emplace_back(-1, action.ImagesToMove[i]);
+        if(action.MovedFrom != MOVE_GROUP::MainList && action.MoveTo == MOVE_GROUP::MainList) {
+
+            // Undo move to mainlist. Add back to inactive and restore the item
+            // TODO: should this use action.ReplacedInactive
+            InactiveItems.insert(
+                InactiveItems.end(), action.ImagesToMove.begin(), action.ImagesToMove.end());
+
+            InsertToListWithPositions(
+                action.ReplacedInactive, _GetCollectionForMoveGroup(MOVE_GROUP::MainList));
         }
-    }
 
-    std::stable_sort(inserts.begin(), inserts.end(),
-        [](const std::tuple<size_t, const std::shared_ptr<Image>&>& first,
-            const std::tuple<size_t, const std::shared_ptr<Image>&>& second) {
-            return std::get<0>(first) < std::get<0>(second);
-        });
+        /*else {*/
+        // Then add to the source trying to place all images at the right stored index.
+        // For this to correctly place images this moves them lowest index first
+        std::vector<std::tuple<size_t, std::shared_ptr<Image>>> inserts;
+        inserts.reserve(action.ImagesToMove.size());
 
-    for(const auto& operation : inserts) {
+        for(size_t i = 0; i < action.ImagesToMove.size(); ++i) {
 
-        const auto& position = std::get<0>(operation);
-        const auto& image = std::get<1>(operation);
+            if(i < action.MovedFromIndex.size()) {
+                inserts.emplace_back(action.MovedFromIndex[i], action.ImagesToMove[i]);
 
-        if(position >= source.size()) {
-
-            source.push_back(image);
-
-        } else {
-
-            source.insert(source.begin() + position, image);
+            } else {
+                inserts.emplace_back(-1, action.ImagesToMove[i]);
+            }
         }
+
+        InsertToListWithPositions(inserts, source);
     }
 
     _UpdateListsTouchedByAction(action);
@@ -460,6 +578,8 @@ void ReorderWindow::_UpdateShownItems()
                 LastSelectedImage.SetImageList(nullptr);
             }
         }));
+
+    ImageList.SetInactiveItems(InactiveItems.begin(), InactiveItems.end());
 
     LastSelectedImage.RemoveImage();
     LastSelectedImage.SetImageList(nullptr);

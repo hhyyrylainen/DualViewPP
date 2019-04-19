@@ -7,6 +7,10 @@
     background-color: cadetblue;
 }
 
+.ListItemContainerInactive{
+    background-color: gray;
+}
+
 progressbar > trough, progress{
   min-height: 15px;
 }

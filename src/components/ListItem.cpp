@@ -141,9 +141,7 @@ void ListItem::get_preferred_height_for_width_vfunc(
 // ------------------------------------ //
 bool ListItem::_OnMouseButtonPressed(GdkEventButton* event)
 {
-    if(!Selectable)
-        return false;
-
+    // Right mouse
     if(event->type == GDK_2BUTTON_PRESS) {
 
         if(Selectable->UsesCustomPopup) {
@@ -158,34 +156,61 @@ bool ListItem::_OnMouseButtonPressed(GdkEventButton* event)
     // Left mouse //
     if(event->button == 1) {
 
-        if(Selectable->Selectable)
+        if(Active && Selectable && Selectable->Selectable) {
+
             SetSelected(!CurrentlySelected);
+            return true;
+        }
 
     } else if(event->button == 3) {
 
         return _OnRightClick(event);
     }
 
-    return true;
+    return false;
 }
 
 void ListItem::SetSelected(bool selected)
 {
+    if(CurrentlySelected == selected)
+        return;
+
     CurrentlySelected = selected;
 
     if(!CurrentlySelected) {
 
-        Container.get_style_context()->add_class("ListItemContainer");
         Container.get_style_context()->remove_class("ListItemContainerSelected");
 
     } else {
 
-        Container.get_style_context()->remove_class("ListItemContainer");
         Container.get_style_context()->add_class("ListItemContainerSelected");
     }
 
     _OnSelectionUpdated();
 }
+// ------------------------------------ //
+void ListItem::SetActive(bool active)
+{
+    if(active == Active)
+        return;
+
+    Active = active;
+
+    if(!Active && CurrentlySelected) {
+        // Deselect before becoming inactive
+        Deselect();
+    }
+
+    if(Active) {
+
+        Container.get_style_context()->remove_class("ListItemContainerInactive");
+
+    } else {
+
+        Container.get_style_context()->add_class("ListItemContainerInactive");
+    }
+}
+
 // ------------------------------------ //
 void ListItem::SetItemSize(LIST_ITEM_SIZE newsize)
 {
@@ -214,3 +239,5 @@ bool ListItem::_OnRightClick(GdkEventButton* causedbyevent)
 {
     return false;
 }
+
+void ListItem::_OnInactiveStatusUpdated() {}

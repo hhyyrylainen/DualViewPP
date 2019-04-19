@@ -16,7 +16,7 @@ class ListItem : public Gtk::Frame, public IsAlive {
 public:
     //! \param showimage The image to show
     //! \param name The text to show under the display image
-    //! \param selectable If true allows this item to be selected/unselected by clicking
+    //! \param selectable If non-null allows this item to be selected/unselected by clicking
     //! \param allowpopup If true allows this item to open a popup window when double clicked
     //! \note allowpopup Cannot be used at the same time with
     //! DV::ItemSelectable::UsesCustomPopup because the default double click handler will
@@ -47,6 +47,26 @@ public:
     inline bool IsSelected() const
     {
         return CurrentlySelected;
+    }
+
+    //! \brief Sets active status. Changes background colour and disables selecting
+    void SetActive(bool active);
+
+    inline void Deactivate()
+    {
+        if(Active)
+            SetActive(false);
+    }
+
+    inline void Activate()
+    {
+        if(!Active)
+            SetActive(true);
+    }
+
+    inline bool IsActive() const
+    {
+        return Active;
     }
 
     //! \brief Sets new size.
@@ -93,6 +113,9 @@ protected:
     //! \returns True if handled
     virtual bool _OnRightClick(GdkEventButton* causedbyevent);
 
+    //! \brief Called when this item is either made inactive or active
+    virtual void _OnInactiveStatusUpdated();
+
 
 protected:
     Gtk::EventBox Events;
@@ -102,6 +125,10 @@ protected:
 
     Gtk::Overlay TextAreaOverlay;
     Gtk::Label NameLabel;
+
+    //! If false then this is inactive and won't respond to selection events, but does still
+    //! allow popups
+    bool Active = true;
 
     //! If this is selectable this indicates whether the user has selected this item or not
     bool CurrentlySelected = false;

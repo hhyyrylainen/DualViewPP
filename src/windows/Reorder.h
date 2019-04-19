@@ -44,6 +44,9 @@ class ReorderWindow : public BaseWindow, public Gtk::Window, public IsAlive {
 
         MOVE_GROUP MoveTo;
         size_t MoveTargetIndex;
+
+        //! This is an extra place to stash replaced inactive images in the main list
+        std::vector<std::tuple<size_t, std::shared_ptr<Image>>> ReplacedInactive;
     };
 
 public:
@@ -134,6 +137,9 @@ private:
     const std::shared_ptr<Collection> TargetCollection;
     std::vector<std::shared_ptr<Image>> CollectionImages;
     std::vector<std::shared_ptr<Image>> WorkspaceImages;
+
+    //! Used to always properly apply the inactive status to right items
+    std::vector<std::shared_ptr<Image>> InactiveItems;
 
     //! Undo / Redo
     ActionHistory History;
