@@ -32,6 +32,7 @@ class DatabaseAction;
 class ImageDeleteAction;
 class ImageMergeAction;
 class ImageDeleteFromCollectionAction;
+class CollectionReorderAction;
 
 class Tag;
 class AppliedTag;
@@ -71,6 +72,7 @@ class Database : public Leviathan::ThreadSafeRecursive {
     friend ImageDeleteAction;
     friend ImageMergeAction;
     friend ImageDeleteFromCollectionAction;
+    friend CollectionReorderAction;
 
 public:
     //! \brief Normal database creation, uses the specified file
@@ -359,6 +361,10 @@ public:
     //! This does no checks to ensure that this doesn't cause duplicate show orders
     bool UpdateCollectionImageShowOrder(
         LockT& guard, DBID collection, DBID image, int64_t showorder);
+
+    //! \brief Updates the order of collection images in an action
+    std::shared_ptr<DatabaseAction> UpdateCollectionImagesOrder(
+        Collection& collection, const std::vector<std::shared_ptr<Image>>& neworder);
 
     //
     // Folder
@@ -771,6 +777,9 @@ protected:
 
     void RedoAction(ImageDeleteFromCollectionAction& action);
     void UndoAction(ImageDeleteFromCollectionAction& action);
+
+    void RedoAction(CollectionReorderAction& action);
+    void UndoAction(CollectionReorderAction& action);
 
 protected:
     //! \brief Runs a command and prints all the result rows with column headers to log

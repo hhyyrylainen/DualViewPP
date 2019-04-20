@@ -48,6 +48,9 @@ std::shared_ptr<DatabaseAction> DatabaseAction::Create(
         return std::shared_ptr<ImageDeleteFromCollectionAction>(
             new ImageDeleteFromCollectionAction(
                 id, db, statement.GetColumnAsBool(2), statement.GetColumnAsString(3)));
+    case DATABASE_ACTION_TYPE::CollectionReorder:
+        return std::shared_ptr<CollectionReorderAction>(new CollectionReorderAction(
+            id, db, statement.GetColumnAsBool(2), statement.GetColumnAsString(3)));
     case DATABASE_ACTION_TYPE::Invalid:
         LOG_ERROR("DatabaseAction: from DB read type is DATABASE_ACTION_TYPE::Invalid");
         return nullptr;
@@ -572,5 +575,143 @@ std::vector<std::shared_ptr<ResourceWithPreview>>
     }
 
     return result;
+}
+// ------------------------------------ //
+// CollectionReorderAction
+CollectionReorderAction::CollectionReorderAction(
+    DBID collection, const std::vector<DBID>& neworder) :
+    TargetCollection(collection),
+    NewOrder(neworder)
+{}
+
+CollectionReorderAction::CollectionReorderAction(
+    DBID id, Database& from, bool performed, const std::string& customdata) :
+    DatabaseAction(id, from)
+{
+    Performed = performed;
+
+    std::stringstream sstream(customdata);
+
+    Json::CharReaderBuilder builder;
+    Json::Value value;
+    JSONCPP_STRING errs;
+
+    if(!parseFromStream(builder, sstream, &value, &errs))
+        throw InvalidArgument("invalid json:" + errs);
+
+    {
+        const auto& oldOrder = value["old_order"];
+
+        OldOrder.reserve(oldOrder.size());
+
+        for(const auto& obj : oldOrder) {
+
+            const auto order = obj["order"].asInt64();
+            const auto image = obj["image"].asInt64();
+
+            OldOrder.emplace_back(image, order);
+        }
+    }
+
+    TargetCollection = value["target"].asInt64();
+
+    {
+        const auto& newOrder = value["new_order"];
+
+        NewOrder.reserve(newOrder.size());
+
+        for(const auto& element : newOrder) {
+
+            NewOrder.push_back(element.asInt64());
+        }
+    }
+}
+
+CollectionReorderAction::~CollectionReorderAction()
+{
+    DBResourceDestruct();
+}
+// ------------------------------------ //
+void CollectionReorderAction::_Redo()
+{
+    InDatabase->RedoAction(*this);
+}
+
+void CollectionReorderAction::_Undo()
+{
+    InDatabase->UndoAction(*this);
+}
+
+void CollectionReorderAction::_SerializeCustomData(Json::Value& value) const
+{
+    Json::Value oldOrder;
+    oldOrder.resize(OldOrder.size());
+    for(size_t i = 0; i < oldOrder.size(); ++i) {
+        Json::Value element;
+        element["image"] = std::get<0>(OldOrder[i]);
+        element["order"] = std::get<1>(OldOrder[i]);
+        oldOrder[static_cast<unsigned>(i)] = element;
+    }
+
+    Json::Value newOrder;
+    newOrder.resize(NewOrder.size());
+    for(size_t i = 0; i < newOrder.size(); ++i) {
+        newOrder[static_cast<unsigned>(i)] = NewOrder[i];
+    }
+
+    value["old_order"] = oldOrder;
+    value["target"] = TargetCollection;
+    value["new_order"] = newOrder;
+}
+// ------------------------------------ //
+std::string CollectionReorderAction::GenerateDescription() const
+{
+    std::stringstream description;
+
+    description << "Reordered images in ";
+
+    description << "'"
+                << (InDatabase ? InDatabase->SelectCollectionNameByID(TargetCollection) :
+                                 std::to_string(TargetCollection))
+                << "'";
+
+    return description.str();
+}
+
+std::vector<std::shared_ptr<ResourceWithPreview>> CollectionReorderAction::LoadPreviewItems(
+    int max) const
+{
+    if(!InDatabase || max <= 0)
+        return {};
+
+    std::vector<std::shared_ptr<ResourceWithPreview>> result;
+    result.reserve(std::min<size_t>(max, NewOrder.size() + 1));
+
+    max -= 1;
+
+    GUARD_LOCK_OTHER(InDatabase);
+
+    auto casted = std::dynamic_pointer_cast<ResourceWithPreview>(
+        InDatabase->SelectCollectionByID(TargetCollection));
+
+    if(casted)
+        result.push_back(casted);
+
+    for(size_t i = 0; i < NewOrder.size() && i < static_cast<size_t>(max); ++i) {
+
+        auto casted = std::dynamic_pointer_cast<ResourceWithPreview>(
+            InDatabase->SelectImageByID(guard, NewOrder[i]));
+
+        if(casted)
+            result.push_back(casted);
+    }
+
+    return result;
+}
+
+void CollectionReorderAction::OpenEditingWindow()
+{
+    DualView::Get().OpenReorder(
+        DualView::Get().GetDatabase().SelectCollectionByID(TargetCollection));
 }
 // ------------------------------------ //

@@ -391,3 +391,53 @@ TEST_CASE("Image removal from a collection can be undone", "[db][action]")
         }
     }
 }
+
+TEST_CASE("Collection reorder can be undone", "[db][action]")
+{
+    DummyDualView dv;
+    TestDatabase db;
+
+    REQUIRE_NOTHROW(db.Init());
+
+    // Insert test data
+    auto image1 = db.InsertTestImage("image1", "hash1");
+    REQUIRE(image1);
+
+    auto image2 = db.InsertTestImage("image2", "hash2");
+    REQUIRE(image2);
+
+    auto collection = db.InsertCollectionAG("test collection", false);
+    REQUIRE(collection);
+
+    collection->AddImage(image1);
+    collection->AddImage(image2);
+
+    auto undo = db.UpdateCollectionImagesOrder(*collection, {image2, image1});
+
+    REQUIRE(undo);
+
+    CHECK(collection->GetImages() == std::vector<std::shared_ptr<Image>>{image2, image1});
+
+    SECTION("works normally")
+    {
+        CHECK(undo->Undo());
+
+        CHECK(collection->GetImages() == std::vector<std::shared_ptr<Image>>{image1, image2});
+    }
+
+    SECTION("works after loading from DB")
+    {
+        const auto id = undo->GetID();
+        const auto oldPtr = undo.get();
+        undo.reset();
+
+        undo = db.SelectDatabaseActionByIDAG(id);
+        REQUIRE(undo);
+
+        CHECK(undo.get() != oldPtr);
+
+        CHECK(undo->Undo());
+
+        CHECK(collection->GetImages() == std::vector<std::shared_ptr<Image>>{image1, image2});
+    }
+}

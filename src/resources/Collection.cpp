@@ -222,37 +222,10 @@ void Collection::ApplyNewImageOrder(const std::vector<std::shared_ptr<Image>>& n
     if(!IsInDatabase())
         throw Leviathan::InvalidState("collection not in database");
 
-    {
-        GUARD_LOCK_OTHER(InDatabase);
+    auto undo = InDatabase->UpdateCollectionImagesOrder(*this, neworder);
 
-        const auto existing = InDatabase->SelectImageIDsAndShowOrderInCollection(*this);
-
-        int64_t currentShowOrder = 1;
-
-        for(const auto& image : neworder) {
-
-            InDatabase->UpdateCollectionImageShowOrder(
-                guard, GetID(), image->GetID(), currentShowOrder++);
-        }
-
-        // Add the existing ones to the back that weren't mentioned in neworder
-        for(const auto& idOrder : existing) {
-
-            const auto id = std::get<0>(idOrder);
-
-            if(std::find_if(
-                   neworder.begin(), neworder.end(), [&](const std::shared_ptr<Image>& image) {
-                       return id == image->GetID();
-                   }) == neworder.end()) {
-
-                InDatabase->UpdateCollectionImageShowOrder(
-                    guard, GetID(), id, currentShowOrder++);
-            }
-        }
-    }
-
-    GUARD_LOCK();
-    NotifyAll(guard);
+    if(!undo)
+        throw Leviathan::InvalidArgument("invalid parameters for reorder");
 }
 
 std::shared_ptr<Image> Collection::GetPreviewIcon() const

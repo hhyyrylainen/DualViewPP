@@ -21,6 +21,7 @@ enum class DATABASE_ACTION_TYPE : int {
     ImageDelete = 1,
     ImageMerge,
     ImageRemovedFromCollection,
+    CollectionReorder,
     Invalid /* must be always last value */
 };
 
@@ -295,6 +296,79 @@ private:
     std::vector<std::tuple<DBID, int64_t>> ImagesToDelete;
 
     std::vector<DBID> ImagesAddedToUncategorized;
+};
+
+
+//! \brief Images in a Collection were reordered
+class CollectionReorderAction final : public DatabaseAction {
+    friend Database;
+    friend std::shared_ptr<DatabaseAction> DatabaseAction::Create(
+        Database& db, DatabaseLockT& dblock, PreparedStatement& statement, DBID id);
+
+protected:
+    CollectionReorderAction(
+        DBID id, Database& from, bool performed, const std::string& customdata);
+
+public:
+    //! This is public just to make std::make_shared work
+    //! \protected
+    CollectionReorderAction(DBID collection, const std::vector<DBID>& images);
+    ~CollectionReorderAction();
+
+    DATABASE_ACTION_TYPE GetType() const override
+    {
+        return DATABASE_ACTION_TYPE::CollectionReorder;
+    }
+
+    const auto& GetNewOrder() const
+    {
+        return NewOrder;
+    }
+
+    const auto& GetOldOrder() const
+    {
+        return OldOrder;
+    }
+
+    auto GetTargetCollection() const
+    {
+        return TargetCollection;
+    }
+
+
+    std::string GenerateDescription() const override;
+    std::vector<std::shared_ptr<ResourceWithPreview>> LoadPreviewItems(
+        int max = 10) const override;
+
+    bool SupportsEditing() const override
+    {
+        return true;
+    }
+
+    void OpenEditingWindow() override;
+
+protected:
+    void _OnPurged() override {}
+
+    void SetOldOrder(const std::vector<std::tuple<DBID, int64_t>>& oldorder)
+    {
+        OldOrder = oldorder;
+        OnMarkDirty();
+    }
+
+private:
+    void _Redo() override;
+    void _Undo() override;
+    void _SerializeCustomData(Json::Value& value) const override;
+
+private:
+    DBID TargetCollection;
+
+    //! The new order
+    std::vector<DBID> NewOrder;
+
+    //! The stored old order for undo purposes
+    std::vector<std::tuple<DBID, int64_t>> OldOrder;
 };
 
 } // namespace DV

@@ -1630,6 +1630,51 @@ bool Database::UpdateCollectionImageShowOrder(
     return sqlite3_changes(SQLiteDb) == 1;
 }
 
+std::shared_ptr<DatabaseAction> Database::UpdateCollectionImagesOrder(
+    Collection& collection, const std::vector<std::shared_ptr<Image>>& neworder)
+{
+    if(!collection.IsInDatabase() /*|| collection.IsDeleted()*/)
+        return nullptr;
+
+    for(const auto image : neworder)
+        if(!image->IsInDatabase() || image->IsDeleted())
+            return nullptr;
+
+    // Create the action
+    std::vector<DBID> imageIDs;
+    std::transform(neworder.begin(), neworder.end(), std::back_inserter(imageIDs),
+        [](const std::shared_ptr<Image>& image) { return image->GetID(); });
+
+    auto action = std::make_shared<CollectionReorderAction>(collection.GetID(), imageIDs);
+
+    GUARD_LOCK();
+
+    {
+        DoDBSavePoint transaction(*this, guard, "collection_reorder_create");
+        transaction.AllowCommit(false);
+
+        InsertDatabaseAction(guard, *action);
+
+        // The action must be done here as this captures undo information
+        if(!action->Redo()) {
+
+            LOG_ERROR("Database: freshly created ReorderCollection action failed");
+            return nullptr;
+        }
+
+        transaction.AllowCommit(true);
+    }
+
+    auto casted = std::static_pointer_cast<DatabaseAction>(action);
+    LoadedDatabaseActions.OnLoad(casted);
+
+    if(casted.get() != action.get())
+        LOG_ERROR("Database: action got changed on store");
+
+    PurgeOldActionsUntilUnderLimit(guard);
+    return action;
+}
+
 // ------------------------------------ //
 size_t Database::CountExistingTags()
 {
@@ -3981,9 +4026,8 @@ void Database::UndoAction(ImageDeleteFromCollectionAction& action)
 
     PreparedStatement deleteStatement(SQLiteDb, deleteImageSql, sizeof(deleteImageSql));
 
-
     {
-        DoDBSavePoint transaction(*this, guard, "image_remove_from_col_redo");
+        DoDBSavePoint transaction(*this, guard, "image_remove_from_col_undo");
         transaction.AllowCommit(false);
 
         // Remove the images from uncategorized
@@ -4016,6 +4060,123 @@ void Database::UndoAction(ImageDeleteFromCollectionAction& action)
     GUARD_LOCK_OTHER_NAME(target, targetLock);
     target->NotifyAll(targetLock);
 }
+// ------------------------------------ //
+// CollectionReorderAction
+void Database::RedoAction(CollectionReorderAction& action)
+{
+    GUARD_LOCK();
+
+    const auto targetID = action.GetTargetCollection();
+    auto target = SelectCollectionByID(targetID);
+
+    if(!target /*|| target->IsDeleted()*/)
+        throw InvalidState("cannot redo action: invalid target collection");
+
+    const auto existing = SelectImageIDsAndShowOrderInCollection(*target);
+
+    const auto& newOrder = action.GetNewOrder();
+
+    int64_t currentShowOrder = 1;
+
+    const char updateSql[] = "UPDATE collection_image SET show_order = ?3 WHERE "
+                             "collection = ?1 AND image = ?2;";
+
+    PreparedStatement updateStatement(SQLiteDb, updateSql, sizeof(updateSql));
+
+    {
+        DoDBSavePoint transaction(*this, guard, "collection_reorder_redo");
+        transaction.AllowCommit(false);
+
+        for(const auto& image : newOrder) {
+
+            updateStatement.StepAll(
+                updateStatement.Setup(targetID, image, currentShowOrder++));
+        }
+
+        // Add the existing ones to the back that weren't mentioned in neworder
+        for(const auto& idOrder : existing) {
+
+            const auto id = std::get<0>(idOrder);
+
+            if(std::find(newOrder.begin(), newOrder.end(), id) == newOrder.end()) {
+
+                updateStatement.StepAll(
+                    updateStatement.Setup(targetID, id, currentShowOrder++));
+            }
+        }
+
+        _SetActionStatus(guard, action, true);
+
+        // Save the detected information needed for undo
+        action.SetOldOrder(existing);
+        action.Save();
+
+        transaction.AllowCommit(true);
+    }
+
+    GUARD_LOCK_OTHER_NAME(target, targetLock);
+    target->NotifyAll(targetLock);
+}
+
+void Database::UndoAction(CollectionReorderAction& action)
+{
+    GUARD_LOCK();
+
+    const auto targetID = action.GetTargetCollection();
+    auto target = SelectCollectionByID(targetID);
+
+    if(!target /*|| target->IsDeleted()*/)
+        throw InvalidState("cannot undo action: invalid target collection");
+
+    const auto existing = SelectImageIDsAndShowOrderInCollection(*target);
+
+    const auto& oldOrder = action.GetOldOrder();
+
+    const char updateSql[] = "UPDATE collection_image SET show_order = ?3 WHERE "
+                             "collection = ?1 AND image = ?2;";
+
+    PreparedStatement updateStatement(SQLiteDb, updateSql, sizeof(updateSql));
+
+    int64_t maxShowOrder = -1;
+
+    {
+        DoDBSavePoint transaction(*this, guard, "collection_reorder_undo");
+        transaction.AllowCommit(false);
+
+        // Restore the old order
+        for(const auto& idOrder : oldOrder) {
+
+            const auto id = std::get<0>(idOrder);
+            const auto order = std::get<1>(idOrder);
+
+            updateStatement.StepAll(updateStatement.Setup(targetID, id, order));
+
+            if(order > maxShowOrder)
+                maxShowOrder = order;
+        }
+
+        // If there were images added after doing the action we need to make sure they also
+        // have correct show order
+        for(const auto& idOrder : existing) {
+
+            const auto id = std::get<0>(idOrder);
+
+            if(std::find_if(oldOrder.begin(), oldOrder.end(), [&](const auto& tuple) {
+                   return std::get<0>(tuple) == id;
+               }) == oldOrder.end()) {
+
+                updateStatement.StepAll(updateStatement.Setup(targetID, id, ++maxShowOrder));
+            }
+        }
+
+        _SetActionStatus(guard, action, false);
+        transaction.AllowCommit(true);
+    }
+
+    GUARD_LOCK_OTHER_NAME(target, targetLock);
+    target->NotifyAll(targetLock);
+}
+
 
 // ------------------------------------ //
 // Row parsing functions
