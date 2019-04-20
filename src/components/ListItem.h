@@ -106,6 +106,8 @@ protected:
     bool _OnMouseButtonReleased(GdkEventButton* event);
     bool _OnMouseMove(GdkEventMotion* motion_event);
 
+    void _OnDragBegin(const Glib::RefPtr<Gdk::DragContext>& context);
+
     void _OnDragDataGet(const Glib::RefPtr<Gdk::DragContext>& context,
         Gtk::SelectionData& selection_data, guint info, guint time);
 

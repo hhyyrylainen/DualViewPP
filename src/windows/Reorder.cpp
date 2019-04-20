@@ -6,6 +6,8 @@
 #include "Database.h"
 #include "DualView.h"
 
+#include "json/json.h"
+
 using namespace DV;
 // ------------------------------------ //
 ReorderWindow::ReorderWindow(const std::shared_ptr<Collection>& collection) :
@@ -141,17 +143,15 @@ ReorderWindow::ReorderWindow(const std::shared_ptr<Collection>& collection) :
     BottomButtons.set_spacing(3);
     MainContainer.pack_end(BottomButtons, false, false);
 
-    std::vector<Gtk::TargetEntry> listTargets;
-    listTargets.push_back(Gtk::TargetEntry("dualview/images"));
-    ImageList.drag_source_set(listTargets);
+    // Drag&Drop
+    const auto targets = DragMain->GetDragTypes();
+    ImageList.drag_dest_set(targets);
     ImageList.signal_drag_data_received().connect(
-        sigc::mem_fun(*this, &ReorderWindow::_OnDrop));
-    ImageList.drag_dest_set(listTargets);
-
-
+        sigc::mem_fun(*this, &ReorderWindow::_OnDropMainList));
+    Workspace.drag_dest_set(targets);
     Workspace.signal_drag_data_received().connect(
-        sigc::mem_fun(*this, &ReorderWindow::_OnDrop));
-    Workspace.drag_dest_set(listTargets);
+        sigc::mem_fun(*this, &ReorderWindow::_OnDropWorkspace));
+
 
     // Add the main container
     MainContainer.set_spacing(3);
@@ -160,17 +160,6 @@ ReorderWindow::ReorderWindow(const std::shared_ptr<Collection>& collection) :
     show_all_children();
 
     Reset();
-}
-
-void ReorderWindow::_OnDrop(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y,
-    const Gtk::SelectionData& selection_data, guint info, guint time)
-{
-    const int length = selection_data.get_length();
-    if((length >= 0) && (selection_data.get_format() == 8)) {
-        LOG_INFO("Received \"" + selection_data.get_data_as_string());
-    }
-
-    context->drag_finish(false, false, time);
 }
 
 ReorderWindow::~ReorderWindow()
@@ -765,6 +754,90 @@ void ReorderWindow::_RedoPressed()
     _UpdateButtonStatus();
 }
 // ------------------------------------ //
+bool ReorderWindow::_DoImageMoveFromDrag(
+    bool toworkspace, size_t insertpoint, const std::string& actiondata)
+{
+    std::stringstream sstream(actiondata);
+
+    Json::CharReaderBuilder builder;
+    Json::Value value;
+    JSONCPP_STRING errs;
+
+    if(!parseFromStream(builder, sstream, &value, &errs)) {
+        LOG_ERROR("ReorderWindow: on drop: invalid json: " + errs);
+        return false;
+    }
+
+    bool fromWorkspace = false;
+
+    if(value.isMember("meta")) {
+
+        fromWorkspace = value["meta"]["workspace"].asBool();
+    }
+
+    const auto& images = value["images"];
+
+    std::vector<DBID> ids;
+    ids.reserve(images.size());
+
+    for(const auto& image : images) {
+        ids.push_back(image.asInt64());
+    }
+
+    std::vector<std::shared_ptr<Image>> imageObjects;
+
+    if(!fromWorkspace) {
+        std::copy_if(CollectionImages.begin(), CollectionImages.end(),
+            std::back_inserter(imageObjects), [&](const std::shared_ptr<Image>& image) {
+                return std::find(ids.begin(), ids.end(), image->GetID()) != ids.end();
+            });
+    } else {
+        std::copy_if(WorkspaceImages.begin(), WorkspaceImages.end(),
+            std::back_inserter(imageObjects), [&](const std::shared_ptr<Image>& image) {
+                return std::find(ids.begin(), ids.end(), image->GetID()) != ids.end();
+            });
+    }
+
+    auto action = std::make_shared<HistoryItem>(*this,
+        fromWorkspace ? MOVE_GROUP::Workspace : MOVE_GROUP::MainList, imageObjects,
+        toworkspace ? MOVE_GROUP::Workspace : MOVE_GROUP::MainList, insertpoint);
+
+    // Putting the action into the history performs it
+    History.AddAction(action);
+
+    _UpdateButtonStatus();
+
+    // TODO: this could be handled better with regards to undo
+    if(!toworkspace)
+        DoneChanges = true;
+
+    return true;
+}
+
+void ReorderWindow::_OnDropWorkspace(const Glib::RefPtr<Gdk::DragContext>& context, int x,
+    int y, const Gtk::SelectionData& selection_data, guint info, guint time)
+{
+    const bool toWorkspace = true;
+    const size_t insertPosition = Workspace.CalculateIndicatorPositionFromCursor(x, y);
+
+    bool success =
+        _DoImageMoveFromDrag(toWorkspace, insertPosition, selection_data.get_data_as_string());
+
+    context->drag_finish(success, false, time);
+}
+
+void ReorderWindow::_OnDropMainList(const Glib::RefPtr<Gdk::DragContext>& context, int x,
+    int y, const Gtk::SelectionData& selection_data, guint info, guint time)
+{
+    const bool toWorkspace = false;
+    const size_t insertPosition = ImageList.CalculateIndicatorPositionFromCursor(x, y);
+
+    bool success =
+        _DoImageMoveFromDrag(toWorkspace, insertPosition, selection_data.get_data_as_string());
+
+    context->drag_finish(success, false, time);
+}
+// ------------------------------------ //
 // ReorderWindow::HistoryItem
 ReorderWindow::HistoryItem::HistoryItem(ReorderWindow& target, MOVE_GROUP movedfrom,
     const std::vector<std::shared_ptr<Image>>& imagestomove, MOVE_GROUP moveto,
@@ -791,4 +864,43 @@ std::vector<Gtk::TargetEntry> ReorderWindow::DragProvider::GetDragTypes()
     std::vector<Gtk::TargetEntry> listTargets;
     listTargets.push_back(Gtk::TargetEntry("dualview/images"));
     return listTargets;
+}
+
+void ReorderWindow::DragProvider::GetData(const Glib::RefPtr<Gdk::DragContext>& context,
+    Gtk::SelectionData& selection_data, guint info, guint time)
+{
+    if(selection_data.get_target() != "dualview/images") {
+        LOG_WARNING("ReorderWindow: DragProvider: GetData: wrong type: " +
+                    selection_data.get_target());
+    }
+
+    std::stringstream sstream;
+    Json::Value value;
+
+    Json::StreamWriterBuilder builder;
+    builder["commentStyle"] = "None";
+    builder["indentation"] = "";
+    auto writer = builder.newStreamWriter();
+
+    Json::Value meta;
+    meta["workspace"] = Workspace;
+    value["meta"] = meta;
+
+    Json::Value images;
+
+    const auto selected =
+        Workspace ? InfoSource.GetSelectedInWorkspace() : InfoSource.GetSelected();
+
+    for(size_t i = 0; i < selected.size(); ++i) {
+
+        images[static_cast<int>(i)] = selected[i]->GetID();
+    }
+
+    value["images"] = images;
+
+    writer->write(value, &sstream);
+
+    const auto str = sstream.str();
+
+    selection_data.set("dualview/images", 8, (const guchar*)str.c_str(), str.size());
 }

@@ -69,6 +69,7 @@ ListItem::ListItem(std::shared_ptr<Image> showimage, const std::string& name,
             Events.signal_motion_notify_event().connect(
                 sigc::mem_fun(*this, &ListItem::_OnMouseMove));
 
+            signal_drag_begin().connect(sigc::mem_fun(*this, &ListItem::_OnDragBegin));
             signal_drag_data_get().connect(sigc::mem_fun(*this, &ListItem::_OnDragDataGet));
             signal_drag_end().connect(sigc::mem_fun(*this, &ListItem::_OnDragFinished));
         }
@@ -236,12 +237,29 @@ bool ListItem::_OnMouseMove(GdkEventMotion* motion_event)
 
     return true;
 }
+// ------------------------------------ //
+void ListItem::_OnDragBegin(const Glib::RefPtr<Gdk::DragContext>& context)
+{
+    auto image = ImageIcon.GetLoadedPixBuf();
+
+    if(image)
+        context->set_icon(image, 0, 0);
+}
 
 void ListItem::_OnDragDataGet(const Glib::RefPtr<Gdk::DragContext>& context,
     Gtk::SelectionData& selection_data, guint info, guint time)
 {
-    selection_data.set(selection_data.get_target(), 8 /* 8 bits format */,
-        (const guchar*)"I'm Data!", 9 /* the length of I'm Data! in bytes */);
+    if(Selectable && Selectable->DragInformation) {
+
+        Selectable->DragInformation->GetData(context, selection_data, info, time);
+        return;
+    }
+
+    LOG_WARNING("ListItem: on drag data get called without valid information source");
+
+    const char message[] = "No data source set";
+
+    selection_data.set("text/plain", 8, (const guchar*)message, sizeof(message));
 }
 
 void ListItem::_OnDragFinished(const Glib::RefPtr<Gdk::DragContext>& context)

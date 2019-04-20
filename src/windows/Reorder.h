@@ -58,6 +58,9 @@ class ReorderWindow : public BaseWindow, public Gtk::Window, public IsAlive {
 
         std::vector<Gtk::TargetEntry> GetDragTypes() override;
 
+        void GetData(const Glib::RefPtr<Gdk::DragContext>& context,
+            Gtk::SelectionData& selection_data, guint info, guint time) override;
+
     protected:
         ReorderWindow& InfoSource;
         bool Workspace;
@@ -102,8 +105,14 @@ private:
     void _RedoPressed();
     void _SelectAllPressed();
 
-    void _OnDrop(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y,
+    //! \todo This functionality should be moved to SuperContainer to make this more useful
+    void _OnDropMainList(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y,
         const Gtk::SelectionData& selection_data, guint info, guint time);
+    void _OnDropWorkspace(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y,
+        const Gtk::SelectionData& selection_data, guint info, guint time);
+
+    bool _DoImageMoveFromDrag(
+        bool toworkspace, size_t insertpoint, const std::string& actiondata);
 
 private:
     // Titlebar widgets

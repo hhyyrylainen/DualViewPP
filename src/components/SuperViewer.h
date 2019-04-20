@@ -90,6 +90,11 @@ public:
     //! \brief Adds a notify event that gets called after SetImage is called
     void RegisterSetImageNotify(std::function<void()> callback);
 
+    //! \returns The image as pixbuf (if loaded)
+    Glib::RefPtr<Gdk::Pixbuf> GetLoadedPixBuf() const
+    {
+        return CachedDrawnImage;
+    }
 
 protected:
     //! \brief Common constructor code for all constructor overloads

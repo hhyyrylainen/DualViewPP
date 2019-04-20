@@ -346,6 +346,9 @@ public:
     //! \brief Updates the indicator position
     void SetIndicatorPosition(size_t position);
 
+    //! \brief Calculates indicator position from cursor coordinates
+    size_t CalculateIndicatorPositionFromCursor(int cursorx, int cursory);
+
 private:
     void _CommonCtor();
 

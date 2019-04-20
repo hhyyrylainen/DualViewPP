@@ -32,8 +32,6 @@ void SuperContainer::_CommonCtor()
     PositionIndicator.property_width_request() = 2;
     PositionIndicator.set_orientation(Gtk::ORIENTATION_VERTICAL);
     PositionIndicator.get_style_context()->add_class("PositionIndicator");
-    Container.add(PositionIndicator);
-    PositionIndicator.hide();
 
     signal_size_allocate().connect(sigc::mem_fun(*this, &SuperContainer::_OnResize));
 
@@ -788,6 +786,8 @@ void SuperContainer::EnablePositionIndicator()
         return;
     PositionIndicatorEnabled = true;
 
+    Container.add(PositionIndicator);
+
     // Enable the click to change indicator position
     add_events(Gdk::BUTTON_PRESS_MASK);
 
@@ -894,6 +894,42 @@ void SuperContainer::SuperContainer::_PositionIndicator()
     LOG_ERROR("SuperContainer: failed to find position for indicator");
     PositionIndicator.property_visible() = false;
 }
+
+size_t SuperContainer::CalculateIndicatorPositionFromCursor(int cursorx, int cursory)
+{
+    size_t newPosition = -1;
+
+    // The cursor position needs to be adjusted by the scroll offset
+    const auto x = get_hadjustment()->get_value() + cursorx;
+    const auto y = get_vadjustment()->get_value() + cursory;
+
+    for(size_t i = 0; i < Positions.size(); ++i) {
+
+        const auto& position = Positions[i];
+
+        if(!position.WidgetToPosition)
+            break;
+
+        // If click is not on this row, ignore
+        if(y < position.Y || y > position.Y + position.Height + Padding)
+            continue;
+
+
+        // If click is to the left of position this is the target
+        if(position.X > x) {
+            newPosition = i;
+            break;
+        }
+
+        // If click is to the right of this the next position (if it exists) might be the
+        // target
+        if(x > position.X + position.Width) {
+            newPosition = i + 1;
+        }
+    }
+
+    return newPosition;
+}
 // ------------------------------------ //
 // Callbacks
 void SuperContainer::_OnResize(Gtk::Allocation& allocation)
@@ -961,39 +997,7 @@ bool SuperContainer::_OnMouseButtonPressed(GdkEventButton* event)
 {
     if(event->type == GDK_BUTTON_PRESS) {
 
-        // Determine where to place the indicator
-        size_t newPosition = -1;
-
-        // The cursor position needs to be adjusted by the scroll offset
-        const auto x = get_hadjustment()->get_value() + event->x;
-        const auto y = get_vadjustment()->get_value() + event->y;
-
-        for(size_t i = 0; i < Positions.size(); ++i) {
-
-            const auto& position = Positions[i];
-
-            if(!position.WidgetToPosition)
-                break;
-
-            // If click is not on this row, ignore
-            if(y < position.Y || y > position.Y + position.Height + Padding)
-                continue;
-
-
-            // If click is to the left of position this is the target
-            if(position.X > x) {
-                newPosition = i;
-                break;
-            }
-
-            // If click is to the right of this the next position (if it exists) might be the
-            // target
-            if(x > position.X + position.Width) {
-                newPosition = i + 1;
-            }
-        }
-
-        SetIndicatorPosition(newPosition);
+        SetIndicatorPosition(CalculateIndicatorPositionFromCursor(event->x, event->y));
         return true;
     }
 
