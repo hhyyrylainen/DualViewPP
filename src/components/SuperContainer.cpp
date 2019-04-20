@@ -964,6 +964,10 @@ bool SuperContainer::_OnMouseButtonPressed(GdkEventButton* event)
         // Determine where to place the indicator
         size_t newPosition = -1;
 
+        // The cursor position needs to be adjusted by the scroll offset
+        const auto x = get_hadjustment()->get_value() + event->x;
+        const auto y = get_vadjustment()->get_value() + event->y;
+
         for(size_t i = 0; i < Positions.size(); ++i) {
 
             const auto& position = Positions[i];
@@ -971,11 +975,21 @@ bool SuperContainer::_OnMouseButtonPressed(GdkEventButton* event)
             if(!position.WidgetToPosition)
                 break;
 
+            // If click is not on this row, ignore
+            if(y < position.Y || y > position.Y + position.Height + Padding)
+                continue;
+
+
             // If click is to the left of position this is the target
-            if(event->y >= position.Y - Padding &&
-                event->y < position.Y + position.Height + Padding && position.X >= event->x) {
+            if(position.X > x) {
                 newPosition = i;
                 break;
+            }
+
+            // If click is to the right of this the next position (if it exists) might be the
+            // target
+            if(x > position.X + position.Width) {
+                newPosition = i + 1;
             }
         }
 
