@@ -93,6 +93,13 @@ public:
     //! \see GetImageShowOrder
     int64_t GetImageShowOrder(std::shared_ptr<Image> image, DatabaseLockT& dblock) const;
 
+    //! \brief Reorders the images in this collection
+    //!
+    //! This will cause holes in the show order if the order contains images not in this
+    //! collection. Any images in this collection not in neworder will be moved to the end
+    void ApplyNewImageOrder(const std::vector<std::shared_ptr<Image>>& neworder);
+
+
     //! \brief Returns the preview icon for this Collection
     //!
     //! It is either the first image or a specifically set image

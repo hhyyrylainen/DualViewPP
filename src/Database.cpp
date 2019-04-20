@@ -1547,6 +1547,33 @@ std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollection(
     return result;
 }
 
+std::vector<std::tuple<DBID, int64_t>> Database::SelectImageIDsAndShowOrderInCollection(
+    const Collection& collection)
+{
+    GUARD_LOCK();
+
+    std::vector<std::tuple<DBID, int64_t>> result;
+
+    const char str[] = "SELECT image, show_order FROM collection_image WHERE collection = ? "
+                       "ORDER BY show_order ASC;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection.GetID());
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        DBID id;
+
+        if(statementobj.GetObjectIDFromColumn(id, 0)) {
+
+            result.emplace_back(id, statementobj.GetColumnAsInt64(1));
+        }
+    }
+
+    return result;
+}
+
 std::vector<std::tuple<DBID, int64_t>> Database::SelectCollectionIDsImageIsIn(
     LockT& guard, const Image& image)
 {
@@ -1588,6 +1615,19 @@ int Database::UpdateShowOrdersInCollection(
     statementobj.StepAll(statementobj.Setup(collection, startpoint, incrementby));
 
     return sqlite3_changes(SQLiteDb);
+}
+
+bool Database::UpdateCollectionImageShowOrder(
+    LockT& guard, DBID collection, DBID image, int64_t showorder)
+{
+    const char str[] = "UPDATE collection_image SET show_order = ?3 WHERE "
+                       "collection = ?1 AND image = ?2;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    statementobj.StepAll(statementobj.Setup(collection, image, showorder));
+
+    return sqlite3_changes(SQLiteDb) == 1;
 }
 
 // ------------------------------------ //

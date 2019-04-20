@@ -225,8 +225,7 @@ void ReorderWindow::Apply()
 
     // Apply the change
     try {
-        throw Leviathan::Exception("not implemented");
-        // TargetCollection->ApplyNewImageOrder(
+        TargetCollection->ApplyNewImageOrder(CollectionImages);
 
     } catch(const Leviathan::Exception& e) {
 

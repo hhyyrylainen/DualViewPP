@@ -338,6 +338,9 @@ public:
     //! \brief Returns all images in a collection
     std::vector<std::shared_ptr<Image>> SelectImagesInCollection(const Collection& collection);
 
+    std::vector<std::tuple<DBID, int64_t>> SelectImageIDsAndShowOrderInCollection(
+        const Collection& collection);
+
     //! \brief Returns all collections and the show order an image has
     std::vector<std::tuple<DBID, int64_t>> SelectCollectionIDsImageIsIn(
         LockT& guard, const Image& image);
@@ -350,6 +353,12 @@ public:
     //! \returns Number of changed rows
     int UpdateShowOrdersInCollection(
         LockT& guard, DBID collection, int64_t startpoint, int incrementby = 1);
+
+    //! \brief Updates the show order for a single image
+    //!
+    //! This does no checks to ensure that this doesn't cause duplicate show orders
+    bool UpdateCollectionImageShowOrder(
+        LockT& guard, DBID collection, DBID image, int64_t showorder);
 
     //
     // Folder
