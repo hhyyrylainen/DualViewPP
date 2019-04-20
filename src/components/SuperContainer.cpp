@@ -916,7 +916,7 @@ size_t SuperContainer::CalculateIndicatorPositionFromCursor(int cursorx, int cur
 
 
         // If click is to the left of position this is the target
-        if(position.X > x) {
+        if(position.X + position.Width / 2 > x) {
             newPosition = i;
             break;
         }
