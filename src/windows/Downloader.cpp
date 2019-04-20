@@ -138,10 +138,20 @@ void Downloader::AddNetGallery(std::shared_ptr<NetGallery> gallery)
     }
 
     auto item = std::make_shared<DLListItem>(gallery);
+    auto isalive = GetAliveMarker();
 
-    // The item should always be destroyed before this
-    item->SetRemoveCallback(
-        std::bind(&Downloader::_OnRemoveListItem, this, std::placeholders::_1));
+    item->SetRemoveCallback([=](DLListItem& item) {
+        // User wants this gallery to be deleted
+        DualView::Get().QueueDBThreadFunction([gallery = item.GetGallery()]() {
+            if(gallery)
+                DualView::Get().GetDatabase().DeleteNetGallery(*gallery);
+        });
+
+        INVOKE_CHECK_ALIVE_MARKER(isalive);
+
+        _OnRemoveListItem(item);
+    });
+
 
     DLList.push_back(item);
 
@@ -154,7 +164,7 @@ void Downloader::_OnRemoveListItem(DLListItem& item)
 {
     auto alive = GetAliveMarker();
 
-    DualView::Get().InvokeFunction([=, toremove{&item}]() {
+    DualView::Get().InvokeFunction([=, toremove = &item]() {
         INVOKE_CHECK_ALIVE_MARKER(alive);
 
         for(auto iter = DLList.begin(); iter != DLList.end(); ++iter) {
@@ -253,8 +263,12 @@ void Downloader::_DLFinished(std::shared_ptr<DLListItem> item)
     std::promise<bool> done;
 
     DualView::Get().RunOnMainThread([&]() {
-        DualView::Get().QueueDBThreadFunction(
-            [gallery{item->GetGallery()}]() { gallery->SetIsDownload(true); });
+        DualView::Get().QueueDBThreadFunction([gallery = item->GetGallery()]() {
+            if(gallery->IsDeleted())
+                return;
+
+            gallery->SetIsDownload(true);
+        });
 
         _OnRemoveListItem(*item);
 
@@ -300,8 +314,8 @@ struct DV::DownloadProgressState {
         ENDED
     };
 
-    DownloadProgressState(Downloader* downloader, std::shared_ptr<DLListItem> listitem,
-        std::shared_ptr<NetGallery> gallery) :
+    DownloadProgressState(Downloader* downloader, const std::shared_ptr<DLListItem>& listitem,
+        const std::shared_ptr<NetGallery>& gallery) :
         Loader(downloader),
         Gallery(gallery), Widget(listitem)
     {
@@ -329,9 +343,30 @@ struct DV::DownloadProgressState {
         tags->AddTextTags(CurrentDLTags, ";");
     }
 
+    bool IsGalleryDeleted() const
+    {
+        return Gallery->IsDeleted();
+    }
+
+    void _DoAbort()
+    {
+        if(imagedl)
+            imagedl->SetAsFailed();
+
+        DeleteFiles();
+        Loader->_SetDLThreadStatus("Cancelled download due to it being deleted ", false, 0);
+    }
+
     //! \returns True once done
     bool Tick(std::shared_ptr<DownloadProgressState> us)
     {
+        // Abort if the user deleted this download
+        if(IsGalleryDeleted()) {
+
+            _DoAbort();
+            return true;
+        }
+
         switch(state) {
         case STATE::INITIAL: {
 
@@ -347,6 +382,7 @@ struct DV::DownloadProgressState {
         }
         case STATE::WAITING_FOR_DB: {
             Loader->_SetDLThreadStatus("Waiting on Database", true, 0.0f);
+
             if(ImageListReady) {
 
                 state = STATE::DOWNLOADING_IMAGES;
@@ -575,6 +611,12 @@ struct DV::DownloadProgressState {
                 tags.ReplaceWithText(Gallery->GetTagsString(), ";");
             }
 
+            // Don't attempt import if deleted (this is a check to make really sure)
+            if(IsGalleryDeleted()) {
+                _DoAbort();
+                return true;
+            }
+
             const auto result = DualView::Get().DualView::AddToCollection(DownloadedImages,
                 true, Gallery->GetTargetGalleryName(), tags, [&](float progress) {
                     Loader->_SetDLThreadStatus(
@@ -590,9 +632,11 @@ struct DV::DownloadProgressState {
             // Add to folder //
             VirtualPath path(Gallery->GetTargetPath());
 
-            if(!path.IsRootPath() && !Gallery->GetTargetGalleryName().empty() &&
+            if(!Gallery->GetTargetPath().empty() && !path.IsRootPath() &&
+                !Gallery->GetTargetGalleryName().empty() &&
                 Gallery->GetTargetGalleryName() !=
                     DualView::Get().GetUncategorized()->GetName()) {
+
                 DualView::Get().AddCollectionToFolder(DualView::Get().GetFolderFromPath(path),
                     DualView::Get().GetDatabase().SelectCollectionByNameAG(
                         Gallery->GetTargetGalleryName()));
@@ -603,15 +647,7 @@ struct DV::DownloadProgressState {
             }
 
             // Delete all the files //
-            for(const auto& file : LocalDLFiles) {
-
-                if(boost::filesystem::exists(file)) {
-
-                    LOG_INFO("Downloader: deleting left over file: " + file);
-                    boost::filesystem::remove(file);
-                }
-            }
-            LocalDLFiles.clear();
+            DeleteFiles();
 
             Loader->_SetDLThreadStatus(
                 "Finished Downloading: " + Gallery->GetTargetGalleryName(), false, 1.0f);
@@ -621,6 +657,19 @@ struct DV::DownloadProgressState {
         }
 
         return false;
+    }
+
+    void DeleteFiles()
+    {
+        for(const auto& file : LocalDLFiles) {
+
+            if(boost::filesystem::exists(file)) {
+
+                LOG_INFO("Downloader: deleting left over file: " + file);
+                boost::filesystem::remove(file);
+            }
+        }
+        LocalDLFiles.clear();
     }
 
     Downloader* Loader;

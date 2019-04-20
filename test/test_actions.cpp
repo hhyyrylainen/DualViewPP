@@ -7,6 +7,7 @@
 #include "resources/Collection.h"
 #include "resources/DatabaseAction.h"
 #include "resources/Image.h"
+#include "resources/NetGallery.h"
 
 using namespace DV;
 
@@ -439,5 +440,53 @@ TEST_CASE("Collection reorder can be undone", "[db][action]")
         CHECK(undo->Undo());
 
         CHECK(collection->GetImages() == std::vector<std::shared_ptr<Image>>{image1, image2});
+    }
+}
+
+TEST_CASE("NetGallery delete works", "[db][action]")
+{
+    DummyDualView dv;
+    TestDatabase db;
+
+    REQUIRE_NOTHROW(db.Init());
+
+    GUARD_LOCK_OTHER(db);
+    auto gallery = std::make_shared<NetGallery>("example.com", "test gallery");
+
+    db.InsertNetGallery(guard, gallery);
+    CHECK(db.SelectNetGalleryIDs(true).size() == 1);
+
+    CHECK(db.SelectNetGalleryByID(guard, gallery->GetID()));
+
+    auto undo = db.DeleteNetGallery(*gallery);
+
+    REQUIRE(undo);
+
+    CHECK(gallery->IsDeleted());
+    CHECK(db.SelectNetGalleryIDs(true).size() == 0);
+
+    SECTION("works normally")
+    {
+        CHECK(undo->Undo());
+
+        CHECK(!gallery->IsDeleted());
+        CHECK(db.SelectNetGalleryIDs(true).size() == 1);
+    }
+
+    SECTION("works after loading from DB")
+    {
+        const auto id = undo->GetID();
+        const auto oldPtr = undo.get();
+        undo.reset();
+
+        undo = db.SelectDatabaseActionByIDAG(id);
+        REQUIRE(undo);
+
+        CHECK(undo.get() != oldPtr);
+
+        CHECK(undo->Undo());
+
+        CHECK(!gallery->IsDeleted());
+        CHECK(db.SelectNetGalleryIDs(true).size() == 1);
     }
 }

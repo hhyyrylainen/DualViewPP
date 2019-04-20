@@ -247,6 +247,7 @@ ActionDisplay::ActionDisplay(const std::shared_ptr<DatabaseAction>& action) :
         "Loading description for action " + std::to_string(Action->GetID());
 
     Description.property_max_width_chars() = 80;
+    Description.property_wrap() = true;
     LeftSide.pack_start(Description, false, false);
 
     ResourcePreviews.property_vexpand() = true;

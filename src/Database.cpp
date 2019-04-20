@@ -3071,6 +3071,8 @@ bool Database::InsertNetGallery(LockT& guard, std::shared_ptr<NetGallery> galler
 
     DualView::Get().QueueDBThreadFunction(
         []() { DualView::Get().GetEvents().FireEvent(CHANGED_EVENT::NET_GALLERY_CREATED); });
+
+    LoadedNetGalleries.OnLoad(gallery);
     return true;
 }
 
@@ -3095,7 +3097,36 @@ void Database::UpdateNetGallery(NetGallery& gallery)
     statementobj.StepAll(statementinuse);
 }
 
-//
+std::shared_ptr<DatabaseAction> Database::DeleteNetGallery(NetGallery& gallery)
+{
+    if(!gallery.IsInDatabase() || gallery.IsDeleted())
+        return nullptr;
+
+    GUARD_LOCK();
+
+    // Create the action
+    auto action = std::make_shared<NetGalleryDeleteAction>(gallery.GetID());
+
+    InsertDatabaseAction(guard, *action);
+
+    if(!action->Redo()) {
+
+        LOG_ERROR("Database: freshly created action failed to Redo");
+        return nullptr;
+    }
+
+
+    auto casted = std::static_pointer_cast<DatabaseAction>(action);
+    LoadedDatabaseActions.OnLoad(casted);
+
+    if(casted.get() != action.get())
+        LOG_ERROR("Database: action got changed on store");
+
+    PurgeOldActionsUntilUnderLimit(guard);
+    return action;
+}
+
+// ------------------------------------ //
 // NetFile
 //
 std::vector<std::shared_ptr<NetFile>> Database::SelectNetFilesFromGallery(NetGallery& gallery)
@@ -3379,6 +3410,10 @@ void Database::InsertDatabaseAction(LockT& guard, DatabaseAction& action)
 {
     if(action.IsInDatabase())
         return;
+
+    // This, a bit dirty hack is done in order to have proper descriptions for actions in the
+    // DB
+    action.OnAdopted(-2, *this);
 
     RunSQLAsPrepared(guard,
         "INSERT INTO action_history (type, performed, json_data, description) "
@@ -4176,7 +4211,51 @@ void Database::UndoAction(CollectionReorderAction& action)
     GUARD_LOCK_OTHER_NAME(target, targetLock);
     target->NotifyAll(targetLock);
 }
+// ------------------------------------ //
+// NetGalleryDeleteAction
+void Database::RedoAction(NetGalleryDeleteAction& action)
+{
+    GUARD_LOCK();
 
+    // Mark the resource as deleted
+    const auto id = action.GetResourceToDelete();
+
+    RunSQLAsPrepared(guard, "UPDATE net_gallery SET deleted = 1 WHERE id = ?1;", id);
+
+    auto obj = LoadedNetGalleries.GetIfLoaded(id);
+    if(obj)
+        obj->_UpdateDeletedStatus(true);
+
+    _SetActionStatus(guard, action, true);
+}
+
+void Database::UndoAction(NetGalleryDeleteAction& action)
+{
+    GUARD_LOCK();
+
+    // Unmark the resource as deleted
+    const auto id = action.GetResourceToDelete();
+
+    RunSQLAsPrepared(guard, "UPDATE net_gallery SET deleted = NULL WHERE id = ?1;", id);
+
+    auto obj = LoadedNetGalleries.GetIfLoaded(id);
+    if(obj)
+        obj->_UpdateDeletedStatus(false);
+
+    _SetActionStatus(guard, action, false);
+}
+
+void Database::PurgeAction(NetGalleryDeleteAction& action)
+{
+    GUARD_LOCK();
+
+    // If this action is currently not performed no resources related to it should be deleted
+    if(!action.IsPerformed())
+        return;
+
+    // Permanently delete the images
+    _PurgeNetGalleries(guard, action.GetResourceToDelete());
+}
 
 // ------------------------------------ //
 // Row parsing functions
@@ -4413,6 +4492,29 @@ void Database::_PurgeImages(LockT& guard, const std::vector<DBID>& images)
         } else {
             LOG_WARNING("Database: purging non-existant image");
         }
+    }
+}
+
+void Database::_PurgeNetGalleries(LockT& guard, DBID gallery)
+{
+    auto loadedResource = SelectNetGalleryByID(guard, gallery);
+
+    if(loadedResource) {
+
+        if(loadedResource->IsDeleted()) {
+
+            loadedResource->_OnPurged();
+            LoadedNetGalleries.Remove(gallery);
+
+            RunSQLAsPrepared(guard, "DELETE FROM net_gallery WHERE id = ?1;", gallery);
+        } else {
+            LOG_INFO("Database: NetGallery was meant to be purged but it isn't marked as "
+                     "deleted, skipping, id: " +
+                     std::to_string(gallery));
+        }
+
+    } else {
+        LOG_WARNING("Database: purging non-existant NetGallery");
     }
 }
 

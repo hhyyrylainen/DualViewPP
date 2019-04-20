@@ -22,6 +22,7 @@ enum class DATABASE_ACTION_TYPE : int {
     ImageMerge,
     ImageRemovedFromCollection,
     CollectionReorder,
+    NetGalleryDelete,
     Invalid /* must be always last value */
 };
 
@@ -369,6 +370,47 @@ private:
 
     //! The stored old order for undo purposes
     std::vector<std::tuple<DBID, int64_t>> OldOrder;
+};
+
+
+//! \brief NetGallery was deleted (marked deleted)
+class NetGalleryDeleteAction final : public DatabaseAction {
+    friend Database;
+    friend std::shared_ptr<DatabaseAction> DatabaseAction::Create(
+        Database& db, DatabaseLockT& dblock, PreparedStatement& statement, DBID id);
+
+protected:
+    NetGalleryDeleteAction(
+        DBID id, Database& from, bool performed, const std::string& customdata);
+
+public:
+    //! This is public just to make std::make_shared work
+    //! \protected
+    NetGalleryDeleteAction(DBID resource);
+    ~NetGalleryDeleteAction();
+
+    DATABASE_ACTION_TYPE GetType() const override
+    {
+        return DATABASE_ACTION_TYPE::NetGalleryDelete;
+    }
+
+    const auto& GetResourceToDelete() const
+    {
+        return ResourceToDelete;
+    }
+
+    std::string GenerateDescription() const override;
+
+protected:
+    void _OnPurged() override;
+
+private:
+    void _Redo() override;
+    void _Undo() override;
+    void _SerializeCustomData(Json::Value& value) const override;
+
+private:
+    DBID ResourceToDelete;
 };
 
 } // namespace DV

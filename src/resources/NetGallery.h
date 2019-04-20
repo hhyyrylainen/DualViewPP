@@ -61,6 +61,8 @@ protected:
 //!
 //! Can be downloaded with DownloadManager
 class NetGallery : public DatabaseResource {
+    friend Database;
+
 public:
     //! \brief Constructor for creating new ones
     NetGallery(const std::string& url, const std::string& targetgallery);
@@ -72,57 +74,53 @@ public:
 
     auto GetGalleryURL() const
     {
-
         return GalleryURL;
     }
 
     auto GetTargetPath() const
     {
-
         return TargetPath;
     }
 
     auto GetTargetGalleryName() const
     {
-
         return TargetGalleryName;
     }
 
     auto GetCurrentlyScanned() const
     {
-
         return CurrentlyScanned;
     }
 
     auto GetIsDownloaded() const
     {
-
         return IsDownloaded;
     }
 
     auto GetTagsString() const
     {
-
         return TagsString;
+    }
+
+    bool IsDeleted() const
+    {
+        return Deleted;
     }
 
     void SetIsDownload(bool newdownloaded)
     {
-
         IsDownloaded = newdownloaded;
         OnMarkDirty();
     }
 
     void SetTags(const std::string& str)
     {
-
         TagsString = str;
         OnMarkDirty();
     }
 
     void SetTargetPath(const VirtualPath& path)
     {
-
         if(path.IsRootPath()) {
 
             TargetPath = "";
@@ -136,7 +134,6 @@ public:
 
     void SetTargetGalleryName(const std::string& newvalue)
     {
-
         TargetGalleryName = newvalue;
         OnMarkDirty();
     }
@@ -148,6 +145,13 @@ public:
 
 protected:
     void _DoSave(Database& db) override;
+
+    //! Called from Database
+    void _UpdateDeletedStatus(bool deleted)
+    {
+        Deleted = deleted;
+    }
+
 
 protected:
     std::string GalleryURL;
@@ -162,6 +166,9 @@ protected:
     bool IsDownloaded = false;
 
     std::string TagsString;
+
+    //! If true deleted from the database and everything should skip this
+    bool Deleted = false;
 };
 
 }; // namespace DV

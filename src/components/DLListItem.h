@@ -27,7 +27,6 @@ public:
 
     auto GetGallery() const
     {
-
         return Gallery;
     }
 

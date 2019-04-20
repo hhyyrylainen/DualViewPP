@@ -33,6 +33,7 @@ class ImageDeleteAction;
 class ImageMergeAction;
 class ImageDeleteFromCollectionAction;
 class CollectionReorderAction;
+class NetGalleryDeleteAction;
 
 class Tag;
 class AppliedTag;
@@ -73,6 +74,7 @@ class Database : public Leviathan::ThreadSafeRecursive {
     friend ImageMergeAction;
     friend ImageDeleteFromCollectionAction;
     friend CollectionReorderAction;
+    friend NetGalleryDeleteAction;
 
 public:
     //! \brief Normal database creation, uses the specified file
@@ -115,8 +117,6 @@ public:
     CREATE_NON_LOCKING_WRAPPER(UpdateImage);
 
     //! \brief Deletes an image from the database
-    //!
-    //! The image object's id will be set to -1
     //! \returns A database action that can undo the operation if it succeeded
     std::shared_ptr<DatabaseAction> DeleteImage(Image& image);
 
@@ -611,6 +611,10 @@ public:
 
     void UpdateNetGallery(NetGallery& gallery);
 
+    //! \brief Deletes n NetGallery from the database
+    //! \returns A database action that can undo the operation if it succeeded
+    std::shared_ptr<DatabaseAction> DeleteNetGallery(NetGallery& gallery);
+
     //
     // NetFile
     //
@@ -781,6 +785,10 @@ protected:
     void RedoAction(CollectionReorderAction& action);
     void UndoAction(CollectionReorderAction& action);
 
+    void RedoAction(NetGalleryDeleteAction& action);
+    void UndoAction(NetGalleryDeleteAction& action);
+    void PurgeAction(NetGalleryDeleteAction& action);
+
 protected:
     //! \brief Runs a command and prints all the result rows with column headers to log
     void PrintResultingRows(LockT& guard, sqlite3* db, const std::string& str);
@@ -889,6 +897,7 @@ private:
     void _SetActionStatus(LockT& guard, DatabaseAction& action, bool performed);
 
     void _PurgeImages(LockT& guard, const std::vector<DBID>& images);
+    void _PurgeNetGalleries(LockT& guard, DBID gallery);
 
     //
     // Utility stuff

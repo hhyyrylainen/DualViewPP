@@ -24,6 +24,7 @@ NetGallery::NetGallery(
     CheckRowID(statement, 4, "currently_scanned");
     CheckRowID(statement, 5, "is_downloaded");
     CheckRowID(statement, 6, "tags_string");
+    CheckRowID(statement, 7, "deleted");
 
     GalleryURL = statement.GetColumnAsString(1);
 
@@ -36,6 +37,8 @@ NetGallery::NetGallery(
     IsDownloaded = statement.GetColumnAsBool(5);
 
     TagsString = statement.GetColumnAsString(6);
+
+    Deleted = statement.GetColumnAsOptionalBool(7);
 }
 
 NetGallery::~NetGallery()

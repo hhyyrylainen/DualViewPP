@@ -39,14 +39,12 @@ public:
 
     const std::string& GetDownloadedBytes() const
     {
-
         return DownloadBytes;
     }
 
     //! Resets the state to allow retrying this download
     void Retry()
     {
-
         DownloadBytes.clear();
         HasFinished = false;
         HasSucceeded = true;
@@ -55,26 +53,22 @@ public:
 
     bool IsReady() const
     {
-
         return HasFinished;
     }
 
     bool HasFailed() const
     {
-
         return !HasSucceeded;
     }
 
     auto GetURL() const
     {
-
         return URL;
     }
 
     //! \brief Externally set this as failed
     void SetAsFailed()
     {
-
         HasSucceeded = false;
     }
 
@@ -83,7 +77,7 @@ protected:
     virtual void HandleError()
     {
         OnFinished(false);
-    };
+    }
 
     //! \brief Called from HandleContent or HandleError once finished
     virtual void OnFinished(bool success);
@@ -118,7 +112,6 @@ public:
 
     ScanResult& GetResult()
     {
-
         return Result;
     }
 
@@ -143,7 +136,6 @@ public:
 
     auto GetLocalFile() const
     {
-
         return LocalFile;
     }
 

@@ -3,6 +3,7 @@
 
 #include "resources/Collection.h"
 #include "resources/Image.h"
+#include "resources/NetGallery.h"
 #include "resources/ResourceWithPreview.h"
 
 #include "Database.h"
@@ -50,6 +51,9 @@ std::shared_ptr<DatabaseAction> DatabaseAction::Create(
                 id, db, statement.GetColumnAsBool(2), statement.GetColumnAsString(3)));
     case DATABASE_ACTION_TYPE::CollectionReorder:
         return std::shared_ptr<CollectionReorderAction>(new CollectionReorderAction(
+            id, db, statement.GetColumnAsBool(2), statement.GetColumnAsString(3)));
+    case DATABASE_ACTION_TYPE::NetGalleryDelete:
+        return std::shared_ptr<NetGalleryDeleteAction>(new NetGalleryDeleteAction(
             id, db, statement.GetColumnAsBool(2), statement.GetColumnAsString(3)));
     case DATABASE_ACTION_TYPE::Invalid:
         LOG_ERROR("DatabaseAction: from DB read type is DATABASE_ACTION_TYPE::Invalid");
@@ -715,3 +719,67 @@ void CollectionReorderAction::OpenEditingWindow()
         DualView::Get().GetDatabase().SelectCollectionByID(TargetCollection));
 }
 // ------------------------------------ //
+// ------------------------------------ //
+// NetGalleryDeleteAction
+NetGalleryDeleteAction::NetGalleryDeleteAction(DBID resource) : ResourceToDelete(resource) {}
+
+NetGalleryDeleteAction::NetGalleryDeleteAction(
+    DBID id, Database& from, bool performed, const std::string& customdata) :
+    DatabaseAction(id, from)
+{
+    Performed = performed;
+
+    std::stringstream sstream(customdata);
+
+    Json::CharReaderBuilder builder;
+    Json::Value value;
+    JSONCPP_STRING errs;
+
+    if(!parseFromStream(builder, sstream, &value, &errs))
+        throw InvalidArgument("invalid json:" + errs);
+
+    ResourceToDelete = value["resource"].asInt64();
+}
+
+NetGalleryDeleteAction::~NetGalleryDeleteAction()
+{
+    DBResourceDestruct();
+}
+// ------------------------------------ //
+void NetGalleryDeleteAction::_Redo()
+{
+    InDatabase->RedoAction(*this);
+}
+
+void NetGalleryDeleteAction::_Undo()
+{
+    InDatabase->UndoAction(*this);
+}
+
+void NetGalleryDeleteAction::_OnPurged()
+{
+    DatabaseAction::_OnPurged();
+    InDatabase->PurgeAction(*this);
+}
+
+void NetGalleryDeleteAction::_SerializeCustomData(Json::Value& value) const
+{
+    value["resource"] = ResourceToDelete;
+}
+// ------------------------------------ //
+std::string NetGalleryDeleteAction::GenerateDescription() const
+{
+    std::stringstream description;
+
+    description << "Deleted download (" << ResourceToDelete << ")";
+
+    if(InDatabase) {
+        auto gallery = InDatabase->SelectNetGalleryByIDAG(ResourceToDelete);
+
+        if(gallery)
+            description << " from '" << gallery->GetGalleryURL() << "' to '"
+                        << gallery->GetTargetGalleryName() << "'";
+    }
+
+    return description.str();
+}
