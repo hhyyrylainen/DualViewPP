@@ -47,24 +47,19 @@ void SuperViewer::_CommonCtor()
     // Event registration //
     if((int)Events & (int)ENABLED_EVENTS::DRAG || (int)Events & (int)ENABLED_EVENTS::POPUP) {
 
-        add_events(Gdk::BUTTON_PRESS_MASK);
-
-        signal_button_press_event().connect(
-            sigc::mem_fun(*this, &SuperViewer::_OnMouseButtonPressed));
-    }
-
-    if((int)Events & (int)ENABLED_EVENTS::DRAG) {
-
-        add_events(Gdk::POINTER_MOTION_MASK | Gdk::BUTTON_RELEASE_MASK);
-
-        signal_motion_notify_event().connect(sigc::mem_fun(*this, &SuperViewer::_OnMouseMove));
+        // The release and motion events needs to be able to propagate to a containing widget
+        // so when enabling one of these all of them must be enabled
+        add_events(
+            Gdk::BUTTON_PRESS_MASK | Gdk::BUTTON_RELEASE_MASK | Gdk::POINTER_MOTION_MASK);
 
         signal_button_press_event().connect(
             sigc::mem_fun(*this, &SuperViewer::_OnMouseButtonPressed));
         signal_button_release_event().connect(
             sigc::mem_fun(*this, &SuperViewer::_OnMouseButtonReleased));
+        signal_motion_notify_event().connect(sigc::mem_fun(*this, &SuperViewer::_OnMouseMove));
     }
 
+    // TODO: check do also these event need to enable everything
     if((int)Events & (int)ENABLED_EVENTS::SCROLL) {
 
         add_events(Gdk::SCROLL_MASK);
@@ -594,6 +589,7 @@ bool SuperViewer::_OnMouseMove(GdkEventMotion* motion_event)
 
             DoingDrag = true;
             OffsetBeforeDrag = BaseOffset;
+            return true;
         }
     }
 
@@ -606,9 +602,10 @@ bool SuperViewer::_OnMouseMove(GdkEventMotion* motion_event)
         BaseOffset += (mousePos - DragStartPos);
 
         queue_draw();
+        return true;
     }
 
-    return true;
+    return false;
 }
 
 bool SuperViewer::_OnMouseButtonPressed(GdkEventButton* event)
@@ -623,7 +620,6 @@ bool SuperViewer::_OnMouseButtonPressed(GdkEventButton* event)
 
         if((int)Events & (int)ENABLED_EVENTS::POPUP) {
 
-            LOG_WRITE("Double click");
             OpenImageInNewWindow();
             return true;
         }
@@ -650,7 +646,6 @@ bool SuperViewer::_OnMouseButtonReleased(GdkEventButton* event)
         if(!DoingDrag) {
 
             // Single click //
-            LOG_WRITE("Single click");
         }
 
         DoingDrag = false;

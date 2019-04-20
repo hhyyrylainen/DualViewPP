@@ -14,8 +14,6 @@ ListItem::ListItem(std::shared_ptr<Image> showimage, const std::string& name,
         true),
     Selectable(selectable)
 {
-    // This above child property is needed for some reason to get mouse up events
-    Events.property_above_child() = true;
     add(Events);
     Events.add(Container);
     Events.show();
@@ -161,6 +159,8 @@ bool ListItem::_OnMouseButtonPressed(GdkEventButton* event)
     // Double click
     if(event->type == GDK_2BUTTON_PRESS && event->button == 1) {
 
+        MouseDown = false;
+
         if(Selectable->UsesCustomPopup) {
 
             _DoPopup();
@@ -183,8 +183,6 @@ bool ListItem::_OnMouseButtonPressed(GdkEventButton* event)
             SetSelected(!CurrentlySelected);
             return true;
         }
-
-        return true;
 
     } else if(event->button == 3) {
 
@@ -220,8 +218,6 @@ bool ListItem::_OnMouseMove(GdkEventMotion* motion_event)
 
         if(moved > StartDragAfter && Selectable && Selectable->DragInformation) {
 
-            LOG_INFO("Starting drag from ListItem");
-
             drag_begin(Gtk::TargetList::create(Selectable->DragInformation->GetDragTypes()),
                 Gdk::DragAction::ACTION_COPY, motion_event->state,
                 reinterpret_cast<GdkEvent*>(motion_event), motion_event->x, motion_event->y);
@@ -230,15 +226,15 @@ bool ListItem::_OnMouseMove(GdkEventMotion* motion_event)
 
             if(Active && Selectable && Selectable->Selectable) {
 
-                SetSelected(!CurrentlySelected);
-                return true;
+                // Force to be selected when dragging
+                SetSelected(true);
             }
 
             return true;
         }
     }
 
-    return false;
+    return true;
 }
 
 void ListItem::_OnDragDataGet(const Glib::RefPtr<Gdk::DragContext>& context,
