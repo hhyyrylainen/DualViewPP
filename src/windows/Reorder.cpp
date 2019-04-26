@@ -362,18 +362,32 @@ bool ReorderWindow::PerformAction(HistoryItem& action)
     // Items in the mainlist are not deleted, only marked inactive.
     // Unless the move is within the main list
     if(action.MovedFrom != MOVE_GROUP::MainList || action.MoveTo == MOVE_GROUP::MainList) {
-        // Remove the old items while trying to keep the insert point correct
-        for(const auto& image : action.ImagesToMove) {
 
-            for(size_t i = 0; i < source.size(); ++i) {
+        if(action.MovedFrom != action.MoveTo) {
+            source.erase(std::remove_if(source.begin(), source.end(),
+                             [&](const std::shared_ptr<Image>& image) {
+                                 return std::find(action.ImagesToMove.begin(),
+                                            action.ImagesToMove.end(),
+                                            image) != action.ImagesToMove.end();
+                             }),
+                source.end());
+        } else {
 
-                if(source[i] == image) {
+            // Remove the old items while trying to keep the insert point correct
+            for(const auto& image : action.ImagesToMove) {
 
-                    if(i < insertPoint)
-                        --insertPoint;
+                for(size_t i = 0; i < source.size();) {
 
-                    source.erase(source.begin() + i);
-                    break;
+                    if(source[i] == image) {
+
+                        if(i < insertPoint)
+                            --insertPoint;
+
+                        source.erase(source.begin() + i);
+
+                    } else {
+                        ++i;
+                    }
                 }
             }
         }
@@ -402,14 +416,22 @@ bool ReorderWindow::PerformAction(HistoryItem& action)
             }
         }
 
-        // Remove from main list
-        target.erase(std::remove_if(target.begin(), target.end(),
-                         [&](const std::shared_ptr<Image>& image) {
-                             return std::find(action.ImagesToMove.begin(),
-                                        action.ImagesToMove.end(),
-                                        image) != action.ImagesToMove.end();
-                         }),
-            target.end());
+        // Remove from main list while preserving insert position
+        for(const auto& image : action.ImagesToMove) {
+
+            for(size_t i = 0; i < target.size();) {
+
+                if(target[i] == image) {
+
+                    if(i < insertPoint)
+                        --insertPoint;
+
+                    target.erase(target.begin() + i);
+                } else {
+                    ++i;
+                }
+            }
+        }
 
         // Remove from inactive
         InactiveItems.erase(std::remove_if(InactiveItems.begin(), InactiveItems.end(),
