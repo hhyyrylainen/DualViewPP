@@ -13,6 +13,8 @@ set_target_properties(ThirdParty PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 target_include_directories(ThirdParty PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
+# Try to force Leviathan to not use dependencies
+option(LEVIATHAN_AS_LIBRARY "DO NOT CHANGE THIS OPTION" ON)
 set(LEVIATHAN_AS_LIBRARY ON)
 set(BUILD_TESTS OFF)
 add_subdirectory(Leviathan)
