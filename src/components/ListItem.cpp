@@ -208,8 +208,8 @@ bool ListItem::_OnMouseButtonReleased(GdkEventButton* event)
 
 bool ListItem::_OnMouseMove(GdkEventMotion* motion_event)
 {
-    if(!(motion_event->state & Gdk::BUTTON_MOTION_MASK))
-        return false;
+    // There was a check here for (motion_event->state & Gdk::BUTTON_MOTION_MASK) but for some
+    // reason that didn't work on my laptop, so now it's gone to fix drag&drop there.
 
     if(!MouseDown || !Active)
         return false;
