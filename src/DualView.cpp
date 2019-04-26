@@ -2640,10 +2640,10 @@ std::string DualView::MakePathUniqueAndShort(const std::string& path)
 std::string DualView::CalculateBase64EncodedHash(const std::string& str)
 {
     // Calculate sha256 hash //
-    CryptoPP::byte digest[CryptoPP::SHA256::DIGESTSIZE];
+    unsigned char digest[CryptoPP::SHA256::DIGESTSIZE];
 
     CryptoPP::SHA256().CalculateDigest(
-        digest, reinterpret_cast<const CryptoPP::byte*>(str.data()), str.length());
+        digest, reinterpret_cast<const unsigned char*>(str.data()), str.length());
 
     static_assert(sizeof(digest) == CryptoPP::SHA256::DIGESTSIZE, "sizeof funkyness");
 
