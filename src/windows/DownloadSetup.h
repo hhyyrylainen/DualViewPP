@@ -71,7 +71,8 @@ public:
     void OnInvalidateURL();
 
     //! \brief Adds a page to scan when looking for images
-    void AddSubpage(const std::string& url);
+    //! \param suppressupdate If true the list of links is not updated
+    void AddSubpage(const std::string& url, bool suppressupdate = false);
 
     //! \brief Starts page scanning if not currently running
     void StartPageScanning();
@@ -160,6 +161,15 @@ protected:
     //! User touched our "toggle full view" button
     bool _FullViewToggled(bool state);
 
+    //! Updates the links in the found links tab
+    void _UpdateFoundLinks();
+
+    void _CopyToClipboard();
+    //! \todo This has problems with special characters as they get URL encoded even when they
+    //! shouldn't be. A fix is to somehow mark these URLs as already good
+    //! \todo This should also check that things are URLs
+    void _LoadFromClipboard();
+
 private:
     //! Main state, controls what buttons can be pressed
     //! \todo When changed queue a "set sensitive" task on the main thread
@@ -183,6 +193,12 @@ private:
     std::string CurrentlyCheckedURL;
 
 
+    // Previous stored size when going to small size
+    int PreviousWidth = 1;
+    int PreviousHeight = 1;
+
+    Gtk::HeaderBar* HeaderBar;
+
     Gtk::Button* OKButton;
     Gtk::Label* MainStatusLabel;
 
@@ -197,6 +213,7 @@ private:
     SuperViewer* CurrentImage;
 
     Gtk::Notebook* WindowTabs;
+    Gtk::ButtonBox* BottomButtons;
 
     // Url entry
     Gtk::Entry* URLEntry;
@@ -236,6 +253,11 @@ private:
 
 
     Gtk::Button* SelectAllImagesButton;
+
+    // List of all links
+    Gtk::Box* FoundLinksBox;
+    Gtk::Button* CopyToClipboard;
+    Gtk::Button* LoadFromClipboard;
 
 
 private:

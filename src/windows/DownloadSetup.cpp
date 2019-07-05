@@ -27,6 +27,9 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
 {
     signal_delete_event().connect(sigc::mem_fun(*this, &BaseWindow::_OnClosed));
 
+    BUILDER_GET_WIDGET(HeaderBar);
+    BUILDER_GET_WIDGET(BottomButtons);
+
     builder->get_widget_derived("ImageDLSelector", ImageSelection);
     LEVIATHAN_ASSERT(ImageSelection, "Invalid .glade file");
 
@@ -72,6 +75,7 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     BUILDER_GET_WIDGET(PageScanSpinner);
 
     BUILDER_GET_WIDGET(CurrentScanURL);
+    CurrentScanURL->property_label() = "";
 
     BUILDER_GET_WIDGET(PageScanProgress);
 
@@ -128,14 +132,20 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     ActiveAsAddTarget->signal_state_set().connect(
         sigc::mem_fun(*this, &DownloadSetup::_AddActivePressed), false);
 
-
-    BUILDER_GET_WIDGET(WindowTabs);
-
     BUILDER_GET_WIDGET(ShowFullControls);
 
     // Need to override the default handler otherwise this isn't called
     ShowFullControls->signal_state_set().connect(
         sigc::mem_fun(*this, &DownloadSetup::_FullViewToggled), false);
+
+    BUILDER_GET_WIDGET(FoundLinksBox);
+    BUILDER_GET_WIDGET(CopyToClipboard);
+    CopyToClipboard->signal_clicked().connect(
+        sigc::mem_fun(*this, &DownloadSetup::_CopyToClipboard));
+
+    BUILDER_GET_WIDGET(LoadFromClipboard);
+    LoadFromClipboard->signal_clicked().connect(
+        sigc::mem_fun(*this, &DownloadSetup::_LoadFromClipboard));
 
     // Set all the editor controls read only
     _UpdateWidgetStates();
@@ -345,7 +355,7 @@ void DownloadSetup::OnUserAcceptSettings()
         window->set_cursor(Gdk::Cursor::create(window->get_display(), Gdk::WATCH));
 }
 // ------------------------------------ //
-void DownloadSetup::AddSubpage(const std::string& url)
+void DownloadSetup::AddSubpage(const std::string& url, bool suppressupdate /*= false*/)
 {
     for(const auto& existing : PagesToScan) {
 
@@ -354,6 +364,9 @@ void DownloadSetup::AddSubpage(const std::string& url)
     }
 
     PagesToScan.push_back(url);
+
+    if(!suppressupdate)
+        _UpdateFoundLinks();
 }
 
 void DownloadSetup::OnFoundContent(const ScanFoundImage& content)
@@ -573,18 +586,25 @@ void DownloadSetup::_OnActiveSlotStolen(DownloadSetup* stealer)
 bool DownloadSetup::_FullViewToggled(bool state)
 {
     if(state) {
-
         // Show everyhing //
         WindowTabs->show();
+        BottomButtons->show();
+
+        // The height is also here through trial and error
+        resize(PreviousWidth - 55, PreviousHeight - 99);
 
     } else {
 
+        PreviousWidth = get_allocated_width();
+        PreviousHeight = get_allocated_height();
+
         // Hide everything //
         WindowTabs->hide();
+        BottomButtons->hide();
 
-        // Resize to minimum size //
-        // TODO: could remember this size when toggled back
-        resize(get_width(), 1);
+        // Resize to minimum height //
+        // No clue why this 55 is needed here, this was adjusted through trial and error
+        resize(PreviousWidth - 55, 1);
     }
 
     return false;
@@ -773,10 +793,12 @@ void DownloadSetup::OnURLChanged()
                     ScanResult& result = scan->GetResult();
 
                     // Add the main page //
-                    AddSubpage(str);
+                    AddSubpage(str, true);
 
                     for(const auto& page : result.PageLinks)
-                        AddSubpage(page);
+                        AddSubpage(page, true);
+
+                    _UpdateFoundLinks();
 
                     // Set the title //
                     if(!result.PageTitle.empty())
@@ -929,7 +951,9 @@ void DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
 
         // Add new subpages //
         for(const auto& page : data->Scans.PageLinks)
-            setup->AddSubpage(page);
+            setup->AddSubpage(page, true);
+
+        setup->_UpdateFoundLinks();
 
         setup->PageScanProgress->set_value(1.0);
         setup->_SetState(DownloadSetup::STATE::URL_OK);
@@ -1074,6 +1098,8 @@ void DownloadSetup::_UpdateWidgetStates()
         RemoveSelected->set_sensitive(false);
     }
 
+    LoadFromClipboard->set_sensitive(State != STATE::SCANNING_PAGES);
+
     switch(State) {
     case STATE::CHECKING_URL: {
 
@@ -1092,6 +1118,8 @@ void DownloadSetup::_UpdateWidgetStates()
 
             PageRangeLabel->set_text("1-" + Convert::ToString(PagesToScan.size()));
         }
+
+        _UpdateFoundLinks();
 
         // Update main status //
         UpdateReadyStatus();
@@ -1142,4 +1170,120 @@ void DownloadSetup::_DoQuickSwapPages()
 
         WindowTabs->set_current_page(0);
     }
+}
+
+void DownloadSetup::_UpdateFoundLinks()
+{
+    if(!DualView::Get().IsOnMainThread()) {
+
+        const auto alive = GetAliveMarker();
+        DualView::Get().InvokeFunction([=]() {
+            INVOKE_CHECK_ALIVE_MARKER(alive);
+
+            this->_UpdateFoundLinks();
+        });
+
+        return;
+    }
+
+    std::vector<std::string> existingLinks;
+    const auto children = FoundLinksBox->get_children();
+    existingLinks.reserve(children.size());
+
+
+    for(Gtk::Widget* child : children) {
+        const Glib::ustring uri = static_cast<const Gtk::LinkButton*>(child)->property_uri();
+
+        bool good = false;
+
+        for(const auto& page : PagesToScan) {
+            if(page == uri) {
+                good = true;
+                break;
+            }
+        }
+
+        if(good) {
+            existingLinks.push_back(uri);
+
+        } else {
+            FoundLinksBox->remove(*child);
+            delete child;
+        }
+    }
+
+    for(const auto& page : PagesToScan) {
+
+        bool exists = false;
+
+        for(const auto& existing : existingLinks) {
+            if(existing == page) {
+                exists = true;
+                break;
+            }
+        }
+
+        if(!exists) {
+
+            Glib::ustring uri = page;
+
+            auto* button =
+                Glib::wrap(reinterpret_cast<GtkLinkButton*>(gtk_link_button_new(uri.c_str())));
+
+
+            // Doesn't work with my version of gtk (linking fails)
+            // Gtk::LinkButton* button = Gtk::make_managed<Gtk::LinkButton>(page);
+            // Linking fails with this
+            // FoundLinksBox->add(*Gtk::manage(new Gtk::LinkButton(page)));
+            FoundLinksBox->add(*Gtk::manage(button));
+            button->show();
+        }
+    }
+}
+// ------------------------------------ //
+void DownloadSetup::_CopyToClipboard()
+{
+    // TODO: maybe having them as URIs would be better
+    std::stringstream text;
+
+    bool first = true;
+    for(const auto& page : PagesToScan) {
+        if(!first)
+            text << "\n";
+        first = false;
+        text << page;
+    }
+
+    Gtk::Clipboard::get()->set_text(text.str());
+}
+
+void DownloadSetup::_LoadFromClipboard()
+{
+    const std::string text = Gtk::Clipboard::get()->wait_for_text();
+
+    if(text.empty()) {
+        LOG_INFO("Clipboard is empty or has no text");
+        return;
+    }
+    std::vector<std::string> lines;
+    Leviathan::StringOperations::CutLines(text, lines);
+
+    for(auto& line : lines) {
+
+        Leviathan::StringOperations::RemovePreceedingTrailingSpaces(line);
+
+        if(line.empty())
+            continue;
+
+        LOG_INFO("Adding URL: " + line);
+        AddSubpage(line, true);
+    }
+
+    _UpdateFoundLinks();
+
+    // Update image counts and stuff //
+    UpdateReadyStatus();
+
+    if(State == STATE::URL_CHANGED)
+        _SetState(STATE::URL_OK);
 }
