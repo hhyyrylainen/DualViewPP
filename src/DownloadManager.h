@@ -13,7 +13,7 @@
 
 namespace DV {
 
-constexpr auto PAGE_SCAN_RETRIES = 5;
+constexpr auto PAGE_SCAN_RETRIES = 6;
 
 class DownloadManager;
 

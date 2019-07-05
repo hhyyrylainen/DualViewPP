@@ -299,9 +299,12 @@ void DownloadJob::DoDownload(DownloadManager& manager)
 
                 if(httpcode == 429) {
 
+                    int sleepTime = 2 + (i * 5);
+
                     LOG_WARNING("Got slow down status code (429). "
-                                "Waiting 2 seconds before retry");
-                    std::this_thread::sleep_for(std::chrono::seconds(2));
+                                "Waiting " +
+                                std::to_string(sleepTime) + " seconds before retry");
+                    std::this_thread::sleep_for(std::chrono::seconds(sleepTime));
                 }
 
             dlretrylabel:
