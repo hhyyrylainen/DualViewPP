@@ -753,9 +753,19 @@ void DownloadSetup::OnURLChanged()
 
         auto alive = GetAliveMarker();
 
-        scan->SetFinishCallback([=](DownloadJob& job, bool success) {
+        scan->SetFinishCallback([this, alive, weakScan = std::weak_ptr<PageScanJob>(scan), str,
+                                    singleImagePage](DownloadJob& job, bool success) {
+            auto scan = weakScan.lock();
+
             DualView::Get().InvokeFunction([=]() {
                 INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                if(!scan) {
+
+                    LOG_ERROR("Scan object is dead, failing scan");
+                    UrlCheckFinished(false, "URL scanning failed (scan object is dead)");
+                    return;
+                }
 
                 // Store the pages //
                 if(success) {
