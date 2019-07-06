@@ -150,6 +150,9 @@ protected:
     void _UpdateDeletedStatus(bool deleted)
     {
         Deleted = deleted;
+
+        GUARD_LOCK();
+        NotifyAll(guard);
     }
 
 

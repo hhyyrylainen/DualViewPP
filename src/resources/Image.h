@@ -234,12 +234,18 @@ protected:
     void _UpdateDeletedStatus(bool deleted)
     {
         Deleted = deleted;
+
+        GUARD_LOCK();
+        NotifyAll(guard);
     }
 
     //! Called from Database
     void _UpdateMergedStatus(bool merged)
     {
         Merged = merged;
+
+        GUARD_LOCK();
+        NotifyAll(guard);
     }
 
 

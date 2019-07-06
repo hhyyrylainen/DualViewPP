@@ -40,6 +40,10 @@ public:
     //! \brief Called to update the current image number in Collection
     void UpdateImageNumber();
 
+    //! \brief Deletes or undeletes the current image
+    //! \todo This could be moved to a background thread to make this less jarring
+    void ToggleDeletedOfCurrentImage();
+
     //! \brief Called when the shown image changes properties
     void OnNotified(
         Lock& ownlock, Leviathan::BaseNotifierAll* parent, Lock& parentlock) override;
@@ -50,6 +54,8 @@ protected:
     void _LoadImageInfo();
 
     void OpenImporter();
+
+    void UpdateDeleteButton();
 
 private:
     SuperViewer* ImageView;
@@ -67,6 +73,7 @@ private:
     Gtk::ToolButton EditTagsButton;
     Gtk::ToolButton ShowImageInfoButton;
     Gtk::ToolButton OpenInImporterButton;
+    Gtk::ToolButton DeleteImageButton;
 };
 
 } // namespace DV

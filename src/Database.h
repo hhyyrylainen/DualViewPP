@@ -125,6 +125,10 @@ public:
     //! accurate that this doesn't do anything yet
     std::shared_ptr<ImageDeleteAction> CreateDeleteImageAction(LockT& guard, Image& image);
 
+    //! \brief Finds the newest ImageDeleteAction that contains the image
+    std::shared_ptr<ImageDeleteAction> SelectImageDeleteActionForImage(
+        Image& image, bool performed);
+
     //! \brief Retrieves an Image based on the hash
     //! \todo All callers need to check if the image is deleted or not
     std::shared_ptr<Image> SelectImageByHash(LockT& guard, const std::string& hash);

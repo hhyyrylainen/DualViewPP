@@ -1,6 +1,7 @@
 // ------------------------------------ //
 #include "SingleView.h"
 
+#include "resources/DatabaseAction.h"
 #include "resources/Image.h"
 #include "resources/Tags.h"
 
@@ -9,6 +10,7 @@
 #include "components/TagEditor.h"
 
 #include "Common.h"
+#include "Database.h"
 #include "DualView.h"
 #include "Exceptions.h"
 
@@ -53,6 +55,8 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     ImageToolbar->append(EditTagsButton);
     ImageToolbar->append(ShowImageInfoButton);
     ImageToolbar->append(OpenInImporterButton);
+    ImageToolbar->append(DeleteImageButton);
+
 
     ImageToolbar->show_all_children();
 
@@ -64,6 +68,11 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     OpenInImporterButton.signal_clicked().connect(
         sigc::mem_fun(*this, &SingleView::OpenImporter));
+
+    DeleteImageButton.signal_clicked().connect(
+        sigc::mem_fun(*this, &SingleView::ToggleDeletedOfCurrentImage));
+
+    DeleteImageButton.hide();
 
     // This just doesn't want to work and it seems to be because Toolbar items don't have
     // activate signal
@@ -107,6 +116,7 @@ void SingleView::Open(std::shared_ptr<Image> image, std::shared_ptr<ImageListScr
     ImageView->SetImageList(scroll);
     ImageView->RegisterSetImageNotify([&]() {
         DualView::IsOnMainThreadAssert();
+        UpdateDeleteButton();
         UpdateImageNumber();
 
         // Update properties //
@@ -121,12 +131,20 @@ void SingleView::Open(std::shared_ptr<Image> image, std::shared_ptr<ImageListScr
 
     UpdateImageNumber();
     OnTagsUpdated(guard);
+    UpdateDeleteButton();
 }
 // ------------------------------------ //
 void SingleView::OnNotified(
     Lock& ownlock, Leviathan::BaseNotifierAll* parent, Lock& parentlock)
 {
     OnTagsUpdated(ownlock);
+    UpdateDeleteButton();
+
+    // Update properties //
+    if(ImageProperties->get_visible()) {
+
+        _LoadImageInfo();
+    }
 }
 
 void SingleView::OnTagsUpdated(Lock& guard)
@@ -141,8 +159,14 @@ void SingleView::OnTagsUpdated(Lock& guard)
 
     } else {
 
-        ImageSize->set_text(
-            Convert::ToString(img->GetWidth()) + "x" + Convert::ToString(img->GetHeight()));
+        std::string extra;
+
+        if(img->IsInDatabase() && img->IsDeleted()) {
+            extra = " [DELETED]";
+        }
+
+        ImageSize->set_text(Convert::ToString(img->GetWidth()) + "x" +
+                            Convert::ToString(img->GetHeight()) + extra);
     }
 
     auto tags = img ? img->GetTags() : nullptr;
@@ -153,8 +177,12 @@ void SingleView::OnTagsUpdated(Lock& guard)
     }
 
     // Start listening for changes on the image //
-    if(!IsConnectedTo(img.get(), guard))
+    if(!IsConnectedTo(img.get(), guard)) {
+        // Clear the old ones
+        ReleaseParentHooks(guard);
+
         ConnectToNotifier(guard, img.get());
+    }
 
     if(!tags) {
 
@@ -223,6 +251,70 @@ void SingleView::UpdateImageNumber()
                 set_title(title + " | DualView++");
             });
         });
+    }
+}
+// ------------------------------------ //
+void SingleView::UpdateDeleteButton()
+{
+    auto img = ImageView->GetImage();
+
+    if(!img) {
+        DeleteImageButton.property_sensitive() = false;
+        return;
+    }
+
+    DeleteImageButton.property_sensitive() = true;
+
+
+    if(img->IsInDatabase()) {
+
+        DeleteImageButton.property_visible() = true;
+
+        if(!img->IsDeleted()) {
+            DeleteImageButton.property_label() = "Delete Image";
+        } else {
+            DeleteImageButton.property_label() = "Restore Image";
+        }
+
+    } else {
+
+        DeleteImageButton.property_visible() = false;
+    }
+}
+
+void SingleView::ToggleDeletedOfCurrentImage()
+{
+    auto img = ImageView->GetImage();
+
+    if(!img || !img->IsInDatabase())
+        return;
+
+    try {
+        if(!img->IsDeleted()) {
+            DualView::Get().GetDatabase().DeleteImage(*img);
+        } else {
+            auto action =
+                DualView::Get().GetDatabase().SelectImageDeleteActionForImage(*img, true);
+
+            if(!action)
+                throw Exception("No action to undo found. Check the Undo window to see what "
+                                "has deleted this image.");
+
+            if(!action->Undo())
+                throw Exception("Action undo failed");
+        }
+    } catch(const Exception& e) {
+
+        Gtk::Window* parent = dynamic_cast<Gtk::Window*>(this->get_toplevel());
+
+        if(!parent)
+            return;
+
+        auto dialog = Gtk::MessageDialog(*parent, "Deleting / restoring the image failed",
+            false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_CLOSE, true);
+
+        dialog.set_secondary_text("Error: " + std::string(e.what()));
+        dialog.run();
     }
 }
 // ------------------------------------ //

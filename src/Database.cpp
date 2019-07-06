@@ -444,7 +444,37 @@ std::shared_ptr<ImageDeleteAction> Database::CreateDeleteImageAction(
     PurgeOldActionsUntilUnderLimit(guard);
     return action;
 }
+// ------------------------------------ //
+std::shared_ptr<ImageDeleteAction> Database::SelectImageDeleteActionForImage(
+    Image& image, bool performed)
+{
+    GUARD_LOCK();
 
+    const char str[] = "SELECT * FROM action_history WHERE json_data LIKE ?1 AND type = ?2 "
+                       "AND performed = ?3 ORDER BY id DESC;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup("%" + std::to_string(image.GetID()) + "%",
+        static_cast<int>(DATABASE_ACTION_TYPE::ImageDelete), performed ? 1 : 0);
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        auto action = std::dynamic_pointer_cast<ImageDeleteAction>(
+            _LoadDatabaseActionFromRow(guard, statementobj));
+
+        if(!action)
+            continue;
+
+        if(std::find(action->GetImagesToDelete().begin(), action->GetImagesToDelete().end(),
+               image.GetID()) != action->GetImagesToDelete().end()) {
+            return action;
+        }
+    }
+
+    return nullptr;
+}
+// ------------------------------------ //
 DBID Database::SelectImageIDByHash(LockT& guard, const std::string& hash)
 {
     const char str[] = "SELECT id FROM pictures WHERE file_hash = ?1;";
