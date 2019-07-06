@@ -150,6 +150,10 @@ protected:
     //! \brief Switches between image slect and main page
     void _DoQuickSwapPages();
 
+    void _DoDetargetAndCollapse();
+
+    void _DoSelectAllAndOK();
+
     //! Updates the images whose tags are edited
     void UpdateEditedImages();
 
@@ -200,6 +204,7 @@ private:
     Gtk::HeaderBar* HeaderBar;
 
     Gtk::Button* OKButton;
+    Gtk::Button* SelectAllAndOK;
     Gtk::Label* MainStatusLabel;
 
 

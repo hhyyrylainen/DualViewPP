@@ -31,6 +31,8 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <accelerator key="l" signal="activate" modifiers="GDK_CONTROL_MASK"/>
+            <accelerator key="t" signal="activate" modifiers="GDK_MOD1_MASK"/>
+            <accelerator key="t" signal="activate" modifiers="GDK_CONTROL_MASK"/>
           </object>
           <packing>
             <property name="position">1</property>
@@ -52,6 +54,7 @@
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="active">True</property>
+            <accelerator key="f" signal="activate" modifiers="GDK_MOD1_MASK"/>
           </object>
           <packing>
             <property name="position">3</property>
@@ -77,10 +80,11 @@
         </child>
         <child>
           <object class="GtkButton" id="SelectAllImagesButton">
-            <property name="label" translatable="yes">Select All Images</property>
+            <property name="label" translatable="yes">Select _All Images</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="receives_default">True</property>
+            <property name="use_underline">True</property>
             <accelerator key="a" signal="activate" modifiers="GDK_CONTROL_MASK"/>
           </object>
           <packing>
@@ -970,14 +974,36 @@
               </packing>
             </child>
             <child>
-              <placeholder/>
+              <object class="GtkButton" id="DetargetAndCollapse">
+                <property name="label" translatable="yes">Detarget and Collapse</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
             </child>
             <child>
-              <placeholder/>
+              <object class="GtkButton" id="SelectAllAndOK">
+                <property name="label" translatable="yes">_Select All and OK</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_underline">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="pack_type">end</property>
+                <property name="position">2</property>
+              </packing>
             </child>
           </object>
           <packing>
-            <property name="expand">False</property>
+            <property name="expand">True</property>
             <property name="fill">True</property>
             <property name="position">1</property>
           </packing>

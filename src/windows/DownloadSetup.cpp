@@ -117,6 +117,16 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     QuickSwapPages->signal_clicked().connect(
         sigc::mem_fun(*this, &DownloadSetup::_DoQuickSwapPages));
 
+    Gtk::Button* DetargetAndCollapse;
+    BUILDER_GET_WIDGET(DetargetAndCollapse);
+    DetargetAndCollapse->signal_clicked().connect(
+        sigc::mem_fun(*this, &DownloadSetup::_DoDetargetAndCollapse));
+
+    BUILDER_GET_WIDGET(SelectAllAndOK);
+    SelectAllAndOK->signal_clicked().connect(
+        sigc::mem_fun(*this, &DownloadSetup::_DoSelectAllAndOK));
+
+
     BUILDER_GET_WIDGET(RemoveSelected);
     RemoveSelected->signal_clicked().connect(
         sigc::mem_fun(*this, &DownloadSetup::RemoveSelectedImages));
@@ -1067,6 +1077,7 @@ void DownloadSetup::_UpdateWidgetStates()
         CurrentImageEditor->set_sensitive(true);
         CurrentImage->set_sensitive(true);
         OKButton->set_sensitive(true);
+        SelectAllAndOK->set_sensitive(true);
         ImageSelection->set_sensitive(true);
         TargetCollectionName->set_sensitive(true);
         SelectAllImagesButton->set_sensitive(true);
@@ -1088,6 +1099,7 @@ void DownloadSetup::_UpdateWidgetStates()
         CurrentImageEditor->set_sensitive(false);
         CurrentImage->set_sensitive(false);
         OKButton->set_sensitive(false);
+        SelectAllAndOK->set_sensitive(false);
         ImageSelection->set_sensitive(false);
         TargetCollectionName->set_sensitive(false);
         SelectAllImagesButton->set_sensitive(false);
@@ -1159,7 +1171,7 @@ bool DownloadSetup::IsReadyToDownload() const
 
     return selected > 0 && selected <= total;
 }
-
+// ------------------------------------ //
 void DownloadSetup::_DoQuickSwapPages()
 {
     if(WindowTabs->get_current_page() == 0) {
@@ -1172,6 +1184,19 @@ void DownloadSetup::_DoQuickSwapPages()
     }
 }
 
+void DownloadSetup::_DoDetargetAndCollapse()
+{
+    _AddActivePressed(false);
+    ShowFullControls->property_state() = false;
+}
+
+void DownloadSetup::_DoSelectAllAndOK()
+{
+    SelectAllImages();
+    OnUserAcceptSettings();
+}
+
+// ------------------------------------ //
 void DownloadSetup::_UpdateFoundLinks()
 {
     if(!DualView::Get().IsOnMainThread()) {
