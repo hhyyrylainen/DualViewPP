@@ -901,7 +901,7 @@ void ReorderWindow::DragProvider::GetData(const Glib::RefPtr<Gdk::DragContext>& 
     Json::StreamWriterBuilder builder;
     builder["commentStyle"] = "None";
     builder["indentation"] = "";
-    auto writer = builder.newStreamWriter();
+    std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
 
     Json::Value meta;
     meta["workspace"] = Workspace;

@@ -112,7 +112,7 @@ std::string DatabaseAction::SerializeData() const
     Json::StreamWriterBuilder builder;
     builder["commentStyle"] = "None";
     builder["indentation"] = "";
-    auto writer = builder.newStreamWriter();
+    std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
 
     _SerializeCustomData(value);
 
