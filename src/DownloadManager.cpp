@@ -209,10 +209,15 @@ void DownloadJob::DoDownload(DownloadManager& manager)
         auto path = Leviathan::StringOperations::URLPath(URL, false);
 
         auto questionMark = path.find_first_of('?');
+        auto hashMark = path.find_first_of('#');
 
         std::string queryPart;
 
-        if(questionMark != std::string::npos) {
+        if(hashMark != std::string::npos &&
+            (questionMark == std::string::npos || hashMark < questionMark)) {
+            queryPart = path.substr(hashMark, path.size() - hashMark);
+            path = path.substr(0, hashMark);
+        } else if(questionMark != std::string::npos) {
 
             queryPart = path.substr(questionMark, path.size() - questionMark);
             path = path.substr(0, questionMark);
