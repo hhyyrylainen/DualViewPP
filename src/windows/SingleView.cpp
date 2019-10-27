@@ -50,8 +50,6 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     builder->get_widget("ImageToolbar", ImageToolbar);
     LEVIATHAN_ASSERT(ImageToolbar, "Invalid .glade file");
 
-    // ImageToolbar->set_accel_group(get_accel_group());
-
     ImageToolbar->append(EditTagsButton);
     ImageToolbar->append(ShowImageInfoButton);
     ImageToolbar->append(OpenInImporterButton);
@@ -74,17 +72,15 @@ SingleView::SingleView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     DeleteImageButton.hide();
 
-    // This just doesn't want to work and it seems to be because Toolbar items don't have
-    // activate signal
-    // EditTagsButton.set_accel_path("<SingleImage-View>/Toolbar/EditTags", get_accel_group());
-    // Gtk::AccelMap::add_entry("<SingleImage-View>/Toolbar/EditTags", GDK_KEY_T,
-    //(Gdk::ModifierType)0);
+    auto accelGroup = Gtk::AccelGroup::create();
+
+    add_accel_group(accelGroup);
 
     EditTagsButton.add_accelerator(
-        "clicked", get_accel_group(), GDK_KEY_T, Gdk::CONTROL_MASK, Gtk::ACCEL_VISIBLE);
+        "clicked", accelGroup, GDK_KEY_T, Gdk::CONTROL_MASK, Gtk::ACCEL_VISIBLE);
 
     ShowImageInfoButton.add_accelerator(
-        "clicked", get_accel_group(), GDK_KEY_I, Gdk::CONTROL_MASK, Gtk::ACCEL_VISIBLE);
+        "clicked", accelGroup, GDK_KEY_I, Gdk::CONTROL_MASK, Gtk::ACCEL_VISIBLE);
 
     BUILDER_GET_WIDGET(ImageProperties);
     ImageProperties->set_visible(false);
