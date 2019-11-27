@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common.h"
+#include "Common/StringOperations.h"
 
 #include <memory>
 
@@ -12,18 +13,25 @@ namespace DV{
 //! \brief Scan result that has a content link
 struct ScanFoundImage{
 
-    ScanFoundImage(const std::string &url, const std::string &referrer) :
-        URL(url), Referrer(referrer)
+    ScanFoundImage(const std::string &url, const std::string &referrer,
+        bool stripoptions = false) :
+        URL(url), Referrer(referrer), StripOptionsOnCompare(stripoptions)
     {
         
     }
     
     bool operator ==(const ScanFoundImage &other) const{
+        if(Leviathan::StringOperations::BaseHostName(URL) !=
+            Leviathan::StringOperations::BaseHostName(other.URL)){
+            return false;
+        }
 
-        return URL == other.URL;
+        return Leviathan::StringOperations::URLPath(URL, StripOptionsOnCompare) ==
+            Leviathan::StringOperations::URLPath(other.URL, other.StripOptionsOnCompare);
     }
 
     //! Merges tags from other
+    //! \todo implement
     void Merge(const ScanFoundImage &other){
 
     }
@@ -31,6 +39,9 @@ struct ScanFoundImage{
     std::string URL;
     std::string Referrer;
     std::vector<std::string> Tags;
+
+    //! If true when comparing to another the options (everything after '?') is ignored
+    bool StripOptionsOnCompare = false;
 };
 
 //! \brief Result data for IWebsiteScanner
