@@ -74,8 +74,6 @@ Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 Downloader::~Downloader()
 {
     WaitForDownloadThread();
-
-    DLList.clear();
 }
 // ------------------------------------ //
 bool Downloader::_OnClose(GdkEventAny* event)
@@ -83,6 +81,8 @@ bool Downloader::_OnClose(GdkEventAny* event)
     // Ask user to stop downloads //
 
     StopDownloadThread();
+
+    DLList.clear();
 
     // Just hide it //
     hide();
