@@ -104,13 +104,18 @@ enum class LIST_ITEM_SIZE {
     builder->get_widget(#name, name); \
     LEVIATHAN_ASSERT(name, "Invalid .glade file");
 
-//! Helper for getting the primary menu of a window and setting it to show the PrimaryMenu
-#define BUILDER_GET_PRIMARY_MENU(variable, menuvariable)     \
-builder->get_widget("MenuButton", variable);                 \
- LEVIATHAN_ASSERT(variable, "Invalid .glade file");          \
- variable->set_image_from_icon_name("open-menu-symbolic");   \
- menuvariable.show_all_children();                           \
+#define BUILDER_GET_PRIMARY_MENU_NAMED(menuname, variable, menuvariable) \
+builder->get_widget(menuname, variable);                                \
+ LEVIATHAN_ASSERT(variable, "Invalid .glade file");                     \
+ variable->set_image_from_icon_name("open-menu-symbolic");              \
+ menuvariable.show_all_children();                                      \
  variable->set_popover(menuvariable);
+
+//! Helper for getting the primary menu of a window and setting it to show the PrimaryMenu
+#define BUILDER_GET_PRIMARY_MENU(variable, menuvariable)                \
+BUILDER_GET_PRIMARY_MENU_NAMED("MenuButton", variable, menuvariable);
+
+
 
 
 

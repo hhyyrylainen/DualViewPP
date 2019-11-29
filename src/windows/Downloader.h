@@ -2,6 +2,8 @@
 
 #include "IsAlive.h"
 
+#include "components/PrimaryMenu.h"
+
 #include "Common/BaseNotifiable.h"
 
 #include <gtkmm.h>
@@ -71,7 +73,12 @@ protected:
     void _SelectAll();
 
 protected:
-    //! \warning If this is a flowbox all hell breaks loose
+    Gtk::MenuButton* Menu;
+
+    // Primary menu
+    PrimaryMenu MenuPopover;
+    Gtk::Button EmptyStagingFolder;
+
     Gtk::Box* DLWidgets;
 
 

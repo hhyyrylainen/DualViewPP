@@ -2,7 +2,9 @@
 
 #include "BaseWindow.h"
 #include "IsAlive.h"
+
 #include "components/FolderNavigatorHelper.h"
+#include "components/PrimaryMenu.h"
 
 #include <gtkmm.h>
 
@@ -35,6 +37,11 @@ private:
     void _UpdateShownItems();
 
 private:
+    Gtk::MenuButton* Menu;
+
+    // Primary menu
+    PrimaryMenu MenuPopover;
+
     SuperContainer* Container = nullptr;
 
     Gtk::Entry* PathEntry;

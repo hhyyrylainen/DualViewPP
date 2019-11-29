@@ -21,6 +21,10 @@ CollectionView::CollectionView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> bu
     signal_unmap().connect(sigc::mem_fun(*this, &CollectionView::_OnHidden));
     signal_map().connect(sigc::mem_fun(*this, &CollectionView::_OnShown));
 
+    // Primary menu buttons
+    // Get and apply primary menu options
+    BUILDER_GET_PRIMARY_MENU_NAMED("MenuButtonLibrary", Menu, MenuPopover);
+
     builder->get_widget_derived("ImageContainer", Container);
     LEVIATHAN_ASSERT(Container, "Invalid .glade file");
 

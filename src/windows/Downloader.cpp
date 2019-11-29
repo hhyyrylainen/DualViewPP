@@ -24,16 +24,23 @@
 using namespace DV;
 // ------------------------------------ //
 Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
-    Gtk::Window(window)
+    Gtk::Window(window), EmptyStagingFolder("Empty Staging Folder")
 {
     signal_delete_event().connect(sigc::mem_fun(*this, &Downloader::_OnClose));
 
     signal_unmap().connect(sigc::mem_fun(*this, &Downloader::_OnHidden));
     signal_map().connect(sigc::mem_fun(*this, &Downloader::_OnShown));
 
+    // Primary menu buttons
+    EmptyStagingFolder.property_relief() = Gtk::RELIEF_NONE;
+    EmptyStagingFolder.property_sensitive() = false;
+    MenuPopover.Container.pack_start(EmptyStagingFolder);
+
+    // Get and apply primary menu options
+    BUILDER_GET_PRIMARY_MENU_NAMED("MenuButtonDownloader", Menu, MenuPopover);
+
     builder->get_widget("DLList", DLWidgets);
     LEVIATHAN_ASSERT(DLWidgets, "Invalid .glade file");
-
 
     Gtk::Button* AddNewLink;
     builder->get_widget("AddNewLink", AddNewLink);
@@ -203,6 +210,7 @@ void Downloader::StartDownloadThread()
     DualView::Get().RunOnMainThread([=]() {
         INVOKE_CHECK_ALIVE_MARKER(alive);
         StartDownloadButton->set_label("Stop Download Thread");
+        StartDownloadButton->get_style_context()->remove_class("suggested-action");
     });
 }
 
@@ -215,6 +223,7 @@ void Downloader::StopDownloadThread()
     DualView::Get().RunOnMainThread([=]() {
         INVOKE_CHECK_ALIVE_MARKER(alive);
         StartDownloadButton->set_label("Start Download");
+        StartDownloadButton->get_style_context()->add_class("suggested-action");
     });
 }
 
