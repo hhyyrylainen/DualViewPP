@@ -30,6 +30,10 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     BUILDER_GET_WIDGET(HeaderBar);
     BUILDER_GET_WIDGET(BottomButtons);
 
+    // No custom stuff in primary menu
+    // Get and apply primary menu options
+    BUILDER_GET_PRIMARY_MENU(Menu, MenuPopover);
+
     builder->get_widget_derived("ImageDLSelector", ImageSelection);
     LEVIATHAN_ASSERT(ImageSelection, "Invalid .glade file");
 

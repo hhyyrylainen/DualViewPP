@@ -6,6 +6,7 @@
 #include "Plugin.h"
 
 #include "components/EasyEntryCompletion.h"
+#include "components/PrimaryMenu.h"
 
 #include "Common/BaseNotifiable.h"
 
@@ -202,6 +203,10 @@ private:
     int PreviousHeight = 1;
 
     Gtk::HeaderBar* HeaderBar;
+    Gtk::MenuButton* Menu;
+
+    // Primary menu
+    PrimaryMenu MenuPopover;
 
     Gtk::Button* OKButton;
     Gtk::Button* SelectAllAndOK;

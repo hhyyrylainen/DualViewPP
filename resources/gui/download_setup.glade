@@ -61,17 +61,13 @@
           </packing>
         </child>
         <child>
-          <object class="GtkButton" id="OKButton">
-            <property name="label">gtk-ok</property>
-            <property name="width_request">130</property>
+          <object class="GtkMenuButton" id="MenuButton">
             <property name="visible">True</property>
-            <property name="sensitive">False</property>
             <property name="can_focus">True</property>
-            <property name="can_default">True</property>
-            <property name="has_default">True</property>
             <property name="receives_default">True</property>
-            <property name="use_stock">True</property>
-            <property name="always_show_image">True</property>
+            <child>
+              <placeholder/>
+            </child>
           </object>
           <packing>
             <property name="pack_type">end</property>
@@ -89,7 +85,25 @@
           </object>
           <packing>
             <property name="pack_type">end</property>
-            <property name="position">5</property>
+            <property name="position">6</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="OKButton">
+            <property name="label">gtk-ok</property>
+            <property name="width_request">130</property>
+            <property name="visible">True</property>
+            <property name="sensitive">False</property>
+            <property name="can_focus">True</property>
+            <property name="can_default">True</property>
+            <property name="has_default">True</property>
+            <property name="receives_default">True</property>
+            <property name="use_stock">True</property>
+            <property name="always_show_image">True</property>
+          </object>
+          <packing>
+            <property name="pack_type">end</property>
+            <property name="position">6</property>
           </packing>
         </child>
       </object>
