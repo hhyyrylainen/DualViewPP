@@ -30,6 +30,7 @@ class Tag;
 class TagModifier;
 class ImageListScroll;
 class ImageMergeAction;
+class NetGallery;
 
 class PluginManager;
 class CacheManager;
@@ -48,6 +49,7 @@ class DebugWindow;
 class DuplicateFinderWindow;
 class UndoWindow;
 class ReorderWindow;
+class DownloadItemEditor;
 
 struct ResolvePathInfinityBlocker;
 
@@ -112,6 +114,9 @@ public:
 
     //! \brief Opens a window for merge action editing
     void OpenActionEdit(const std::shared_ptr<ImageMergeAction>& action);
+
+    //! \brief Opens a window for editing the download
+    void OpenDownloadItemEditor(const std::shared_ptr<NetGallery>& download);
 
     //! \brief Opens a setup window for a new downloadable gallery
     //! \param useropened True when the user clicked something and this was opened. If this is

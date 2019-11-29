@@ -42,7 +42,6 @@ public:
     //! \exception Leviathan::InvalidArgument if link doesn't have filename
     inline static auto Create(const ScanFoundImage& link, bool autosavecache)
     {
-
         auto obj = std::shared_ptr<InternetImage>(new InternetImage(link));
 
         if(autosavecache)
@@ -61,13 +60,11 @@ public:
 
     auto GetURL() const
     {
-
         return DLURL;
     }
 
     auto GetReferrer() const
     {
-
         return Referrer;
     }
 

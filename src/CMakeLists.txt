@@ -79,6 +79,7 @@ add_library(Core
   windows/DuplicateFinder.h windows/DuplicateFinder.cpp
   windows/Reorder.h windows/Reorder.cpp
   windows/ActionEditors.h windows/ActionEditors.cpp
+  windows/DownloadItemEditor.h windows/DownloadItemEditor.cpp
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp

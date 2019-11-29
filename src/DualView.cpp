@@ -6,6 +6,7 @@
 #include "windows/AddToFolder.h"
 #include "windows/CollectionView.h"
 #include "windows/DebugWindow.h"
+#include "windows/DownloadItemEditor.h"
 #include "windows/DownloadSetup.h"
 #include "windows/Downloader.h"
 #include "windows/DuplicateFinder.h"
@@ -206,6 +207,8 @@ DualView::DualView(std::string tests, std::unique_ptr<Database>&& db /*= nullptr
         _Database = std::move(db);
 
     _ChangeEvents = std::make_unique<ChangeEvents>();
+
+    _Settings = std::make_unique<Settings>("memory");
 
     LEVIATHAN_ASSERT(tests == "empty", "DualView test constructor called with not empty");
 
@@ -1360,6 +1363,29 @@ void DualView::OpenActionEdit(const std::shared_ptr<ImageMergeAction>& action)
     auto window = std::make_shared<MergeActionEditor>(action);
     _AddOpenWindow(window, *window);
     window->show();
+}
+
+void DualView::OpenDownloadItemEditor(const std::shared_ptr<NetGallery>& download)
+{
+    if(!download)
+        return;
+
+    AssertIfNotMainThread();
+
+    auto builder = Gtk::Builder::create_from_resource(
+        "/com/boostslair/dualviewpp/resources/gui/download_item_editor.glade");
+
+    DownloadItemEditor* window;
+    builder->get_widget_derived("DownloadItemEditor", window, download);
+
+    if(!window) {
+        LOG_ERROR("DownloadItemEditor window GUI layout is invalid");
+        return;
+    }
+
+    std::shared_ptr<DownloadItemEditor> wrapped(window);
+    _AddOpenWindow(wrapped, *window);
+    wrapped->show();
 }
 // ------------------------------------ //
 void DualView::OnNewImageLinkReceived(const std::string& url, const std::string& referrer)

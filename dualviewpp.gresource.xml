@@ -10,6 +10,7 @@
     <file compressed="true">resources/gui/image_finder.glade</file>
     <file compressed="true">resources/gui/single_view.glade</file>
     <file compressed="true">resources/gui/main_gui.glade</file>
+    <file compressed="true">resources/gui/download_item_editor.glade</file>
 
     <file compressed="true">resources/sql/defaulttablevalues.sql</file>
     <file compressed="true">resources/sql/defaulttags.sql</file>

@@ -8,7 +8,6 @@
 
 using namespace DV;
 // ------------------------------------ //
-
 DLListItem::DLListItem(std::shared_ptr<NetGallery> todownload) :
     Gallery(todownload), Container(Gtk::ORIENTATION_HORIZONTAL), URLLabel("URL not loaded..."),
     ButtonBox(Gtk::ORIENTATION_VERTICAL), AdvancedSettings("Advanced Settings"),
@@ -36,6 +35,9 @@ DLListItem::DLListItem(std::shared_ptr<NetGallery> todownload) :
     Container.pack_end(ButtonBox, false, false);
     ButtonBox.set_valign(Gtk::ALIGN_CENTER);
 
+    AdvancedSettings.signal_clicked().connect(
+        sigc::mem_fun(*this, &DLListItem::OpenEditorForDownload));
+
     ButtonBox.add(AdvancedSettings);
     ButtonBox.add(Delete);
 
@@ -52,6 +54,11 @@ DLListItem::DLListItem(std::shared_ptr<NetGallery> todownload) :
 }
 
 DLListItem::~DLListItem() {}
+// ------------------------------------ //
+void DLListItem::OpenEditorForDownload()
+{
+    DualView::Get().OpenDownloadItemEditor(Gallery);
+}
 // ------------------------------------ //
 void DLListItem::SetProgress(float value)
 {

@@ -24,25 +24,21 @@ public:
 
     auto GetFileURL() const
     {
-
         return FileURL;
     }
 
     auto GetPageReferrer() const
     {
-
         return PageReferrer;
     }
 
     auto GetPreferredName() const
     {
-
         return PreferredName;
     }
 
     auto GetTagsString() const
     {
-
         return TagsString;
     }
 
@@ -141,6 +137,11 @@ public:
     //! \brief Adds all images to this gallery
     //! \note Doesn't check for duplicates
     void AddFilesToDownload(const std::vector<std::shared_ptr<InternetImage>>& images,
+        DatabaseLockT& databaselock);
+
+    //! \brief Replaces all existing items with new ones
+    //! \todo Make this a reversible action
+    void ReplaceItemsWith(const std::vector<std::shared_ptr<InternetImage>>& images,
         DatabaseLockT& databaselock);
 
 protected:

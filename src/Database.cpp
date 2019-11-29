@@ -3226,6 +3226,17 @@ void Database::UpdateNetFile(NetFile& netfile)
     statementobj.StepAll(statementinuse);
 }
 
+void Database::DeleteNetFile(NetFile& netfile){
+    GUARD_LOCK();
+
+    const char str[] = "DELETE FROM net_files WHERE id = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(netfile.GetID());
+
+    statementobj.StepAll(statementinuse);
+}
 
 
 //

@@ -70,6 +70,27 @@ void NetGallery::AddFilesToDownload(
         InDatabase->InsertNetFile(databaselock, file, *this);
     }
 }
+
+void NetGallery::ReplaceItemsWith(
+    const std::vector<std::shared_ptr<InternetImage>>& images, DatabaseLockT& databaselock)
+{
+    if(!IsInDatabase())
+        throw Leviathan::InvalidState("NetGallery not in database");
+
+    DoDBSavePoint transaction(*InDatabase, databaselock, "netgallery_replace_items");
+    transaction.AllowCommit(false);
+
+    auto existing = InDatabase->SelectNetFilesFromGallery(*this);
+
+    // TODO: this can't be reversed
+    for(const auto& item : existing) {
+        // NetFile cannot be on its own so it must be deleted here
+        InDatabase->DeleteNetFile(*item);
+    }
+
+    AddFilesToDownload(images, databaselock);
+    transaction.AllowCommit(true);
+}
 // ------------------------------------ //
 void NetGallery::_DoSave(Database& db)
 {

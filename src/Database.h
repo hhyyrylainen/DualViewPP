@@ -635,6 +635,13 @@ public:
 
     void UpdateNetFile(NetFile& netfile);
 
+    //! \brief Deletes a NetFile
+    //!
+    //! NetFiles are always related to a single gallery so the only way to remove them is to
+    //! delete them
+    //! \todo Allow reversing this operation
+    void DeleteNetFile(NetFile& netfile);
+
     //
     // Wilcard searches for tag suggestions
     //

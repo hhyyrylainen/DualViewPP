@@ -16,6 +16,8 @@ public:
     DLListItem(std::shared_ptr<NetGallery> todownload);
     ~DLListItem();
 
+    void OpenEditorForDownload();
+
     void SetRemoveCallback(std::function<void(DLListItem&)> callback);
 
     //! \brief Sets the current progress. Valid range: 0.0f - 1.0f
