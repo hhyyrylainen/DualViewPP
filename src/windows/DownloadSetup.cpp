@@ -1007,8 +1007,22 @@ void DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
 
     try {
         auto scan = std::make_shared<PageScanJob>(str, false, data->MainReferrer);
+
         // Queue next call //
-        scan->SetFinishCallback(std::bind(&DV::QueueNextThing, data, setup, alive, scan));
+        scan->SetFinishCallback(
+            [=, weakScan = std::weak_ptr<PageScanJob>(scan)](DownloadJob& job, bool result) {
+                DualView::Get().InvokeFunction([=]() {
+                    INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                    if(setup->State != DownloadSetup::STATE::SCANNING_PAGES) {
+                        LOG_INFO("DownloadSetup: scan cancelled");
+                        return;
+                    }
+
+                    DualView::Get().QueueWorkerFunction(
+                        std::bind(&DV::QueueNextThing, data, setup, alive, weakScan.lock()));
+                });
+            });
 
         DualView::Get().GetDownloadManager().QueueDownload(scan);
 
