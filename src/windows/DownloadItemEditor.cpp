@@ -281,23 +281,22 @@ void DownloadItemEditor::QueueNextThing(std::shared_ptr<ScanJobData> data,
     try {
         auto scan = std::make_shared<PageScanJob>(str, false);
 
-        auto weakScan = std::weak_ptr<PageScanJob>(scan);
-
         // Queue next call //
-        scan->SetFinishCallback([=](DownloadJob& job, bool result) {
-            DualView::Get().InvokeFunction([=]() {
-                INVOKE_CHECK_ALIVE_MARKER(alive);
+        scan->SetFinishCallback(
+            [=, weakScan = std::weak_ptr<PageScanJob>(scan)](DownloadJob& job, bool result) {
+                DualView::Get().InvokeFunction([=]() {
+                    INVOKE_CHECK_ALIVE_MARKER(alive);
 
-                if(!editor->ScanningForFreshLinks) {
-                    LOG_INFO("DownloadItemEditor: scan cancelled");
-                    return;
-                }
+                    if(!editor->ScanningForFreshLinks) {
+                        LOG_INFO("DownloadItemEditor: scan cancelled");
+                        return;
+                    }
 
-                DualView::Get().QueueWorkerFunction(
-                    std::bind(&DownloadItemEditor::QueueNextThing, data, editor, alive,
-                        weakScan.lock()));
+                    DualView::Get().QueueWorkerFunction(
+                        std::bind(&DownloadItemEditor::QueueNextThing, data, editor, alive,
+                            weakScan.lock()));
+                });
             });
-        });
 
         DualView::Get().GetDownloadManager().QueueDownload(scan);
 
