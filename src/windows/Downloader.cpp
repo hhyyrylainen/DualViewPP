@@ -82,7 +82,11 @@ bool Downloader::_OnClose(GdkEventAny* event)
 
     StopDownloadThread();
 
-    DLList.clear();
+    for(auto iter = DLList.begin(); iter != DLList.end();) {
+        (*iter)->hide();
+        DLWidgets->remove(**iter);
+        iter = DLList.erase(iter);
+    }
 
     // Just hide it //
     hide();

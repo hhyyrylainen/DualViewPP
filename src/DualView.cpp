@@ -1532,7 +1532,8 @@ void DualView::OnNewImagePageLinkReceived(const std::string& url)
     }
 }
 
-void DualView::OpenDownloadSetup(bool useropened /*= true*/, bool capture /*= false*/)
+std::shared_ptr<DownloadSetup> DualView::OpenDownloadSetup(
+    bool useropened /*= true*/, bool capture /*= false*/)
 {
     LEVIATHAN_ASSERT(!(useropened && capture), "both useropened and capture may not be true");
 
@@ -1547,7 +1548,7 @@ void DualView::OpenDownloadSetup(bool useropened /*= true*/, bool capture /*= fa
     if(!window) {
 
         LOG_ERROR("DownloadSetup window GUI layout is invalid");
-        return;
+        return nullptr;
     }
 
     LOG_INFO("Opened DownloadSetup window");
@@ -1563,6 +1564,8 @@ void DualView::OpenDownloadSetup(bool useropened /*= true*/, bool capture /*= fa
 
     if(capture)
         wrapped->EnableAddActive();
+
+    return wrapped;
 }
 
 

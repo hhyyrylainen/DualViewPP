@@ -21,6 +21,7 @@ class InternetImage;
 class DownloadItemEditor : public BaseWindow, public Gtk::Window, public IsAlive {
 
     struct ScanJobData;
+
 public:
     DownloadItemEditor(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder,
         const std::shared_ptr<NetGallery>& toedit);
@@ -40,11 +41,15 @@ protected:
     //! \todo Make this a reversible action
     void OnAcceptNewLinks();
 
+    void OnOpenReferrersInNewSetup() const;
+
     void _UpdateReferrerWidgets();
     void _OnReferrerScanCompleted(const ScanResult& result);
+
 private:
     static void QueueNextThing(std::shared_ptr<ScanJobData> data, DownloadItemEditor* editor,
         IsAlive::AliveMarkerT alive, std::shared_ptr<PageScanJob> scanned);
+
 private:
     const std::shared_ptr<NetGallery> EditedItem;
     std::vector<std::shared_ptr<NetFile>> CurrentFilesForItem;
@@ -64,6 +69,8 @@ private:
     Gtk::Label* ReferrerScanStatus;
     Gtk::ProgressBar* ReferrerScanProgress;
     Gtk::Button* ReferrerScanAcceptResult;
+
+    Gtk::Button* OpenReferrersInNewSetup;
 };
 
 } // namespace DV

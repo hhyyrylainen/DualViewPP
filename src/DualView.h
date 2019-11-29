@@ -122,7 +122,8 @@ public:
     //! \param useropened True when the user clicked something and this was opened. If this is
     //! automatically opened for some other type of action then this is false
     //! \param capture If true will attempt to steal the add lock
-    void OpenDownloadSetup(bool useropened = true, bool capture = false);
+    std::shared_ptr<DownloadSetup> OpenDownloadSetup(
+        bool useropened = true, bool capture = false);
 
     //! \brief Opens a download setup for a link that was sent to us from another program
     void OnNewImageLinkReceived(const std::string& url, const std::string& referrer);

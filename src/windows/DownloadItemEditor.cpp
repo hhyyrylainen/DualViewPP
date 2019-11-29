@@ -4,6 +4,7 @@
 #include "DownloadManager.h"
 #include "resources/InternetImage.h"
 #include "resources/NetGallery.h"
+#include "windows/DownloadSetup.h"
 
 #include "Database.h"
 #include "DualView.h"
@@ -44,9 +45,13 @@ DownloadItemEditor::DownloadItemEditor(_GtkWindow* window, Glib::RefPtr<Gtk::Bui
     BUILDER_GET_WIDGET(ReferrerScanStatus);
     BUILDER_GET_WIDGET(ReferrerScanProgress);
     BUILDER_GET_WIDGET(ReferrerScanAcceptResult);
+    BUILDER_GET_WIDGET(OpenReferrersInNewSetup);
 
     ReferrerScanAcceptResult->signal_clicked().connect(
         sigc::mem_fun(*this, &DownloadItemEditor::OnAcceptNewLinks));
+
+    OpenReferrersInNewSetup->signal_clicked().connect(
+        sigc::mem_fun(*this, &DownloadItemEditor::OnOpenReferrersInNewSetup));
 
     LoadDownloadProperties();
 }
@@ -156,6 +161,23 @@ void DownloadItemEditor::OnAcceptNewLinks()
                 }
             });
         });
+}
+// ------------------------------------ //
+void DownloadItemEditor::OnOpenReferrersInNewSetup() const
+{
+    auto downloader = DualView::Get().OpenDownloadSetup(true);
+
+    if(downloader) {
+        for(const auto& item : CurrentFilesForItem) {
+
+            if(!item->GetPageReferrer().empty())
+                downloader->AddExternalScanLink(item->GetPageReferrer());
+        }
+
+        downloader->SetTargetCollectionName(EditedItem->GetTargetGalleryName());
+
+        // TODO: target folder and tags for the collection
+    }
 }
 // ------------------------------------ //
 void DownloadItemEditor::_UpdateReferrerWidgets()
