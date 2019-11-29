@@ -67,8 +67,9 @@ Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 Downloader::~Downloader()
 {
     WaitForDownloadThread();
-}
 
+    DLList.clear();
+}
 // ------------------------------------ //
 bool Downloader::_OnClose(GdkEventAny* event)
 {
