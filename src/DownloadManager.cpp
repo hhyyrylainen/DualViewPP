@@ -272,6 +272,9 @@ void DownloadJob::DoDownload(DownloadManager& manager)
     // Max 10 redirects
     curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 10);
 
+    // Max time of 2 minutes
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 60 * 2);
+
     // Data retrieval //
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &CurlWriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
