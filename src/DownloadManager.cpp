@@ -272,12 +272,24 @@ void DownloadJob::DoDownload(DownloadManager& manager)
     // Max 10 redirects
     curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 10);
 
-    // Max time of 2 minutes
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 60 * 2);
+    // Max time of 120 minutes (to just avoid total lockups)
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 60 * 120);
+
+    // Timeout with connection
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 15);
+
+    // Timeout low speeds
+    // Timespan of 15 seconds
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 15);
+    // 20 kbytes per second
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 20000);
+
 
     // Data retrieval //
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &CurlWriteCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, this);
+
+    // TODO: is CURLOPT_NOSIGNAL 1 required?
 
     // Progress callback //
     curl_easy_setopt(curl, CURLOPT_XFERINFODATA, this);
@@ -318,7 +330,7 @@ void DownloadJob::DoDownload(DownloadManager& manager)
             dlretrylabel:
                 LOG_INFO("Retrying url download: " + URL);
                 Retry();
-                std::this_thread::sleep_for(std::chrono::milliseconds(250));
+                std::this_thread::sleep_for(std::chrono::milliseconds(250 * (i + 1)));
                 continue;
             }
 
@@ -386,6 +398,8 @@ void PageScanJob::HandleContent()
 
         LOG_INFO("PageScanJob: running again because found no content and scanner "
                  "has ScanAgainIfNoImages = true");
+
+        throw RetryDownload();
     }
 
     // Copy result //
