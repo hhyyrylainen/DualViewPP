@@ -21,6 +21,9 @@ constexpr auto SUPPORTED_EXTENSIONS = {
     std::make_tuple(".jpg", "image/jpeg"),
     std::make_tuple(".jpeg", "image/jpeg"),
     std::make_tuple(".bmp", "image/bmp"),
+    std::make_tuple(".tif", "image/tiff"),
+    std::make_tuple(".tiff", "image/tiff"),
+    std::make_tuple(".webp", "image/webp"),
 };
 
 
