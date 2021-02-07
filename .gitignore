@@ -5,3 +5,4 @@ cscope.files
 cscope.out
 /generated
 cppcheckresult.txt
+/build-debug/
