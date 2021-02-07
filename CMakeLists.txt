@@ -8,7 +8,9 @@ option(USE_GPROF "Set to ON to use gprof profiling" OFF)
 
 option(DISABLE_DEPRECATED_GTK "Set to OFF to allow use of deprecated GTKMM APIs" ON)
 
-set(DUALVIEW_VERSION_STR "0.1.0")
+option(DOCUMENTATION_LOCAL "If OFF php search is included in the documentation" ON)
+
+set(DUALVIEW_VERSION_STR "1.0.0")
 
 if(CMAKE_BUILD_TYPE STREQUAL "")
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING
@@ -69,7 +71,7 @@ include_directories(${CRYPTOPP_INCLUDE_DIRS})
 find_package(CURL REQUIRED)
 
 if(NOT CURL_FOUND)
-  message(SEND_ERROR "Crypto++ not found")
+  message(SEND_ERROR "CURL not found")
 endif()
 
 include_directories(${CURL_INCLUDE_DIRS})
