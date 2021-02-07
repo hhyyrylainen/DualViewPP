@@ -4,3 +4,6 @@
 [submodule "ThirdParty/date"]
 	path = ThirdParty/date
 	url = https://github.com/HowardHinnant/date.git
+[submodule "ThirdParty/GQ"]
+	path = ThirdParty/GQ
+	url = https://github.com/TechnikEmpire/GQ.git
