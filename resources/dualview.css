@@ -30,3 +30,7 @@ progressbar > trough, progress{
     background-origin: content-box;
     background-position: center bottom;
 }
+
+.Invalid{
+    color: #801515;
+}

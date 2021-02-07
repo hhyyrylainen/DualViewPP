@@ -112,6 +112,9 @@ public:
     //! \brief Opens a window for reordering the collection
     void OpenReorder(const std::shared_ptr<Collection>& collection);
 
+    void OpenCollectionRename(
+        const std::shared_ptr<Collection>& collection, Gtk::Window* parentWindow = nullptr);
+
     //! \brief Opens a window for merge action editing
     void OpenActionEdit(const std::shared_ptr<ImageMergeAction>& action);
 

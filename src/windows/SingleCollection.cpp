@@ -44,6 +44,11 @@ SingleCollection::SingleCollection(_GtkWindow* window, Glib::RefPtr<Gtk::Builder
 
     OpenSelectedImporter->signal_clicked().connect(
         sigc::mem_fun(*this, &SingleCollection::_OnOpenSelectedInImporter));
+
+    Gtk::ToolButton* rename;
+    BUILDER_GET_WIDGET_NAMED(rename, "Rename");
+
+    rename->signal_clicked().connect(sigc::mem_fun(*this, &SingleCollection::StartRename));
 }
 
 SingleCollection::~SingleCollection()
@@ -123,6 +128,11 @@ void SingleCollection::ReloadImages(Lock& guard)
                                   Convert::ToString(images.size()) + " Images");
         });
     });
+}
+// ------------------------------------ //
+void SingleCollection::StartRename()
+{
+    DualView::Get().OpenCollectionRename(ShownCollection, this);
 }
 // ------------------------------------ //
 void SingleCollection::_OnClose() {}

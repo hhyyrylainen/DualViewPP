@@ -99,6 +99,9 @@ public:
     //! collection. Any images in this collection not in neworder will be moved to the end
     void ApplyNewImageOrder(const std::vector<std::shared_ptr<Image>>& neworder);
 
+    //! \brief Renames this collection
+    //! \returns True on success, false if the new name conflicts
+    bool Rename(const std::string &newName);
 
     //! \brief Returns the preview icon for this Collection
     //!
@@ -110,13 +113,11 @@ public:
 
     inline auto GetIsPrivate() const
     {
-
         return IsPrivate;
     }
 
     inline auto GetName() const
     {
-
         return Name;
     }
 
@@ -148,6 +149,7 @@ public:
 protected:
     // DatabaseResource implementation
     void _DoSave(Database& db) override;
+    void _DoSave(Database& db, DatabaseLockT& dbLock) override;
 
     //! \brief Fills a widget with this resource
     void _FillWidget(CollectionListItem& widget);

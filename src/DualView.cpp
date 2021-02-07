@@ -14,6 +14,7 @@
 #include "windows/ImageFinder.h"
 #include "windows/Importer.h"
 #include "windows/RemoveFromFolders.h"
+#include "windows/RenameWindow.h"
 #include "windows/Reorder.h"
 #include "windows/SingleCollection.h"
 #include "windows/SingleView.h"
@@ -1350,6 +1351,42 @@ void DualView::OpenReorder(const std::shared_ptr<Collection>& collection)
 
     auto window = std::make_shared<ReorderWindow>(collection);
     _AddOpenWindow(window, *window);
+    window->show();
+}
+
+void DualView::OpenCollectionRename(
+    const std::shared_ptr<Collection>& collection, Gtk::Window* parentWindow /*= nullptr*/)
+{
+    if(!collection)
+        return;
+
+    AssertIfNotMainThread();
+
+    auto window = std::make_shared<RenameWindow>(
+        collection->GetName(),
+        [this, collection](const std::string& newName) {
+            if(!collection->Rename(newName)) {
+                return std::make_tuple<bool, std::string>(
+                    false, "Collection rename failed. Check logs for SQL errors");
+            }
+
+            return std::make_tuple<bool, std::string>(true, "");
+        },
+        [this, collection](const std::string& potentialName) {
+            if(potentialName.empty()) {
+                return std::make_tuple<bool, std::string>(false, "Name can't be empty");
+            }
+
+            if(_Database->CheckIsCollectionNameInUseAG(potentialName, collection->GetID())) {
+                return std::make_tuple<bool, std::string>(false, "Name is already in-use");
+            }
+
+            return std::make_tuple<bool, std::string>(true, "");
+        });
+
+    _AddOpenWindow(window, *window);
+    if(parentWindow)
+        window->set_transient_for(*parentWindow);
     window->show();
 }
 

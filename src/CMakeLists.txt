@@ -80,6 +80,7 @@ add_library(Core
   windows/Reorder.h windows/Reorder.cpp
   windows/ActionEditors.h windows/ActionEditors.cpp
   windows/DownloadItemEditor.h windows/DownloadItemEditor.cpp
+  windows/RenameWindow.h windows/RenameWindow.cpp
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp

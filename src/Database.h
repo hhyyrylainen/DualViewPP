@@ -191,23 +191,34 @@ public:
     // Collection functions
     //
 
+    //! \brief Checks if a collection name is in use
+    //! \param name The name to check
+    //! \param ignoreDuplicateId If set, a collection with the specified ID is ignored
+    //! \returns True if in use
+    bool CheckIsCollectionNameInUse(
+        LockT& guard, const std::string& name, int ignoreDuplicateId = -1);
+    CREATE_NON_LOCKING_WRAPPER(CheckIsCollectionNameInUse);
+
     //! \brief Inserts a new collection to the database
     //! \exception InvalidSQL if the collection violates unique constraints (same name)
     std::shared_ptr<Collection> InsertCollection(
         LockT& guard, const std::string& name, bool isprivate);
     CREATE_NON_LOCKING_WRAPPER(InsertCollection);
 
-    //! \brief Updates an images properties in the database
+    //! \brief Updates a collection's properties in the database
     //! \returns False if the update fails
-    bool UpdateCollection(const Collection& collection);
+    bool UpdateCollection(LockT& guard, const Collection& collection);
+    CREATE_NON_LOCKING_WRAPPER(UpdateCollection);
 
     //! \brief Deletes a collection from the database
     //!
     //! The collection object's id will be set to -1
     //! \returns True if succeeded
+    //! \todo This is not implemented
     bool DeleteCollection(Collection& collection);
 
     //! \brief Retrieves a Collection based on the name
+    //! \todo Once aliases are implemented this should also check aliases
     std::shared_ptr<Collection> SelectCollectionByName(LockT& guard, const std::string& name);
     CREATE_NON_LOCKING_WRAPPER(SelectCollectionByName);
 

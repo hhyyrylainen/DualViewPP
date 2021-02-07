@@ -79,7 +79,7 @@ protected:
     //! \note If this is not overridden this probably doesn't support bulk write
     //! \todo Find a way to enforce that only types that support bulk saving can call the bulk
     //! save variant
-    virtual void _DoSave(Database& db, DatabaseLockT& dblock);
+    virtual void _DoSave(Database& db, DatabaseLockT& dbLock);
 
     //! \brief Callback for child classes to reload resources when added to the database
     virtual void _OnAdopted();

@@ -1,6 +1,9 @@
 #include "catch.hpp"
 
+#include "TestDualView.h"
+
 #include "DummyLog.h"
+#include "TestDatabase.h"
 #include "resources/Collection.h"
 
 using namespace DV;
@@ -50,5 +53,54 @@ TEST_CASE("Collection name sanitization works", "[collection][file]")
                 CHECK(collection.GetNameForFolder() != "..");
             }
         }
+    }
+}
+
+TEST_CASE("Collection rename works", "[collection][action]")
+{
+    DummyDualView dv;
+    TestDatabase db;
+
+    REQUIRE_NOTHROW(db.Init());
+
+    auto collection1 = db.InsertCollectionAG("Collection 1", false);
+    auto collection2 = db.InsertCollectionAG("Collection 2", false);
+    auto collection3 = db.InsertCollectionAG("collection 3", false);
+
+    SECTION("Simple rename")
+    {
+        REQUIRE(collection1->Rename("New collection"));
+        CHECK(collection1->GetName() == "New collection");
+        CHECK(db.SelectCollectionByNameAG("New collection") == collection1);
+    }
+
+    SECTION("Fix capitalization in current name")
+    {
+        REQUIRE(collection1->Rename("collection 1"));
+        CHECK(db.SelectCollectionByNameAG("collection 1") == collection1);
+    }
+
+    const auto previousName = collection1->GetName();
+
+    SECTION("Conflict disallows rename") {
+
+        SECTION("exact")
+        {
+            CHECK(!collection1->Rename("Collection 2"));
+            CHECK(previousName == collection1->GetName());
+        }
+
+        SECTION("case difference")
+        {
+            CHECK(!collection1->Rename("collection 2"));
+            CHECK(previousName == collection1->GetName());
+        }
+    }
+
+    SECTION("Can't rename add '/'")
+    {
+        CHECK(!collection1->Rename("New/collection"));
+        CHECK(previousName == collection1->GetName());
+        CHECK(db.SelectCollectionByNameAG("New/collection") == nullptr);
     }
 }

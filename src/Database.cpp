@@ -808,6 +808,32 @@ std::map<DBID, std::vector<std::tuple<DBID, int>>> Database::SelectPotentialImag
 }
 // ------------------------------------ //
 // Collection
+bool Database::CheckIsCollectionNameInUse(
+    LockT& guard, const std::string& name, int ignoreDuplicateId /*= -1*/)
+{
+    // TODO: should this check for deleted also? that would make undo easier for collection
+    // delete
+    const char str[] =
+        "SELECT id FROM collections WHERE name = ?1 COLLATE NOCASE AND deleted IS NOT 1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(name);
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        // Found a value //
+        if(statementobj.GetColumnAsInt64(0) == ignoreDuplicateId)
+            continue;
+
+        return true;
+    }
+
+    // TODO: alias checks once aliases are implemented
+
+    return false;
+}
+
 std::shared_ptr<Collection> Database::InsertCollection(
     LockT& guard, const std::string& name, bool isprivate)
 {
@@ -845,10 +871,19 @@ std::shared_ptr<Collection> Database::InsertCollection(
     return created;
 }
 
-bool Database::UpdateCollection(const Collection& collection)
+bool Database::UpdateCollection(LockT& guard, const Collection& collection)
 {
-    GUARD_LOCK();
-    return false;
+    const char str[] = "UPDATE collections SET name = ?2, is_private = ?3 WHERE id = ?1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    statementobj.StepAll(statementobj.Setup(
+        collection.GetID(), collection.GetName(), collection.GetIsPrivate()));
+
+    // TODO: check that this can't result in the collection having the same name as some other
+    // one
+
+    return sqlite3_changes(SQLiteDb);
 }
 
 bool Database::DeleteCollection(Collection& collection)
@@ -879,7 +914,8 @@ std::shared_ptr<Collection> Database::SelectCollectionByID(DBID id)
 std::shared_ptr<Collection> Database::SelectCollectionByName(
     LockT& guard, const std::string& name)
 {
-    const char str[] = "SELECT * FROM collections WHERE name = ?1 AND deleted IS NOT 1;";
+    const char str[] =
+        "SELECT * FROM collections WHERE name = ?1 COLLATE NOCASE AND deleted IS NOT 1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -3226,7 +3262,8 @@ void Database::UpdateNetFile(NetFile& netfile)
     statementobj.StepAll(statementinuse);
 }
 
-void Database::DeleteNetFile(NetFile& netfile){
+void Database::DeleteNetFile(NetFile& netfile)
+{
     GUARD_LOCK();
 
     const char str[] = "DELETE FROM net_files WHERE id = ?;";

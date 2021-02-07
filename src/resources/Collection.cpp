@@ -228,6 +228,52 @@ void Collection::ApplyNewImageOrder(const std::vector<std::shared_ptr<Image>>& n
         throw Leviathan::InvalidArgument("invalid parameters for reorder");
 }
 
+bool Collection::Rename(const std::string& newName)
+{
+    if(Name == newName)
+        return true;
+
+    if(newName.empty())
+        return false;
+
+    if(!IsInDatabase()) {
+        Name = newName;
+        OnMarkDirty();
+        return true;
+    }
+
+    {
+        GUARD_LOCK_OTHER(InDatabase);
+
+        if(InDatabase->CheckIsCollectionNameInUse(guard, newName, ID))
+            return false;
+
+        const auto oldName = std::move(Name);
+        Name = newName;
+
+        try {
+            if(!InDatabase->UpdateCollection(guard, *this)) {
+                // Old name is restored on failure
+                Name = oldName;
+                return false;
+            }
+        } catch(const InvalidSQL& e) {
+            LOG_INFO(
+                "Failed to rename collection due to SQL error (probably duplicate name):");
+            e.PrintToLog();
+
+            Name = oldName;
+            return false;
+        }
+    }
+
+    GUARD_LOCK();
+    IsDirty = false;
+    NotifyAll(guard);
+
+    return true;
+}
+
 std::shared_ptr<Image> Collection::GetPreviewIcon() const
 {
     if(!IsInDatabase())
@@ -247,7 +293,12 @@ std::vector<std::shared_ptr<Image>> Collection::GetImages() const
 // ------------------------------------ //
 void Collection::_DoSave(Database& db)
 {
-    db.UpdateCollection(*this);
+    db.UpdateCollectionAG(*this);
+}
+
+void Collection::_DoSave(Database& db, DatabaseLockT& dbLock)
+{
+    db.UpdateCollection(dbLock, *this);
 }
 
 bool Collection::operator==(const Collection& other) const
