@@ -216,6 +216,7 @@ DualView::DualView(std::string tests, std::unique_ptr<Database>&& db /*= nullptr
     SuppressSecondInstance = true;
 
     Staticinstance = this;
+    ThreadSpecifier = MAIN_THREAD_MAGIC;
 }
 
 

@@ -20,29 +20,33 @@
 #include <boost/filesystem.hpp>
 
 #include <iostream>
+#include <random>
 
 using namespace DV;
 
 //! \file All tests that require gtk to be initialized
 
+//! \brief Singleton keeping a gtk connection open, as it seems you can no longer init this
+//! multiple times
 class GtkTestsFixture {
 public:
     GtkTestsFixture()
     {
-        app = Gtk::Application::create(
-            "com.boostslair.dualview.tests.test" + std::to_string(++InstanceCount));
+        app = Gtk::Application::create("com.boostslair.dualview.tests.test");
 
         REQUIRE(app->register_application());
     }
 
 protected:
     Glib::RefPtr<Gtk::Application> app;
-
-private:
-    static int InstanceCount;
 };
 
-int GtkTestsFixture::InstanceCount = 0;
+GtkTestsFixture& GetGtkFixture()
+{
+    static GtkTestsFixture fixture;
+    return fixture;
+}
+
 
 //#define PRINT_PIXEL_VALUES
 
@@ -82,8 +86,10 @@ void CheckPixel(Glib::RefPtr<Gdk::Pixbuf>& pixbuf, Magick::Image& image, size_t 
     }
 }
 
-TEST_CASE_METHOD(GtkTestsFixture, "Gdk pixbuf creation works", "[image][gtk][.expensive]")
+TEST_CASE("Gdk pixbuf creation works", "[image][gtk][.expensive]")
 {
+    GetGtkFixture();
+
     DV::TestDualView DualView;
 
     auto img =
@@ -121,9 +127,9 @@ TEST_CASE_METHOD(GtkTestsFixture, "Gdk pixbuf creation works", "[image][gtk][.ex
 
 
 
-TEST_CASE_METHOD(
-    GtkTestsFixture, "Basic SuperContainer operations", "[components][gtk][.expensive]")
+TEST_CASE("Basic SuperContainer operations", "[components][gtk][.expensive]")
 {
+    GetGtkFixture();
     DV::DummyDualView dualview;
 
     Gtk::Window window;
@@ -154,9 +160,10 @@ TEST_CASE_METHOD(
 }
 
 
-TEST_CASE_METHOD(GtkTestsFixture, "Creating collections and importing image",
-    "[full][integration][.expensive][db][gtk]")
+TEST_CASE(
+    "Creating collections and importing image", "[full][integration][.expensive][db][gtk]")
 {
+    GetGtkFixture();
     boost::filesystem::remove("image_import_test.sqlite");
     DV::TestDualView dualview("image_import_test.sqlite");
 
