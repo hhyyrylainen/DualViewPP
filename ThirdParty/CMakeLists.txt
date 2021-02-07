@@ -7,9 +7,6 @@ set(ENABLE_DATE_TESTING OFF CACHE BOOL "Enable unit tests")
 set(BUILD_TZ_LIB ON)
 add_subdirectory(date)
 
-target_compile_definitions(date INTERFACE HAS_UNCAUGHT_EXCEPTIONS=1)
-target_compile_definitions(date-tz INTERFACE HAS_UNCAUGHT_EXCEPTIONS=1)
-
 add_subdirectory(libpuzzle-0.11)
 
 add_library(ThirdParty STATIC

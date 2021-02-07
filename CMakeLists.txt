@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
+cmake_policy(SET CMP0077 NEW)
+
 set(DUALVIEW_VERSION_STR "1.0.0")
 
 project(DualView++ VERSION ${DUALVIEW_VERSION_STR})
@@ -45,6 +47,9 @@ else(WIN32)
   set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
   
 endif(WIN32)
+
+# Needed for date library
+add_compile_definitions(HAS_UNCAUGHT_EXCEPTIONS=1)
 
 # TODO: should set GTKMM_DISABLE_DEPRECATED
 
