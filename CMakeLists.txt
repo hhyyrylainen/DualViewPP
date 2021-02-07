@@ -1,6 +1,8 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.0)
 
-project(DualView++)
+set(DUALVIEW_VERSION_STR "1.0.0")
+
+project(DualView++ VERSION ${DUALVIEW_VERSION_STR})
 
 option(CREATE_DL_PLUGINS "Set to OFF to skip building web download tools" ON)
 
@@ -9,8 +11,6 @@ option(USE_GPROF "Set to ON to use gprof profiling" OFF)
 option(DISABLE_DEPRECATED_GTK "Set to OFF to allow use of deprecated GTKMM APIs" ON)
 
 option(DOCUMENTATION_LOCAL "If OFF php search is included in the documentation" ON)
-
-set(DUALVIEW_VERSION_STR "1.0.0")
 
 if(CMAKE_BUILD_TYPE STREQUAL "")
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING

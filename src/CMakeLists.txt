@@ -118,10 +118,10 @@ add_library(Core
   Common.h
   )
 
-target_link_libraries(Core ThirdParty tz Engine puzzle
+target_link_libraries(Core PUBLIC ThirdParty Engine puzzle
   ${GTKMM_LIBRARIES} ${GTKCANBERRA_LIBRARIES}
   ${MAGICK_LIBRARIES} ${Boost_LIBRARIES} ${CRYPTOPP_LIBRARIES} ${SQLITE3_LIBRARIES}
-  ${CURL_LIBRARIES})
+  ${CURL_LIBRARIES} date::date-tz)
 
 target_compile_options(Core PUBLIC ${MAGICK_CFLAGS_OTHER})
 target_include_directories(Core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
