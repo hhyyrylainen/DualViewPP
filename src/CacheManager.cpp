@@ -435,7 +435,19 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
     // Save it to a file //
     Magick::writeImages(FullImage->begin(), FullImage->end(), target.c_str());
 
-    LOG_INFO("Generated thumbnail for: " + thumb.GetPath());
+    int64_t size;
+
+    try {
+        size = boost::filesystem::file_size(thumb.GetPath());
+    } catch(const boost::filesystem::filesystem_error& e) {
+        LOG_ERROR("Failed to get generated thumbnail size: " + std::string(e.what()));
+        return;
+    }
+
+    size /= 1024;
+
+    LOG_INFO("Generated thumbnail for: " + thumb.GetPath() + " size: " + std::to_string(size) +
+             " KiB");
 }
 // ------------------------------------ //
 std::string CacheManager::CreateResizeSizeForImage(
