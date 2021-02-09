@@ -21,7 +21,7 @@ CREATE TABLE pictures (
     -- If 1 only visible in private mode
     is_private INTEGER DEFAULT 0,
     
-    from_file TEXT DEFAULT "", 
+    from_file TEXT DEFAULT '',
     
     -- Hash of the file
     file_hash TEXT NOT NULL UNIQUE,
@@ -193,7 +193,7 @@ CREATE TABLE tag_blacklist (
     -- Name of tag
     name TEXT UNIQUE COLLATE NOCASE,
     -- Reason this is blacklisted
-    reason TEXT DEFAULT "Unhelpful tag, use something else"
+    reason TEXT DEFAULT 'Unhelpful tag, use something else'
 
     -- Doesn't need deleted column as this can be saved in text form for undo
 );
@@ -237,7 +237,7 @@ CREATE TABLE image_tag (
 CREATE TABLE collections ( 
     id INTEGER PRIMARY KEY AUTOINCREMENT, 
     -- Name showed in collection browser. Has to be unique
-    name TEXT UNIQUE CHECK (name NOT LIKE "%/%"),
+    name TEXT UNIQUE CHECK (name NOT LIKE '%/%'),
     
     add_date TEXT, 
     modify_date TEXT, 
@@ -282,7 +282,7 @@ CREATE TABLE virtual_folders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     
     -- Name of the folder
-    name TEXT NOT NULL CHECK (name NOT LIKE "%/%"),
+    name TEXT NOT NULL CHECK (name NOT LIKE '%/%'),
     
     -- Is a private folder, only visible in private mode if set to 1
     is_private INTEGER DEFAULT 0,
@@ -322,7 +322,7 @@ CREATE TABLE net_files (
     file_url TEXT NOT NULL,
     
     -- Referrer page to use, some sites require this
-    page_referrer TEXT DEFAULT "",
+    page_referrer TEXT DEFAULT '',
     
     -- Name to use for this once downloaded
     preferred_name TEXT NOT NULL,
@@ -345,7 +345,7 @@ CREATE TABLE net_gallery (
     gallery_url TEXT NOT NULL,
 
     -- Folder target path
-    target_path TEXT DEFAULT "",
+    target_path TEXT DEFAULT '',
     
     -- Name of gallery (if already received a response to http request)
     -- When saving download_settings strip settings should be applied before saving
