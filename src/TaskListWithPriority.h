@@ -4,9 +4,9 @@
 
 #include "Common/ThreadSafe.h"
 
+#include <deque>
 #include <memory>
 #include <mutex>
-#include <vector>
 
 namespace DV {
 //! \brief Keeps a list of tasks that can be executed, and priority changed while running
@@ -55,10 +55,7 @@ public:
     };
 
 public:
-    explicit TaskListWithPriority(int initialCapacity = 100) noexcept
-    {
-        Queue.reserve(initialCapacity);
-    }
+    explicit TaskListWithPriority() noexcept {}
 
     //! \brief Adds a new task to be ran
     std::shared_ptr<TaskItem> Push(
@@ -94,13 +91,24 @@ public:
             return nullptr;
 
         ++SinceLastFullSort;
+        ++SinceFrontProcess;
+
+        // A bit of a hack to make thumbnail and gallery loading nicer looking at the front
+        if(SinceFrontProcess >= FrontProcessInterval) {
+
+            auto result = Queue.front();
+            Queue.pop_front();
+
+            SinceFrontProcess = 0;
+            return result;
+        }
 
         const bool fullLook = SinceLastFullSort >= FullSortInterval;
         SinceLastFullSort = 0;
 
         // Find kind of the highest priority as well as do some bubble sorting
 
-        int timeLooking = 15;
+        int timeLooking = 20;
 
         auto bestTask = Queue.rbegin();
 
@@ -154,9 +162,11 @@ public:
     }
 
 private:
-    const int FullSortInterval = 25;
+    const int FullSortInterval = 20;
+    const int FrontProcessInterval = 5;
 
-    std::vector<std::shared_ptr<TaskItem>> Queue;
+    std::deque<std::shared_ptr<TaskItem>> Queue;
     int SinceLastFullSort = 0;
+    int SinceFrontProcess = 0;
 };
 } // namespace DV
