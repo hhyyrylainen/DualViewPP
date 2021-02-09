@@ -50,8 +50,8 @@ CacheManager::~CacheManager()
     // Make sure all resources that use imagemagick are closed //
     // Clear cache //
     ImageCache.clear();
-    LoadQueue.clear();
-    ThumbQueue.clear();
+    LoadQueue.Clear();
+    ThumbQueue.Clear();
 }
 // ------------------------------------ //
 std::shared_ptr<LoadedImage> CacheManager::LoadFullImage(const std::string& file)
@@ -73,8 +73,9 @@ std::shared_ptr<LoadedImage> CacheManager::LoadFullImage(const std::string& file
 
     // Add it to load queue //
     {
-        std::lock_guard<std::mutex> lock2(LoadQueueMutex);
-        LoadQueue.push_back(created);
+        GUARD_LOCK_OTHER_NAME(LoadQueue, lock2);
+        // TODO: add the task to the loaded image for bumping it through it?
+        LoadQueue.Push(lock2, created);
     }
 
     LastCacheInsertTime = std::chrono::high_resolution_clock::now();
@@ -97,8 +98,9 @@ std::shared_ptr<LoadedImage> CacheManager::LoadThumbImage(
 
     // Add it to load queue //
     {
-        std::lock_guard<std::mutex> lock(ThumbQueueMutex);
-        ThumbQueue.push_back(std::make_tuple(created, hash));
+        GUARD_LOCK_OTHER(ThumbQueue);
+        // TODO: add the task to the loaded image for bumping it through it?
+        ThumbQueue.Push(guard, std::make_tuple(created, hash));
     }
 
     // Notify loader thread //
@@ -195,26 +197,23 @@ void CacheManager::QuitProcessingThreads()
 
 void CacheManager::_RunFullSizeLoaderThread()
 {
-    std::unique_lock<std::mutex> lock(LoadQueueMutex);
+    GUARD_LOCK_OTHER(LoadQueue);
 
     while(!Quitting) {
-
         // Wait for more work //
-        if(LoadQueue.empty())
-            NotifyFullLoaderThread.wait(lock);
+        if(LoadQueue.Empty(guard))
+            NotifyFullLoaderThread.wait(guard);
 
         // Process whole queue //
-        while(!LoadQueue.empty()) {
-
-            auto current = LoadQueue.front();
-            LoadQueue.pop_front();
+        while(auto current = LoadQueue.Pop(guard)) {
 
             // Unlock while loading the image file
-            lock.unlock();
+            guard.unlock();
 
-            current->DoLoad();
+            current->Task->DoLoad();
+            current->OnDone();
 
-            lock.lock();
+            guard.lock();
         }
     }
 }
@@ -293,26 +292,23 @@ void CacheManager::_RunCacheCleanupThread()
 
 void CacheManager::_RunThumbnailGenerationThread()
 {
-    std::unique_lock<std::mutex> lock(ThumbQueueMutex);
+    GUARD_LOCK_OTHER(ThumbQueue);
 
     while(!Quitting) {
 
         // Wait for more work //
-        if(ThumbQueue.empty())
-            NotifyThumbnailGenerationThread.wait(lock);
+        if(ThumbQueue.Empty(guard))
+            NotifyThumbnailGenerationThread.wait(guard);
 
         // Process whole queue //
-        while(!ThumbQueue.empty()) {
-
-            auto current = ThumbQueue.front();
-            ThumbQueue.pop_front();
-
+        while(auto current = ThumbQueue.Pop(guard)) {
             // Unlock while loading the image file
-            lock.unlock();
+            guard.unlock();
 
-            _LoadThumbnail(*std::get<0>(current), std::get<1>(current));
+            _LoadThumbnail(*std::get<0>(current->Task), std::get<1>(current->Task));
+            current->OnDone();
 
-            lock.lock();
+            guard.lock();
         }
     }
 }

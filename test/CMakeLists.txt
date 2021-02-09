@@ -18,6 +18,7 @@ add_executable(Test
   test_events.cpp
   test_undo.cpp
   test_net_gallery.cpp
+  test_task_list.cpp
 
   gtk_tests.cpp
 
@@ -30,8 +31,7 @@ add_executable(Test
   # Generated resource file
   # TODO: it might be nice to have a separate resources bundle for the tests and it
   # would be nice to keep the separate bundles up to date with cmake
-  "${PROJECT_BINARY_DIR}/generated/dualviewpp.gresource.cpp"
-  )
+  "${PROJECT_BINARY_DIR}/generated/dualviewpp.gresource.cpp")
 
 set_source_files_properties("${PROJECT_BINARY_DIR}/generated/dualviewpp.gresource.cpp"
   PROPERTIES GENERATED TRUE)

@@ -7,6 +7,8 @@
 #include "CurlWrapper.h"
 #include "date/tz.h"
 
+#include <ctime>
+
 //! \file Helper functions for saving / loading times from the database
 
 namespace DV {
@@ -137,6 +139,10 @@ public:
         return format8601(date::make_zoned(
             date::current_zone(), std::chrono::time_point_cast<std::chrono::milliseconds>(
                                       std::chrono::system_clock::now())));
+    }
+
+    static auto GetCurrentUnixTimestamp(){
+        return std::time(nullptr);
     }
 
 private:

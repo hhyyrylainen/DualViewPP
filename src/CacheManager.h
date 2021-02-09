@@ -1,5 +1,7 @@
 #pragma once
 
+#include "TaskListWithPriority.h"
+
 #include "Exceptions.h"
 
 #include <gdkmm/pixbuf.h>
@@ -283,19 +285,18 @@ protected:
     //! changed an image in a while. Will be periodically cleared by _RunCacheCleanupThread
     std::vector<std::shared_ptr<LoadedImage>> ImageCache;
 
-    //! Time since something was added to image cache, used to clear out the cache when idle
-    std::atomic<std::chrono::high_resolution_clock::time_point> LastCacheInsertTime;
-
     //! Lock when using ImageCache
     std::mutex ImageCacheLock;
+
+    //! Time since something was added to image cache, used to clear out the cache when idle
+    std::atomic<std::chrono::high_resolution_clock::time_point> LastCacheInsertTime;
 
     // FullLoader //
     //! Uses LoadQueueMutex for locking
     std::condition_variable NotifyFullLoaderThread;
     std::thread FullLoaderThread;
 
-    std::mutex LoadQueueMutex;
-    std::list<std::shared_ptr<LoadedImage>> LoadQueue;
+    TaskListWithPriority<std::shared_ptr<LoadedImage>> LoadQueue;
 
     // CacheCleanup //
     std::condition_variable NotifyCacheCleanup;
@@ -307,11 +308,9 @@ protected:
     std::condition_variable NotifyThumbnailGenerationThread;
     std::thread ThumbnailGenerationThread;
 
-    std::mutex ThumbQueueMutex;
     //! List of thumbnails that need to be loaded. The string in the tuple is the
     //! file hash
-    std::list<std::tuple<std::shared_ptr<LoadedImage>, std::string>> ThumbQueue;
-
+    TaskListWithPriority<std::tuple<std::shared_ptr<LoadedImage>, std::string>> ThumbQueue;
 
     // Resource managing //
 

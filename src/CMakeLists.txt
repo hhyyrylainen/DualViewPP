@@ -60,6 +60,8 @@ add_library(Core
 
   VirtualPath.h VirtualPath.cpp
   TimeHelpers.h TimeHelpers.cpp
+
+  TaskListWithPriority.h
   
   # Window stuff
   windows/BaseWindow.h windows/BaseWindow.cpp
@@ -116,8 +118,7 @@ add_library(Core
   resources/DatabaseAction.h resources/DatabaseAction.cpp
 
   # Generated headers
-  Common.h
-  )
+  Common.h)
 
 target_link_libraries(Core PUBLIC ThirdParty Engine puzzle
   ${GTKMM_LIBRARIES} ${GTKCANBERRA_LIBRARIES}
