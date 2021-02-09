@@ -10,6 +10,7 @@ class Collection;
 
 //! \brief Widget type for CollectionPreview
 //! \todo Switch preview icon loading to database thread if it risks hanging the main thread
+//! (done already?)
 class CollectionListItem : public ListItem {
 public:
     CollectionListItem(const std::shared_ptr<ItemSelectable>& selectable,

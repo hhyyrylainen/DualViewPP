@@ -68,7 +68,7 @@ public:
     void SetImageList(std::shared_ptr<ImageListScroll> list);
 
     //! \brief Sets the image to show
-    void SetImage(std::shared_ptr<Image> displayedResource);
+    void SetImage(std::shared_ptr<Image> displayedResource, bool fastUnload = false);
 
     //! \brief Sets an already loaded image to show
     void SetImage(std::shared_ptr<LoadedImage> alreadyloaded);

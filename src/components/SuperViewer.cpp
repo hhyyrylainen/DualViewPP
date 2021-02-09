@@ -73,7 +73,8 @@ SuperViewer::~SuperViewer()
     DisplayedResource.reset();
 }
 // ------------------------------------ //
-void SuperViewer::SetImage(std::shared_ptr<Image> displayedResource)
+void SuperViewer::SetImage(
+    std::shared_ptr<Image> displayedResource, bool fastUnload /*= false*/)
 {
     DisplayedResource = displayedResource;
 
@@ -86,8 +87,11 @@ void SuperViewer::SetImage(std::shared_ptr<Image> displayedResource)
     IsAutoFit = true;
 
     // Redraw a bit later to give the image time to load
-    _AddRedrawTimer(100);
-    // queue_draw();
+    if(fastUnload) {
+        queue_draw();
+    } else {
+        _AddRedrawTimer(100);
+    }
 
     if(ImageChangeCallback)
         ImageChangeCallback();

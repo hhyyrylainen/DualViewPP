@@ -85,9 +85,9 @@ void ListItem::_SetName(const std::string& name)
     NameLabel.set_text(name);
 }
 
-void ListItem::_SetImage(std::shared_ptr<Image> image)
+void ListItem::_SetImage(std::shared_ptr<Image> image, bool fastUnloadPrevious)
 {
-    ImageIcon.SetImage(image);
+    ImageIcon.SetImage(image, fastUnloadPrevious);
 }
 
 // ------------------------------------ //

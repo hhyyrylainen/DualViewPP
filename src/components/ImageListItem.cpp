@@ -15,7 +15,7 @@ ImageListItem::ImageListItem(const std::shared_ptr<ItemSelectable>& selectable,
 void ImageListItem::SetImage(std::shared_ptr<Image> image)
 {
     CurrentImage = image;
-    _SetImage(image);
+    _SetImage(image, false);
     _SetName(image->GetName());
 }
 // ------------------------------------ //

@@ -91,7 +91,7 @@ protected:
     void _SetName(const std::string& name);
 
     //! \brief Sets the image on ImageIcon
-    void _SetImage(std::shared_ptr<Image> image);
+    void _SetImage(std::shared_ptr<Image> image, bool fastUnloadPrevious);
 
     // Gtk overrides
     Gtk::SizeRequestMode get_request_mode_vfunc() const override;

@@ -53,10 +53,12 @@ CollectionListItem::CollectionListItem(const std::shared_ptr<ItemSelectable>& se
 // ------------------------------------ //
 void CollectionListItem::SetCollection(std::shared_ptr<Collection> collection)
 {
+    bool isSwitch = CurrentCollection != nullptr;
+
     CurrentCollection = collection;
 
     // Update the item right away to make navigation less confusing
-    _SetImage(nullptr);
+    _SetImage(nullptr, isSwitch);
     _SetName("Loading...");
 
     auto alive = GetAliveMarker();
@@ -66,7 +68,7 @@ void CollectionListItem::SetCollection(std::shared_ptr<Collection> collection)
 
         DualView::Get().InvokeFunction([=]() {
             INVOKE_CHECK_ALIVE_MARKER(alive);
-            _SetImage(preview);
+            _SetImage(preview, false);
         });
     });
 
