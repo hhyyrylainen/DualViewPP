@@ -51,8 +51,6 @@ bool CollectionView::_OnClose(GdkEventAny* event)
     // Just hide it //
     hide();
 
-    LOG_INFO("Hiding CollectionView");
-
     return true;
 }
 // ------------------------------------ //
@@ -131,7 +129,7 @@ void CollectionView::_UpdateShownItems()
         auto changefolder = std::make_shared<ItemSelectable>();
 
         changefolder->AddFolderSelect([this](ListItem& item) {
-            FolderListItem* asfolder = dynamic_cast<FolderListItem*>(&item);
+            auto* asfolder = dynamic_cast<FolderListItem*>(&item);
 
             if(!asfolder)
                 return;

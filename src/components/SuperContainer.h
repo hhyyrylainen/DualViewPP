@@ -94,8 +94,6 @@ public:
 
         std::vector<std::shared_ptr<ResourceWithPreview>> firstVisibleThings;
 
-
-
         if(keepPosition && !Positions.empty()) {
 
             const auto currentScroll = get_vadjustment()->get_value();
@@ -161,6 +159,8 @@ public:
         // And restore it, if wanted
         if(keepPosition && !firstVisibleThings.empty()) {
 
+            bool applied = false;
+
             // Restore offset to the first item that still exists//
             for(const auto& firstVisibleThing : firstVisibleThings) {
 
@@ -170,8 +170,14 @@ public:
                     continue;
 
                 get_vadjustment()->set_value(widgetOffset);
+                applied = true;
                 break;
             }
+
+            // Reset scroll to the top as this behaves better in this case if no offset could
+            // be restored
+            if(!applied)
+                get_vadjustment()->set_value(0);
         }
     }
 
@@ -237,7 +243,8 @@ public:
     void SelectPreviousItem();
 
     //! \brief Does shift selection to the specified item
-    //! \todo Add a callback so that users where it is expensive to update the selected state can use this without worry
+    //! \todo Add a callback so that users where it is expensive to update the selected state
+    //! can use this without worry
     void ShiftSelectTo(const ListItem* item);
 
     //! \brief Returns True if contains no items
