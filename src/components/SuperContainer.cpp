@@ -327,6 +327,46 @@ void SuperContainer::SelectPreviousItem()
         SelectFirstItem();
     }
 }
+
+void SuperContainer::ShiftSelectTo(const ListItem* item)
+{
+    // Find first non-matching item to start from
+    size_t selectStart = 0;
+
+    // And also where item is
+    size_t itemsPosition = 0;
+
+    for(size_t i = 0; i < Positions.size(); ++i) {
+        auto& position = Positions[i];
+
+        if(!position.WidgetToPosition)
+            continue;
+
+        if(position.WidgetToPosition->Widget.get() == item) {
+            itemsPosition = i;
+        } else if(selectStart == 0 && position.WidgetToPosition->Widget->IsSelected()) {
+            selectStart = i;
+        }
+    }
+
+    // Swap so that the order is always the lower to higher
+    if(selectStart > itemsPosition)
+        std::swap(selectStart, itemsPosition);
+
+    // TODO: pre-select callback
+
+    // Perform actual selections
+    for(size_t i = selectStart; i < itemsPosition; ++i) {
+        auto& position = Positions[i];
+
+        if(!position.WidgetToPosition)
+            continue;
+
+        position.WidgetToPosition->Widget->Select();
+    }
+
+    // TODO: post-select callback
+}
 // ------------------------------------ //
 bool SuperContainer::IsEmpty() const
 {
@@ -720,6 +760,11 @@ void SuperContainer::_AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item,
 
     // Initialize a size for the widget
     _SetWidgetSize(*element);
+
+    // Sign up for notifications about shift selection if selection is setup
+    if(selectable) {
+        element->Widget->SetAdvancedSelection([=](ListItem& item) { ShiftSelectTo(&item); });
+    }
 
     // Find the first empty spot //
     for(size_t i = 0; i < Positions.size(); ++i) {

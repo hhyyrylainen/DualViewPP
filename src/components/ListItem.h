@@ -71,6 +71,11 @@ public:
         return Active;
     }
 
+    inline void SetAdvancedSelection(std::function<void(ListItem&)> shiftSelectCallback)
+    {
+        ShiftSelectCallback = shiftSelectCallback;
+    }
+
     //! \brief Sets new size.
     //! \note The parent container needs to call this or be otherwise notified
     //! that this has changed, otherwise the size won't actually change.
@@ -150,6 +155,9 @@ protected:
     //! If false doesn't listen for mouse clicks
     //! When true updates selected state when clicked
     std::shared_ptr<ItemSelectable> Selectable = nullptr;
+
+    //! If not empty this is called when this becomes selected while shift is held
+    std::function<void(ListItem&)> ShiftSelectCallback;
 
     // Variables for drag support
     Point MouseDownPos = Point(0, 0);

@@ -182,6 +182,13 @@ bool ListItem::_OnMouseButtonPressed(GdkEventButton* event)
         if(Active && Selectable && Selectable->Selectable) {
 
             SetSelected(!CurrentlySelected);
+
+            if(event->state & GDK_SHIFT_MASK){
+                if(CurrentlySelected && ShiftSelectCallback){
+                    ShiftSelectCallback(*this);
+                }
+            }
+
             return true;
         }
 

@@ -236,6 +236,10 @@ public:
     //! \see SuperContainer::SelectNextItem
     void SelectPreviousItem();
 
+    //! \brief Does shift selection to the specified item
+    //! \todo Add a callback so that users where it is expensive to update the selected state can use this without worry
+    void ShiftSelectTo(const ListItem* item);
+
     //! \brief Returns True if contains no items
     bool IsEmpty() const;
 
