@@ -324,7 +324,8 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
 
     if(extension.empty()) {
 
-        LOG_WARNING("Creating thumbnail for image with empty extension");
+        LOG_WARNING(
+            "Creating thumbnail for image with empty extension, full path: " + thumb.FromPath);
 
         // TODO: make a database upgrade guaranteeing all images have
         // an extensions and then remove this
