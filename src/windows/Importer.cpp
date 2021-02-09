@@ -16,6 +16,7 @@
 #include "DualView.h"
 
 #include "Common/StringOperations.h"
+#include "TimeIncludes.h"
 
 #include <boost/filesystem.hpp>
 
@@ -146,20 +147,17 @@ Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
 Importer::~Importer()
 {
-
     LOG_INFO("Importer properly closed");
     Close();
 }
 // ------------------------------------ //
 void Importer::FindContent(const std::string& path, bool recursive /*= false*/)
 {
-
     namespace bf = boost::filesystem;
 
     LOG_INFO("Importer finding content from: " + path);
 
     if(!bf::is_directory(path)) {
-
         // A single file //
         _AddImageToList(path);
         return;
@@ -169,9 +167,10 @@ void Importer::FindContent(const std::string& path, bool recursive /*= false*/)
     if(CollectionName->get_text().empty())
         CollectionName->set_text(Leviathan::StringOperations::RemovePath(path));
 
+    // TODO: implement better image name sorting
+
     // Loop contents //
     if(recursive) {
-
         for(bf::recursive_directory_iterator iter(path);
             iter != bf::recursive_directory_iterator(); ++iter) {
             if(bf::is_directory(iter->status()))
@@ -195,7 +194,6 @@ void Importer::FindContent(const std::string& path, bool recursive /*= false*/)
 
 bool Importer::_AddImageToList(const std::string& file)
 {
-
     if(!DualView::IsFileContent(file))
         return false;
 
@@ -244,7 +242,6 @@ bool Importer::_AddImageToList(const std::string& file)
 
 void Importer::_UpdateImageList()
 {
-
     ImageList->SetShownItems(ImagesToImport.begin(), ImagesToImport.end(),
         std::make_shared<ItemSelectable>(
             std::bind(&Importer::OnItemSelected, this, std::placeholders::_1)));
@@ -252,7 +249,6 @@ void Importer::_UpdateImageList()
 
 void Importer::AddExisting(const std::vector<std::shared_ptr<Image>>& images)
 {
-
     ImagesToImport.reserve(ImagesToImport.size() + images.size());
 
     for(const auto& image : images)
@@ -263,14 +259,12 @@ void Importer::AddExisting(const std::vector<std::shared_ptr<Image>>& images)
 // ------------------------------------ //
 bool Importer::_OnClosed(GdkEventAny* event)
 {
-
     _ReportClosed();
     return false;
 }
 
 void Importer::_OnClose()
 {
-
     if(DoingImport) {
 
         // Ask user to interrupt importing //
@@ -288,18 +282,15 @@ void Importer::_OnClose()
 // ------------------------------------ //
 void Importer::UpdateReadyStatus()
 {
-
     DualView::IsOnMainThreadAssert();
 
-    if(DoingImport) {
+    const auto start = std::chrono::high_resolution_clock::now();
 
+    if(DoingImport) {
         StatusLabel->set_text("Import in progress...");
         set_sensitive(false);
         return;
     }
-
-    if(!get_sensitive())
-        set_sensitive(true);
 
     SelectedImages.clear();
     SelectedItems.clear();
@@ -320,7 +311,7 @@ void Importer::UpdateReadyStatus()
     }
 
     // Check for duplicate hashes //
-    bool hashesready = true;
+    HashesReady = true;
     bool changedimages = false;
 
     for(auto iter = ImagesToImport.begin(); iter != ImagesToImport.end(); ++iter) {
@@ -329,7 +320,7 @@ void Importer::UpdateReadyStatus()
 
         if(!image->IsReady()) {
 
-            hashesready = false;
+            HashesReady = false;
             continue;
         }
 
@@ -342,7 +333,7 @@ void Importer::UpdateReadyStatus()
 
             if(!image2->IsReady()) {
 
-                hashesready = false;
+                HashesReady = false;
                 continue;
             }
 
@@ -391,8 +382,6 @@ void Importer::UpdateReadyStatus()
         return;
     }
 
-
-
     if(SelectedImages.empty()) {
 
         StatusLabel->set_text("No images selected");
@@ -400,7 +389,7 @@ void Importer::UpdateReadyStatus()
 
     } else {
 
-        if(hashesready) {
+        if(HashesReady) {
 
             StatusLabel->set_text(
                 "Ready to import " + Convert::ToString(SelectedImages.size()) + " images");
@@ -409,6 +398,7 @@ void Importer::UpdateReadyStatus()
 
             StatusLabel->set_text("Image hashes not ready yet. Selected " +
                                   Convert::ToString(SelectedImages.size()) + " images");
+            // TODO: would be nice to have a periodic re-check to see when images are ready
         }
 
         PreviewImage->SetImage(SelectedImages.front());
@@ -423,11 +413,21 @@ void Importer::UpdateReadyStatus()
     }
 
     SelectedImageTags->SetEditedTags(tagstoedit);
+
+
+    set_sensitive(true);
+
+    if(false) {
+        LOG_INFO("Importer: UpdateReadyStatus: took: " +
+                 std::to_string(std::chrono::duration_cast<SecondDuration>(
+                     std::chrono::high_resolution_clock::now() - start)
+                                    .count()) +
+                 "s");
+    }
 }
 
 void Importer::OnItemSelected(ListItem& item)
 {
-
     // Deselect others if only one is wanted //
     if(SelectOnlyOneImage->get_active() && item.IsSelected()) {
 
@@ -435,33 +435,29 @@ void Importer::OnItemSelected(ListItem& item)
         ImageList->DeselectAllExcept(&item);
     }
 
+    if(SuppressIndividualSelectCallback)
+        return;
+
     UpdateReadyStatus();
 }
 // ------------------------------------ //
 void Importer::_OnDeselectCurrent()
 {
-
     ImageList->DeselectFirstItem();
-    UpdateReadyStatus();
 }
 
 void Importer::_OnSelectNext()
 {
-
     ImageList->SelectNextItem();
-    UpdateReadyStatus();
 }
 
 void Importer::_OnSelectPrevious()
 {
-
     ImageList->SelectPreviousItem();
-    UpdateReadyStatus();
 }
 
 void Importer::_RemoveSelected()
 {
-
     ImagesToImport.erase(std::remove_if(ImagesToImport.begin(), ImagesToImport.end(),
                              [this](auto& x) {
                                  return std::find(SelectedImages.begin(), SelectedImages.end(),
@@ -475,12 +471,23 @@ void Importer::_RemoveSelected()
 // ------------------------------------ //
 bool Importer::StartImporting(bool move)
 {
-
     bool expected = false;
     if(!DoingImport.compare_exchange_weak(
            expected, true, std::memory_order_release, std::memory_order_relaxed)) {
         return false;
     }
+
+    if(!HashesReady) {
+        auto dialog = Gtk::MessageDialog(*this, "Image Hashes Not Ready", false,
+            Gtk::MESSAGE_WARNING, Gtk::BUTTONS_OK, true);
+
+        dialog.set_secondary_text(
+            "One or more of the selected images doesn't have a hash computed yet. Please try "
+            "again in a few seconds. You can change image selections to see the new status");
+        dialog.run();
+        return false;
+    }
+
 
     // Value was changed to true //
 
@@ -556,7 +563,6 @@ bool Importer::StartImporting(bool move)
 
 void Importer::_RunImportThread(const std::string& collection, bool move)
 {
-
     bool result = DualView::Get().AddToCollection(
         SelectedImages, move, collection, *CollectionTags, [this](float progress) {
             ReportedProgress = progress;
@@ -575,7 +581,6 @@ void Importer::_RunImportThread(const std::string& collection, bool move)
 
 void Importer::_OnImportFinished(bool success)
 {
-
     LEVIATHAN_ASSERT(
         DualView::IsOnMainThread(), "_OnImportFinished called on the wrong thread");
 
@@ -667,25 +672,21 @@ void Importer::_OnImportFinished(bool success)
 
 void Importer::_OnImportProgress()
 {
-
     ProgressBar->set_value(100 * ReportedProgress);
 }
 
 void Importer::_OnCopyToCollection()
 {
-
     StartImporting(false);
 }
 
 void Importer::_OnMoveToCollection()
 {
-
     StartImporting(true);
 }
 
 void Importer::_OnAddImagesFromFolder()
 {
-
     Gtk::FileChooserDialog dialog(
         "Choose a folder to scan for images", Gtk::FILE_CHOOSER_ACTION_SELECT_FOLDER);
 
@@ -724,7 +725,6 @@ void Importer::_OnAddImagesFromFolder()
 
 void Importer::_OnBrowseForImages()
 {
-
     Gtk::FileChooserDialog dialog("Choose an image to open", Gtk::FILE_CHOOSER_ACTION_OPEN);
 
     dialog.set_transient_for(*this);
@@ -772,12 +772,16 @@ void Importer::_OnBrowseForImages()
 // ------------------------------------ //
 void Importer::_OnDeselectAll()
 {
-
+    SuppressIndividualSelectCallback = true;
     ImageList->DeselectAllItems();
+
+    SuppressIndividualSelectCallback = false;
+    UpdateReadyStatus();
 }
 
 void Importer::_OnSelectAll()
 {
+    SuppressIndividualSelectCallback = true;
 
     // If the "select only one" checkbox is checked this doesn't work properly
     if(SelectOnlyOneImage->get_active()) {
@@ -792,6 +796,9 @@ void Importer::_OnSelectAll()
 
         ImageList->SelectAllItems();
     }
+
+    SuppressIndividualSelectCallback = false;
+    UpdateReadyStatus();
 }
 // ------------------------------------ //
 bool Importer::_OnDragMotion(

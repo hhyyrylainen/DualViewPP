@@ -36,6 +36,7 @@ public:
     void FindContent(const std::string& path, bool recursive = false);
 
     //! \brief Adds existing database images to this Importer
+    //! \todo Make sure that this doesn't work when this is not sensitive or importing
     void AddExisting(const std::vector<std::shared_ptr<Image>>& images);
 
     //! \brief Updates the status label based on selected images
@@ -142,6 +143,12 @@ protected:
 
     //! Keeps selected image memory loaded
     std::vector<std::shared_ptr<ResourceWithPreview>> SelectedItems;
+
+    //! If false the hashes for to be imported images are not ready, and import is not allowed
+    std::atomic<bool> HashesReady{true};
+
+    //! If true prevents individual image select callbacks from running
+    bool SuppressIndividualSelectCallback = false;
 };
 
 
