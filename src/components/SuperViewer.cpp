@@ -9,17 +9,6 @@
 
 using namespace DV;
 // ------------------------------------ //
-//#define PRINT_EXTRA_DEBUG
-
-#ifdef PRINT_EXTRA_DEBUG
-#define PRINT_INFO(x)                                \
-    {                                                \
-        LOG_WRITE(std::string("SuperViewer: ") + x); \
-    }
-#else
-#define PRINT_INFO(x) \
-    {}
-#endif
 
 constexpr auto MAX_LOADING_LINES = 6;
 
@@ -37,7 +26,6 @@ SuperViewer::SuperViewer(
     DisplayedResource(displayedResource),
     Events(events), ForceOnlyThumbnail(forcethumbnail)
 {
-    PRINT_INFO("constructed with a resource");
     _CommonCtor();
 }
 
@@ -82,8 +70,6 @@ void SuperViewer::_CommonCtor()
 
 SuperViewer::~SuperViewer()
 {
-    PRINT_INFO("Super destructed");
-
     DisplayedResource.reset();
 }
 // ------------------------------------ //
@@ -482,7 +468,8 @@ bool SuperViewer::MoveInCollection(bool forwards, bool wrap /*= true*/)
     if(!ScrollableImages)
         return false;
 
-    LOG_INFO("SuperViewer: moving in collection");
+    if(USE_EXTRA_VIEWER_LOGGING)
+        LOG_INFO("SuperViewer: moving in collection");
 
     auto nextimage = forwards ? ScrollableImages->GetNextImage(DisplayedResource, wrap) :
                                 ScrollableImages->GetPreviousImage(DisplayedResource, wrap);

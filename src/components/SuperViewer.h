@@ -23,6 +23,7 @@ constexpr auto SUPER_THUMBNAIL_HEIGHT_THRESHOLD = 225;
 //! the cached image is released
 constexpr auto SUPER_UNLOAD_IMAGE_AFTER_MS = 15000;
 
+constexpr auto USE_EXTRA_VIEWER_LOGGING = false;
 
 //! \brief Image viewing widget
 //!

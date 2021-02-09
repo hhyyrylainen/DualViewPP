@@ -264,12 +264,13 @@ void CacheManager::_RunCacheCleanupThread()
             // Force unload if too many
             int unloadsRemaining = 40;
 
-            while(ImageCache.size() > DUALVIEW_SETTINGS_MAX_CACHED_IMAGES && unloadsRemaining > 0){
+            while(ImageCache.size() > DUALVIEW_SETTINGS_MAX_CACHED_IMAGES &&
+                  unloadsRemaining > 0) {
                 // TODO: not the optimal algorithm but oh well, this is run in the background
                 auto oldest = ImageCache.begin();
                 auto oldestAge = time - (*oldest)->GetLastUsed();
 
-                for(auto iter = ImageCache.begin() + 1; iter != ImageCache.end(); ++iter){
+                for(auto iter = ImageCache.begin() + 1; iter != ImageCache.end(); ++iter) {
                     const auto age = (time - (*iter)->GetLastUsed());
 
                     if(age > oldestAge) {
@@ -280,6 +281,11 @@ void CacheManager::_RunCacheCleanupThread()
 
                 ImageCache.erase(oldest);
                 --unloadsRemaining;
+            }
+
+            if(SHOW_IMAGE_CACHE_SIZE) {
+                Logger::Get()->Info(
+                    "Current image cache size is: " + std::to_string(ImageCache.size()));
             }
         }
     }

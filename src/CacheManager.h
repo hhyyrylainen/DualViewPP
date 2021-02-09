@@ -19,6 +19,8 @@ class Image;
 
 namespace DV {
 
+constexpr auto SHOW_IMAGE_CACHE_SIZE = false;
+
 class CacheManager;
 
 //! \brief Holds an image that has been loaded into memory
