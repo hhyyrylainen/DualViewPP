@@ -18,7 +18,6 @@ using namespace DV;
 // ------------------------------------ //
 CacheManager::CacheManager()
 {
-
     Magick::InitializeMagick(Glib::get_current_dir().c_str());
 
     FullLoaderThread =
@@ -33,7 +32,6 @@ CacheManager::CacheManager()
 
 CacheManager::~CacheManager()
 {
-
     FolderIconAsImage.reset();
 
     // Stop loading threads //
@@ -58,7 +56,6 @@ CacheManager::~CacheManager()
 // ------------------------------------ //
 std::shared_ptr<LoadedImage> CacheManager::LoadFullImage(const std::string& file)
 {
-
     std::lock_guard<std::mutex> lock(ImageCacheLock);
 
     auto cachedVersion = GetCachedImage(lock, file);
@@ -79,6 +76,8 @@ std::shared_ptr<LoadedImage> CacheManager::LoadFullImage(const std::string& file
         std::lock_guard<std::mutex> lock2(LoadQueueMutex);
         LoadQueue.push_back(created);
     }
+
+    LastCacheInsertTime = std::chrono::high_resolution_clock::now();
 
     // Notify loader thread //
     NotifyFullLoaderThread.notify_all();
@@ -223,6 +222,7 @@ void CacheManager::_RunFullSizeLoaderThread()
 void CacheManager::_RunCacheCleanupThread()
 {
     std::unique_lock<std::mutex> lock(CacheCleanupMutex);
+    LastCacheInsertTime = std::chrono::high_resolution_clock::now();
 
     while(!Quitting) {
 
@@ -232,15 +232,29 @@ void CacheManager::_RunCacheCleanupThread()
             std::unique_lock<std::mutex> lock(ImageCacheLock);
             const auto time = std::chrono::high_resolution_clock::now();
 
+            auto previous = LastCacheInsertTime.load(std::memory_order_acquire);
+            const auto unloadAnywayTime =
+                std::chrono::seconds(DUALVIEW_SETTINGS_UNLOAD_ANYWAY);
+            bool useUnloadAnyway = time - previous > unloadAnywayTime;
+
+            if(useUnloadAnyway) {
+                LastCacheInsertTime.compare_exchange_weak(
+                    previous, time, std::memory_order_acquire, std::memory_order_release);
+            }
+
             for(auto iter = ImageCache.begin(); iter != ImageCache.end();) {
+
+                const auto age = (time - (*iter)->GetLastUsed());
 
                 // Expire //
                 if((*iter).use_count() == 1 &&
-                    (time - (*iter)->GetLastUsed()) >
-                        std::chrono::milliseconds(DUALVIEW_SETTINGS_UNLOAD_TIME_MS)) {
+                    age > std::chrono::milliseconds(DUALVIEW_SETTINGS_UNLOAD_TIME_MS)) {
                     // Unload it //
                     iter = ImageCache.erase(iter);
-
+                } else if(useUnloadAnyway && age > unloadAnywayTime) {
+                    iter = ImageCache.erase(iter);
+                    // Only one per cycle
+                    useUnloadAnyway = false;
                 } else {
 
                     ++iter;

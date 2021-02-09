@@ -149,7 +149,7 @@ public:
     //! \brief Create new LoadedImage
     //! \protected
     //! \warning Don't call this from anywhere else than CacheManager
-    LoadedImage(const std::string& path);
+    explicit LoadedImage(const std::string& path);
 
 protected:
     //! \brief Loads this from a Gtk image
@@ -196,7 +196,7 @@ protected:
 //! \note This class will perform ImageMagick initialization automatically
 class CacheManager {
 public:
-    //! \brief Redies ImageMagick to be used by this instance
+    //! \brief Readies ImageMagick to be used by this instance
     CacheManager();
 
     //! \note It seems that there is no close method in Magick++ so that isn't called
@@ -280,6 +280,9 @@ protected:
     //! Contains recently open images and maybe the next image if the user hasn't
     //! changed an image in a while. Will be periodically cleared by _RunCacheCleanupThread
     std::vector<std::shared_ptr<LoadedImage>> ImageCache;
+
+    //! Time since something was added to image cache, used to clear out the cache when idle
+    std::atomic<std::chrono::high_resolution_clock::time_point> LastCacheInsertTime;
 
     //! Lock when using ImageCache
     std::mutex ImageCacheLock;
