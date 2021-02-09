@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Plugin.h"
+#include "TaskListWithPriority.h"
 
 #include <list>
 #include <thread>
@@ -185,7 +186,7 @@ public:
     void StopDownloads();
 
     //! \brief Adds an item to the work queue
-    void QueueDownload(std::shared_ptr<DownloadJob> job);
+    void QueueDownload(std::shared_ptr<DownloadJob> job, int64_t priority = -1);
 
     //! \brief Extracts a filename from an url
     static std::string ExtractFileName(const std::string& url);
@@ -204,8 +205,7 @@ protected:
 
     std::condition_variable NotifyThread;
 
-    std::mutex WorkQueueMutex;
-    std::list<std::shared_ptr<DownloadJob>> WorkQueue;
+    TaskListWithPriority<std::shared_ptr<DownloadJob>> WorkQueue;
 };
 
 

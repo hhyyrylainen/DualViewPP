@@ -6,6 +6,7 @@
 #include "DualView.h"
 #include "PluginManager.h"
 #include "Settings.h"
+#include "TimeHelpers.h"
 
 #include "Common.h"
 
@@ -31,7 +32,8 @@ DownloadManager::~DownloadManager()
     NotifyThread.notify_all();
     DownloadThread.join();
 
-    if(!WorkQueue.empty()) {
+    GUARD_LOCK_OTHER(WorkQueue);
+    if(!WorkQueue.Empty(guard)) {
 
         LOG_WARNING("DownloadManager quit with items still waiting to be downloaded");
 
@@ -49,37 +51,44 @@ void DownloadManager::StopDownloads()
 // ------------------------------------ //
 void DownloadManager::_RunDLThread()
 {
-    std::unique_lock<std::mutex> lock(WorkQueueMutex);
+    GUARD_LOCK_OTHER(WorkQueue);
 
     while(!ThreadQuit) {
 
         // Wait for work //
-        if(WorkQueue.empty())
-            NotifyThread.wait(lock);
+        if(WorkQueue.Empty(guard))
+            NotifyThread.wait(guard);
 
-        if(WorkQueue.empty())
+        auto task = WorkQueue.Pop(guard);
+
+        if(!task)
             continue;
 
         // Handle the download objects
-        std::shared_ptr<DownloadJob> item = WorkQueue.front();
-        WorkQueue.pop_front();
 
         // Unlock while working on an item
-        lock.unlock();
+        guard.unlock();
 
-        item->DoDownload(*this);
-        item.reset();
+        task->Task->DoDownload(*this);
+        // Needed? the tasks are now const
+        // task->Task.reset();
+        task->OnDone();
 
-        lock.lock();
+        guard.lock();
     }
 
     LOG_INFO("Download Thread Quit");
 }
 // ------------------------------------ //
-void DownloadManager::QueueDownload(std::shared_ptr<DownloadJob> job)
+void DownloadManager::QueueDownload(
+    std::shared_ptr<DownloadJob> job, int64_t priority /*= -1*/)
 {
-    std::unique_lock<std::mutex> lock(WorkQueueMutex);
-    WorkQueue.push_back(job);
+    if(priority == -1)
+        priority = TimeHelpers::GetCurrentUnixTimestamp();
+
+    GUARD_LOCK_OTHER(WorkQueue);
+
+    WorkQueue.Push(guard, job, priority);
 
     NotifyThread.notify_all();
 }
