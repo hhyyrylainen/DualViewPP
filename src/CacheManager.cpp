@@ -340,12 +340,14 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
     if(boost::filesystem::exists(target)) {
 
         // Load the existing thumbnail //
-        thumb.DoLoad(target.c_str());
+        thumb.DoLoad(target.string());
 
         if(!thumb.IsValid()) {
 
             LOG_WARNING("Deleting invalid thumbnail: " + std::string(target.c_str()));
             boost::filesystem::remove(target);
+
+            // TODO: avoid infinite recursion
             _LoadThumbnail(thumb, hash);
         }
 
@@ -385,7 +387,13 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
 
         // The images are already coalesced here //
 
-        if(FullImage->at(0).animationDelay() < 25 && FullImage->size() > 10) {
+        // TODO: maybe if the animation delay is over MAXIMUM_ALLOWED_ANIMATION_FRAME_DURATION
+        // still remove frames?
+        // TODO: always reduce the preview to be less than X number of frames? Or a fraction of
+        // the original?
+        if(FullImage->at(0).animationDelay() * 0.01f <
+                MAXIMUM_ALLOWED_ANIMATION_FRAME_DURATION &&
+            FullImage->size() > 10) {
             // Resize and remove every other frame //
             bool remove = false;
 
@@ -436,7 +444,6 @@ std::string CacheManager::CreateResizeSizeForImage(
     if(width <= 0 && height <= 0)
         throw Leviathan::InvalidArgument("Both width and height are 0 or under");
 
-    // TODO: verify that this width calculation is correct
     if(width <= 0)
         width = (int)((float)height * image.columns() / image.rows());
 
@@ -452,7 +459,6 @@ bool CacheManager::GetImageSize(
     const std::string& image, int& width, int& height, std::string& extension)
 {
     try {
-
         Magick::Image img(image);
 
         const auto fileExtension = boost::filesystem::extension(image);
@@ -478,7 +484,6 @@ bool CacheManager::GetImageSize(
 bool CacheManager::CheckIsBytesAnImage(const std::string& imagedata)
 {
     try {
-
         Magick::Blob data(imagedata.c_str(), imagedata.size());
 
         Magick::Image img(data);
@@ -705,7 +710,14 @@ std::chrono::duration<float> LoadedImage::GetAnimationTime(size_t page) const
     if(page >= MagickImage->size())
         throw Leviathan::InvalidArgument("page is outside valid range");
 
-    return std::chrono::duration<float>(0.01f * MagickImage->at(page).animationDelay());
+    auto delay = 0.01f * MagickImage->at(page).animationDelay();
+
+    if(delay < MINIMUM_VALID_ANIMATION_FRAME_DURATION ||
+        delay > MAXIMUM_ALLOWED_ANIMATION_FRAME_DURATION) {
+        delay = DEFAULT_GIF_FRAME_DURATION;
+    }
+
+    return std::chrono::duration<float>(delay);
 }
 // ------------------------------------ //
 Glib::RefPtr<Gdk::Pixbuf> LoadedImage::CreateGtkImage(size_t page /*= 0*/) const

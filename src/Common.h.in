@@ -35,6 +35,13 @@ constexpr auto DUALVIEW_SETTINGS_UNLOAD_ANYWAY = 15;
 
 constexpr auto DUALVIEW_SETTINGS_MAX_CACHED_IMAGES = 30;
 
+// Used to work around broken durations in gif frames
+constexpr auto MAXIMUM_ALLOWED_ANIMATION_FRAME_DURATION = 30.f;
+constexpr auto MINIMUM_VALID_ANIMATION_FRAME_DURATION = 0.001f;
+
+//! Default gif frame duration is by default 100 milliseconds
+constexpr auto DEFAULT_GIF_FRAME_DURATION = 0.1f;
+
 //! Database id type
 using DBID = int64_t;
 
