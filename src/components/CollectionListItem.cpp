@@ -69,11 +69,10 @@ void CollectionListItem::SetCollection(std::shared_ptr<Collection> collection)
         DualView::Get().InvokeFunction([=]() {
             INVOKE_CHECK_ALIVE_MARKER(alive);
             _SetImage(preview, false);
+            _SetName(collection->GetName());
+            ImageIcon.SetImageList(collection);
         });
     });
-
-    _SetName(collection->GetName());
-    ImageIcon.SetImageList(collection);
 }
 // ------------------------------------ //
 void CollectionListItem::_DoPopup()
