@@ -33,6 +33,8 @@ constexpr auto DUALVIEW_SETTINGS_UNLOAD_TIME_MS = 30000;
 //! The time when cache manager anyway unloads some images
 constexpr auto DUALVIEW_SETTINGS_UNLOAD_ANYWAY = 15;
 
+constexpr auto DUALVIEW_SETTINGS_MAX_CACHED_IMAGES = 30;
+
 //! Database id type
 using DBID = int64_t;
 
