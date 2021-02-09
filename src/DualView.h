@@ -1,6 +1,7 @@
 #pragma once
 #include <gtkmm.h>
 
+#include "TaskListWithPriority.h"
 #include "windows/BaseWindow.h"
 
 #include "Common.h"
@@ -165,10 +166,10 @@ public:
     void QueueImageHashCalculate(std::shared_ptr<Image> img);
 
     //! \brief Queues a function to be ran on the database thread
-    void QueueDBThreadFunction(std::function<void()> func);
+    void QueueDBThreadFunction(std::function<void()> func, int64_t priority = -1);
 
     //! \brief Queues a function to be ran on a worker thread
-    void QueueWorkerFunction(std::function<void()> func);
+    void QueueWorkerFunction(std::function<void()> func, int64_t priority = -1);
 
     //! \brief Queues a function to be ran on a worker thread repeatedly until it returns true
     //! indicating that it has succeeded
@@ -586,15 +587,14 @@ private:
     std::thread DatabaseThread;
     std::condition_variable DatabaseThreadNotify;
 
-    std::list<std::unique_ptr<std::function<void()>>> DatabaseFuncQueue;
-    std::mutex DatabaseFuncQueueMutex;
+    TaskListWithPriority<std::unique_ptr<std::function<void()>>> DatabaseFuncQueue;
 
     //! Worker threads
     std::thread Worker1Thread;
 
     std::condition_variable WorkerThreadNotify;
-    std::list<std::unique_ptr<std::function<void()>>> WorkerFuncQueue;
-    std::mutex WorkerFuncQueueMutex;
+
+    TaskListWithPriority<std::unique_ptr<std::function<void()>>> WorkerFuncQueue;
 
     //! Conditional worker
     std::thread ConditionalWorker1;

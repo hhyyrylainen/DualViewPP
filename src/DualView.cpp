@@ -735,20 +735,26 @@ void DualView::_RunHashCalculateThread()
     }
 }
 // ------------------------------------ //
-void DualView::QueueDBThreadFunction(std::function<void()> func)
+void DualView::QueueDBThreadFunction(std::function<void()> func, int64_t priority /*= -1*/)
 {
-    std::lock_guard<std::mutex> lock(DatabaseFuncQueueMutex);
+    if(priority == -1)
+        priority = TimeHelpers::GetCurrentUnixTimestamp();
 
-    DatabaseFuncQueue.push_back(std::make_unique<std::function<void()>>(func));
+    GUARD_LOCK_OTHER(DatabaseFuncQueue);
+
+    DatabaseFuncQueue.Push(guard, std::make_unique<std::function<void()>>(func), priority);
 
     DatabaseThreadNotify.notify_all();
 }
 
-void DualView::QueueWorkerFunction(std::function<void()> func)
+void DualView::QueueWorkerFunction(std::function<void()> func, int64_t priority /*= -1*/)
 {
-    std::lock_guard<std::mutex> lock(WorkerFuncQueueMutex);
+    if(priority == -1)
+        priority = TimeHelpers::GetCurrentUnixTimestamp();
 
-    WorkerFuncQueue.push_back(std::make_unique<std::function<void()>>(func));
+    GUARD_LOCK_OTHER(WorkerFuncQueue);
+
+    WorkerFuncQueue.Push(guard, std::make_unique<std::function<void()>>(func), priority);
 
     WorkerThreadNotify.notify_one();
 }
@@ -764,48 +770,42 @@ void DualView::QueueConditional(std::function<bool()> func)
 
 void DualView::_RunDatabaseThread()
 {
-    std::unique_lock<std::mutex> lock(DatabaseFuncQueueMutex);
+    GUARD_LOCK_OTHER(DatabaseFuncQueue);
 
     while(!QuitWorkerThreads) {
 
-        if(DatabaseFuncQueue.empty())
-            DatabaseThreadNotify.wait(lock);
+        if(DatabaseFuncQueue.Empty(guard))
+            DatabaseThreadNotify.wait(guard);
 
-        while(!DatabaseFuncQueue.empty()) {
+        while(auto task = DatabaseFuncQueue.Pop(guard)) {
 
-            auto func = std::move(DatabaseFuncQueue.front());
+            guard.unlock();
 
-            DatabaseFuncQueue.pop_front();
+            task->Task->operator()();
+            task->OnDone();
 
-            lock.unlock();
-
-            func->operator()();
-
-            lock.lock();
+            guard.lock();
         }
     }
 }
 
 void DualView::_RunWorkerThread()
 {
-    std::unique_lock<std::mutex> lock(WorkerFuncQueueMutex);
+    GUARD_LOCK_OTHER(WorkerFuncQueue);
 
     while(!QuitWorkerThreads) {
 
-        if(WorkerFuncQueue.empty())
-            WorkerThreadNotify.wait(lock);
+        if(WorkerFuncQueue.Empty(guard))
+            WorkerThreadNotify.wait(guard);
 
-        while(!WorkerFuncQueue.empty()) {
+        while(auto task = WorkerFuncQueue.Pop(guard)) {
 
-            auto func = std::move(WorkerFuncQueue.front());
+            guard.unlock();
 
-            WorkerFuncQueue.pop_front();
+            task->Task->operator()();
+            task->OnDone();
 
-            lock.unlock();
-
-            func->operator()();
-
-            lock.lock();
+            guard.lock();
         }
     }
 }

@@ -176,3 +176,27 @@ TEST_CASE("Task queue priorities can change while running", "[task]")
     CHECK(list.Pop(guard)->Task == task1);
     CHECK(list.Pop(guard)->Task == task2);
 }
+
+TEST_CASE("Same priority tasks come out in insertion order", "[task]")
+{
+    DummyTask task1{1};
+    DummyTask task2{2};
+    DummyTask task3{3};
+    DummyTask task4{4};
+    DummyTask task5{5};
+
+    TaskListWithPriority<DummyTask> list;
+    GUARD_LOCK_OTHER(list);
+
+   list.Push(guard, task1, 1);
+    list.Push(guard, task2, 2);
+    list.Push(guard, task3, 2);
+    list.Push(guard, task4, 2);
+    list.Push(guard, task5, 3);
+
+    CHECK(list.Pop(guard)->Task == task5);
+    CHECK(list.Pop(guard)->Task == task2);
+    CHECK(list.Pop(guard)->Task == task3);
+    CHECK(list.Pop(guard)->Task == task4);
+    CHECK(list.Pop(guard)->Task == task1);
+}
