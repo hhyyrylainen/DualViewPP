@@ -111,8 +111,8 @@ TEST_CASE("Gdk pixbuf creation works", "[image][gtk][.expensive]")
 
     auto gdkImage = img->CreateGtkImage();
 
-    CHECK(gdkImage->get_width() == img->GetWidth());
-    CHECK(gdkImage->get_height() == img->GetHeight());
+    CHECK(gdkImage->get_width() == static_cast<int>(img->GetWidth()));
+    CHECK(gdkImage->get_height() == static_cast<int>(img->GetHeight()));
 
     // Verify pixels //
     Magick::Image& image = img->GetMagickImage()->at(0);
