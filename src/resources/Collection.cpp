@@ -282,12 +282,12 @@ std::shared_ptr<Image> Collection::GetPreviewIcon() const
     return InDatabase->SelectCollectionPreviewImage(*this);
 }
 
-std::vector<std::shared_ptr<Image>> Collection::GetImages() const
+std::vector<std::shared_ptr<Image>> Collection::GetImages(int max /*= -1*/) const
 {
     if(!IsInDatabase())
         return {};
 
-    return InDatabase->SelectImagesInCollection(*this);
+    return InDatabase->SelectImagesInCollection(*this, max);
 }
 
 // ------------------------------------ //

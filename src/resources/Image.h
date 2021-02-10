@@ -309,7 +309,8 @@ protected:
     std::string Signature;
     bool SignatureRetrieved = false;
 
-    //! If true deleted from the database and many things should skip this image
+    //! If true deleted (or marked deleted) from the database and many things should skip this
+    //! image
     bool Deleted = false;
 
     //! If true this has been merged into another Image (Deleted should usually be true when

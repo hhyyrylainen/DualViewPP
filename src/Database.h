@@ -34,6 +34,7 @@ class ImageMergeAction;
 class ImageDeleteFromCollectionAction;
 class CollectionReorderAction;
 class NetGalleryDeleteAction;
+class CollectionDeleteAction;
 
 class Tag;
 class AppliedTag;
@@ -75,6 +76,7 @@ class Database : public Leviathan::ThreadSafeRecursive {
     friend ImageDeleteFromCollectionAction;
     friend CollectionReorderAction;
     friend NetGalleryDeleteAction;
+    friend CollectionDeleteAction;
 
 public:
     //! \brief Normal database creation, uses the specified file
@@ -210,12 +212,17 @@ public:
     bool UpdateCollection(LockT& guard, const Collection& collection);
     CREATE_NON_LOCKING_WRAPPER(UpdateCollection);
 
-    //! \brief Deletes a collection from the database
-    //!
-    //! The collection object's id will be set to -1
-    //! \returns True if succeeded
-    //! \todo This is not implemented
-    bool DeleteCollection(Collection& collection);
+    //! \brief Deletes n collection from the database
+    //! \returns A database action that can undo the operation if it succeeded
+    std::shared_ptr<DatabaseAction> DeleteCollection(Collection& collection);
+
+    //! \brief Only creates the action to delete a collection but doesn't execute it
+    std::shared_ptr<CollectionDeleteAction> CreateDeleteCollectionAction(
+        LockT& guard, Collection& collection);
+
+    //! \brief Finds the newest ImageDeleteAction that contains the image
+    std::shared_ptr<CollectionDeleteAction> SelectCollectionDeleteAction(
+        Collection& collection, bool performed);
 
     //! \brief Retrieves a Collection based on the name
     //! \todo Once aliases are implemented this should also check aliases
@@ -228,7 +235,8 @@ public:
         const std::string& pattern, int64_t max = 50);
 
     //! \brief Retrieves a Collection based on the id
-    std::shared_ptr<Collection> SelectCollectionByID(DBID id);
+    std::shared_ptr<Collection> SelectCollectionByID(LockT& guard, DBID id);
+    CREATE_NON_LOCKING_WRAPPER(SelectCollectionByID);
 
     //! \brief Returns the largest value used for an image in the collection
     //! If the collection is empty returns 0
@@ -353,7 +361,8 @@ public:
         const Collection& collection, int64_t showorder);
 
     //! \brief Returns all images in a collection
-    std::vector<std::shared_ptr<Image>> SelectImagesInCollection(const Collection& collection);
+    std::vector<std::shared_ptr<Image>> SelectImagesInCollection(
+        const Collection& collection, int limit = -1);
 
     std::vector<std::tuple<DBID, int64_t>> SelectImageIDsAndShowOrderInCollection(
         const Collection& collection);
@@ -719,6 +728,7 @@ public:
 
     //! \brief Purges old actions while the number of actions is over actionstokeep
     void PurgeOldActionsUntilSpecificCount(LockT& guard, uint32_t actionstokeep);
+    CREATE_NON_LOCKING_WRAPPER(PurgeOldActionsUntilSpecificCount);
 
     //! \brief Updates the maximum action count
     //!
@@ -810,6 +820,10 @@ protected:
     void RedoAction(NetGalleryDeleteAction& action);
     void UndoAction(NetGalleryDeleteAction& action);
     void PurgeAction(NetGalleryDeleteAction& action);
+
+    void RedoAction(CollectionDeleteAction& action);
+    void UndoAction(CollectionDeleteAction& action);
+    void PurgeAction(CollectionDeleteAction& action);
 
 protected:
     //! \brief Runs a command and prints all the result rows with column headers to log
@@ -920,6 +934,7 @@ private:
 
     void _PurgeImages(LockT& guard, const std::vector<DBID>& images);
     void _PurgeNetGalleries(LockT& guard, DBID gallery);
+    void _PurgeCollection(LockT& guard, DBID collection);
 
     //
     // Utility stuff

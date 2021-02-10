@@ -886,16 +886,78 @@ bool Database::UpdateCollection(LockT& guard, const Collection& collection)
     return sqlite3_changes(SQLiteDb);
 }
 
-bool Database::DeleteCollection(Collection& collection)
+std::shared_ptr<DatabaseAction> Database::DeleteCollection(Collection& collection)
 {
-    GUARD_LOCK();
-    return false;
+    std::shared_ptr<CollectionDeleteAction> action;
+
+    {
+        GUARD_LOCK();
+        action = CreateDeleteCollectionAction(guard, collection);
+    }
+
+    if(!action)
+        return nullptr;
+
+    if(!action->Redo()) {
+
+        LOG_ERROR("Database: freshly created action failed to Redo");
+        return nullptr;
+    }
+
+    return action;
 }
 
-std::shared_ptr<Collection> Database::SelectCollectionByID(DBID id)
+std::shared_ptr<CollectionDeleteAction> Database::CreateDeleteCollectionAction(
+    LockT& guard, Collection& collection)
+{
+    if(!collection.IsInDatabase() || collection.IsDeleted())
+        return nullptr;
+
+    // Create the action
+    auto action = std::make_shared<CollectionDeleteAction>(collection.GetID());
+    InsertDatabaseAction(guard, *action);
+
+    auto casted = std::static_pointer_cast<DatabaseAction>(action);
+    LoadedDatabaseActions.OnLoad(casted);
+
+    if(casted.get() != action.get())
+        LOG_ERROR("Database: action got changed on store");
+
+    PurgeOldActionsUntilUnderLimit(guard);
+    return action;
+}
+
+std::shared_ptr<CollectionDeleteAction> Database::SelectCollectionDeleteAction(
+    Collection& collection, bool performed)
 {
     GUARD_LOCK();
 
+    const char str[] = "SELECT * FROM action_history WHERE json_data LIKE ?1 AND type = ?2 "
+                       "AND performed = ?3 ORDER BY id DESC;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup("%" + std::to_string(collection.GetID()) + "%",
+        static_cast<int>(DATABASE_ACTION_TYPE::CollectionDelete), performed ? 1 : 0);
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        auto action = std::dynamic_pointer_cast<CollectionDeleteAction>(
+            _LoadDatabaseActionFromRow(guard, statementobj));
+
+        if(!action)
+            continue;
+
+        if(action->GetResourceToDelete() == collection.GetID()) {
+            return action;
+        }
+    }
+
+    return nullptr;
+}
+// ------------------------------------ //
+std::shared_ptr<Collection> Database::SelectCollectionByID(LockT& guard, DBID id)
+{
     const char str[] = "SELECT * FROM collections WHERE id = ?1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -1209,6 +1271,7 @@ bool Database::SelectIsImageInCollection(LockT& guard, DBID collection, DBID ima
 
 int64_t Database::SelectCollectionCountImageIsIn(LockT& guard, const Image& image)
 {
+    // TODO: check against not deleted collections
     const char str[] = "SELECT COUNT(*) FROM collection_image WHERE image = ?1;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -1247,7 +1310,7 @@ bool Database::DeleteImageFromCollection(LockT& guard, Collection& collection, I
     if(!SelectIsImageInAnyCollection(guard, image)) {
 
         LOG_INFO("Adding removed image to Uncategorized");
-        auto uncategorized = SelectCollectionByID(DATABASE_UNCATEGORIZED_COLLECTION_ID);
+        auto uncategorized = SelectCollectionByID(guard, DATABASE_UNCATEGORIZED_COLLECTION_ID);
 
         if(uncategorized)
             InsertImageToCollection(guard, *uncategorized, image,
@@ -1584,7 +1647,7 @@ std::shared_ptr<Image> Database::SelectPreviousImageInCollectionByShowOrder(
 }
 
 std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollection(
-    const Collection& collection)
+    const Collection& collection, int limit /*= -1*/)
 {
     GUARD_LOCK();
 
@@ -1593,9 +1656,13 @@ std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollection(
     const char str[] = "SELECT image FROM collection_image WHERE collection = ? "
                        "ORDER BY show_order ASC;";
 
+    const char str2[] = "SELECT image FROM collection_image WHERE collection = ? "
+                        "ORDER BY show_order ASC LIMIT ?;";
+
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID());
+    auto statementinuse = limit <= 0 ? statementobj.Setup(collection.GetID()) :
+                                       statementobj.Setup(collection.GetID(), limit);
 
     while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
 
@@ -3971,7 +4038,7 @@ void Database::UndoAction(ImageMergeAction& action)
     bool removed = false;
 
     for(const auto& idOrder : collectionsToAddTo) {
-        auto collection = SelectCollectionByID(std::get<0>(idOrder));
+        auto collection = SelectCollectionByID(guard, std::get<0>(idOrder));
         const auto order = std::get<1>(idOrder);
 
         if(!collection) {
@@ -4013,7 +4080,7 @@ void Database::UndoAction(ImageMergeAction& action)
         LOG_WARNING("Database: merge action undo, image is no longer in any collection. "
                     "Adding to Uncategorized");
 
-        auto uncategorized = SelectCollectionByID(DATABASE_UNCATEGORIZED_COLLECTION_ID);
+        auto uncategorized = SelectCollectionByID(guard, DATABASE_UNCATEGORIZED_COLLECTION_ID);
 
         if(uncategorized)
             InsertImageToCollection(guard, *uncategorized, *target,
@@ -4043,7 +4110,7 @@ void Database::RedoAction(ImageDeleteFromCollectionAction& action)
     GUARD_LOCK();
 
     const auto targetID = action.GetDeletedFromCollection();
-    auto target = SelectCollectionByID(targetID);
+    auto target = SelectCollectionByID(guard, targetID);
 
     if(!target /*|| target->IsDeleted()*/)
         throw InvalidState("cannot redo action: invalid target collection");
@@ -4100,7 +4167,8 @@ void Database::RedoAction(ImageDeleteFromCollectionAction& action)
         // Add the orphan images to uncategorized
         if(!imagesToAddToUncategorized.empty()) {
 
-            auto uncategorized = SelectCollectionByID(DATABASE_UNCATEGORIZED_COLLECTION_ID);
+            auto uncategorized =
+                SelectCollectionByID(guard, DATABASE_UNCATEGORIZED_COLLECTION_ID);
 
             if(uncategorized) {
 
@@ -4129,7 +4197,7 @@ void Database::UndoAction(ImageDeleteFromCollectionAction& action)
     GUARD_LOCK();
 
     const auto targetID = action.GetDeletedFromCollection();
-    auto target = SelectCollectionByID(targetID);
+    auto target = SelectCollectionByID(guard, targetID);
 
     if(!target /*|| target->IsDeleted()*/)
         throw InvalidState("cannot undo action: invalid target collection");
@@ -4180,7 +4248,7 @@ void Database::RedoAction(CollectionReorderAction& action)
     GUARD_LOCK();
 
     const auto targetID = action.GetTargetCollection();
-    auto target = SelectCollectionByID(targetID);
+    auto target = SelectCollectionByID(guard, targetID);
 
     if(!target /*|| target->IsDeleted()*/)
         throw InvalidState("cannot redo action: invalid target collection");
@@ -4236,7 +4304,7 @@ void Database::UndoAction(CollectionReorderAction& action)
     GUARD_LOCK();
 
     const auto targetID = action.GetTargetCollection();
-    auto target = SelectCollectionByID(targetID);
+    auto target = SelectCollectionByID(guard, targetID);
 
     if(!target /*|| target->IsDeleted()*/)
         throw InvalidState("cannot undo action: invalid target collection");
@@ -4331,8 +4399,52 @@ void Database::PurgeAction(NetGalleryDeleteAction& action)
     if(!action.IsPerformed())
         return;
 
-    // Permanently delete the images
+    // Permanently delete
     _PurgeNetGalleries(guard, action.GetResourceToDelete());
+}
+// ------------------------------------ //
+void Database::RedoAction(CollectionDeleteAction& action)
+{
+    GUARD_LOCK();
+
+    // Mark the resource as deleted
+    const auto id = action.GetResourceToDelete();
+
+    RunSQLAsPrepared(guard, "UPDATE collections SET deleted = 1 WHERE id = ?1;", id);
+
+    auto obj = LoadedCollections.GetIfLoaded(id);
+    if(obj)
+        obj->_UpdateDeletedStatus(true);
+
+    _SetActionStatus(guard, action, true);
+}
+
+void Database::UndoAction(CollectionDeleteAction& action)
+{
+    GUARD_LOCK();
+
+    // Unmark the resource as deleted
+    const auto id = action.GetResourceToDelete();
+
+    RunSQLAsPrepared(guard, "UPDATE collections SET deleted = NULL WHERE id = ?1;", id);
+
+    auto obj = LoadedCollections.GetIfLoaded(id);
+    if(obj)
+        obj->_UpdateDeletedStatus(false);
+
+    _SetActionStatus(guard, action, false);
+}
+
+void Database::PurgeAction(CollectionDeleteAction& action)
+{
+    GUARD_LOCK();
+
+    // If this action is currently not performed no resources related to it should be deleted
+    if(!action.IsPerformed())
+        return;
+
+    // Permanently delete
+    _PurgeCollection(guard, action.GetResourceToDelete());
 }
 
 // ------------------------------------ //
@@ -4596,7 +4708,62 @@ void Database::_PurgeNetGalleries(LockT& guard, DBID gallery)
     }
 }
 
+void Database::_PurgeCollection(LockT& guard, DBID collection)
+{
+    auto loadedResource = SelectCollectionByID(guard, collection);
 
+    if(!loadedResource) {
+        LOG_WARNING("Database: purging non-existant Collection");
+        return;
+
+    } else {
+        if(!loadedResource->IsDeleted()) {
+            LOG_INFO("Database: Collection was meant to be purged but it isn't marked as "
+                     "deleted, skipping, id: " +
+                     std::to_string(collection));
+            return;
+        }
+    }
+
+    DoDBSavePoint transaction(*this, guard, "collection_purge");
+    transaction.AllowCommit(false);
+
+    auto uncategorized = SelectCollectionByID(guard, DATABASE_UNCATEGORIZED_COLLECTION_ID);
+
+    loadedResource->_OnPurged();
+    LoadedCollections.Remove(collection);
+
+    // Add now orphaned images to Uncategorized
+    const char str[] =
+        "SELECT a.image FROM collection_image a WHERE collection = ? AND (SELECT COUNT(*) "
+        "FROM collection_image b WHERE a.image == b.image) < 2 ORDER BY show_order ASC;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection);
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        const auto id = statementobj.GetColumnAsInt64(0);
+
+        LOG_INFO("Adding orphaned image (from deleted collection) to uncategorized: " +
+                 std::to_string(id));
+
+        const auto image = SelectImageByID(guard, id);
+
+        if(image) {
+            InsertImageToCollectionAG(*uncategorized, *image,
+                SelectCollectionLargestShowOrder(guard, *uncategorized) + 1);
+        } else {
+            LOG_WARNING("Could not found orphaned image in DB to add to uncategorized: " +
+                        std::to_string(id));
+        }
+    }
+
+    RunSQLAsPrepared(guard, "DELETE FROM collections WHERE id = ?1;", collection);
+
+    transaction.AllowCommit(true);
+}
 // ------------------------------------ //
 void Database::ThrowCurrentSqlError(LockT& guard)
 {

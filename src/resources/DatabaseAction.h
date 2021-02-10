@@ -23,6 +23,7 @@ enum class DATABASE_ACTION_TYPE : int {
     ImageRemovedFromCollection,
     CollectionReorder,
     NetGalleryDelete,
+    CollectionDelete,
     Invalid /* must be always last value */
 };
 
@@ -372,45 +373,63 @@ private:
     std::vector<std::tuple<DBID, int64_t>> OldOrder;
 };
 
-
-//! \brief NetGallery was deleted (marked deleted)
-class NetGalleryDeleteAction final : public DatabaseAction {
-    friend Database;
-    friend std::shared_ptr<DatabaseAction> DatabaseAction::Create(
-        Database& db, DatabaseLockT& dblock, PreparedStatement& statement, DBID id);
-
+//! \brief Base class for single item delete action
+class BaseSingleItemDeleteAction : public DatabaseAction {
 protected:
-    NetGalleryDeleteAction(
+    BaseSingleItemDeleteAction(
         DBID id, Database& from, bool performed, const std::string& customdata);
 
+    BaseSingleItemDeleteAction(DBID resource);
+
 public:
-    //! This is public just to make std::make_shared work
-    //! \protected
-    NetGalleryDeleteAction(DBID resource);
-    ~NetGalleryDeleteAction();
-
-    DATABASE_ACTION_TYPE GetType() const override
-    {
-        return DATABASE_ACTION_TYPE::NetGalleryDelete;
-    }
-
     const auto& GetResourceToDelete() const
     {
         return ResourceToDelete;
     }
 
-    std::string GenerateDescription() const override;
-
 protected:
-    void _OnPurged() override;
-
-private:
-    void _Redo() override;
-    void _Undo() override;
     void _SerializeCustomData(Json::Value& value) const override;
 
 private:
     DBID ResourceToDelete;
 };
+
+//! Resource was deleted (marked deleted). Helper for defining actions that delete various
+//! things
+#define DEFINE_DELETE_ACTION(x, type)                                                    \
+    class x final : public BaseSingleItemDeleteAction {                                  \
+        friend Database;                                                                 \
+        friend std::shared_ptr<DatabaseAction> DatabaseAction::Create(                   \
+            Database& db, DatabaseLockT& dblock, PreparedStatement& statement, DBID id); \
+                                                                                         \
+    protected:                                                                           \
+        x(DBID id, Database& from, bool performed, const std::string& customdata);       \
+                                                                                         \
+    public:                                                                              \
+        x(DBID resource);                                                                \
+        ~x();                                                                            \
+        DATABASE_ACTION_TYPE GetType() const override                                    \
+        {                                                                                \
+            return DATABASE_ACTION_TYPE::type;                                           \
+        }                                                                                \
+        std::string GenerateDescription() const override;                                \
+                                                                                         \
+    protected:                                                                           \
+        void _OnPurged() override;                                                       \
+                                                                                         \
+    private:                                                                             \
+        void _Redo() override;                                                           \
+        void _Undo() override;                                                           \
+
+#define DEFINE_DELETE_ACTION_END() };
+
+DEFINE_DELETE_ACTION(NetGalleryDeleteAction, NetGalleryDelete)
+DEFINE_DELETE_ACTION_END()
+
+DEFINE_DELETE_ACTION(CollectionDeleteAction, CollectionDelete)
+public:
+    std::vector<std::shared_ptr<ResourceWithPreview>> LoadPreviewItems(
+        int max = 10) const override;
+DEFINE_DELETE_ACTION_END()
 
 } // namespace DV

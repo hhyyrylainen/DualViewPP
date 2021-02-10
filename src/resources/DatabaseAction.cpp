@@ -55,6 +55,9 @@ std::shared_ptr<DatabaseAction> DatabaseAction::Create(
     case DATABASE_ACTION_TYPE::NetGalleryDelete:
         return std::shared_ptr<NetGalleryDeleteAction>(new NetGalleryDeleteAction(
             id, db, statement.GetColumnAsBool(2), statement.GetColumnAsString(3)));
+    case DATABASE_ACTION_TYPE::CollectionDelete:
+        return std::shared_ptr<CollectionDeleteAction>(new CollectionDeleteAction(
+            id, db, statement.GetColumnAsBool(2), statement.GetColumnAsString(3)));
     case DATABASE_ACTION_TYPE::Invalid:
         LOG_ERROR("DatabaseAction: from DB read type is DATABASE_ACTION_TYPE::Invalid");
         return nullptr;
@@ -427,7 +430,7 @@ std::vector<std::shared_ptr<ResourceWithPreview>> ImageMergeAction::LoadPreviewI
 
     for(size_t i = 0; i < ImagesToMerge.size() && i < static_cast<size_t>(max); ++i) {
 
-        auto casted = std::dynamic_pointer_cast<ResourceWithPreview>(
+        casted = std::dynamic_pointer_cast<ResourceWithPreview>(
             InDatabase->SelectImageByID(guard, ImagesToMerge[i]));
 
         if(casted)
@@ -564,7 +567,7 @@ std::vector<std::shared_ptr<ResourceWithPreview>>
     GUARD_LOCK_OTHER(InDatabase);
 
     auto casted = std::dynamic_pointer_cast<ResourceWithPreview>(
-        InDatabase->SelectCollectionByID(DeletedFromCollection));
+        InDatabase->SelectCollectionByID(guard, DeletedFromCollection));
 
     if(casted)
         result.push_back(casted);
@@ -696,7 +699,7 @@ std::vector<std::shared_ptr<ResourceWithPreview>> CollectionReorderAction::LoadP
     GUARD_LOCK_OTHER(InDatabase);
 
     auto casted = std::dynamic_pointer_cast<ResourceWithPreview>(
-        InDatabase->SelectCollectionByID(TargetCollection));
+        InDatabase->SelectCollectionByID(guard, TargetCollection));
 
     if(casted)
         result.push_back(casted);
@@ -716,14 +719,15 @@ std::vector<std::shared_ptr<ResourceWithPreview>> CollectionReorderAction::LoadP
 void CollectionReorderAction::OpenEditingWindow()
 {
     DualView::Get().OpenReorder(
-        DualView::Get().GetDatabase().SelectCollectionByID(TargetCollection));
+        DualView::Get().GetDatabase().SelectCollectionByIDAG(TargetCollection));
 }
 // ------------------------------------ //
-// ------------------------------------ //
-// NetGalleryDeleteAction
-NetGalleryDeleteAction::NetGalleryDeleteAction(DBID resource) : ResourceToDelete(resource) {}
+// BaseSingleItemDeleteAction
+BaseSingleItemDeleteAction::BaseSingleItemDeleteAction(DBID resource) :
+    ResourceToDelete(resource)
+{}
 
-NetGalleryDeleteAction::NetGalleryDeleteAction(
+BaseSingleItemDeleteAction::BaseSingleItemDeleteAction(
     DBID id, Database& from, bool performed, const std::string& customdata) :
     DatabaseAction(id, from)
 {
@@ -741,40 +745,45 @@ NetGalleryDeleteAction::NetGalleryDeleteAction(
     ResourceToDelete = value["resource"].asInt64();
 }
 
-NetGalleryDeleteAction::~NetGalleryDeleteAction()
-{
-    DBResourceDestruct();
-}
-// ------------------------------------ //
-void NetGalleryDeleteAction::_Redo()
-{
-    InDatabase->RedoAction(*this);
-}
-
-void NetGalleryDeleteAction::_Undo()
-{
-    InDatabase->UndoAction(*this);
-}
-
-void NetGalleryDeleteAction::_OnPurged()
-{
-    DatabaseAction::_OnPurged();
-    InDatabase->PurgeAction(*this);
-}
-
-void NetGalleryDeleteAction::_SerializeCustomData(Json::Value& value) const
+void BaseSingleItemDeleteAction::_SerializeCustomData(Json::Value& value) const
 {
     value["resource"] = ResourceToDelete;
 }
 // ------------------------------------ //
+#define IMPLEMENT_DELETE_ACTION(x)                                                 \
+    x::x(DBID resource) : BaseSingleItemDeleteAction(resource) {}                  \
+    x::x(DBID id, Database& from, bool performed, const std::string& customdata) : \
+        BaseSingleItemDeleteAction(id, from, performed, customdata)                \
+    {}                                                                             \
+    x::~x()                                                                        \
+    {                                                                              \
+        DBResourceDestruct();                                                      \
+    }                                                                              \
+    void x::_Redo()                                                                \
+    {                                                                              \
+        InDatabase->RedoAction(*this);                                             \
+    }                                                                              \
+    void x::_Undo()                                                                \
+    {                                                                              \
+        InDatabase->UndoAction(*this);                                             \
+    }                                                                              \
+    void x::_OnPurged()                                                            \
+    {                                                                              \
+        DatabaseAction::_OnPurged();                                               \
+        InDatabase->PurgeAction(*this);                                            \
+    }
+// ------------------------------------ //
+// NetGalleryDeleteAction
+IMPLEMENT_DELETE_ACTION(NetGalleryDeleteAction)
+
 std::string NetGalleryDeleteAction::GenerateDescription() const
 {
     std::stringstream description;
 
-    description << "Deleted download (" << ResourceToDelete << ")";
+    description << "Deleted download (" << GetResourceToDelete() << ")";
 
     if(InDatabase) {
-        auto gallery = InDatabase->SelectNetGalleryByIDAG(ResourceToDelete);
+        auto gallery = InDatabase->SelectNetGalleryByIDAG(GetResourceToDelete());
 
         if(gallery)
             description << " from '" << gallery->GetGalleryURL() << "' to '"
@@ -782,4 +791,59 @@ std::string NetGalleryDeleteAction::GenerateDescription() const
     }
 
     return description.str();
+}
+// ------------------------------------ //
+// CollectionDeleteAction
+IMPLEMENT_DELETE_ACTION(CollectionDeleteAction)
+
+std::string CollectionDeleteAction::GenerateDescription() const
+{
+    std::stringstream description;
+
+    description << "Deleted gallery (" << GetResourceToDelete() << ")";
+
+    if(InDatabase) {
+        auto collection = InDatabase->SelectCollectionByIDAG(GetResourceToDelete());
+
+        if(collection)
+            description << " '" << collection->GetName() << "'";
+    }
+
+    return description.str();
+}
+
+std::vector<std::shared_ptr<ResourceWithPreview>> CollectionDeleteAction::LoadPreviewItems(
+    int max) const
+{
+    if(!InDatabase || max <= 0)
+        return {};
+
+    std::vector<std::shared_ptr<ResourceWithPreview>> result;
+
+    max -= 1;
+
+    GUARD_LOCK_OTHER(InDatabase);
+
+    auto collection = InDatabase->SelectCollectionByID(guard, GetResourceToDelete());
+
+    if(!collection)
+        return {};
+
+    const auto images = collection->GetImages(max);
+
+    result.reserve(std::max<size_t>(1, images.size()));
+
+    auto casted = std::dynamic_pointer_cast<ResourceWithPreview>(collection);
+
+    if(casted)
+        result.push_back(casted);
+
+    for(const auto& image : images) {
+        casted = std::dynamic_pointer_cast<ResourceWithPreview>(image);
+
+        if(casted)
+            result.push_back(casted);
+    }
+
+    return result;
 }

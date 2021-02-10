@@ -26,6 +26,7 @@ class Collection : public DatabaseResource,
                    public ResourceWithPreview,
                    public ImageListScroll,
                    public std::enable_shared_from_this<Collection> {
+    friend Database;
 public:
     //! \brief Creates a collection for database testing
     //! \protected
@@ -101,7 +102,7 @@ public:
 
     //! \brief Renames this collection
     //! \returns True on success, false if the new name conflicts
-    bool Rename(const std::string &newName);
+    bool Rename(const std::string& newName);
 
     //! \brief Returns the preview icon for this Collection
     //!
@@ -109,7 +110,8 @@ public:
     std::shared_ptr<Image> GetPreviewIcon() const;
 
     //! \brief Returns all the images in the collection
-    std::vector<std::shared_ptr<Image>> GetImages() const;
+    //! \param max Maximum number of images to return (if only the first max images are wanted)
+    std::vector<std::shared_ptr<Image>> GetImages(int max = -1) const;
 
     inline auto GetIsPrivate() const
     {
@@ -119,6 +121,11 @@ public:
     inline auto GetName() const
     {
         return Name;
+    }
+
+    bool IsDeleted() const
+    {
+        return Deleted;
     }
 
     //! \brief Returns true if both Collections represent the same database collection
@@ -151,6 +158,15 @@ protected:
     void _DoSave(Database& db) override;
     void _DoSave(Database& db, DatabaseLockT& dbLock) override;
 
+    //! Called from Database
+    void _UpdateDeletedStatus(bool deleted)
+    {
+        Deleted = deleted;
+
+        GUARD_LOCK();
+        NotifyAll(guard);
+    }
+
     //! \brief Fills a widget with this resource
     void _FillWidget(CollectionListItem& widget);
 
@@ -164,6 +180,9 @@ protected:
     bool IsPrivate = false;
 
     std::shared_ptr<TagCollection> Tags;
+
+    //! If true deleted (or marked deleted) from the database
+    bool Deleted = false;
 };
 
 } // namespace DV

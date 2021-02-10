@@ -4,7 +4,9 @@
 
 #include "DummyLog.h"
 #include "TestDatabase.h"
+
 #include "resources/Collection.h"
+#include "resources/DatabaseAction.h"
 
 using namespace DV;
 
@@ -82,7 +84,8 @@ TEST_CASE("Collection rename works", "[collection][action]")
 
     const auto previousName = collection1->GetName();
 
-    SECTION("Conflict disallows rename") {
+    SECTION("Conflict disallows rename")
+    {
 
         SECTION("exact")
         {
@@ -102,5 +105,82 @@ TEST_CASE("Collection rename works", "[collection][action]")
         CHECK(!collection1->Rename("New/collection"));
         CHECK(previousName == collection1->GetName());
         CHECK(db.SelectCollectionByNameAG("New/collection") == nullptr);
+    }
+}
+
+TEST_CASE("Collection delete works", "[collection][action]")
+{
+    DummyDualView dv;
+    TestDatabase db;
+
+    REQUIRE_NOTHROW(db.Init());
+
+    auto uncategorized = db.SelectCollectionByIDAG(DATABASE_UNCATEGORIZED_COLLECTION_ID);
+    REQUIRE(uncategorized);
+    CHECK(uncategorized->GetImages().size() == 0);
+
+    const auto name = "Collection 1";
+    const auto name2 = "Another collection";
+
+    auto collection1 = db.InsertCollectionAG(name, false);
+    REQUIRE(collection1);
+
+    auto collection2 = db.InsertCollectionAG(name2, false);
+    REQUIRE(collection2);
+
+    auto image1 = db.InsertTestImage("image1", "hash1");
+    REQUIRE(image1);
+
+    auto image2 = db.InsertTestImage("image2", "hash2");
+    REQUIRE(image2);
+
+    auto image3 = db.InsertTestImage("image3", "hash3");
+    REQUIRE(image3);
+
+    collection1->AddImage(image1);
+    collection1->AddImage(image2);
+
+    collection2->AddImage(image3);
+
+    CHECK(!collection1->IsDeleted());
+
+    auto action = db.DeleteCollection(*collection1);
+
+    REQUIRE(action);
+    REQUIRE(collection1->IsDeleted());
+    CHECK(!collection2->IsDeleted());
+
+    SECTION("Deleted gallery is not found")
+    {
+        CHECK(db.SelectCollectionByNameAG(name) == nullptr);
+    }
+
+    SECTION("Undo and redo work")
+    {
+        REQUIRE(action->Undo());
+
+        CHECK(!collection1->IsDeleted());
+        CHECK(db.SelectCollectionByNameAG(name) == collection1);
+
+        REQUIRE(action->Redo());
+        CHECK(collection1->IsDeleted());
+        CHECK(db.SelectCollectionByNameAG(name) == nullptr);
+    }
+
+    SECTION("Purged deleted images are in uncategorized")
+    {
+        CHECK(!action->IsDeleted());
+        db.PurgeOldActionsUntilSpecificCountAG(0);
+        CHECK(action->IsDeleted());
+
+        CHECK(
+            uncategorized->GetImages() == std::vector<std::shared_ptr<Image>>{image1, image2});
+    }
+
+    SECTION("Another collection is left untouched")
+    {
+        CHECK(!collection2->IsDeleted());
+        CHECK(db.SelectCollectionByNameAG(name2) == collection2);
+        CHECK(collection2->GetImages() == std::vector<std::shared_ptr<Image>>{image3});
     }
 }

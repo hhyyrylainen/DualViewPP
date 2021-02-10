@@ -386,7 +386,7 @@ TEST_CASE("Image removal from a collection can be undone", "[db][action]")
 
         SECTION("It gets removed from uncategorized")
         {
-            auto uncategorized = db.SelectCollectionByID(DATABASE_UNCATEGORIZED_COLLECTION_ID);
+            auto uncategorized = db.SelectCollectionByIDAG(DATABASE_UNCATEGORIZED_COLLECTION_ID);
 
             CHECK(uncategorized->GetImages() == std::vector<std::shared_ptr<Image>>{});
         }
