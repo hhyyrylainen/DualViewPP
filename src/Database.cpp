@@ -1647,7 +1647,7 @@ std::shared_ptr<Image> Database::SelectPreviousImageInCollectionByShowOrder(
 }
 
 std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollection(
-    const Collection& collection, int limit /*= -1*/)
+    const Collection& collection, int32_t limit /*= -1*/)
 {
     GUARD_LOCK();
 
@@ -1656,13 +1656,16 @@ std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollection(
     const char str[] = "SELECT image FROM collection_image WHERE collection = ? "
                        "ORDER BY show_order ASC;";
 
-    const char str2[] = "SELECT image FROM collection_image WHERE collection = ? "
-                        "ORDER BY show_order ASC LIMIT ?;";
+    const char str2[] = "SELECT image FROM collection_image WHERE collection = ?1 "
+                        "ORDER BY show_order ASC LIMIT ?2;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    const auto limitUsed = limit > 0;
 
-    auto statementinuse = limit <= 0 ? statementobj.Setup(collection.GetID()) :
-                                       statementobj.Setup(collection.GetID(), limit);
+    PreparedStatement statementobj(
+        SQLiteDb, limitUsed ? str2 : str, limitUsed ? sizeof(str2) : sizeof(str));
+
+    auto statementinuse = limitUsed ? statementobj.Setup(collection.GetID(), limit) :
+                                      statementobj.Setup(collection.GetID());
 
     while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
 

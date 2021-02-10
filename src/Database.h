@@ -362,7 +362,7 @@ public:
 
     //! \brief Returns all images in a collection
     std::vector<std::shared_ptr<Image>> SelectImagesInCollection(
-        const Collection& collection, int limit = -1);
+        const Collection& collection, int32_t limit = -1);
 
     std::vector<std::tuple<DBID, int64_t>> SelectImageIDsAndShowOrderInCollection(
         const Collection& collection);
