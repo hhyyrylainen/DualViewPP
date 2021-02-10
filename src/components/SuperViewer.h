@@ -25,6 +25,9 @@ constexpr auto SUPER_UNLOAD_IMAGE_AFTER_MS = 15000;
 
 constexpr auto USE_EXTRA_VIEWER_LOGGING = false;
 
+// In milliseconds how often an image load priority is bumped. Works in increments of 100
+constexpr auto VIEWER_LOAD_BUMP_INTERVAL = 800;
+
 //! \brief Image viewing widget
 //!
 //! Manages drawing ImageMagick images with cairo
@@ -74,6 +77,7 @@ public:
     void SetImage(std::shared_ptr<LoadedImage> alreadyloaded);
 
     //! \brief Removes the shown image. Same as calling SetImage with null
+    //! \todo Merge with SetImage(nullptr)
     void RemoveImage();
 
     //! \brief Sets an background image that is always adjusted to fit the widget
@@ -220,6 +224,8 @@ private:
     //! Currently used timer for _OnTimerCheck in milliseconds
     int32_t CurrentTimer = 1000;
 
+    bool UseImageLoadPriorityBump = true;
+    int BumpImageLoadTimer = 0;
 
     //! True if mouse is down and dragging can start
     bool CanStartDrag = false;

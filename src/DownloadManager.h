@@ -186,7 +186,8 @@ public:
     void StopDownloads();
 
     //! \brief Adds an item to the work queue
-    void QueueDownload(std::shared_ptr<DownloadJob> job, int64_t priority = -1);
+    std::shared_ptr<BaseTaskItem> QueueDownload(
+        std::shared_ptr<DownloadJob> job, int64_t priority = -1);
 
     //! \brief Extracts a filename from an url
     static std::string ExtractFileName(const std::string& url);

@@ -46,6 +46,7 @@ std::shared_ptr<LoadedImage> InternetImage::GetImage()
     if(!FullImage) {
 
         FullImage = std::make_shared<DownloadLoadedImage>(false);
+        FullImage->RegisterLoadTask(DLTask);
 
         if(DLReady) {
 
@@ -74,6 +75,7 @@ std::shared_ptr<LoadedImage> InternetImage::GetThumbnail()
     if(!ThumbImage) {
 
         ThumbImage = std::make_shared<DownloadLoadedImage>(true);
+        ThumbImage->RegisterLoadTask(DLTask);
 
         if(DLReady) {
 
@@ -167,7 +169,7 @@ void InternetImage::_CheckFileDownload()
         }
     });
 
-    DualView::Get().GetDownloadManager().QueueDownload(FileDL);
+    DLTask = DualView::Get().GetDownloadManager().QueueDownload(FileDL);
 }
 // ------------------------------------ //
 bool InternetImage::SaveFileToDisk(Lock& guard)

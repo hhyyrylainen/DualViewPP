@@ -51,6 +51,9 @@ public:
         return Status != IMAGE_LOAD_STATUS::Waiting;
     }
 
+    //! \brief Bumps the priority of loading this image, only effective if !IsLoaded
+    void BumpLoadPriority();
+
     //! \brief Returns true if loading was successfull
     inline bool IsValid() const
     {
@@ -135,6 +138,9 @@ public:
     //! \todo Alpha support
     Glib::RefPtr<Gdk::Pixbuf> CreateGtkImage(size_t page = 0) const;
 
+    //! \brief Registers the task this waits on
+    void RegisterLoadTask(std::shared_ptr<BaseTaskItem> loadTask);
+
     //! \brief Returns the internal magick image.
     //!
     //! This should only be used if this class doesn't provide some
@@ -185,8 +191,9 @@ protected:
     std::chrono::high_resolution_clock::time_point LastUsed =
         std::chrono::high_resolution_clock::now();
 
-
     IMAGE_LOAD_STATUS Status = IMAGE_LOAD_STATUS::Waiting;
+
+    std::shared_ptr<BaseTaskItem> LoadTask;
 
     //! The path this was loaded from. Or the error message
     std::string FromPath;

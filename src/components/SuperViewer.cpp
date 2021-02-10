@@ -82,6 +82,7 @@ void SuperViewer::SetImage(
     DisplayImage.reset();
     CachedDrawnImage.reset();
     IsImageReady = false;
+    BumpImageLoadTimer = 0;
 
     // And reset display settings //
     IsAutoFit = true;
@@ -115,6 +116,7 @@ void SuperViewer::SetImage(std::shared_ptr<LoadedImage> alreadyloaded)
     CachedDrawnImage.reset();
 
     IsImageReady = false;
+    BumpImageLoadTimer = 0;
 
     IsAutoFit = true;
 
@@ -197,6 +199,17 @@ bool SuperViewer::on_draw(const Cairo::RefPtr<Cairo::Context>& cr)
 
             if(LoadingLineCount > MAX_LOADING_LINES)
                 LoadingLineCount = 0;
+
+            if(UseImageLoadPriorityBump) {
+                BumpImageLoadTimer += 100;
+
+                if(BumpImageLoadTimer >= VIEWER_LOAD_BUMP_INTERVAL) {
+                    BumpImageLoadTimer = 0;
+
+                    if(DisplayImage)
+                        DisplayImage->BumpLoadPriority();
+                }
+            }
 
             LastFrame = now;
         }

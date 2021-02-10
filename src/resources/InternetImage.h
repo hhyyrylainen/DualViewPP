@@ -2,6 +2,7 @@
 
 #include "CacheManager.h"
 #include "Plugin.h"
+#include "TaskListWithPriority.h"
 
 #include "Image.h"
 
@@ -98,6 +99,9 @@ protected:
     //! The downloaded image file, can be written to a file and added to the database if wanted
     std::shared_ptr<DownloadJob> FileDL;
     bool DLReady = false;
+
+    //! Stored download task for bumping the priority
+    std::shared_ptr<BaseTaskItem> DLTask;
 
     //! If we loaded a local file
     bool WasAlreadyCached = false;

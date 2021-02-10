@@ -80,7 +80,7 @@ void DownloadManager::_RunDLThread()
     LOG_INFO("Download Thread Quit");
 }
 // ------------------------------------ //
-void DownloadManager::QueueDownload(
+std::shared_ptr<BaseTaskItem> DownloadManager::QueueDownload(
     std::shared_ptr<DownloadJob> job, int64_t priority /*= -1*/)
 {
     if(priority == -1)
@@ -88,9 +88,10 @@ void DownloadManager::QueueDownload(
 
     GUARD_LOCK_OTHER(WorkQueue);
 
-    WorkQueue.Push(guard, job, priority);
+    auto task = WorkQueue.Push(guard, job, priority);
 
     NotifyThread.notify_all();
+    return task;
 }
 // ------------------------------------ //
 std::string DownloadManager::ExtractFileName(const std::string& url)

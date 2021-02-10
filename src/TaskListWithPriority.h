@@ -9,54 +9,60 @@
 #include <mutex>
 
 namespace DV {
+
+using PriorityValueT = int64_t;
+
+//! \brief Base class for TaskItem that can be used when the actual task is unnecessary to know
+//! \todo Add a cancel interface here?
+class BaseTaskItem {
+protected:
+    explicit BaseTaskItem(PriorityValueT priority) noexcept : Priority(priority) {}
+
+public:
+    //! \brief Bumps this to the front of the task queue
+    void Bump()
+    {
+        SetPriority(TimeHelpers::GetCurrentUnixTimestamp());
+    }
+
+    void SetPriority(PriorityValueT newPriority)
+    {
+        Priority = newPriority;
+    }
+
+    [[nodiscard]] auto GetPriority() const
+    {
+        return Priority.load(std::memory_order_acquire);
+    }
+
+    void OnDone()
+    {
+        Done = true;
+    }
+
+private:
+    std::atomic<bool> Done{false};
+    std::atomic<PriorityValueT> Priority;
+};
+
 //! \brief Keeps a list of tasks that can be executed, and priority changed while running
 //!
 //! For performance this only performs partial sorts when getting the task to execute
 template<class T>
 class TaskListWithPriority : public ThreadSafe {
 public:
-    using PriorityValueT = int64_t;
-
     //! \brief A queued task. This instance can be used to increase the priority of tasks
-    //! \todo Add a cancel interface here?
-    struct TaskItem {
+    class TaskItem : public BaseTaskItem {
     public:
         TaskItem(T& item, PriorityValueT priority) noexcept :
-            Task(std::move(item)), Priority(priority)
+            BaseTaskItem(priority), Task(std::move(item))
         {}
-
-        //! \brief Bumps this to the front of the task queue
-        void Bump()
-        {
-            SetPriority(TimeHelpers::GetCurrentUnixTimestamp());
-        }
-
-        void SetPriority(PriorityValueT newPriority)
-        {
-            Priority = newPriority;
-        }
-
-        auto GetPriority() const
-        {
-            return Priority.load(std::memory_order_acquire);
-        }
-
-        void OnDone()
-        {
-            Done = true;
-        }
 
     public:
         const T Task;
-
-    private:
-        std::atomic<PriorityValueT> Priority;
-        std::atomic<bool> Done{false};
     };
 
 public:
-    explicit TaskListWithPriority() noexcept {}
-
     //! \brief Adds a new task to be ran
     std::shared_ptr<TaskItem> Push(
         Lock& guard, T item, PriorityValueT priority = TimeHelpers::GetCurrentUnixTimestamp())

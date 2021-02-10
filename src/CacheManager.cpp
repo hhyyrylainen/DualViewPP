@@ -74,8 +74,8 @@ std::shared_ptr<LoadedImage> CacheManager::LoadFullImage(const std::string& file
     // Add it to load queue //
     {
         GUARD_LOCK_OTHER_NAME(LoadQueue, lock2);
-        // TODO: add the task to the loaded image for bumping it through it?
-        LoadQueue.Push(lock2, created);
+        auto queuedTask = LoadQueue.Push(lock2, created);
+        created->RegisterLoadTask(queuedTask);
     }
 
     LastCacheInsertTime = std::chrono::high_resolution_clock::now();
@@ -99,8 +99,8 @@ std::shared_ptr<LoadedImage> CacheManager::LoadThumbImage(
     // Add it to load queue //
     {
         GUARD_LOCK_OTHER(ThumbQueue);
-        // TODO: add the task to the loaded image for bumping it through it?
-        ThumbQueue.Push(guard, std::make_tuple(created, hash));
+        auto queuedTask = ThumbQueue.Push(guard, std::make_tuple(created, hash));
+        created->RegisterLoadTask(queuedTask);
     }
 
     // Notify loader thread //
@@ -638,6 +638,7 @@ void LoadedImage::DoLoad()
                                       "expected an exception");
 
         Status = IMAGE_LOAD_STATUS::Loaded;
+        LoadTask.reset();
 
     } catch(const std::exception& e) {
 
@@ -660,6 +661,7 @@ void LoadedImage::DoLoad(const std::string& thumbfile)
                                       "expected an exception");
 
         Status = IMAGE_LOAD_STATUS::Loaded;
+        LoadTask.reset();
 
     } catch(const std::exception& e) {
 
@@ -674,6 +676,7 @@ void LoadedImage::OnLoadFail(const std::string& error)
 {
     FromPath = error;
     Status = IMAGE_LOAD_STATUS::Error;
+    LoadTask.reset();
 }
 
 void LoadedImage::OnLoadSuccess(std::shared_ptr<std::vector<Magick::Image>> image)
@@ -685,6 +688,7 @@ void LoadedImage::OnLoadSuccess(std::shared_ptr<std::vector<Magick::Image>> imag
 
     MagickImage = image;
     Status = IMAGE_LOAD_STATUS::Loaded;
+    LoadTask.reset();
 }
 // ------------------------------------ //
 size_t LoadedImage::GetWidth() const
@@ -795,4 +799,16 @@ void LoadedImage::LoadFromGtkImage(Glib::RefPtr<Gdk::Pixbuf> image)
         std::make_shared<std::vector<Magick::Image>>(std::vector<Magick::Image>{newImage});
 
     Status = IMAGE_LOAD_STATUS::Loaded;
+}
+// ------------------------------------ //
+void LoadedImage::BumpLoadPriority() {
+    if(IsLoaded() || !LoadTask)
+        return;
+
+    LoadTask->Bump();
+    LOG_WRITE("Bumped task");
+}
+
+void LoadedImage::RegisterLoadTask(std::shared_ptr<BaseTaskItem> loadTask){
+    LoadTask = loadTask;
 }
