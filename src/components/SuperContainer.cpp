@@ -356,7 +356,7 @@ void SuperContainer::ShiftSelectTo(const ListItem* item)
     // TODO: pre-select callback
 
     // Perform actual selections
-    for(size_t i = selectStart; i < itemsPosition; ++i) {
+    for(size_t i = selectStart; i <= itemsPosition; ++i) {
         auto& position = Positions[i];
 
         if(!position.WidgetToPosition)
