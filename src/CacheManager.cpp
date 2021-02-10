@@ -806,7 +806,6 @@ void LoadedImage::BumpLoadPriority() {
         return;
 
     LoadTask->Bump();
-    LOG_WRITE("Bumped task");
 }
 
 void LoadedImage::RegisterLoadTask(std::shared_ptr<BaseTaskItem> loadTask){
