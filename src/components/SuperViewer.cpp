@@ -86,12 +86,13 @@ void SuperViewer::SetImage(
     // And reset display settings //
     IsAutoFit = true;
 
-    // Redraw a bit later to give the image time to load
     if(fastUnload) {
+        // Redraw immediately if wanted to have a previous image go away faster
         queue_draw();
-    } else {
-        _AddRedrawTimer(100);
     }
+
+    // Redraw a bit later to give the image time to load
+    _AddRedrawTimer(100);
 
     if(ImageChangeCallback)
         ImageChangeCallback();
