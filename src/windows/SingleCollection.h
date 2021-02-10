@@ -44,8 +44,12 @@ public:
 protected:
     void _OnDeleteSelected();
     void _OnOpenSelectedInImporter();
+    void _OnDeleteRestorePressed();
 
     void _OnClose() override;
+
+    void _UpdateDeletedStatus();
+    void _PerformDelete();
 
 private:
     SuperContainer* ImageContainer;
@@ -54,9 +58,9 @@ private:
     Gtk::ToolButton* OpenTagEdit;
     Gtk::ToolButton* DeleteSelected;
     Gtk::ToolButton* OpenSelectedImporter;
+    Gtk::ToolButton* DeleteThisCollection;
 
     Gtk::Label* StatusLabel;
-
 
     std::shared_ptr<Collection> ShownCollection;
 };

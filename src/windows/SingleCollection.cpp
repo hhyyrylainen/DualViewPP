@@ -2,6 +2,7 @@
 #include "SingleCollection.h"
 
 #include "resources/Collection.h"
+#include "resources/DatabaseAction.h"
 
 #include "components/ImageListItem.h"
 #include "components/SuperContainer.h"
@@ -13,7 +14,6 @@
 
 using namespace DV;
 // ------------------------------------ //
-
 SingleCollection::SingleCollection(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     Gtk::Window(window)
 {
@@ -45,10 +45,17 @@ SingleCollection::SingleCollection(_GtkWindow* window, Glib::RefPtr<Gtk::Builder
     OpenSelectedImporter->signal_clicked().connect(
         sigc::mem_fun(*this, &SingleCollection::_OnOpenSelectedInImporter));
 
+    BUILDER_GET_WIDGET(DeleteThisCollection);
+
+    DeleteThisCollection->signal_clicked().connect(
+        sigc::mem_fun(*this, &SingleCollection::_OnDeleteRestorePressed));
+
     Gtk::ToolButton* rename;
     BUILDER_GET_WIDGET_NAMED(rename, "Rename");
 
     rename->signal_clicked().connect(sigc::mem_fun(*this, &SingleCollection::StartRename));
+
+    _UpdateDeletedStatus();
 }
 
 SingleCollection::~SingleCollection()
@@ -66,12 +73,15 @@ void SingleCollection::ShowCollection(std::shared_ptr<Collection> collection)
     ReleaseParentHooks(guard);
     ShownCollection = collection;
 
+    _UpdateDeletedStatus();
+
     ReloadImages(guard);
 }
 // ------------------------------------ //
 void SingleCollection::OnNotified(
     Lock& ownlock, Leviathan::BaseNotifierAll* parent, Lock& parentlock)
 {
+    _UpdateDeletedStatus();
     ReloadImages(ownlock);
 }
 
@@ -83,8 +93,14 @@ void SingleCollection::ReloadImages(Lock& guard)
             ConnectToNotifier(guard, ShownCollection.get());
 
     StatusLabel->set_text("Loading Collection...");
-    set_title((ShownCollection ? ShownCollection->GetName() : std::string("None")) +
-              " - Collection - DualView++");
+
+    if(ShownCollection) {
+        set_title(ShownCollection->GetName() + " - " +
+                  (ShownCollection->IsDeleted() ? "DELETED " : "") +
+                  "Collection - DualView++");
+    } else {
+        set_title("None - Collection - DualView++");
+    }
 
     if(CollectionTags->get_visible()) {
 
@@ -124,8 +140,10 @@ void SingleCollection::ReloadImages(Lock& guard)
                 asimage->SetCollection(collection);
             });
 
-            StatusLabel->set_text("Collection \"" + collection->GetName() + "\" Has " +
-                                  Convert::ToString(images.size()) + " Images");
+            StatusLabel->set_text(
+                "Collection \"" + collection->GetName() + "\" Has " +
+                Convert::ToString(images.size()) + " Images" +
+                (ShownCollection->IsDeleted() ? ". This collection is DELETED!" : ""));
         });
     });
 }
@@ -151,7 +169,7 @@ void SingleCollection::ToggleTagEditor()
             {ShownCollection ? ShownCollection->GetTags() : nullptr});
     }
 }
-
+// ------------------------------------ //
 std::vector<std::shared_ptr<Image>> SingleCollection::GetSelected() const
 {
     std::vector<std::shared_ptr<ResourceWithPreview>> items;
@@ -196,4 +214,76 @@ void SingleCollection::_OnDeleteSelected()
 void SingleCollection::_OnOpenSelectedInImporter()
 {
     DualView::Get().OpenImporter(GetSelected());
+}
+// ------------------------------------ //
+void SingleCollection::_UpdateDeletedStatus()
+{
+    if(!ShownCollection) {
+        DeleteThisCollection->set_sensitive(false);
+        return;
+    }
+
+    DeleteThisCollection->set_sensitive(true);
+
+    if(ShownCollection->IsDeleted()) {
+        DeleteThisCollection->set_label("Restore This Collection");
+    } else {
+        DeleteThisCollection->set_label("Delete This Collection");
+    }
+}
+
+void SingleCollection::_OnDeleteRestorePressed()
+{
+    if(!ShownCollection || !ShownCollection->IsInDatabase())
+        return;
+
+    if(!ShownCollection->IsDeleted()) {
+        auto isalive = GetAliveMarker();
+        const auto collection = ShownCollection;
+
+        if(!collection)
+            return;
+
+        DualView::Get().QueueDBThreadFunction([=]() {
+            // Find images to be orphaned
+            // TODO: check if any images would become orphaned
+            DualView::Get().InvokeFunction([=]() {
+                INVOKE_CHECK_ALIVE_MARKER(isalive);
+
+                _PerformDelete();
+            });
+        });
+
+        return;
+    }
+
+    try {
+        auto action =
+            DualView::Get().GetDatabase().SelectCollectionDeleteAction(*ShownCollection, true);
+
+        if(!action)
+            throw Exception("No action to undo found. Check the Undo window to see what "
+                            "has deleted this collection.");
+
+        if(!action->Undo())
+            throw Exception("Action undo failed");
+
+    } catch(const Exception& e) {
+
+        auto* parent = dynamic_cast<Gtk::Window*>(this->get_toplevel());
+
+        if(!parent)
+            return;
+
+        auto dialog = Gtk::MessageDialog(*parent, "Deleting / restoring the collection failed",
+            false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_CLOSE, true);
+
+        dialog.set_secondary_text("Error: " + std::string(e.what()));
+        dialog.run();
+    }
+}
+
+void SingleCollection::_PerformDelete()
+{
+    DualView::Get().GetDatabase().DeleteCollection(*ShownCollection);
 }
