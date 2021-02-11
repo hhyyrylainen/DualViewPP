@@ -223,6 +223,12 @@ void SingleCollection::_UpdateDeletedStatus()
         return;
     }
 
+    // Can't delete the uncategorized collection
+    if(ShownCollection->GetID() == DATABASE_UNCATEGORIZED_COLLECTION_ID) {
+        DeleteThisCollection->set_sensitive(false);
+        return;
+    }
+
     DeleteThisCollection->set_sensitive(true);
 
     if(ShownCollection->IsDeleted()) {

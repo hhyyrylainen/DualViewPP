@@ -184,3 +184,66 @@ TEST_CASE("Collection delete works", "[collection][action]")
         CHECK(collection2->GetImages() == std::vector<std::shared_ptr<Image>>{image3});
     }
 }
+
+TEST_CASE("Can't delete uncategorized", "[collection]")
+{
+    DummyDualView dv;
+    TestDatabase db;
+
+    REQUIRE_NOTHROW(db.Init());
+
+    auto uncategorized = db.SelectCollectionByIDAG(DATABASE_UNCATEGORIZED_COLLECTION_ID);
+    REQUIRE(uncategorized);
+
+    CHECK_THROWS(db.DeleteCollection(*uncategorized));
+
+    CHECK(!uncategorized->IsDeleted());
+}
+
+TEST_CASE(
+    "Collection delete purge doesn't add extra stuff to uncategorized", "[collection][action]")
+{
+    DummyDualView dv;
+    TestDatabase db;
+
+    REQUIRE_NOTHROW(db.Init());
+
+    auto uncategorized = db.SelectCollectionByIDAG(DATABASE_UNCATEGORIZED_COLLECTION_ID);
+    REQUIRE(uncategorized);
+
+    auto collection1 = db.InsertCollectionAG("Collection 1", false);
+    REQUIRE(collection1);
+
+    auto collection2 = db.InsertCollectionAG("Another collection", false);
+    REQUIRE(collection2);
+
+    auto image1 = db.InsertTestImage("image1", "hash1");
+    REQUIRE(image1);
+
+    auto image2 = db.InsertTestImage("image2", "hash2");
+    REQUIRE(image2);
+
+    auto image3 = db.InsertTestImage("image3", "hash3");
+    REQUIRE(image3);
+
+    auto image4 = db.InsertTestImage("image4", "hash4");
+    REQUIRE(image4);
+
+    collection1->AddImage(image1);
+    collection1->AddImage(image2);
+    collection1->AddImage(image3);
+
+    collection2->AddImage(image3);
+
+    // A bit not conforming to the model to have image1 in uncategorized already
+    uncategorized->AddImage(image1);
+    uncategorized->AddImage(image4);
+
+    db.DeleteCollection(*collection1);
+    REQUIRE(collection1->IsDeleted());
+
+    db.PurgeOldActionsUntilSpecificCountAG(0);
+
+    CHECK(uncategorized->GetImages() ==
+          std::vector<std::shared_ptr<Image>>{image1, image4, image2});
+}

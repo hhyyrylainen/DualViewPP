@@ -888,6 +888,12 @@ bool Database::UpdateCollection(LockT& guard, const Collection& collection)
 
 std::shared_ptr<DatabaseAction> Database::DeleteCollection(Collection& collection)
 {
+    if(collection.InDatabase != this)
+        return nullptr;
+
+    if(collection.ID == DATABASE_UNCATEGORIZED_COLLECTION_ID)
+        throw Leviathan::InvalidArgument("Uncategorized collection may not be deleted");
+
     std::shared_ptr<CollectionDeleteAction> action;
 
     {
