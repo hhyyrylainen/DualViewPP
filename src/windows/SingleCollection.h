@@ -49,7 +49,7 @@ protected:
     void _OnClose() override;
 
     void _UpdateDeletedStatus();
-    void _PerformDelete();
+    void _PerformDelete(size_t orphanCount);
 
 private:
     SuperContainer* ImageContainer;

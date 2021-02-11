@@ -247,3 +247,36 @@ TEST_CASE(
     CHECK(uncategorized->GetImages() ==
           std::vector<std::shared_ptr<Image>>{image1, image4, image2});
 }
+
+TEST_CASE("Undone collection delete doesn't move images", "[collection][action]")
+{
+    DummyDualView dv;
+    TestDatabase db;
+
+    REQUIRE_NOTHROW(db.Init());
+
+    auto uncategorized = db.SelectCollectionByIDAG(DATABASE_UNCATEGORIZED_COLLECTION_ID);
+    REQUIRE(uncategorized);
+
+    auto collection1 = db.InsertCollectionAG("Collection 1", false);
+    REQUIRE(collection1);
+
+    auto image1 = db.InsertTestImage("image1", "hash1");
+    REQUIRE(image1);
+
+    collection1->AddImage(image1);
+
+    auto action = db.DeleteCollection(*collection1);
+    REQUIRE(action);
+    REQUIRE(collection1->IsDeleted());
+
+    CHECK(action->Undo());
+    CHECK(!action->IsPerformed());
+
+    db.PurgeOldActionsUntilSpecificCountAG(0);
+
+    CHECK(!action->IsPerformed());
+    CHECK(!collection1->IsDeleted());
+
+    CHECK(uncategorized->GetImages().empty());
+}

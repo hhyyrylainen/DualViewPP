@@ -252,11 +252,17 @@ void SingleCollection::_OnDeleteRestorePressed()
 
         DualView::Get().QueueDBThreadFunction([=]() {
             // Find images to be orphaned
-            // TODO: check if any images would become orphaned
+
+            const auto wouldOrphan =
+                DualView::Get()
+                    .GetDatabase()
+                    .SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollectionAG(
+                        *collection);
+            const auto orphanCount = wouldOrphan.size();
+
             DualView::Get().InvokeFunction([=]() {
                 INVOKE_CHECK_ALIVE_MARKER(isalive);
-
-                _PerformDelete();
+                _PerformDelete(orphanCount);
             });
         });
 
@@ -289,7 +295,23 @@ void SingleCollection::_OnDeleteRestorePressed()
     }
 }
 
-void SingleCollection::_PerformDelete()
+void SingleCollection::_PerformDelete(size_t orphanCount)
 {
+    if(orphanCount > 0) {
+        auto dialog = Gtk::MessageDialog(*this, "Delete Collection?", false,
+            Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
+
+        dialog.set_secondary_text(
+            "This collection has " + std::to_string(orphanCount) +
+            " image(s) that will be added to Uncategorized if this is deleted. Note that due "
+            "to current technical design the images only get added to Uncategorized when it "
+            "is no longer possible to undo this action, meaning that the images might be "
+            "hidden for some time. Continue with delete?");
+        int result = dialog.run();
+
+        if(result != Gtk::RESPONSE_YES)
+            return;
+    }
+
     DualView::Get().GetDatabase().DeleteCollection(*ShownCollection);
 }

@@ -1384,6 +1384,34 @@ std::shared_ptr<DatabaseAction> Database::DeleteImagesFromCollection(
     return action;
 }
 
+std::vector<DBID> Database::SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection(
+    LockT& guard, DBID collection)
+{
+    std::vector<DBID> result;
+
+    const char str[] =
+        "SELECT a.image FROM collection_image a WHERE collection = ? AND (SELECT COUNT(*) "
+        "FROM collection_image b WHERE a.image == b.image) < 2 ORDER BY show_order ASC;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(collection);
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        result.push_back(statementobj.GetColumnAsInt64(0));
+    }
+
+    return result;
+}
+
+std::vector<DBID> Database::SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection(
+    LockT& guard, Collection& collection)
+{
+    return SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection(
+        guard, collection.GetID());
+}
+
 int64_t Database::SelectImageShowOrderInCollection(
     LockT& guard, const Collection& collection, const Image& image)
 {
@@ -4739,21 +4767,9 @@ void Database::_PurgeCollection(LockT& guard, DBID collection)
 
     auto uncategorized = SelectCollectionByID(guard, DATABASE_UNCATEGORIZED_COLLECTION_ID);
 
-    loadedResource->_OnPurged();
-    LoadedCollections.Remove(collection);
-
     // Add now orphaned images to Uncategorized
-    const char str[] =
-        "SELECT a.image FROM collection_image a WHERE collection = ? AND (SELECT COUNT(*) "
-        "FROM collection_image b WHERE a.image == b.image) < 2 ORDER BY show_order ASC;";
-
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
-
-    auto statementinuse = statementobj.Setup(collection);
-
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        const auto id = statementobj.GetColumnAsInt64(0);
+    for(const auto id :
+        SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection(guard, collection)) {
 
         LOG_INFO("Adding orphaned image (from deleted collection) to uncategorized: " +
                  std::to_string(id));
@@ -4768,6 +4784,9 @@ void Database::_PurgeCollection(LockT& guard, DBID collection)
                         std::to_string(id));
         }
     }
+
+    loadedResource->_OnPurged();
+    LoadedCollections.Remove(collection);
 
     RunSQLAsPrepared(guard, "DELETE FROM collections WHERE id = ?1;", collection);
 

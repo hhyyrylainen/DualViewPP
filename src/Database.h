@@ -306,6 +306,14 @@ public:
     std::shared_ptr<DatabaseAction> DeleteImagesFromCollection(
         Collection& collection, const std::vector<std::shared_ptr<Image>>& images);
 
+    //! \brief Finds images that are only in collection and returns their IDs
+    std::vector<DBID> SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection(
+        LockT& guard, Collection& collection);
+    CREATE_NON_LOCKING_WRAPPER(SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection);
+
+    std::vector<DBID> SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection(
+        LockT& guard, DBID collection);
+
     //! \brief Returns the show_order image has in collection. Or -1
     int64_t SelectImageShowOrderInCollection(
         LockT& guard, const Collection& collection, const Image& image);
