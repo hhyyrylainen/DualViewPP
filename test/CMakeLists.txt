@@ -19,6 +19,7 @@ add_executable(Test
   test_undo.cpp
   test_net_gallery.cpp
   test_task_list.cpp
+  test_search.cpp
 
   gtk_tests.cpp
 

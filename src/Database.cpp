@@ -1022,11 +1022,12 @@ std::vector<std::string> Database::SelectCollectionNamesByWildcard(
     std::vector<std::string> result;
 
     const char str[] = "SELECT name FROM collections WHERE name LIKE ?1 AND deleted IS NOT 1 "
-                       "ORDER BY NAME LIMIT ?;";
+                       "ORDER BY (CASE WHEN name = ?2 THEN 1 WHEN name LIKE ?3 THEN 2 ELSE "
+                       "name END) LIMIT ?4 COLLATE NOCASE;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup("%" + pattern + "%", max);
+    auto statementinuse = statementobj.Setup("%" + pattern + "%", pattern, pattern + "%", max);
 
     while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
 

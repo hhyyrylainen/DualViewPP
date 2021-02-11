@@ -316,7 +316,6 @@ public:
     //! \todo Assert if _CacheManager is null
     inline CacheManager& GetCacheManager() const
     {
-
         return *_CacheManager;
     }
 
