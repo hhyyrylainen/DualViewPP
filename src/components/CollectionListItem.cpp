@@ -12,9 +12,8 @@ CollectionListItem::CollectionListItem(const std::shared_ptr<ItemSelectable>& se
     std::shared_ptr<Collection> showncollection /*= nullptr*/) :
     ListItem(showncollection ? showncollection->GetPreviewIcon() : nullptr,
         showncollection ? showncollection->GetName() : "", selectable, true),
-    CurrentCollection(showncollection),
-
-    ItemView("_View", true), ItemAddToFolder("_Add To Folder", true),
+    CurrentCollection(showncollection), ItemView("_View", true),
+    ItemAddToFolder("_Add To Folder", true),
     ItemRemoveFromFolders("_Remove From Folders...", true), ItemReorder("Re_order", true)
 {
     ImageIcon.SetBackground(DualView::Get().GetCacheManager().GetCollectionIcon());

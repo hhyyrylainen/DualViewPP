@@ -25,6 +25,11 @@ public:
         return Name;
     }
 
+    const auto GetIsPrivate() const
+    {
+        return IsPrivate;
+    }
+
     //! \brief Returns true if this is the root folder
     bool IsRoot() const;
 

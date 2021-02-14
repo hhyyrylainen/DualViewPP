@@ -28,8 +28,22 @@ public:
     //! Changes layout depending on size
     void SetItemSize(LIST_ITEM_SIZE newsize) override;
 
+protected:
+    bool _OnRightClick(GdkEventButton* causedbyevent) override;
+
+    void _OpenRemoveFromFolders();
+    void _OpenAddToFolder();
+    void _OpenRename();
+
 private:
     std::shared_ptr<Folder> CurrentFolder;
+
+    //! Context menu for right click
+    Gtk::Menu ContextMenu;
+    Gtk::MenuItem ItemAddToFolder;
+    Gtk::MenuItem ItemRemoveFromFolders;
+    Gtk::SeparatorMenuItem ItemSeparator;
+    Gtk::MenuItem ItemRename;
 };
 
 } // namespace DV
