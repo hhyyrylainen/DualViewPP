@@ -83,6 +83,8 @@ void CollectionView::OnFolderChanged()
 
     DualView::IsOnMainThreadAssert();
 
+    FolderWasChanged = true;
+
     PathEntry->set_text(CurrentPath.GetPathString());
 
     // Load items //
@@ -109,6 +111,9 @@ void CollectionView::_UpdateShownItems()
         Container->Clear();
         return;
     }
+
+    bool folderChanged = FolderWasChanged;
+    FolderWasChanged = false;
 
     DualView::Get().QueueDBThreadFunction([=]() {
         const auto collections =
@@ -139,11 +144,14 @@ void CollectionView::_UpdateShownItems()
             GoToPath(CurrentPath / VirtualPath(asfolder->GetFolder()->GetName()));
         });
 
-        DualView::Get().InvokeFunction([this, isalive, loadedresources, changefolder]() {
-            INVOKE_CHECK_ALIVE_MARKER(isalive);
+        DualView::Get().InvokeFunction(
+            [this, isalive, loadedresources, changefolder, folderChanged]() {
+                INVOKE_CHECK_ALIVE_MARKER(isalive);
 
-            Container->SetShownItems(
-                loadedresources->begin(), loadedresources->end(), changefolder);
-        });
+                Container->SetShownItems(loadedresources->begin(), loadedresources->end(),
+                    changefolder,
+                    folderChanged ? SuperContainer::POSITION_KEEP_MODE::SCROLL_TO_TOP :
+                                    SuperContainer::POSITION_KEEP_MODE::SCROLL_TO_EXISTING);
+            });
     });
 }

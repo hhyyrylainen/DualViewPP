@@ -25,7 +25,6 @@ protected:
             const std::shared_ptr<ItemSelectable>& selectable) :
             CreatedFrom(create)
         {
-
             Widget = CreatedFrom->CreateListItem(selectable);
 
             if(!Widget)
@@ -69,6 +68,17 @@ protected:
     };
 
 public:
+    //! \brief Modes that define how scroll behaves when changing items
+    enum class POSITION_KEEP_MODE {
+        //! Keeps current scroll position without adjustment
+        NO_ADJUST,
+        //! Scrolls to try to keep the first still existing item in view
+        SCROLL_TO_EXISTING,
+        //! Always scrolls to the top
+        SCROLL_TO_TOP
+    };
+
+public:
     //! \brief Non-glade constructor
     SuperContainer();
 
@@ -84,17 +94,17 @@ public:
     //! is not changed, This is not perfect as it only compares ResourceWithPreview pointers
     template<class Iterator>
     void SetShownItems(Iterator begin, Iterator end,
-        const std::shared_ptr<ItemSelectable>& selectable = nullptr, bool keepPosition = true)
+        const std::shared_ptr<ItemSelectable>& selectable = nullptr,
+        POSITION_KEEP_MODE keepPosition = POSITION_KEEP_MODE::SCROLL_TO_EXISTING)
     {
         if(Positions.empty()) {
-
             // Update initial width
             LastWidthReflow = get_width();
         }
 
         std::vector<std::shared_ptr<ResourceWithPreview>> firstVisibleThings;
 
-        if(keepPosition && !Positions.empty()) {
+        if(keepPosition == POSITION_KEEP_MODE::SCROLL_TO_EXISTING && !Positions.empty()) {
 
             const auto currentScroll = get_vadjustment()->get_value();
 
@@ -157,7 +167,8 @@ public:
         get_vadjustment()->set_value(0);
 
         // And restore it, if wanted
-        if(keepPosition && !firstVisibleThings.empty()) {
+        if(keepPosition == POSITION_KEEP_MODE::SCROLL_TO_EXISTING &&
+            !firstVisibleThings.empty()) {
 
             bool applied = false;
 
@@ -178,6 +189,9 @@ public:
             // be restored
             if(!applied)
                 get_vadjustment()->set_value(0);
+        } else if(keepPosition == POSITION_KEEP_MODE::SCROLL_TO_TOP) {
+            // Reset scroll
+            get_vadjustment()->set_value(0);
         }
     }
 

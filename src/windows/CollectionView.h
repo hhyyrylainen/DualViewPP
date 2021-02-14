@@ -48,6 +48,9 @@ private:
     Gtk::Button* UpFolder;
 
     Gtk::SearchEntry* SearchBox;
+
+    //! True the next time a DB read is done after changing a folder
+    bool FolderWasChanged = true;
 };
 
 } // namespace DV
