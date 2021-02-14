@@ -1391,6 +1391,46 @@ void DualView::OpenCollectionRename(
     window->show();
 }
 
+void DualView::OpenFolderRename(
+    const std::shared_ptr<Folder>& folder, Gtk::Window* parentWindow /*= nullptr*/)
+{
+    if(!folder)
+        return;
+
+    AssertIfNotMainThread();
+
+    auto window = std::make_shared<RenameWindow>(
+        folder->GetName(),
+        [this, folder](const std::string& newName) {
+            if(!folder->Rename(newName)) {
+                return std::make_tuple<bool, std::string>(
+                    false, "Folder rename failed. Check logs for errors");
+            }
+
+            return std::make_tuple<bool, std::string>(true, "");
+        },
+        [this, folder](const std::string& potentialName) {
+            if(potentialName.empty()) {
+                return std::make_tuple<bool, std::string>(false, "Name can't be empty");
+            }
+
+            const auto conflictIn = _Database->SelectFirstParentFolderWithChildFolderNamedAG(
+                *folder, potentialName);
+
+            if(conflictIn) {
+                return std::make_tuple<bool, std::string>(false,
+                    "New name already exists in folder '" + conflictIn->GetName() + "'");
+            }
+
+            return std::make_tuple<bool, std::string>(true, "");
+        });
+
+    _AddOpenWindow(window, *window);
+    if(parentWindow)
+        window->set_transient_for(*parentWindow);
+    window->show();
+}
+
 void DualView::OpenActionEdit(const std::shared_ptr<ImageMergeAction>& action)
 {
     if(!action)

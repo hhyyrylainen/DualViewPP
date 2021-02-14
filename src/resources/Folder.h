@@ -19,9 +19,12 @@ public:
 
     ~Folder();
 
+    //! \brief Renames this collection
+    //! \returns True on success, false if the new name conflicts
+    bool Rename(const std::string& newName);
+
     const auto GetName() const
     {
-
         return Name;
     }
 
@@ -45,6 +48,7 @@ public:
 protected:
     // DatabaseResource implementation
     void _DoSave(Database& db) override;
+    void _DoSave(Database& db, DatabaseLockT& dbLock) override;
 
     //! \brief Fills a widget with this resource
     void _FillWidget(FolderListItem& widget);

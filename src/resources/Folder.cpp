@@ -27,9 +27,60 @@ Folder::~Folder()
 // ------------------------------------ //
 void Folder::_DoSave(Database& db)
 {
-    db.UpdateFolder(*this);
+    GUARD_LOCK_OTHER(db);
+    db.UpdateFolder(guard, *this);
 }
 
+void Folder::_DoSave(Database& db, DatabaseLockT& dbLock)
+{
+    db.UpdateFolder(dbLock, *this);
+}
+// ------------------------------------ //
+bool Folder::Rename(const std::string& newName)
+{
+    if(Name == newName)
+        return true;
+
+    if(newName.empty())
+        return false;
+
+    if(!IsInDatabase()) {
+        Name = newName;
+        OnMarkDirty();
+        return true;
+    }
+
+    {
+        GUARD_LOCK_OTHER(InDatabase);
+
+        if(InDatabase->SelectFirstParentFolderWithChildFolderNamed(guard, *this, newName))
+            return false;
+
+        const auto oldName = std::move(Name);
+        Name = newName;
+
+        try {
+            if(!InDatabase->UpdateFolder(guard, *this)) {
+                // Old name is restored on failure
+                Name = oldName;
+                return false;
+            }
+        } catch(const InvalidSQL& e) {
+            LOG_INFO("Failed to rename folder due to SQL error:");
+            e.PrintToLog();
+
+            Name = oldName;
+            return false;
+        }
+    }
+
+    GUARD_LOCK();
+    IsDirty = false;
+    NotifyAll(guard);
+
+    return true;
+}
+// ------------------------------------ //
 bool Folder::operator==(const Folder& other) const
 {
     if(static_cast<const DatabaseResource&>(*this) ==

@@ -1953,10 +1953,16 @@ std::shared_ptr<Folder> Database::InsertFolder(
     return created;
 }
 
-bool Database::UpdateFolder(Folder& folder)
+bool Database::UpdateFolder(LockT& guard, Folder& folder)
 {
-    GUARD_LOCK();
-    return false;
+    const char str[] = "UPDATE virtual_folders SET name = ?2, is_private = ?3 WHERE id = ?1;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    statementobj.StepAll(
+        statementobj.Setup(folder.GetID(), folder.GetName(), folder.GetIsPrivate()));
+
+    return sqlite3_changes(SQLiteDb);
 }
 // ------------------------------------ //
 // Folder collection
@@ -2163,6 +2169,28 @@ std::vector<DBID> Database::SelectFolderParents(const Folder& folder)
     }
 
     return result;
+}
+
+std::shared_ptr<Folder> Database::SelectFirstParentFolderWithChildFolderNamed(
+    LockT& guard, const Folder& parentsOf, const std::string& name)
+{
+    const char str[] =
+        "SELECT parent FROM folder_folder LEFT JOIN virtual_folders ON folder_folder.child = "
+        "virtual_folders.id WHERE name == ?2 AND (SELECT TRUE FROM folder_folder b WHERE "
+        "b.parent == b.parent AND b.child == ?1);";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(parentsOf.GetID(), name);
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        DBID id;
+        if(statementobj.GetObjectIDFromColumn(id, 0))
+            return SelectFolderByID(guard, id);
+    }
+
+    return nullptr;
 }
 
 std::vector<std::shared_ptr<Folder>> Database::SelectFoldersInFolder(

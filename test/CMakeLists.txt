@@ -20,6 +20,7 @@ add_executable(Test
   test_net_gallery.cpp
   test_task_list.cpp
   test_search.cpp
+  test_folder.cpp
 
   gtk_tests.cpp
 

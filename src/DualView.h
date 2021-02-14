@@ -116,6 +116,9 @@ public:
     void OpenCollectionRename(
         const std::shared_ptr<Collection>& collection, Gtk::Window* parentWindow = nullptr);
 
+    void OpenFolderRename(
+        const std::shared_ptr<Folder>& folder, Gtk::Window* parentWindow = nullptr);
+
     //! \brief Opens a window for merge action editing
     void OpenActionEdit(const std::shared_ptr<ImageMergeAction>& action);
 

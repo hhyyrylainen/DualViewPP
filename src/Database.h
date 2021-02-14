@@ -415,7 +415,7 @@ public:
     std::shared_ptr<Folder> InsertFolder(
         std::string name, bool isprivate, const Folder& parent);
 
-    bool UpdateFolder(Folder& folder);
+    bool UpdateFolder(LockT& guard, Folder& folder);
 
     //
     // Folder collection
@@ -472,6 +472,15 @@ public:
 
     //! \brief Selects all parents of a Folder
     std::vector<DBID> SelectFolderParents(const Folder& folder);
+
+    //! \brief Finds the first parent folder of the given folder where name is in use
+    //!
+    //! This can be used to detect name conflicts with a folder
+    //! \return The parent folder where the first conflict (in random order) was found, null if
+    //! no conflict
+    std::shared_ptr<Folder> SelectFirstParentFolderWithChildFolderNamed(
+        LockT& guard, const Folder& parentsOf, const std::string& name);
+    CREATE_NON_LOCKING_WRAPPER(SelectFirstParentFolderWithChildFolderNamed);
 
     //
     // Tag

@@ -94,7 +94,6 @@ void FolderListItem::_OpenAddToFolder()
 void FolderListItem::_OpenRename()
 {
     LOG_INFO("Rename folder");
-    // TODO: implement
-    // DualView::Get().OpenFolderRename(
-    //     CurrentFolder, dynamic_cast<Gtk::Window*>(get_toplevel()));
+    DualView::Get().OpenFolderRename(
+        CurrentFolder, dynamic_cast<Gtk::Window*>(get_toplevel()));
 }
