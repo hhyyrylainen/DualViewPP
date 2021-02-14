@@ -83,7 +83,8 @@ void FolderSelector::OnFolderChanged()
         MoveToSubfolder(asfolder->GetFolder()->GetName());
     });
 
-    FolderContents.SetShownItems(folders.begin(), folders.end(), changefolder);
+    FolderContents.SetShownItems(folders.begin(), folders.end(), changefolder,
+        SuperContainer::POSITION_KEEP_MODE::SCROLL_TO_TOP);
 
     PathEntry.set_text(CurrentPath.GetPathString());
 }
