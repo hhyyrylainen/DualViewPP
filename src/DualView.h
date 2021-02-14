@@ -77,8 +77,14 @@ public:
     //! \brief Opens a window that allows adding a Collection to a folder
     void OpenAddToFolder(std::shared_ptr<Collection> collection);
 
+    //! \brief Opens a window that allows adding a folder to a folder
+    void OpenAddToFolder(std::shared_ptr<Folder> folder);
+
     //! \brief Opens a window that allows removing a Collection from folder(s)
     void OpenRemoveFromFolders(std::shared_ptr<Collection> collection);
+
+//! \brief Opens a window that allows removing a folder from folder(s)
+    void OpenRemoveFromFolders(std::shared_ptr<Folder> folder);
 
     //! \brief Opens the tag creation window with the text already filled in
     void OpenTagCreator(const std::string& settext);
@@ -254,6 +260,9 @@ public:
 
     //! \brief Returns paths for folders which contain collection
     std::vector<std::string> GetFoldersCollectionIsIn(std::shared_ptr<Collection> collection);
+
+    //! \brief Returns paths for folders which contain collection
+    std::vector<std::string> GetFoldersFolderIsIn(std::shared_ptr<Folder> folder);
 
     //! \brief Retrieves a Folder from path
     //! \returns Null if the folder doesn't exist

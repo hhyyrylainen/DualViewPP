@@ -2122,6 +2122,13 @@ void Database::InsertCollectionToRootIfInNone(const Collection& collection)
 // Folder folder
 void Database::InsertFolderToFolder(LockT& guard, Folder& folder, const Folder& parent)
 {
+    if(folder.GetID() == parent.GetID()) {
+        // Should this throw or just print error?
+        LOG_ERROR("Can't add folder as its own child");
+        // throw Leviathan::InvalidArgument("Can't add folder as its own child");
+        return;
+    }
+
     const char str[] = "INSERT INTO folder_folder (parent, child) VALUES(?, ?);";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));

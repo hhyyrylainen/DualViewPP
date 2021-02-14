@@ -25,8 +25,11 @@ class RemoveFromFolders : public BaseWindow, public Gtk::Window, public IsAlive 
         Gtk::TreeModelColumn<bool> m_keep_folder;
     };
 
+    RemoveFromFolders();
+
 public:
     RemoveFromFolders(std::shared_ptr<Collection> collection);
+    RemoveFromFolders(std::shared_ptr<Folder> folder);
     ~RemoveFromFolders();
 
     //! \brief Reads the folders collection is in
@@ -40,8 +43,12 @@ protected:
     //! When a checkbox is toggled this handles that
     void _OnToggled(const Glib::ustring& path);
 
+    //! \brief Updates the shown text based on which MovedCollection, AddedFolder is not null
+    void _UpdateLabelsForType();
+
 protected:
     std::shared_ptr<Collection> TargetCollection;
+    std::shared_ptr<Folder> TargetFolder;
 
     Gtk::Box MainBox;
 
@@ -52,6 +59,7 @@ protected:
     Gtk::TreeView FoldersTreeView;
     Glib::RefPtr<Gtk::ListStore> FoldersModel;
     ModelColumns TreeViewColumns;
+    void _UpdateModel(const std::vector<std::string>& folders);
 };
 
 

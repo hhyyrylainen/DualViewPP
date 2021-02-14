@@ -1128,11 +1128,29 @@ void DualView::OpenAddToFolder(std::shared_ptr<Collection> collection)
     window->show();
 }
 
+void DualView::OpenAddToFolder(std::shared_ptr<Folder> folder)
+{
+    AssertIfNotMainThread();
+
+    auto window = std::make_shared<AddToFolder>(folder);
+    _AddOpenWindow(window, *window);
+    window->show();
+}
+
 void DualView::OpenRemoveFromFolders(std::shared_ptr<Collection> collection)
 {
     AssertIfNotMainThread();
 
     auto window = std::make_shared<RemoveFromFolders>(collection);
+    _AddOpenWindow(window, *window);
+    window->show();
+}
+
+void DualView::OpenRemoveFromFolders(std::shared_ptr<Folder> folder)
+{
+    AssertIfNotMainThread();
+
+    auto window = std::make_shared<RemoveFromFolders>(folder);
     _AddOpenWindow(window, *window);
     window->show();
 }
@@ -1945,6 +1963,21 @@ std::vector<std::string> DualView::GetFoldersCollectionIsIn(
 
     for(auto id : folderids) {
 
+        result.push_back(ResolvePathToFolder(id));
+    }
+
+    return result;
+}
+
+std::vector<std::string> DualView::GetFoldersFolderIsIn(std::shared_ptr<Folder> folder){
+    std::vector<std::string> result;
+
+    if(!folder)
+        return result;
+
+    const auto folderIds = _Database->SelectFolderParents(*folder);
+
+    for(auto id : folderIds) {
         result.push_back(ResolvePathToFolder(id));
     }
 

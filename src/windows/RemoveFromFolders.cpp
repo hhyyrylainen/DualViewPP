@@ -2,16 +2,15 @@
 #include "RemoveFromFolders.h"
 
 #include "resources/Collection.h"
+#include "resources/Folder.h"
 
 #include "DualView.h"
 
 using namespace DV;
 // ------------------------------------ //
 
-RemoveFromFolders::RemoveFromFolders(std::shared_ptr<Collection> collection) :
-    TargetCollection(collection),
-
-    MainBox(Gtk::ORIENTATION_VERTICAL), ApplyButton("_Apply")
+RemoveFromFolders::RemoveFromFolders() :
+    MainBox(Gtk::ORIENTATION_VERTICAL), ApplyButton("_Apply", true)
 {
     ApplyButton.set_always_show_image();
     MainBox.pack_end(ApplyButton, false, true);
@@ -42,7 +41,20 @@ RemoveFromFolders::RemoveFromFolders(std::shared_ptr<Collection> collection) :
     show_all_children();
 
     set_default_size(600, 650);
+}
 
+RemoveFromFolders::RemoveFromFolders(std::shared_ptr<Collection> collection) :
+    RemoveFromFolders()
+{
+    TargetCollection = collection;
+    _UpdateLabelsForType();
+    ReadFolders();
+}
+
+RemoveFromFolders::RemoveFromFolders(std::shared_ptr<Folder> folder) : RemoveFromFolders()
+{
+    TargetFolder = folder;
+    _UpdateLabelsForType();
     ReadFolders();
 }
 
@@ -76,7 +88,11 @@ void RemoveFromFolders::_OnApply()
         return;
     }
 
-    LOG_INFO("Removing collection: " + TargetCollection->GetName() + " from:");
+    if(TargetCollection) {
+        LOG_INFO("Removing collection: " + TargetCollection->GetName() + " from:");
+    } else if(TargetFolder) {
+        LOG_INFO("Removing folder: " + TargetFolder->GetName() + " from:");
+    }
 
     for(const auto& path : pathstoremove) {
 
@@ -86,28 +102,56 @@ void RemoveFromFolders::_OnApply()
     set_sensitive(false);
 
     auto alive = GetAliveMarker();
-    auto collection = TargetCollection;
 
-    DualView::Get().QueueDBThreadFunction([=]() {
-        for(const auto& path : pathstoremove) {
+    if(TargetCollection) {
+        auto collection = TargetCollection;
 
-            auto folder = DualView::Get().GetFolderFromPath(path);
+        DualView::Get().QueueDBThreadFunction([=]() {
+            for(const auto& path : pathstoremove) {
 
-            if(!folder) {
+                auto folder = DualView::Get().GetFolderFromPath(path);
 
-                LOG_ERROR("RemoveFromFolder: path is invalid: " + path);
-                continue;
+                if(!folder) {
+
+                    LOG_ERROR("RemoveFromFolder: path is invalid: " + path);
+                    continue;
+                }
+
+                DualView::Get().RemoveCollectionFromFolder(collection, folder);
             }
 
-            DualView::Get().RemoveCollectionFromFolder(collection, folder);
-        }
-
-        DualView::Get().InvokeFunction([=]() {
-            INVOKE_CHECK_ALIVE_MARKER(alive);
-
-            close();
+            DualView::Get().InvokeFunction([=]() {
+                INVOKE_CHECK_ALIVE_MARKER(alive);
+                close();
+            });
         });
-    });
+    } else if(TargetFolder) {
+        auto childFolder = TargetFolder;
+
+        DualView::Get().QueueDBThreadFunction([=]() {
+            for(const auto& path : pathstoremove) {
+
+                auto folder = DualView::Get().GetFolderFromPath(path);
+
+                if(!folder) {
+
+                    LOG_ERROR("RemoveFromFolder: path is invalid: " + path);
+                    continue;
+                }
+
+                if(!folder->RemoveFolder(childFolder)) {
+                    LOG_ERROR("RemoveFromFolder: failed to remove a child from parent");
+                }
+            }
+
+            DualView::Get().InvokeFunction([=]() {
+                INVOKE_CHECK_ALIVE_MARKER(alive);
+                close();
+            });
+        });
+    } else {
+        LOG_FATAL("Unhandled RemoveFromFoldersType");
+    }
 }
 // ------------------------------------ //
 void RemoveFromFolders::_OnToggled(const Glib::ustring& path)
@@ -121,26 +165,58 @@ void RemoveFromFolders::_OnToggled(const Glib::ustring& path)
 void RemoveFromFolders::ReadFolders()
 {
     DualView::IsOnMainThreadAssert();
-
-    auto collection = TargetCollection;
     auto alive = GetAliveMarker();
 
-    DualView::Get().QueueDBThreadFunction([=]() {
-        auto folders = DualView::Get().GetFoldersCollectionIsIn(collection);
+    if(TargetCollection) {
+        auto collection = TargetCollection;
 
-        std::sort(folders.begin(), folders.end());
+        DualView::Get().QueueDBThreadFunction([=]() {
+            auto folders = DualView::Get().GetFoldersCollectionIsIn(collection);
 
-        DualView::Get().InvokeFunction([=]() {
-            INVOKE_CHECK_ALIVE_MARKER(alive);
+            std::sort(folders.begin(), folders.end());
 
-            FoldersModel->clear();
-
-            for(const auto& folder : folders) {
-
-                Gtk::TreeModel::Row row = *(FoldersModel->append());
-                row[TreeViewColumns.m_keep_folder] = true;
-                row[TreeViewColumns.m_folder_path] = folder;
-            }
+            DualView::Get().InvokeFunction([=]() {
+                INVOKE_CHECK_ALIVE_MARKER(alive);
+                _UpdateModel(folders);
+            });
         });
-    });
+    } else if(TargetFolder) {
+        auto folder = TargetFolder;
+
+        DualView::Get().QueueDBThreadFunction([=]() {
+            auto folders = DualView::Get().GetFoldersFolderIsIn(folder);
+
+            std::sort(folders.begin(), folders.end());
+
+            DualView::Get().InvokeFunction([=]() {
+                INVOKE_CHECK_ALIVE_MARKER(alive);
+                _UpdateModel(folders);
+            });
+        });
+    } else {
+        LOG_FATAL("Unhandled RemoveFromFoldersType");
+    }
+}
+
+void RemoveFromFolders::_UpdateModel(const std::vector<std::string>& folders)
+{
+    FoldersModel->clear();
+
+    for(const auto& folder : folders) {
+
+        Gtk::TreeModel::Row row = *(FoldersModel->append());
+        row[TreeViewColumns.m_keep_folder] = true;
+        row[TreeViewColumns.m_folder_path] = folder;
+    }
+}
+// ------------------------------------ //
+void RemoveFromFolders::_UpdateLabelsForType()
+{
+    if(TargetCollection) {
+
+    } else if(TargetFolder) {
+
+    } else {
+        throw Leviathan::InvalidState("No target collection or folder for RemoveFromFolders");
+    }
 }

@@ -79,21 +79,16 @@ bool FolderListItem::_OnRightClick(GdkEventButton* causedbyevent)
 // ------------------------------------ //
 void FolderListItem::_OpenRemoveFromFolders()
 {
-    LOG_INFO("Remove folder from folders");
-    // TODO: implement
-    // DualView::Get().OpenRemoveFromFolders(CurrentFolder);
+    DualView::Get().OpenRemoveFromFolders(CurrentFolder);
 }
 
 void FolderListItem::_OpenAddToFolder()
 {
-    LOG_INFO("Add folder to folders");
-    // TODO: implement
-    // DualView::Get().OpenAddToFolder(CurrentFolder);
+    DualView::Get().OpenAddToFolder(CurrentFolder);
 }
 
 void FolderListItem::_OpenRename()
 {
-    LOG_INFO("Rename folder");
     DualView::Get().OpenFolderRename(
         CurrentFolder, dynamic_cast<Gtk::Window*>(get_toplevel()));
 }
