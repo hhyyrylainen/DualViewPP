@@ -460,6 +460,17 @@ public:
     //! \note This doesn't check for name conflicts
     void InsertFolderToFolder(LockT& guard, Folder& folder, const Folder& parent);
 
+    //! \brief Inserts a folder to the root folder, if it currently isn't in any folder
+    void InsertToRootFolderIfInNoFolders(LockT& guard, Folder& folder);
+
+    //! \brief Deletes a folder from parent
+    //!
+    //! Doesn't add to root folder even if the folder is in no folder after this
+    bool DeleteFolderFromFolder(LockT& guard, Folder& folder, const Folder& parent);
+
+    //! \brief Counts in how many folders the folder is
+    int64_t SelectFolderParentCount(LockT& guard, Folder& folder);
+
     //! \brief Returns Folders that are directly in folder. And their name contains
     //! matching pattern
     std::vector<std::shared_ptr<Folder>> SelectFoldersInFolder(

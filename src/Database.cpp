@@ -2131,6 +2131,52 @@ void Database::InsertFolderToFolder(LockT& guard, Folder& folder, const Folder& 
     statementobj.StepAll(statementinuse);
 }
 
+void Database::InsertToRootFolderIfInNoFolders(LockT& guard, Folder& folder)
+{
+    if(SelectFolderParentCount(guard, folder) < 1) {
+
+        const auto root = SelectFolderByID(guard, DATABASE_ROOT_FOLDER_ID);
+
+        if(!root) {
+            LOG_ERROR("Database Root folder doesn't exist, can't add orphan folder to it");
+            return;
+        }
+
+        InsertFolderToFolder(guard, folder, *root);
+    }
+}
+
+bool Database::DeleteFolderFromFolder(LockT& guard, Folder& folder, const Folder& parent)
+{
+    const char str[] = "DELETE FROM folder_folder WHERE parent == ?1 AND child == ?2;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(parent.GetID(), folder.GetID());
+
+    statementobj.StepAll(statementinuse);
+
+    return sqlite3_changes(SQLiteDb);
+}
+
+int64_t Database::SelectFolderParentCount(LockT& guard, Folder& folder)
+{
+    if(!folder.IsInDatabase())
+        return 0;
+
+    const char str[] = "SELECT COUNT(*) FROM folder_folder WHERE child = ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(folder.GetID());
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+        return statementobj.GetColumnAsInt64(0);
+    }
+
+    return 0;
+}
+
 std::shared_ptr<Folder> Database::SelectFolderByNameAndParent(
     LockT& guard, const std::string& name, const Folder& parent)
 {

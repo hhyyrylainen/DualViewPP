@@ -89,10 +89,80 @@ TEST_CASE("Add folder to folder works", "[folder]")
     auto folder3 = db.InsertFolder("The new thing", false, *folder2);
     auto folder4 = db.InsertFolder("The new thing", false, *root);
 
-    CHECK("Basic add") {
-
-
+    SECTION("Basic add")
+    {
+        CHECK(db.SelectFolderByNameAndParentAG("Another", *folder1) == nullptr);
+        CHECK(folder1->AddFolder(folder2));
+        CHECK(db.SelectFolderByNameAndParentAG("Another", *folder1) == folder2);
     }
 
-    CHECK("Can't add conflicting name") {}
+    SECTION("Can't add conflicting name")
+    {
+        CHECK(db.SelectFolderByNameAndParentAG("The new thing", *folder2) == folder3);
+        CHECK(!folder2->AddFolder(folder4));
+        CHECK(db.SelectFolderByNameAndParentAG("The new thing", *folder2) == folder3);
+    }
+}
+
+TEST_CASE("Remove folder from folder works", "[folder]")
+{
+    DummyDualView dv(std::make_unique<TestDatabase>());
+    Database& db = dv.GetDatabase();
+
+    REQUIRE_NOTHROW(db.Init());
+
+    auto root = db.SelectFolderByIDAG(DATABASE_ROOT_FOLDER_ID);
+    REQUIRE(root);
+
+    auto folder1 = db.InsertFolder("Folder 1", false, *root);
+    auto folder2 = db.InsertFolder("Another", false, *root);
+    auto folder3 = db.InsertFolder("The new thing", false, *folder2);
+    auto folder4 = db.InsertFolder("The new thing", false, *root);
+
+    CHECK(folder1->AddFolder(folder2));
+
+    SECTION("Basic remove")
+    {
+        CHECK(db.SelectFolderByNameAndParentAG("Another", *folder1) == folder2);
+        CHECK(folder1->RemoveFolder(folder2));
+        CHECK(db.SelectFolderByNameAndParentAG("Another", *folder1) == nullptr);
+    }
+
+    SECTION("Folder that is nowhere is added to root")
+    {
+        CHECK(root->RemoveFolder(folder2));
+        CHECK(db.SelectFolderByNameAndParentAG("Another", *root) == nullptr);
+        CHECK(folder1->RemoveFolder(folder2));
+        CHECK(db.SelectFolderByNameAndParentAG("Another", *root) == folder2);
+    }
+}
+
+TEST_CASE("Delete folder works", "[folder][action]")
+{
+    DummyDualView dv(std::make_unique<TestDatabase>());
+    Database& db = dv.GetDatabase();
+
+    REQUIRE_NOTHROW(db.Init());
+
+    auto root = db.SelectFolderByIDAG(DATABASE_ROOT_FOLDER_ID);
+    REQUIRE(root);
+
+    auto folder1 = db.InsertFolder("Folder 1", false, *root);
+    auto folder2 = db.InsertFolder("Another", false, *root);
+
+    auto collection1 = db.InsertCollectionAG("Collection 1", false);
+    auto collection2 = db.InsertCollectionAG("Collection 2", false);
+    auto collection3 = db.InsertCollectionAG("in Root collection", false);
+
+    dv.AddCollectionToFolder(folder1, collection1);
+    dv.AddCollectionToFolder(folder2, collection2);
+
+    const auto initialRootContents = db.SelectCollectionsInFolder(*root);
+
+    CHECK(std::find(initialRootContents.begin(), initialRootContents.end(), collection1) ==
+          initialRootContents.end());
+    CHECK(std::find(initialRootContents.begin(), initialRootContents.end(), collection2) ==
+          initialRootContents.end());
+    CHECK(std::find(initialRootContents.begin(), initialRootContents.end(), collection3) !=
+          initialRootContents.end());
 }

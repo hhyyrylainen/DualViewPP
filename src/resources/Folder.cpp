@@ -81,6 +81,36 @@ bool Folder::Rename(const std::string& newName)
     return true;
 }
 // ------------------------------------ //
+bool Folder::AddFolder(std::shared_ptr<Folder> otherFolder)
+{
+    if(!otherFolder || !otherFolder->IsInDatabase() || !IsInDatabase())
+        return false;
+
+    GUARD_LOCK_OTHER(InDatabase);
+
+    const auto conflict =
+        InDatabase->SelectFolderByNameAndParent(guard, otherFolder->GetName(), *this);
+
+    if(conflict)
+        return false;
+
+    InDatabase->InsertFolderToFolder(guard, *otherFolder, *this);
+    return true;
+}
+
+bool Folder::RemoveFolder(std::shared_ptr<Folder> otherFolder){
+    if(!otherFolder || !otherFolder->IsInDatabase() || !IsInDatabase())
+        return false;
+
+    GUARD_LOCK_OTHER(InDatabase);
+
+    if(!InDatabase->DeleteFolderFromFolder(guard, *otherFolder, *this))
+        return false;
+
+    InDatabase->InsertToRootFolderIfInNoFolders(guard, *otherFolder);
+    return true;
+}
+// ------------------------------------ //
 bool Folder::operator==(const Folder& other) const
 {
     if(static_cast<const DatabaseResource&>(*this) ==
