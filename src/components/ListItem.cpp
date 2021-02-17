@@ -185,6 +185,7 @@ bool ListItem::_OnMouseButtonPressed(GdkEventButton* event)
 
             if(event->state & GDK_SHIFT_MASK){
                 if(CurrentlySelected && ShiftSelectCallback){
+                    LOG_INFO("Shift select performed on ListItem");
                     ShiftSelectCallback(*this);
                 }
             }
