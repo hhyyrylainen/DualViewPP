@@ -471,15 +471,9 @@ void Importer::_RemoveSelected()
 // ------------------------------------ //
 bool Importer::StartImporting(bool move)
 {
-    bool expected = false;
-    if(!DoingImport.compare_exchange_weak(
-           expected, true, std::memory_order_release, std::memory_order_relaxed)) {
-        return false;
-    }
-
     if(!HashesReady) {
         auto dialog = Gtk::MessageDialog(*this, "Image Hashes Not Ready", false,
-            Gtk::MESSAGE_WARNING, Gtk::BUTTONS_OK, true);
+                                         Gtk::MESSAGE_WARNING, Gtk::BUTTONS_OK, true);
 
         dialog.set_secondary_text(
             "One or more of the selected images doesn't have a hash computed yet. Please try "
@@ -488,6 +482,11 @@ bool Importer::StartImporting(bool move)
         return false;
     }
 
+    bool expected = false;
+    if(!DoingImport.compare_exchange_weak(
+           expected, true, std::memory_order_release, std::memory_order_relaxed)) {
+        return false;
+    }
 
     // Value was changed to true //
 
