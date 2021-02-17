@@ -33,8 +33,8 @@ Image::Image(const std::string& file) :
 
 {
     if(!boost::filesystem::exists(file)) {
-
-        throw Leviathan::InvalidArgument("Image: file doesn't exist");
+        OnConstructorFailed();
+        throw Leviathan::InvalidArgument("Image: file doesn't exist: " + file);
     }
 
     ResourceName = boost::filesystem::path(ResourcePath).filename().string();
@@ -55,7 +55,7 @@ Image::Image(
 
 {
     if(!boost::filesystem::exists(file)) {
-
+        OnConstructorFailed();
         throw Leviathan::InvalidArgument("Image: file doesn't exist");
     }
 

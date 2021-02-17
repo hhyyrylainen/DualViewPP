@@ -94,6 +94,10 @@ protected:
     //! \brief Must be called by all classes inheriting from this, in their destructors
     void DBResourceDestruct();
 
+    //! \brief If a constructor is about to throw call this, so that the assertion about
+    //! DBResourceDestruct is not triggered.
+    void OnConstructorFailed();
+
 private:
     //! Set to true once DBResourceDestruct has been called
     bool _DestructCalled = false;

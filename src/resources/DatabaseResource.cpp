@@ -31,6 +31,11 @@ void DatabaseResource::DBResourceDestruct()
 
     _DestructCalled = true;
 }
+
+void DatabaseResource::OnConstructorFailed()
+{
+    _DestructCalled = true;
+}
 // ------------------------------------ //
 void DatabaseResource::OnAdopted(int64_t id, Database& from)
 {
