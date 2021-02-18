@@ -4,6 +4,9 @@
 #include "resources/Tags.h"
 
 #include "Exceptions.h"
+#include "Common/StringOperations.h"
+
+#include <optional>
 
 using namespace DV;
 // ------------------------------------ //
@@ -12,7 +15,6 @@ class LocaleHolder {
 public:
     LocaleHolder()
     {
-
         boost::locale::generator gen;
         locale = gen("");
     }
@@ -24,10 +26,8 @@ static LocaleHolder CreatedLocale;
 
 std::string DV::StringToLower(const std::string& str)
 {
-
     return boost::locale::to_lower(str, CreatedLocale.locale);
 }
-
 // ------------------------------------ //
 bool DV::CompareSuggestionStrings(
     const std::string& str, const std::string& leftInput, const std::string& rightInput)
@@ -87,6 +87,71 @@ bool DV::CompareSuggestionTags(const std::string& str, const std::shared_ptr<Tag
     const std::shared_ptr<Tag>& right)
 {
     return CompareSuggestionStrings(str, left->GetName(), right->GetName());
+}
+// ------------------------------------ //
+std::optional<long> ParseEndingNumber(const std::string& str){
+    if(str.empty())
+        return {};
+
+    size_t i = str.size() - 1;
+
+    while (true){
+        if(std::isdigit(str[i])){
+            // Guard against first character being a digit
+            if(i > 0)
+                --i;
+        } else {
+            // Non digit found
+            ++i;
+            break;
+        }
+
+        if(i == 0)
+            break;
+    }
+
+    if(i >= str.size()){
+        // No number found
+        return {};
+    }
+
+    try {
+        return std::strtol(str.data() + i, nullptr, 10);
+    } catch(...) {
+        // Not a number
+        return {};
+    }
+}
+
+bool DV::CompareFilePaths(const std::string& left, const std::string& right)
+{
+    if(left == right)
+        return false;
+
+    // Parse the paths and extensions from the names
+    // TODO: could allocating this many strings be avoided
+    const auto leftPath = Leviathan::StringOperations::GetPath(left);
+    const auto plainLeft = Leviathan::StringOperations::RemoveExtension(left);
+
+    const auto rightPath = Leviathan::StringOperations::GetPath(left);
+    const auto plainRight = Leviathan::StringOperations::RemoveExtension(right);
+
+    // Still compare folder names when paths are different length
+    if(leftPath.length() < rightPath.length())
+        return left < right;
+
+    if(leftPath.length() > rightPath.length())
+        return left < right;
+
+    // Detect if they end in numbers
+    const auto leftNumber = ParseEndingNumber(plainLeft);
+    const auto rightNumber = ParseEndingNumber(plainRight);
+
+    if(leftNumber && rightNumber)
+        return leftNumber < rightNumber;
+
+    // Fallback to basic comparison
+    return left < right;
 }
 // ------------------------------------ //
 ResourceDataHolder DV::LoadResource(const std::string& name)

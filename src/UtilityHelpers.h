@@ -46,6 +46,16 @@ void SortTagSuggestions(IterType begin, IterType end, const std::string& str)
             std::placeholders::_2));
 }
 
+//! \brief Sort function for SortFilePaths
+bool CompareFilePaths(const std::string& left, const std::string& right);
+
+//! \brief Sorts a list of file paths
+template<class IterType>
+void SortFilePaths(IterType begin, IterType end)
+{
+    std::sort(begin, end, CompareFilePaths);
+}
+
 //! This is used as decompressed data might be deleted before we are done with it
 struct ResourceDataHolder {
     Glib::RefPtr<const Glib::Bytes> Data;

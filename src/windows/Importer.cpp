@@ -14,6 +14,7 @@
 #include "Common.h"
 #include "Database.h"
 #include "DualView.h"
+#include "UtilityHelpers.h"
 
 #include "Common/StringOperations.h"
 #include "TimeIncludes.h"
@@ -167,7 +168,7 @@ void Importer::FindContent(const std::string& path, bool recursive /*= false*/)
     if(CollectionName->get_text().empty())
         CollectionName->set_text(Leviathan::StringOperations::RemovePath(path));
 
-    // TODO: implement better image name sorting
+    std::vector<std::string> foundFiles;
 
     // Loop contents //
     if(recursive) {
@@ -176,19 +177,23 @@ void Importer::FindContent(const std::string& path, bool recursive /*= false*/)
             if(bf::is_directory(iter->status()))
                 continue;
 
-            // Add image //
-            _AddImageToList(iter->path().string());
+            foundFiles.push_back(iter->path().string());
         }
+    } else {
+        for(bf::directory_iterator iter(path); iter != bf::directory_iterator(); ++iter) {
+            if(bf::is_directory(iter->status()))
+                continue;
 
-        return;
+            foundFiles.push_back(iter->path().string());
+        }
     }
 
-    for(bf::directory_iterator iter(path); iter != bf::directory_iterator(); ++iter) {
-        if(bf::is_directory(iter->status()))
-            continue;
+    // Sort the found files
+    SortFilePaths(foundFiles.begin(), foundFiles.end());
 
-        // Add image //
-        _AddImageToList(iter->path().string());
+    // Add the found files to this importer
+    for(const auto& file : foundFiles) {
+        _AddImageToList(file);
     }
 }
 
@@ -222,7 +227,6 @@ bool Importer::_AddImageToList(const std::string& file)
     std::shared_ptr<Image> img;
 
     try {
-
         img = Image::Create(file);
 
     } catch(const Leviathan::InvalidArgument& e) {
@@ -473,7 +477,7 @@ bool Importer::StartImporting(bool move)
 {
     if(!HashesReady) {
         auto dialog = Gtk::MessageDialog(*this, "Image Hashes Not Ready", false,
-                                         Gtk::MESSAGE_WARNING, Gtk::BUTTONS_OK, true);
+            Gtk::MESSAGE_WARNING, Gtk::BUTTONS_OK, true);
 
         dialog.set_secondary_text(
             "One or more of the selected images doesn't have a hash computed yet. Please try "
