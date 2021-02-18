@@ -122,7 +122,8 @@ public:
             // Empty positions can be just filled //
             if(!Positions[i].WidgetToPosition) {
 
-                _SetWidget(i, std::make_shared<Element>(*newIndex, selectable));
+                _SetWidget(i, std::make_shared<Element>(*newIndex, selectable),
+                    selectable.operator bool());
                 continue;
             }
 
@@ -148,7 +149,8 @@ public:
 
             // Insert a new widget here //
             _PushBackWidgets(i);
-            _SetWidget(i, std::make_shared<Element>(*newIndex, selectable));
+            _SetWidget(i, std::make_shared<Element>(*newIndex, selectable),
+                selectable.operator bool());
         }
 
 
@@ -421,7 +423,8 @@ protected:
     //! \note widget Shouldn't already be in the container
     //! \param autoreplace If true can add to a Position with a widget, if false adding
     //! to a full position does nothing
-    void _SetWidget(size_t index, std::shared_ptr<Element> widget, bool autoreplace = false);
+    void _SetWidget(size_t index, std::shared_ptr<Element> widget, bool selectable,
+        bool autoreplace = false);
 
     //! \brief Makes position at index empty by pushing back all the later positions' widgets
     void _PushBackWidgets(size_t index);
@@ -430,6 +433,8 @@ protected:
     void _AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item,
         const std::shared_ptr<ItemSelectable>& selectable);
 
+    //! \brief Signs a widget up for notifications about shift selection if selection is setup
+    void _SetWidgetAdvancedSelection(ListItem& widget, bool selectable);
 
     //! \brief A debug helper, errors if there are duplicates in Positions
     void _CheckPositions() const;

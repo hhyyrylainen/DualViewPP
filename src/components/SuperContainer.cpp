@@ -676,7 +676,7 @@ void SuperContainer::_RemoveWidget(size_t index)
 }
 
 void SuperContainer::_SetWidget(
-    size_t index, std::shared_ptr<Element> widget, bool autoreplace)
+    size_t index, std::shared_ptr<Element> widget, bool selectable, bool autoreplace)
 {
     if(index >= Positions.size())
         throw Leviathan::InvalidArgument("index out of range");
@@ -696,6 +696,8 @@ void SuperContainer::_SetWidget(
 
     // Initialize a size for the widget
     _SetWidgetSize(*widget);
+
+    _SetWidgetAdvancedSelection(*widget->Widget, selectable);
 
     // Set it //
     if(Positions[index].SetNewWidget(widget)) {
@@ -761,10 +763,7 @@ void SuperContainer::_AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item,
     // Initialize a size for the widget
     _SetWidgetSize(*element);
 
-    // Sign up for notifications about shift selection if selection is setup
-    if(selectable) {
-        element->Widget->SetAdvancedSelection([=](ListItem& item) { ShiftSelectTo(&item); });
-    }
+    _SetWidgetAdvancedSelection(*element->Widget, selectable.operator bool());
 
     // Find the first empty spot //
     for(size_t i = 0; i < Positions.size(); ++i) {
@@ -791,6 +790,18 @@ void SuperContainer::_AddWidgetToEnd(std::shared_ptr<ResourceWithPreview> item,
         _ApplyWidgetPosition(pos);
         UpdateRowWidths();
         _PositionIndicator();
+    }
+}
+// ------------------------------------ //
+void SuperContainer::_SetWidgetAdvancedSelection(ListItem& widget, bool selectable)
+{
+    if(widget.HasAdvancedSelection() == selectable)
+        return;
+
+    if(selectable) {
+        widget.SetAdvancedSelection([=](ListItem& item) { ShiftSelectTo(&item); });
+    } else {
+        widget.SetAdvancedSelection(nullptr);
     }
 }
 // ------------------------------------ //

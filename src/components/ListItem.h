@@ -76,6 +76,10 @@ public:
         ShiftSelectCallback = shiftSelectCallback;
     }
 
+    inline bool HasAdvancedSelection() const {
+        return ShiftSelectCallback.operator bool();
+    }
+
     //! \brief Sets new size.
     //! \note The parent container needs to call this or be otherwise notified
     //! that this has changed, otherwise the size won't actually change.
