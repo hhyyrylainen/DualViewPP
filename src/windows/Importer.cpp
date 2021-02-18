@@ -638,8 +638,19 @@ void Importer::_OnImportFinished(bool success)
         // Delete empty folders //
         for(auto iter = FoldersToDelete.begin(); iter != FoldersToDelete.end();) {
 
-            if(boost::filesystem::is_empty(*iter) && boost::filesystem::is_directory(*iter)) {
+            bool remove = false;
 
+            try {
+                if(boost::filesystem::is_empty(*iter) &&
+                    boost::filesystem::is_directory(*iter)) {
+                    remove = true;
+                }
+            } catch(const boost::filesystem::filesystem_error& e) {
+                LOG_WARNING(
+                    "Couldn't check folder (" + *iter + ") for emptiness: " + e.what());
+            }
+
+            if(remove) {
                 LOG_INFO("Importer: deleting empty folder: " + *iter);
                 boost::filesystem::remove(*iter);
                 iter = FoldersToDelete.erase(iter);
