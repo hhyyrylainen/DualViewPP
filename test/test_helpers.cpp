@@ -105,6 +105,35 @@ TEST_CASE("File path comparison works", "[sort][helper]")
             CHECK(CompareFilePaths(first, second));
             CHECK(!CompareFilePaths(second, first));
         }
+
+        SECTION("suffix without separator")
+        {
+            const auto first = "prefix4008.jpg";
+            const auto second = "prefix04013.jpg";
+
+            CHECK(CompareFilePaths(first, second));
+            CHECK(!CompareFilePaths(second, first));
+        }
+
+        SECTION("different length prefix")
+        {
+            const auto first = "prefix4008.jpg";
+            const auto second = "prefix2_05.jpg";
+
+            CHECK(CompareFilePaths(first, second));
+            CHECK(!CompareFilePaths(second, first));
+        }
+
+        SECTION("Extra number in parentheses")
+        {
+            // Optimally these would go the other way but that would require extra detection
+            // logic for " (number)"
+            const auto first = "020 (2).jpg";
+            const auto second = "020.jpg";
+
+            CHECK(CompareFilePaths(first, second));
+            CHECK(!CompareFilePaths(second, first));
+        }
     }
 
     SECTION("Inside a folder")
@@ -164,6 +193,28 @@ TEST_CASE("File path list sorting works", "[sort][helper]")
             "Folder/20.jpg", "Folder/21.jpg", "Folder/22.jpg", "Folder/23.jpg",
             "Folder/24.jpg", "Folder/25.jpg", "Folder/26.jpg", "Folder/27.jpg",
             "Folder/28.jpg", "Folder/29.jpg"};
+
+        REQUIRE_NOTHROW(SortFilePaths(input.begin(), input.end()));
+        CHECK(input == result);
+    }
+
+    SECTION("Different length prefixes before numbers")
+    {
+        std::vector<std::string> input{"prefix4008.jpg", "prefix2_05.jpg", "prefix2_06.jpg",
+            "prefix04013.jpg", "013.jpg", "010.jpg", "014.jpg"};
+
+        std::vector<std::string> result{"010.jpg", "013.jpg", "014.jpg", "prefix4008.jpg",
+            "prefix04013.jpg", "prefix2_05.jpg", "prefix2_06.jpg"};
+
+        REQUIRE_NOTHROW(SortFilePaths(input.begin(), input.end()));
+        CHECK(input == result);
+    }
+
+    SECTION("Number in parentheses")
+    {
+        std::vector<std::string> input{"020 (2).jpg", "019.jpg", "020.jpg"};
+
+        std::vector<std::string> result{"019.jpg", "020 (2).jpg", "020.jpg"};
 
         REQUIRE_NOTHROW(SortFilePaths(input.begin(), input.end()));
         CHECK(input == result);

@@ -7,6 +7,7 @@
 #include "Common/StringOperations.h"
 
 #include <optional>
+#include <string_view>
 
 using namespace DV;
 // ------------------------------------ //
@@ -89,7 +90,7 @@ bool DV::CompareSuggestionTags(const std::string& str, const std::shared_ptr<Tag
     return CompareSuggestionStrings(str, left->GetName(), right->GetName());
 }
 // ------------------------------------ //
-std::optional<long> ParseEndingNumber(const std::string& str){
+std::optional<long> ParseEndingNumber(const std::string& str, size_t& numberEnd){
     if(str.empty())
         return {};
 
@@ -109,6 +110,8 @@ std::optional<long> ParseEndingNumber(const std::string& str){
         if(i == 0)
             break;
     }
+
+    numberEnd = i;
 
     if(i >= str.size()){
         // No number found
@@ -144,11 +147,48 @@ bool DV::CompareFilePaths(const std::string& left, const std::string& right)
         return left < right;
 
     // Detect if they end in numbers
-    const auto leftNumber = ParseEndingNumber(plainLeft);
-    const auto rightNumber = ParseEndingNumber(plainRight);
+    size_t leftEnd;
+    const auto leftNumber = ParseEndingNumber(plainLeft, leftEnd);
+    size_t rightEnd;
+    const auto rightNumber = ParseEndingNumber(plainRight, rightEnd);
 
-    if(leftNumber && rightNumber)
-        return leftNumber < rightNumber;
+    if(leftNumber && rightNumber) {
+        // Check that prefixes are the same
+        bool prefixesMatch = false;
+        if(leftEnd == rightEnd) {
+
+            prefixesMatch = true;
+
+            // TODO: could maybe use string_view here
+            for(size_t i = 0; i < leftEnd && i < plainLeft.length(); ++i) {
+                if(plainLeft[i] != plainRight[i]) {
+                    prefixesMatch = false;
+                    break;
+                }
+            }
+        }
+
+        if(prefixesMatch) {
+            // Compare actual numbers
+            if(leftNumber < rightNumber)
+                return true;
+
+            if(rightNumber < leftNumber)
+                return false;
+        } else {
+            // Compare the prefixes for sorting
+            const std::string_view leftPrefix{plainLeft.data(), leftEnd};
+            const std::string_view rightPrefix{plainRight.data(), rightEnd};
+
+            if(leftPrefix < rightPrefix)
+                return true;
+
+            if(rightPrefix < leftPrefix)
+                return false;
+
+            // If there is no ordering for the prefixes fall through to the basic compare
+        }
+    }
 
     // Fallback to basic comparison
     return left < right;
