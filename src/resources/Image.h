@@ -118,6 +118,11 @@ public:
         return IsValid;
     }
 
+    //! \returns True if hash calculation has been attempted but it failed
+    inline bool IsHashInvalid() const{
+        return HashCalculateAttempted && !IsHashValid;
+    }
+
     //! \brief Returns a shared_ptr pointing to this instance
     inline std::shared_ptr<Image> GetPtr()
     {
@@ -298,6 +303,7 @@ protected:
     //! True if Hash has been set to a valid value
     bool IsHashValid = false;
     std::string Hash;
+    bool HashCalculateAttempted = false;
 
     int Height = 0;
     int Width = 0;

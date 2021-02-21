@@ -269,12 +269,14 @@ void Image::_DoHashCalculation()
         Hash = "invalid";
         IsHashValid = false;
         IsValid = false;
+        HashCalculateAttempted = true;
         return;
     }
 
     LEVIATHAN_ASSERT(!Extension.empty(), "File extension is empty");
 
     IsHashValid = true;
+    HashCalculateAttempted = true;
 
     // IsReadyToAdd will be set by DualView once it is confirmed that
     // this isn't a duplicate
@@ -318,6 +320,7 @@ void Image::BecomeDuplicateOf(const Image& other)
     ImportLocation = other.ImportLocation;
 
     IsHashValid = true;
+    HashCalculateAttempted = true;
     Hash = other.Hash;
 
     Height = other.Height;
