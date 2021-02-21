@@ -303,6 +303,7 @@ protected:
     //! True if Hash has been set to a valid value
     bool IsHashValid = false;
     std::string Hash;
+    std::string HashError;
     bool HashCalculateAttempted = false;
 
     int Height = 0;

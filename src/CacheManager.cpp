@@ -109,6 +109,13 @@ std::shared_ptr<LoadedImage> CacheManager::LoadThumbImage(
     return created;
 }
 
+std::shared_ptr<LoadedImage> CacheManager::CreateImageLoadFailure(
+    const std::string& error) const
+{
+    const auto image = std::make_shared<LoadedImage>("ERROR");
+    image->OnLoadFail(error);
+    return image;
+}
 // ------------------------------------ //
 std::shared_ptr<LoadedImage> CacheManager::GetCachedImage(
     const std::lock_guard<std::mutex>& lock, const std::string& file)
@@ -801,13 +808,15 @@ void LoadedImage::LoadFromGtkImage(Glib::RefPtr<Gdk::Pixbuf> image)
     Status = IMAGE_LOAD_STATUS::Loaded;
 }
 // ------------------------------------ //
-void LoadedImage::BumpLoadPriority() {
+void LoadedImage::BumpLoadPriority()
+{
     if(IsLoaded() || !LoadTask)
         return;
 
     LoadTask->Bump();
 }
 
-void LoadedImage::RegisterLoadTask(std::shared_ptr<BaseTaskItem> loadTask){
+void LoadedImage::RegisterLoadTask(std::shared_ptr<BaseTaskItem> loadTask)
+{
     LoadTask = loadTask;
 }

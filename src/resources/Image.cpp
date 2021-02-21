@@ -144,8 +144,14 @@ std::shared_ptr<LoadedImage> Image::GetImage()
 
 std::shared_ptr<LoadedImage> Image::GetThumbnail()
 {
-    if(!IsHashValid)
+    if(HashCalculateAttempted && !IsHashValid) {
+        // Hash attempted but has failed
+        return DualView::Get().GetCacheManager().CreateImageLoadFailure(HashError);
+
+    } else if(!IsHashValid) {
+        // Hash not ready yet
         return nullptr;
+    }
 
     LEVIATHAN_ASSERT(!ResourcePath.empty(), "Image: ResourcePath is empty");
     return DualView::Get().GetCacheManager().LoadThumbImage(ResourcePath, Hash);
@@ -231,7 +237,7 @@ void Image::_OnPurged()
             LOG_INFO("Image: deleted from disk: " + ResourcePath);
         } catch(const boost::filesystem::filesystem_error& e) {
             LOG_ERROR(
-                "Image: failed to delete file (" + ResourcePath + ")from disk: " + e.what());
+                "Image: failed to delete file (" + ResourcePath + ") from disk: " + e.what());
         }
     }
 
@@ -246,7 +252,7 @@ std::string Image::CalculateFileHash() const
     // Load file bytes //
     std::string contents;
     if(!Leviathan::FileSystem::ReadFileEntirely(ResourcePath, contents)) {
-
+        // TODO: if the file was just deleted, this shouldn't fail
         LEVIATHAN_ASSERT(0, "Failed to read file for hash calculation");
     }
 
@@ -263,7 +269,8 @@ void Image::_DoHashCalculation()
     // Load the image size //
     if(!CacheManager::GetImageSize(ResourcePath, Width, Height, Extension)) {
 
-        LOG_ERROR("Failed to get image size from: " + ResourcePath);
+        HashError = "Failed to get image size from: " + ResourcePath;
+        LOG_ERROR(HashError);
 
         // This image needs to be destroyed
         Hash = "invalid";
@@ -321,6 +328,7 @@ void Image::BecomeDuplicateOf(const Image& other)
 
     IsHashValid = true;
     HashCalculateAttempted = true;
+    HashError.clear();
     Hash = other.Hash;
 
     Height = other.Height;

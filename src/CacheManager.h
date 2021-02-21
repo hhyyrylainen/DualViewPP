@@ -222,10 +222,14 @@ public:
     std::shared_ptr<LoadedImage> LoadThumbImage(
         const std::string& file, const std::string& hash);
 
+    //! \brief Creates a LoadedImage that is in failed state
+    //!
+    //! Used if the actual file to load can't be detected and an error LoadedImage is needed
+    std::shared_ptr<LoadedImage> CreateImageLoadFailure(const std::string& error) const;
+
     //! \brief Returns a full image from the cache
     inline std::shared_ptr<LoadedImage> GetCachedImage(const std::string& file)
     {
-
         std::lock_guard<std::mutex> lock(ImageCacheLock);
         return GetCachedImage(lock, file);
     }
