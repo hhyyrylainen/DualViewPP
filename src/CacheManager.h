@@ -23,8 +23,9 @@ namespace DV {
 
 constexpr auto SHOW_IMAGE_CACHE_SIZE = false;
 
-constexpr int ANIMATED_IMAGE_THUMBNAIL_WIDTH = 128;
+constexpr int ANIMATED_IMAGE_THUMBNAIL_WIDTH = 148;
 constexpr int OTHER_IMAGE_THUMBNAIL_WIDTH = 192;
+constexpr int THUMBNAIL_JPG_QUALITY = 70;
 
 class CacheManager;
 

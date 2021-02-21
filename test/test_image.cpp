@@ -262,6 +262,12 @@ TEST_CASE("Image resize for thumbnail size works", "[image][thumbnail]")
         CHECK(CacheManager::CreateResizeSizeForImage(512, 512, 0, 128) == "128x128");
         CHECK(CacheManager::CreateResizeSizeForImage(1632, 1900, 0, 128) == "109x128");
     }
+
+    SECTION("Really big difference")
+    {
+        CHECK(CacheManager::CreateResizeSizeForImage(480, 19080, 128, 0) == "128x3");
+        CHECK(CacheManager::CreateResizeSizeForImage(480, 190800, 128, 0) == "128x1");
+    }
 }
 
 TEST_CASE("Non-animated extension detection works", "[image][thumbnail]")

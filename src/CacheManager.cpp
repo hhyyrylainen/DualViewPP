@@ -391,7 +391,7 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
 
         // Reduce quality of jpgs (and other stuff)
         if(extension != ".png") {
-            FullImage->at(0).quality(85);
+            FullImage->at(0).quality(THUMBNAIL_JPG_QUALITY);
         } else {
             // And increase png compression
             FullImage->at(0).quality(90);
@@ -501,6 +501,12 @@ std::string CacheManager::CreateResizeSizeForImage(
             targetHeight = static_cast<int>(targetWidth / aspectRatio);
         }
     }
+
+    if(targetWidth < 1)
+        targetWidth = 1;
+
+    if(targetHeight < 1)
+        targetHeight = 1;
 
     std::stringstream stream;
     stream << targetWidth << "x" << targetHeight;
