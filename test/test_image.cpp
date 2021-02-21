@@ -246,3 +246,19 @@ TEST_CASE("Image signature calculation on non-db image works", "[image][hash][.e
         "8BAf8CAQIBAQH//v7/////Af7+AQEA//7+/gH/Av/+Af7+AP7+/v4BAQL/Av4BAv8CAgICAgICAv8A//7////"
         "/AQEBAQH/AQH/AQD//wEBAQH+AgICAgL/Av/+Av/+/v7+Af4BAv/+Af8BAAH/AA==");
 }
+
+TEST_CASE("Image resize for thumbnail size works", "[image]")
+{
+    SECTION("Specified width")
+    {
+        CHECK(CacheManager::CreateResizeSizeForImage(1920, 1080, 128, 0) == "128x72");
+        CHECK(CacheManager::CreateResizeSizeForImage(512, 512, 128, 0) == "128x128");
+        CHECK(CacheManager::CreateResizeSizeForImage(1632, 1900, 128, 0) == "128x149");
+    }
+
+    SECTION("Specified height")
+    {
+        CHECK(CacheManager::CreateResizeSizeForImage(1920, 1080, 0, 192) == "108x192");
+        CHECK(CacheManager::CreateResizeSizeForImage(512, 512, 0, 128) == "128x128");
+    }
+}

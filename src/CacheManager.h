@@ -253,7 +253,11 @@ public:
 
     //! \brief Calculates the parameter for magick image resize
     static std::string CreateResizeSizeForImage(
-        const Magick::Image& image, int width, int height);
+        const int currentWidth, const int currentHeight, int targetWidth, int targetHeight);
+
+    //! \brief Helper variant that extracts image size from image
+    static std::string CreateResizeSizeForImage(
+        const Magick::Image& image, int targetWidth, int targetHeight);
 
     //! \brief Loads an image and looks up the size then unloads it
     //! \returns False if the image cannot be opened

@@ -378,10 +378,12 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
     }
 
     // Dispose of the actual image and store the thumbnail in memory //
+    std::string resizeSize{"?"};
 
     // Single frame image
     if(FullImage->size() < 2) {
-        FullImage->at(0).resize(CreateResizeSizeForImage(FullImage->at(0), 128, 0));
+        resizeSize = CreateResizeSizeForImage(FullImage->at(0), 128, 0);
+        FullImage->at(0).resize(resizeSize);
 
         thumb.OnLoadSuccess(FullImage);
     } else {
@@ -416,8 +418,8 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
                     FullImage->at(i).animationDelay(
                         FullImage->at(i).animationDelay() + extradelay);
 
-                    FullImage->at(i).resize(
-                        CreateResizeSizeForImage(FullImage->at(i), 128, 0));
+                    resizeSize = CreateResizeSizeForImage(FullImage->at(i), 128, 0);
+                    FullImage->at(i).resize(resizeSize);
 
                     ++i;
                 }
@@ -429,7 +431,8 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
             // Just resize
             for(auto& frame : *FullImage) {
 
-                frame.resize(CreateResizeSizeForImage(frame, 128, 0));
+                resizeSize = CreateResizeSizeForImage(frame, 128, 0);
+                frame.resize(resizeSize);
             }
         }
 
@@ -450,25 +453,34 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
 
     size /= 1024;
 
-    LOG_INFO("Generated thumbnail for: " + thumb.GetPath() + " size: " + std::to_string(size) +
-             " KiB");
+    LOG_INFO("Generated thumbnail for: " + thumb.GetPath() + " resolution: " + resizeSize +
+             " size: " + std::to_string(size) + " KiB");
 }
 // ------------------------------------ //
 std::string CacheManager::CreateResizeSizeForImage(
-    const Magick::Image& image, int width, int height)
+    const int currentWidth, const int currentHeight, int targetWidth, int targetHeight)
 {
-    if(width <= 0 && height <= 0)
+    if(targetWidth <= 0 && targetHeight <= 0)
         throw Leviathan::InvalidArgument("Both width and height are 0 or under");
 
-    if(width <= 0)
-        width = (int)((float)height * image.columns() / image.rows());
+    // Inverse aspect is used as this requires one less divide
+    const auto inverseAspectRatio = static_cast<float>(currentHeight) / currentWidth;
 
-    if(height <= 0)
-        height = (int)((float)width * image.rows() / image.columns());
+    if(targetWidth <= 0)
+        targetWidth = static_cast<int>(targetHeight * inverseAspectRatio);
+
+    if(targetHeight <= 0)
+        targetHeight = static_cast<int>(targetWidth * inverseAspectRatio);
 
     std::stringstream stream;
-    stream << width << "x" << height;
+    stream << targetWidth << "x" << targetHeight;
     return stream.str();
+}
+
+std::string CacheManager::CreateResizeSizeForImage(
+    const Magick::Image& image, int targetWidth, int targetHeight)
+{
+    return CreateResizeSizeForImage(image.columns(), image.rows(), targetWidth, targetHeight);
 }
 
 bool CacheManager::GetImageSize(
