@@ -403,7 +403,7 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
         if(extension == ".jpg")
             LOG_WARNING("CacheManager: _LoadThumbnail: accidentally made animated image save "
                         "as jpg: " +
-                        thumb.FromPath)
+                        thumb.FromPath);
 
         // This will remove the optimization and change the image to how it looks at that point
         // during the animation.
