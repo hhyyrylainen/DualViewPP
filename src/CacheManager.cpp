@@ -323,10 +323,9 @@ void CacheManager::_RunThumbnailGenerationThread()
 void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) const
 {
     // Get the thumbnail folder //
-    const auto extension = boost::filesystem::extension(thumb.FromPath);
+    auto extension = boost::filesystem::extension(thumb.FromPath);
 
     if(extension.empty()) {
-
         LOG_WARNING(
             "Creating thumbnail for image with empty extension, full path: " + thumb.FromPath);
 
@@ -336,6 +335,11 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
         // Failed //
         // thumb.OnLoadFail("Filename has no extension"); return;
     }
+
+    // Save non-animated images as jpgs to save space
+    if(std::find(ANIMATED_IMAGE_EXTENSIONS.begin(), ANIMATED_IMAGE_EXTENSIONS.end(),
+           extension) == ANIMATED_IMAGE_EXTENSIONS.end())
+        extension = ".jpg";
 
     const auto target = boost::filesystem::path(DualView::Get().GetThumbnailFolder()) /
                         boost::filesystem::path(hash + extension);
@@ -362,7 +366,6 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
     std::shared_ptr<std::vector<Magick::Image>> FullImage;
 
     try {
-
         LoadedImage::LoadImage(thumb.GetPath(), FullImage);
 
         if(!FullImage || FullImage->size() < 1)
@@ -382,11 +385,26 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
 
     // Single frame image
     if(FullImage->size() < 2) {
-        resizeSize = CreateResizeSizeForImage(FullImage->at(0), 128, 0);
+        resizeSize =
+            CreateResizeSizeForImage(FullImage->at(0), OTHER_IMAGE_THUMBNAIL_WIDTH, 0);
         FullImage->at(0).resize(resizeSize);
+
+        // Reduce quality of jpgs (and other stuff)
+        if(extension != ".png") {
+            FullImage->at(0).quality(85);
+        } else {
+            // And increase png compression
+            FullImage->at(0).quality(90);
+        }
 
         thumb.OnLoadSuccess(FullImage);
     } else {
+
+        if(extension == ".jpg")
+            LOG_WARNING("CacheManager: _LoadThumbnail: accidentally made animated image save "
+                        "as jpg: " +
+                        thumb.FromPath)
+
         // This will remove the optimization and change the image to how it looks at that point
         // during the animation.
         // More info here: http://www.imagemagick.org/Usage/anim_basics/#coalesce
@@ -418,7 +436,8 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
                     FullImage->at(i).animationDelay(
                         FullImage->at(i).animationDelay() + extradelay);
 
-                    resizeSize = CreateResizeSizeForImage(FullImage->at(i), 128, 0);
+                    resizeSize = CreateResizeSizeForImage(
+                        FullImage->at(i), ANIMATED_IMAGE_THUMBNAIL_WIDTH, 0);
                     FullImage->at(i).resize(resizeSize);
 
                     ++i;
@@ -431,7 +450,8 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
             // Just resize
             for(auto& frame : *FullImage) {
 
-                resizeSize = CreateResizeSizeForImage(frame, 128, 0);
+                resizeSize =
+                    CreateResizeSizeForImage(frame, ANIMATED_IMAGE_THUMBNAIL_WIDTH, 0);
                 frame.resize(resizeSize);
             }
         }
@@ -445,16 +465,17 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
     int64_t size;
 
     try {
-        size = boost::filesystem::file_size(thumb.GetPath());
+        size = boost::filesystem::file_size(target);
     } catch(const boost::filesystem::filesystem_error& e) {
         LOG_ERROR("Failed to get generated thumbnail size: " + std::string(e.what()));
         return;
     }
 
-    size /= 1024;
+    const auto sizeStr =
+        std::to_string(static_cast<decltype(size)>(std::round(size / 1024.f)));
 
     LOG_INFO("Generated thumbnail for: " + thumb.GetPath() + " resolution: " + resizeSize +
-             " size: " + std::to_string(size) + " KiB");
+             " size: " + sizeStr + " KiB");
 }
 // ------------------------------------ //
 std::string CacheManager::CreateResizeSizeForImage(
@@ -463,14 +484,23 @@ std::string CacheManager::CreateResizeSizeForImage(
     if(targetWidth <= 0 && targetHeight <= 0)
         throw Leviathan::InvalidArgument("Both width and height are 0 or under");
 
-    // Inverse aspect is used as this requires one less divide
-    const auto inverseAspectRatio = static_cast<float>(currentHeight) / currentWidth;
+    const auto aspectRatio = static_cast<float>(currentWidth) / currentHeight;
 
-    if(targetWidth <= 0)
-        targetWidth = static_cast<int>(targetHeight * inverseAspectRatio);
+    if(targetWidth <= 0) {
+        if(currentWidth > currentHeight) {
+            targetWidth = static_cast<int>(targetHeight / aspectRatio);
+        } else {
+            targetWidth = static_cast<int>(targetHeight * aspectRatio);
+        }
+    }
 
-    if(targetHeight <= 0)
-        targetHeight = static_cast<int>(targetWidth * inverseAspectRatio);
+    if(targetHeight <= 0) {
+        if(currentHeight > currentWidth) {
+            targetHeight = static_cast<int>(targetWidth * aspectRatio);
+        } else {
+            targetHeight = static_cast<int>(targetWidth / aspectRatio);
+        }
+    }
 
     std::stringstream stream;
     stream << targetWidth << "x" << targetHeight;

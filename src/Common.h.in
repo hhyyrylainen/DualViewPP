@@ -26,6 +26,10 @@ constexpr auto SUPPORTED_EXTENSIONS = {
     std::make_tuple(".webp", "image/webp"),
 };
 
+//! List of image types that are animated (this is used to determine save format for
+//! thumbnails)
+constexpr auto ANIMATED_IMAGE_EXTENSIONS = {".gif"};
+
 
 //! The amount of time before CacheManager automatically unloads images
 constexpr auto DUALVIEW_SETTINGS_UNLOAD_TIME_MS = 30000;
@@ -120,7 +124,7 @@ enum class LIST_ITEM_SIZE {
     LEVIATHAN_ASSERT(name, "Invalid .glade file");
 
 #define BUILDER_GET_WIDGET_NAMED(name, alias) \
-    builder->get_widget(alias, name);        \
+    builder->get_widget(alias, name);         \
     LEVIATHAN_ASSERT(name, "Invalid .glade file");
 
 #define BUILDER_GET_PRIMARY_MENU_NAMED(menuname, variable, menuvariable) \

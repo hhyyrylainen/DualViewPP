@@ -247,18 +247,38 @@ TEST_CASE("Image signature calculation on non-db image works", "[image][hash][.e
         "/AQEBAQH/AQH/AQD//wEBAQH+AgICAgL/Av/+Av/+/v7+Af4BAv/+Af8BAAH/AA==");
 }
 
-TEST_CASE("Image resize for thumbnail size works", "[image]")
+TEST_CASE("Image resize for thumbnail size works", "[image][thumbnail]")
 {
     SECTION("Specified width")
     {
         CHECK(CacheManager::CreateResizeSizeForImage(1920, 1080, 128, 0) == "128x72");
         CHECK(CacheManager::CreateResizeSizeForImage(512, 512, 128, 0) == "128x128");
-        CHECK(CacheManager::CreateResizeSizeForImage(1632, 1900, 128, 0) == "128x149");
+        CHECK(CacheManager::CreateResizeSizeForImage(1632, 1900, 128, 0) == "128x109");
     }
 
     SECTION("Specified height")
     {
         CHECK(CacheManager::CreateResizeSizeForImage(1920, 1080, 0, 192) == "108x192");
         CHECK(CacheManager::CreateResizeSizeForImage(512, 512, 0, 128) == "128x128");
+        CHECK(CacheManager::CreateResizeSizeForImage(1632, 1900, 0, 128) == "109x128");
+    }
+}
+
+TEST_CASE("Non-animated extension detection works", "[image][thumbnail]")
+{
+    SECTION("Image.png")
+    {
+        const std::string extension{".png"};
+
+        CHECK(std::find(ANIMATED_IMAGE_EXTENSIONS.begin(), ANIMATED_IMAGE_EXTENSIONS.end(),
+                  extension) == ANIMATED_IMAGE_EXTENSIONS.end());
+    }
+
+    SECTION("gif is found")
+    {
+        const std::string extension{".gif"};
+
+        CHECK(std::find(ANIMATED_IMAGE_EXTENSIONS.begin(), ANIMATED_IMAGE_EXTENSIONS.end(),
+                  extension) != ANIMATED_IMAGE_EXTENSIONS.end());
     }
 }
