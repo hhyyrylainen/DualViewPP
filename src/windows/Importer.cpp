@@ -317,6 +317,9 @@ void Importer::UpdateReadyStatus()
     // Check for duplicate hashes //
     HashesReady = true;
     bool changedimages = false;
+    size_t missingHashes = 0;
+    bool invalidLoad = false;
+    std::string invalidImageName;
 
     for(auto iter = ImagesToImport.begin(); iter != ImagesToImport.end(); ++iter) {
 
@@ -324,7 +327,13 @@ void Importer::UpdateReadyStatus()
 
         if(!image->IsReady()) {
 
+            if(image->IsHashInvalid() && !invalidLoad) {
+                invalidLoad = true;
+                invalidImageName = image->GetName();
+            }
+
             HashesReady = false;
+            ++missingHashes;
             continue;
         }
 
@@ -393,15 +402,19 @@ void Importer::UpdateReadyStatus()
 
     } else {
 
-        if(HashesReady) {
+        if(HashesReady && !invalidLoad) {
 
             StatusLabel->set_text(
                 "Ready to import " + Convert::ToString(SelectedImages.size()) + " images");
 
+        } else if(invalidLoad) {
+            StatusLabel->set_text(
+                "One or more image info / hash compute failed. First invalid: " +
+                invalidImageName);
         } else {
-
-            StatusLabel->set_text("Image hashes not ready yet. Selected " +
-                                  Convert::ToString(SelectedImages.size()) + " images");
+            StatusLabel->set_text(
+                "Image hashes not ready yet (waiting: " + std::to_string(missingHashes) +
+                "). Selected " + Convert::ToString(SelectedImages.size()) + " images");
             // TODO: would be nice to have a periodic re-check to see when images are ready
         }
 
