@@ -35,6 +35,7 @@ class ImageDeleteFromCollectionAction;
 class CollectionReorderAction;
 class NetGalleryDeleteAction;
 class CollectionDeleteAction;
+class FolderDeleteAction;
 
 class Tag;
 class AppliedTag;
@@ -77,6 +78,7 @@ class Database : public Leviathan::ThreadSafeRecursive {
     friend CollectionReorderAction;
     friend NetGalleryDeleteAction;
     friend CollectionDeleteAction;
+    friend FolderDeleteAction;
 
 public:
     //! \brief Normal database creation, uses the specified file
@@ -417,20 +419,31 @@ public:
 
     bool UpdateFolder(LockT& guard, Folder& folder);
 
+    std::shared_ptr<DatabaseAction> DeleteFolder(Folder& folder);
+
+    //! \brief Only creates the action to delete a folder but doesn't execute it
+    std::shared_ptr<FolderDeleteAction> CreateDeleteFolderAction(LockT& guard, Folder& folder);
+
     //
     // Folder collection
     //
     bool InsertCollectionToFolder(LockT& guard, Folder& folder, const Collection& collection);
     CREATE_NON_LOCKING_WRAPPER(InsertCollectionToFolder);
 
-    void DeleteCollectionFromFolder(Folder& folder, const Collection& collection);
+    void DeleteCollectionFromFolder(
+        LockT& guard, Folder& folder, const Collection& collection);
 
     //! \brief Returns Collections that are directly in folder. And their name contains
     //! matching pattern
     std::vector<std::shared_ptr<Collection>> SelectCollectionsInFolder(
         const Folder& folder, const std::string& matchingpattern = "");
 
+    //! \brief Selects collections that are only in the specified folder
+    std::vector<std::shared_ptr<Collection>> SelectCollectionsOnlyInFolder(
+        LockT& guard, const Folder& folder);
+
     //! \brief Returns true if collection is in a Folder
+    //! \todo This needs to check for deleted
     bool SelectCollectionIsInFolder(LockT& guard, const Collection& collection);
 
     //! \brief Returns true if Collection is in another folder than folder
@@ -449,7 +462,7 @@ public:
 
     //! \brief Adds a Collection to root if it isn't in any folder
     //! \todo This doesn't handle deleted properly
-    void InsertCollectionToRootIfInNone(const Collection& collection);
+    void InsertCollectionToRootIfInNone(LockT& guard, const Collection& collection);
 
     //
     // Folder folder
@@ -475,6 +488,10 @@ public:
     //! matching pattern
     std::vector<std::shared_ptr<Folder>> SelectFoldersInFolder(
         const Folder& folder, const std::string& matchingpattern = "");
+
+    //! \brief Returns Folders that are directly in folder and in no other (non-deleted) folder
+    std::vector<std::shared_ptr<Folder>> SelectFoldersOnlyInFolder(
+        LockT& guard, const Folder& folder);
 
     //! \brief Selects a folder based on parent folder and name
     std::shared_ptr<Folder> SelectFolderByNameAndParent(
@@ -853,6 +870,10 @@ protected:
     void UndoAction(CollectionDeleteAction& action);
     void PurgeAction(CollectionDeleteAction& action);
 
+    void RedoAction(FolderDeleteAction& action);
+    void UndoAction(FolderDeleteAction& action);
+    void PurgeAction(FolderDeleteAction& action);
+
 protected:
     //! \brief Runs a command and prints all the result rows with column headers to log
     void PrintResultingRows(LockT& guard, sqlite3* db, const std::string& str);
@@ -963,6 +984,7 @@ private:
     void _PurgeImages(LockT& guard, const std::vector<DBID>& images);
     void _PurgeNetGalleries(LockT& guard, DBID gallery);
     void _PurgeCollection(LockT& guard, DBID collection);
+    void _PurgeFolder(LockT& guard, DBID folder);
 
     //
     // Utility stuff

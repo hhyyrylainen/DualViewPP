@@ -3,6 +3,7 @@
 #include "TestDatabase.h"
 #include "TestDualView.h"
 
+#include "resources/DatabaseAction.h"
 #include "resources/Folder.h"
 
 using namespace DV;
@@ -148,7 +149,9 @@ TEST_CASE("Delete folder works", "[folder][action]")
     REQUIRE(root);
 
     auto folder1 = db.InsertFolder("Folder 1", false, *root);
+    REQUIRE(folder1);
     auto folder2 = db.InsertFolder("Another", false, *root);
+    auto folder3 = db.InsertFolder("Subfolder", false, *folder1);
 
     auto collection1 = db.InsertCollectionAG("Collection 1", false);
     auto collection2 = db.InsertCollectionAG("Collection 2", false);
@@ -161,6 +164,41 @@ TEST_CASE("Delete folder works", "[folder][action]")
 
     CHECK(std::find(initialRootContents.begin(), initialRootContents.end(), collection3) !=
           initialRootContents.end());
+    CHECK(std::find(initialRootContents.begin(), initialRootContents.end(), collection1) ==
+          initialRootContents.end());
 
-    // TODO: actual test
+    // Hopefully this order stays consistent in sqlite...
+    const auto initialRootContainedFolders =
+        std::vector<std::shared_ptr<Folder>>{folder2, folder1};
+
+    CHECK(db.SelectFoldersInFolder(*root) == initialRootContainedFolders);
+
+    auto action = db.DeleteFolder(*folder1);
+    REQUIRE(action);
+    CHECK(action->IsPerformed());
+
+    CHECK(db.SelectFoldersInFolder(*root) ==
+          std::vector<std::shared_ptr<Folder>>{folder2, folder3});
+
+    SECTION("Orphaned collections are moved to root")
+    {
+        const auto newRootContents = db.SelectCollectionsInFolder(*root);
+        CHECK(std::find(newRootContents.begin(), newRootContents.end(), collection1) !=
+              newRootContents.end());
+        CHECK(std::find(newRootContents.begin(), newRootContents.end(), collection2) ==
+              newRootContents.end());
+    }
+
+    SECTION("Undo works")
+    {
+        CHECK(action->Undo());
+
+        const auto newRootContents = db.SelectCollectionsInFolder(*root);
+        CHECK(std::find(newRootContents.begin(), newRootContents.end(), collection1) ==
+              newRootContents.end());
+        CHECK(std::find(newRootContents.begin(), newRootContents.end(), collection2) ==
+              newRootContents.end());
+
+        CHECK(db.SelectFoldersInFolder(*root) == initialRootContainedFolders);
+    }
 }

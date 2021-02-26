@@ -24,6 +24,7 @@ enum class DATABASE_ACTION_TYPE : int {
     CollectionReorder,
     NetGalleryDelete,
     CollectionDelete,
+    FolderDelete,
     Invalid /* must be always last value */
 };
 
@@ -419,17 +420,48 @@ private:
                                                                                          \
     private:                                                                             \
         void _Redo() override;                                                           \
-        void _Undo() override;                                                           \
+        void _Undo() override;
 
-#define DEFINE_DELETE_ACTION_END() };
+#define DEFINE_DELETE_ACTION_END() \
+    }                              \
+    ;
 
 DEFINE_DELETE_ACTION(NetGalleryDeleteAction, NetGalleryDelete)
 DEFINE_DELETE_ACTION_END()
 
 DEFINE_DELETE_ACTION(CollectionDeleteAction, CollectionDelete)
 public:
-    std::vector<std::shared_ptr<ResourceWithPreview>> LoadPreviewItems(
-        int max = 10) const override;
+std::vector<std::shared_ptr<ResourceWithPreview>> LoadPreviewItems(
+    int max = 10) const override;
+DEFINE_DELETE_ACTION_END()
+
+DEFINE_DELETE_ACTION(FolderDeleteAction, FolderDelete)
+public:
+std::vector<std::shared_ptr<ResourceWithPreview>> LoadPreviewItems(
+    int max = 10) const override;
+
+const auto& GetFoldersAddedToRoot() const
+{
+    return FoldersAddedToRoot;
+}
+
+const auto& GetCollectionsAddedToRoot() const
+{
+    return CollectionsAddedToRoot;
+}
+
+protected:
+void SetAddedToRoot(const std::vector<DBID>& folders, const std::vector<DBID>& collections)
+{
+    FoldersAddedToRoot = folders;
+    CollectionsAddedToRoot = collections;
+    OnMarkDirty();
+}
+void _SerializeCustomData(Json::Value& value) const override;
+
+private:
+std::vector<DBID> FoldersAddedToRoot;
+std::vector<DBID> CollectionsAddedToRoot;
 DEFINE_DELETE_ACTION_END()
 
 } // namespace DV

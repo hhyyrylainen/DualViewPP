@@ -13,6 +13,7 @@ class FolderListItem;
 class Folder : public DatabaseResource,
                public ResourceWithPreview,
                public std::enable_shared_from_this<Folder> {
+    friend Database;
 public:
     //! \brief Database load function
     Folder(Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id);
@@ -42,6 +43,11 @@ public:
         return IsPrivate;
     }
 
+    bool IsDeleted() const
+    {
+        return Deleted;
+    }
+
     //! \brief Returns true if this is the root folder
     bool IsRoot() const;
 
@@ -62,10 +68,22 @@ protected:
     //! \brief Fills a widget with this resource
     void _FillWidget(FolderListItem& widget);
 
+    //! Called from Database
+    void _UpdateDeletedStatus(bool deleted)
+    {
+        Deleted = deleted;
+
+        GUARD_LOCK();
+        NotifyAll(guard);
+    }
+
 protected:
     std::string Name;
 
     bool IsPrivate = false;
+
+    //! If true deleted (or marked deleted) from the database
+    bool Deleted = false;
 };
 
 } // namespace DV

@@ -2,6 +2,7 @@
 #include "DatabaseAction.h"
 
 #include "resources/Collection.h"
+#include "resources/Folder.h"
 #include "resources/Image.h"
 #include "resources/NetGallery.h"
 #include "resources/ResourceWithPreview.h"
@@ -57,6 +58,9 @@ std::shared_ptr<DatabaseAction> DatabaseAction::Create(
             id, db, statement.GetColumnAsBool(2), statement.GetColumnAsString(3)));
     case DATABASE_ACTION_TYPE::CollectionDelete:
         return std::shared_ptr<CollectionDeleteAction>(new CollectionDeleteAction(
+            id, db, statement.GetColumnAsBool(2), statement.GetColumnAsString(3)));
+    case DATABASE_ACTION_TYPE::FolderDelete:
+        return std::shared_ptr<FolderDeleteAction>(new FolderDeleteAction(
             id, db, statement.GetColumnAsBool(2), statement.GetColumnAsString(3)));
     case DATABASE_ACTION_TYPE::Invalid:
         LOG_ERROR("DatabaseAction: from DB read type is DATABASE_ACTION_TYPE::Invalid");
@@ -750,28 +754,35 @@ void BaseSingleItemDeleteAction::_SerializeCustomData(Json::Value& value) const
     value["resource"] = ResourceToDelete;
 }
 // ------------------------------------ //
-#define IMPLEMENT_DELETE_ACTION(x)                                                 \
-    x::x(DBID resource) : BaseSingleItemDeleteAction(resource) {}                  \
+#define IMPLEMENT_DELETE_ACTION_CONSTRUCTOR(x)                                     \
     x::x(DBID id, Database& from, bool performed, const std::string& customdata) : \
         BaseSingleItemDeleteAction(id, from, performed, customdata)                \
-    {}                                                                             \
-    x::~x()                                                                        \
-    {                                                                              \
-        DBResourceDestruct();                                                      \
-    }                                                                              \
-    void x::_Redo()                                                                \
-    {                                                                              \
-        InDatabase->RedoAction(*this);                                             \
-    }                                                                              \
-    void x::_Undo()                                                                \
-    {                                                                              \
-        InDatabase->UndoAction(*this);                                             \
-    }                                                                              \
-    void x::_OnPurged()                                                            \
-    {                                                                              \
-        DatabaseAction::_OnPurged();                                               \
-        InDatabase->PurgeAction(*this);                                            \
+    {}
+
+#define IMPLEMENT_DELETE_ACTION_WITHOUT_CONSTRUCTOR(x)            \
+    x::x(DBID resource) : BaseSingleItemDeleteAction(resource) {} \
+    x::~x()                                                       \
+    {                                                             \
+        DBResourceDestruct();                                     \
+    }                                                             \
+    void x::_Redo()                                               \
+    {                                                             \
+        InDatabase->RedoAction(*this);                            \
+    }                                                             \
+    void x::_Undo()                                               \
+    {                                                             \
+        InDatabase->UndoAction(*this);                            \
+    }                                                             \
+    void x::_OnPurged()                                           \
+    {                                                             \
+        DatabaseAction::_OnPurged();                              \
+        InDatabase->PurgeAction(*this);                           \
     }
+
+#define IMPLEMENT_DELETE_ACTION(x)                 \
+    IMPLEMENT_DELETE_ACTION_WITHOUT_CONSTRUCTOR(x) \
+    IMPLEMENT_DELETE_ACTION_CONSTRUCTOR(x)
+
 // ------------------------------------ //
 // NetGalleryDeleteAction
 IMPLEMENT_DELETE_ACTION(NetGalleryDeleteAction)
@@ -846,4 +857,98 @@ std::vector<std::shared_ptr<ResourceWithPreview>> CollectionDeleteAction::LoadPr
     }
 
     return result;
+}
+// ------------------------------------ //
+// FolderDeleteAction
+IMPLEMENT_DELETE_ACTION_WITHOUT_CONSTRUCTOR(FolderDeleteAction)
+
+FolderDeleteAction::FolderDeleteAction(
+    DBID id, Database& from, bool performed, const std::string& customdata) :
+    BaseSingleItemDeleteAction(id, from, performed, customdata)
+{
+    std::stringstream sstream(customdata);
+
+    Json::CharReaderBuilder builder;
+    Json::Value value;
+    JSONCPP_STRING errs;
+
+    if(!parseFromStream(builder, sstream, &value, &errs))
+        throw InvalidArgument("invalid json:" + errs);
+
+    const auto& folders = value["folders_added_to_root"];
+
+    FoldersAddedToRoot.reserve(folders.size());
+
+    for(const auto& element : folders) {
+        FoldersAddedToRoot.push_back(element.asInt64());
+    }
+
+    const auto& collections = value["collections_added_to_root"];
+
+    CollectionsAddedToRoot.reserve(collections.size());
+
+    for(const auto& element : collections) {
+        CollectionsAddedToRoot.push_back(element.asInt64());
+    }
+}
+
+std::string FolderDeleteAction::GenerateDescription() const
+{
+    std::stringstream description;
+
+    description << "Deleted folder (" << GetResourceToDelete() << ")";
+
+    if(InDatabase) {
+        auto folder = InDatabase->SelectFolderByIDAG(GetResourceToDelete());
+
+        if(folder)
+            description << " '" << folder->GetName() << "'";
+    }
+
+    return description.str();
+}
+
+std::vector<std::shared_ptr<ResourceWithPreview>> FolderDeleteAction::LoadPreviewItems(
+    int max) const
+{
+    if(!InDatabase || max <= 0)
+        return {};
+
+    std::vector<std::shared_ptr<ResourceWithPreview>> result;
+
+    max -= 1;
+
+    GUARD_LOCK_OTHER(InDatabase);
+
+    auto folder = InDatabase->SelectFolderByID(guard, GetResourceToDelete());
+
+    if(!folder)
+        return {};
+
+    return {folder};
+}
+
+void FolderDeleteAction::_SerializeCustomData(Json::Value& value) const
+{
+    BaseSingleItemDeleteAction::_SerializeCustomData(value);
+
+    {
+        Json::Value tmp(Json::ValueType::arrayValue);
+
+        for(const auto item : FoldersAddedToRoot) {
+            tmp.append(item);
+        }
+
+        value["folders_added_to_root"] = tmp;
+    }
+
+    {
+        Json::Value tmp(Json::ValueType::arrayValue);
+
+        for(const auto item : CollectionsAddedToRoot) {
+            tmp.append(item);
+        }
+
+        value["collections_added_to_root"] = tmp;
+    }
 }

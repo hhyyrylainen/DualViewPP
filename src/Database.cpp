@@ -1965,6 +1965,52 @@ bool Database::UpdateFolder(LockT& guard, Folder& folder)
     return sqlite3_changes(SQLiteDb);
 }
 // ------------------------------------ //
+std::shared_ptr<DatabaseAction> Database::DeleteFolder(Folder& folder)
+{
+    if(folder.InDatabase != this)
+        return nullptr;
+
+    if(folder.ID == DATABASE_ROOT_FOLDER_ID)
+        throw Leviathan::InvalidArgument("Root folder may not be deleted");
+
+    std::shared_ptr<FolderDeleteAction> action;
+
+    {
+        GUARD_LOCK();
+        action = CreateDeleteFolderAction(guard, folder);
+    }
+
+    if(!action)
+        return nullptr;
+
+    if(!action->Redo()) {
+        LOG_ERROR("Database: freshly created action failed to Redo");
+        return nullptr;
+    }
+
+    return action;
+}
+
+std::shared_ptr<FolderDeleteAction> Database::CreateDeleteFolderAction(
+    LockT& guard, Folder& folder)
+{
+    if(!folder.IsInDatabase() || folder.IsDeleted())
+        return nullptr;
+
+    // Create the action
+    auto action = std::make_shared<FolderDeleteAction>(folder.GetID());
+    InsertDatabaseAction(guard, *action);
+
+    auto casted = std::static_pointer_cast<DatabaseAction>(action);
+    LoadedDatabaseActions.OnLoad(casted);
+
+    if(casted.get() != action.get())
+        LOG_ERROR("Database: action got changed on store");
+
+    PurgeOldActionsUntilUnderLimit(guard);
+    return action;
+}
+// ------------------------------------ //
 // Folder collection
 bool Database::InsertCollectionToFolder(
     LockT& guard, Folder& folder, const Collection& collection)
@@ -1984,7 +2030,8 @@ bool Database::InsertCollectionToFolder(
     return changes == 1;
 }
 
-void Database::DeleteCollectionFromFolder(Folder& folder, const Collection& collection)
+void Database::DeleteCollectionFromFolder(
+    LockT& guard, Folder& folder, const Collection& collection)
 {
     const char str[] = "DELETE FROM folder_collection WHERE parent = ? AND child = ?;";
 
@@ -2029,7 +2076,28 @@ std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsInFolder(
 
     return result;
 }
+// ------------------------------------ //
+std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsOnlyInFolder(
+    LockT& guard, const Folder& folder)
+{
+    std::vector<std::shared_ptr<Collection>> result;
 
+    const char str[] = "SELECT c1.* FROM folder_collection f1 INNER JOIN collections c1 on "
+                       "f1.child = c1.id WHERE f1.parent = ?1 AND (SELECT COUNT(*) FROM "
+                       "folder_collection f2 INNER JOIN virtual_folders v2 on f2.parent = "
+                       "v2.id WHERE f2.child == f1.child AND v2.deleted IS NOT TRUE) < 2;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(folder.GetID());
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+        result.push_back(_LoadCollectionFromRow(guard, statementobj));
+    }
+
+    return result;
+}
+// ------------------------------------ //
 bool Database::SelectCollectionIsInFolder(LockT& guard, const Collection& collection)
 {
     const char str[] = "SELECT 1 FROM folder_collection WHERE child = ? LIMIT 1;";
@@ -2106,10 +2174,8 @@ void Database::DeleteCollectionFromRootIfInAnotherFolder(const Collection& colle
     statementobj.StepAll(statementinuse);
 }
 
-void Database::InsertCollectionToRootIfInNone(const Collection& collection)
+void Database::InsertCollectionToRootIfInNone(LockT& guard, const Collection& collection)
 {
-    GUARD_LOCK();
-
     if(SelectCollectionIsInFolder(guard, collection))
         return;
 
@@ -2171,7 +2237,8 @@ int64_t Database::SelectFolderParentCount(LockT& guard, Folder& folder)
     if(!folder.IsInDatabase())
         return 0;
 
-    const char str[] = "SELECT COUNT(*) FROM folder_folder WHERE child = ?;";
+    const char str[] = "SELECT COUNT(*) FROM folder_folder ff LEFT JOIN virtual_folders vf on "
+                       "ff.parent = vf.id WHERE ff.child = ? AND vf.deleted IS NOT TRUE;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -2275,6 +2342,27 @@ std::vector<std::shared_ptr<Folder>> Database::SelectFoldersInFolder(
 
     while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
 
+        result.push_back(_LoadFolderFromRow(guard, statementobj));
+    }
+
+    return result;
+}
+
+std::vector<std::shared_ptr<Folder>> Database::SelectFoldersOnlyInFolder(
+    LockT& guard, const Folder& folder)
+{
+    std::vector<std::shared_ptr<Folder>> result;
+
+    const char str[] = "SELECT v1.* FROM folder_folder f1 INNER JOIN virtual_folders v1 on "
+                       "f1.child = v1.id WHERE f1.parent = ?1 AND (SELECT COUNT(*) FROM "
+                       "folder_folder f2 INNER JOIN virtual_folders v2 on f2.parent = v2.id "
+                       "WHERE f2.child == f1.child AND v2.deleted IS NOT TRUE) < 2;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(folder.GetID());
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
         result.push_back(_LoadFolderFromRow(guard, statementobj));
     }
 
@@ -4565,7 +4653,124 @@ void Database::PurgeAction(CollectionDeleteAction& action)
     // Permanently delete
     _PurgeCollection(guard, action.GetResourceToDelete());
 }
+// ------------------------------------ //
+void Database::RedoAction(FolderDeleteAction& action)
+{
+    GUARD_LOCK();
 
+    // Mark the resource as deleted
+    const auto id = action.GetResourceToDelete();
+    auto target = SelectFolderByID(guard, id);
+
+    if(!target || target->IsDeleted())
+        throw InvalidState(
+            "cannot undo action: invalid target folder (or it is deleted already)");
+
+    auto rootFolder = SelectFolderByID(guard, DATABASE_ROOT_FOLDER_ID);
+
+    if(!rootFolder)
+        throw Exception("Root folder is missing");
+
+    {
+        DoDBSavePoint transaction(*this, guard, "folder_delete_redo");
+        transaction.AllowCommit(false);
+
+        std::vector<DBID> foldersAddedToRoot;
+        std::vector<DBID> collectionsAddedToRoot;
+
+        for(const auto& addToRoot : SelectFoldersOnlyInFolder(guard, *target)) {
+            // TODO: check for name conflict
+            InsertFolderToFolder(guard, *addToRoot, *rootFolder);
+            foldersAddedToRoot.push_back(addToRoot->GetID());
+        }
+
+        for(const auto& addToRoot : SelectCollectionsOnlyInFolder(guard, *target)) {
+            InsertCollectionToFolder(guard, *rootFolder, *addToRoot);
+            collectionsAddedToRoot.push_back(addToRoot->GetID());
+        }
+
+        _SetActionStatus(guard, action, true);
+
+        // Save the detected information needed for undo
+        action.SetAddedToRoot(foldersAddedToRoot, collectionsAddedToRoot);
+        action.Save();
+
+        RunSQLAsPrepared(guard, "UPDATE virtual_folders SET deleted = 1 WHERE id = ?1;", id);
+
+        transaction.AllowCommit(true);
+    }
+
+    auto obj = LoadedFolders.GetIfLoaded(id);
+    if(obj)
+        obj->_UpdateDeletedStatus(true);
+}
+
+void Database::UndoAction(FolderDeleteAction& action)
+{
+    GUARD_LOCK();
+
+    auto rootFolder = SelectFolderByID(guard, DATABASE_ROOT_FOLDER_ID);
+
+    if(!rootFolder)
+        throw Exception("Root folder is missing");
+
+    // Unmark the resource as deleted
+    const auto id = action.GetResourceToDelete();
+
+    {
+        DoDBSavePoint transaction(*this, guard, "folder_delete_undo");
+        transaction.AllowCommit(false);
+
+        for(const auto id : action.GetFoldersAddedToRoot()) {
+
+            const auto toRemove = SelectFolderByID(guard, id);
+
+            if(!toRemove) {
+                LOG_WARNING("Undo should remove a non-existent folder from root, id: " +
+                            std::to_string(id));
+                continue;
+            }
+
+            DeleteFolderFromFolder(guard, *toRemove, *rootFolder);
+        }
+
+        for(const auto id : action.GetCollectionsAddedToRoot()) {
+
+            const auto toRemove = SelectCollectionByID(guard, id);
+
+            if(!toRemove) {
+                LOG_WARNING("Undo should remove a non-existent folder from root, id: " +
+                            std::to_string(id));
+                continue;
+            }
+
+            DeleteCollectionFromFolder(guard, *rootFolder, *toRemove);
+        }
+
+        _SetActionStatus(guard, action, false);
+
+        RunSQLAsPrepared(
+            guard, "UPDATE virtual_folders SET deleted = NULL WHERE id = ?1;", id);
+
+        transaction.AllowCommit(true);
+    }
+
+    auto obj = LoadedFolders.GetIfLoaded(id);
+    if(obj)
+        obj->_UpdateDeletedStatus(false);
+}
+
+void Database::PurgeAction(FolderDeleteAction& action)
+{
+    GUARD_LOCK();
+
+    // If this action is currently not performed no resources related to it should be deleted
+    if(!action.IsPerformed())
+        return;
+
+    // Permanently delete
+    _PurgeFolder(guard, action.GetResourceToDelete());
+}
 // ------------------------------------ //
 // Row parsing functions
 std::shared_ptr<NetFile> Database::_LoadNetFileFromRow(
@@ -4873,6 +5078,29 @@ void Database::_PurgeCollection(LockT& guard, DBID collection)
     RunSQLAsPrepared(guard, "DELETE FROM collections WHERE id = ?1;", collection);
 
     transaction.AllowCommit(true);
+}
+
+void Database::_PurgeFolder(LockT& guard, DBID folder)
+{
+    auto loadedResource = SelectFolderByID(guard, folder);
+
+    if(!loadedResource) {
+        LOG_WARNING("Database: purging non-existant Folder");
+        return;
+
+    } else {
+        if(!loadedResource->IsDeleted()) {
+            LOG_INFO("Database: Folder was meant to be purged but it isn't marked as "
+                     "deleted, skipping, id: " +
+                     std::to_string(folder));
+            return;
+        }
+    }
+
+    RunSQLAsPrepared(guard, "DELETE FROM virtual_folders WHERE id = ?1;", folder);
+
+    loadedResource->_OnPurged();
+    LoadedFolders.Remove(folder);
 }
 // ------------------------------------ //
 void Database::ThrowCurrentSqlError(LockT& guard)

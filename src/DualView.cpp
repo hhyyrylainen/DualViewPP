@@ -1920,10 +1920,12 @@ void DualView::RemoveCollectionFromFolder(
     if(!folder || !collection)
         return;
 
-    _Database->DeleteCollectionFromFolder(*folder, *collection);
+    GUARD_LOCK_OTHER(_Database);
+
+    _Database->DeleteCollectionFromFolder(guard, *folder, *collection);
 
     // Make sure the Collection is in at least one folder //
-    _Database->InsertCollectionToRootIfInNone(*collection);
+    _Database->InsertCollectionToRootIfInNone(guard, *collection);
 }
 
 // ------------------------------------ //
@@ -1969,7 +1971,8 @@ std::vector<std::string> DualView::GetFoldersCollectionIsIn(
     return result;
 }
 
-std::vector<std::string> DualView::GetFoldersFolderIsIn(std::shared_ptr<Folder> folder){
+std::vector<std::string> DualView::GetFoldersFolderIsIn(std::shared_ptr<Folder> folder)
+{
     std::vector<std::string> result;
 
     if(!folder)
