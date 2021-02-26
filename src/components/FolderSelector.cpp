@@ -69,8 +69,9 @@ void FolderSelector::OnFolderChanged()
         return;
     }
 
+    // TODO: move this load to a background thread
     std::vector<std::shared_ptr<Folder>> folders =
-        DualView::Get().GetDatabase().SelectFoldersInFolder(*CurrentFolder);
+        DualView::Get().GetDatabase().SelectFoldersInFolderAG(*CurrentFolder);
 
     auto changefolder = std::make_shared<ItemSelectable>();
 

@@ -436,7 +436,8 @@ public:
     //! \brief Returns Collections that are directly in folder. And their name contains
     //! matching pattern
     std::vector<std::shared_ptr<Collection>> SelectCollectionsInFolder(
-        const Folder& folder, const std::string& matchingpattern = "");
+        LockT& guard, const Folder& folder, const std::string& matchingpattern = "");
+    CREATE_NON_LOCKING_WRAPPER(SelectCollectionsInFolder);
 
     //! \brief Selects collections that are only in the specified folder
     std::vector<std::shared_ptr<Collection>> SelectCollectionsOnlyInFolder(
@@ -487,7 +488,8 @@ public:
     //! \brief Returns Folders that are directly in folder. And their name contains
     //! matching pattern
     std::vector<std::shared_ptr<Folder>> SelectFoldersInFolder(
-        const Folder& folder, const std::string& matchingpattern = "");
+        LockT& guard, const Folder& folder, const std::string& matchingpattern = "");
+    CREATE_NON_LOCKING_WRAPPER(SelectFoldersInFolder);
 
     //! \brief Returns Folders that are directly in folder and in no other (non-deleted) folder
     std::vector<std::shared_ptr<Folder>> SelectFoldersOnlyInFolder(

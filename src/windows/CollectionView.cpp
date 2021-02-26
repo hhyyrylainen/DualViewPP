@@ -117,10 +117,10 @@ void CollectionView::_UpdateShownItems()
 
     DualView::Get().QueueDBThreadFunction([=]() {
         const auto collections =
-            DualView::Get().GetDatabase().SelectCollectionsInFolder(*folder, matchingpattern);
+            DualView::Get().GetDatabase().SelectCollectionsInFolderAG(*folder, matchingpattern);
 
         const auto folders =
-            DualView::Get().GetDatabase().SelectFoldersInFolder(*folder, matchingpattern);
+            DualView::Get().GetDatabase().SelectFoldersInFolderAG(*folder, matchingpattern);
 
         auto loadedresources =
             std::make_shared<std::vector<std::shared_ptr<ResourceWithPreview>>>();

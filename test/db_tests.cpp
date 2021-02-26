@@ -336,13 +336,13 @@ TEST_CASE("Directly using database for folder contents", "[db]")
 
     SECTION("Default collections are in root folder")
     {
-        const auto count = db.SelectCollectionsInFolder(*db.SelectRootFolderAG(), "").size();
+        const auto count = db.SelectCollectionsInFolderAG(*db.SelectRootFolderAG(), "").size();
 
         CHECK(count >= 2);
 
         SECTION("Filtering by name works")
         {
-            CHECK(db.SelectCollectionsInFolder(*db.SelectRootFolderAG(), "no match").empty());
+            CHECK(db.SelectCollectionsInFolderAG(*db.SelectRootFolderAG(), "no match").empty());
         }
 
         SECTION("Trying to delete from root folder doesn't work if collection "
@@ -354,7 +354,7 @@ TEST_CASE("Directly using database for folder contents", "[db]")
 
             db.DeleteCollectionFromRootIfInAnotherFolder(*backgrounds);
 
-            CHECK(db.SelectCollectionsInFolder(*db.SelectRootFolderAG(), "").size() == count);
+            CHECK(db.SelectCollectionsInFolderAG(*db.SelectRootFolderAG(), "").size() == count);
         }
     }
 
@@ -369,18 +369,18 @@ TEST_CASE("Directly using database for folder contents", "[db]")
         REQUIRE(backgrounds);
 
         const auto originalSize =
-            db.SelectCollectionsInFolder(*db.SelectRootFolderAG(), "").size();
+            db.SelectCollectionsInFolderAG(*db.SelectRootFolderAG(), "").size();
 
         db.InsertCollectionToFolderAG(*folder, *backgrounds);
 
-        CHECK(db.SelectCollectionsInFolder(*folder, "").size() == 1);
+        CHECK(db.SelectCollectionsInFolderAG(*folder, "").size() == 1);
 
-        CHECK(db.SelectCollectionsInFolder(*folder, "a").size() == 1);
-        CHECK(db.SelectCollectionsInFolder(*folder, "aa").empty());
+        CHECK(db.SelectCollectionsInFolderAG(*folder, "a").size() == 1);
+        CHECK(db.SelectCollectionsInFolderAG(*folder, "aa").empty());
 
         SECTION("Collection stays in original folder")
         {
-            CHECK(db.SelectCollectionsInFolder(*db.SelectRootFolderAG(), "").size() ==
+            CHECK(db.SelectCollectionsInFolderAG(*db.SelectRootFolderAG(), "").size() ==
                   originalSize);
         }
 
@@ -388,14 +388,14 @@ TEST_CASE("Directly using database for folder contents", "[db]")
         {
             db.DeleteCollectionFromRootIfInAnotherFolder(*backgrounds);
 
-            CHECK(db.SelectCollectionsInFolder(*db.SelectRootFolderAG(), "").size() <
+            CHECK(db.SelectCollectionsInFolderAG(*db.SelectRootFolderAG(), "").size() <
                   originalSize);
         }
     }
 
     SECTION("Selecting subfolders")
     {
-        CHECK(db.SelectFoldersInFolder(*db.SelectRootFolderAG(), "").size() == 0);
+        CHECK(db.SelectFoldersInFolderAG(*db.SelectRootFolderAG(), "").size() == 0);
 
         auto folder = db.InsertFolder("folder1", false, *db.SelectRootFolderAG());
 
@@ -413,13 +413,13 @@ TEST_CASE("Directly using database for folder contents", "[db]")
 
         REQUIRE(folder);
 
-        CHECK(db.SelectFoldersInFolder(*db.SelectRootFolderAG(), "").size() == 2);
+        CHECK(db.SelectFoldersInFolderAG(*db.SelectRootFolderAG(), "").size() == 2);
 
-        CHECK(db.SelectFoldersInFolder(*folder, "").size() == 1);
+        CHECK(db.SelectFoldersInFolderAG(*folder, "").size() == 1);
 
-        CHECK(db.SelectFoldersInFolder(*folder2, "").empty());
+        CHECK(db.SelectFoldersInFolderAG(*folder2, "").empty());
 
-        CHECK(db.SelectFoldersInFolder(*folder3, "").size() == 1);
+        CHECK(db.SelectFoldersInFolderAG(*folder3, "").size() == 1);
     }
 }
 

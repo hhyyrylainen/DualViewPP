@@ -65,7 +65,7 @@ TEST_CASE("Folder creation and adding collections works as expected", "[folder]"
     dv.AddCollectionToFolder(folder1, collection1);
     dv.AddCollectionToFolder(folder2, collection2);
 
-    const auto initialRootContents = db.SelectCollectionsInFolder(*root);
+    const auto initialRootContents = db.SelectCollectionsInFolderAG(*root);
 
     CHECK(std::find(initialRootContents.begin(), initialRootContents.end(), collection1) ==
           initialRootContents.end());
@@ -160,7 +160,7 @@ TEST_CASE("Delete folder works", "[folder][action]")
     dv.AddCollectionToFolder(folder1, collection1);
     dv.AddCollectionToFolder(folder2, collection2);
 
-    const auto initialRootContents = db.SelectCollectionsInFolder(*root);
+    const auto initialRootContents = db.SelectCollectionsInFolderAG(*root);
 
     CHECK(std::find(initialRootContents.begin(), initialRootContents.end(), collection3) !=
           initialRootContents.end());
@@ -171,18 +171,18 @@ TEST_CASE("Delete folder works", "[folder][action]")
     const auto initialRootContainedFolders =
         std::vector<std::shared_ptr<Folder>>{folder2, folder1};
 
-    CHECK(db.SelectFoldersInFolder(*root) == initialRootContainedFolders);
+    CHECK(db.SelectFoldersInFolderAG(*root) == initialRootContainedFolders);
 
     auto action = db.DeleteFolder(*folder1);
     REQUIRE(action);
     CHECK(action->IsPerformed());
 
-    CHECK(db.SelectFoldersInFolder(*root) ==
+    CHECK(db.SelectFoldersInFolderAG(*root) ==
           std::vector<std::shared_ptr<Folder>>{folder2, folder3});
 
     SECTION("Orphaned collections are moved to root")
     {
-        const auto newRootContents = db.SelectCollectionsInFolder(*root);
+        const auto newRootContents = db.SelectCollectionsInFolderAG(*root);
         CHECK(std::find(newRootContents.begin(), newRootContents.end(), collection1) !=
               newRootContents.end());
         CHECK(std::find(newRootContents.begin(), newRootContents.end(), collection2) ==
@@ -193,12 +193,12 @@ TEST_CASE("Delete folder works", "[folder][action]")
     {
         CHECK(action->Undo());
 
-        const auto newRootContents = db.SelectCollectionsInFolder(*root);
+        const auto newRootContents = db.SelectCollectionsInFolderAG(*root);
         CHECK(std::find(newRootContents.begin(), newRootContents.end(), collection1) ==
               newRootContents.end());
         CHECK(std::find(newRootContents.begin(), newRootContents.end(), collection2) ==
               newRootContents.end());
 
-        CHECK(db.SelectFoldersInFolder(*root) == initialRootContainedFolders);
+        CHECK(db.SelectFoldersInFolderAG(*root) == initialRootContainedFolders);
     }
 }

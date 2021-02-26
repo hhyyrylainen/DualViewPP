@@ -2042,11 +2042,9 @@ void Database::DeleteCollectionFromFolder(
     statementobj.StepAll(statementinuse);
 }
 
-std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsInFolder(
+std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsInFolder(LockT& guard,
     const Folder& folder, const std::string& matchingpattern /*= ""*/)
 {
-    GUARD_LOCK();
-
     const auto usePattern = !matchingpattern.empty();
 
     std::vector<std::shared_ptr<Collection>> result;
@@ -2313,11 +2311,9 @@ std::shared_ptr<Folder> Database::SelectFirstParentFolderWithChildFolderNamed(
     return nullptr;
 }
 
-std::vector<std::shared_ptr<Folder>> Database::SelectFoldersInFolder(
+std::vector<std::shared_ptr<Folder>> Database::SelectFoldersInFolder(LockT& guard,
     const Folder& folder, const std::string& matchingpattern /*= ""*/)
 {
-    GUARD_LOCK();
-
     std::vector<std::shared_ptr<Folder>> result;
 
     const auto usePattern = !matchingpattern.empty();

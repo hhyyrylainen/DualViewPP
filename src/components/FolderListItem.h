@@ -35,6 +35,12 @@ protected:
     void _OpenAddToFolder();
     void _OpenRename();
 
+    void _StartDelete();
+    void _OnDeleteInfoReady(int totalContained, int wouldBeAddedToRoot);
+    void _OnDeleteFailed(const std::string& message);
+
+    void _DeleteTheFolder();
+
 private:
     std::shared_ptr<Folder> CurrentFolder;
 
@@ -44,6 +50,8 @@ private:
     Gtk::MenuItem ItemRemoveFromFolders;
     Gtk::SeparatorMenuItem ItemSeparator;
     Gtk::MenuItem ItemRename;
+    Gtk::SeparatorMenuItem ItemSeparator2;
+    Gtk::MenuItem ItemDelete;
 };
 
 } // namespace DV
