@@ -485,6 +485,9 @@ public:
     //! \brief Counts in how many folders the folder is
     int64_t SelectFolderParentCount(LockT& guard, Folder& folder);
 
+    //! \brief Returns all (non-deleted) parent folders of folder
+    std::vector<std::shared_ptr<Folder>> SelectFoldersFolderIsIn(LockT& guard, Folder& folder);
+
     //! \brief Returns Folders that are directly in folder. And their name contains
     //! matching pattern
     std::vector<std::shared_ptr<Folder>> SelectFoldersInFolder(

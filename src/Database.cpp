@@ -2042,8 +2042,8 @@ void Database::DeleteCollectionFromFolder(
     statementobj.StepAll(statementinuse);
 }
 
-std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsInFolder(LockT& guard,
-    const Folder& folder, const std::string& matchingpattern /*= ""*/)
+std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsInFolder(
+    LockT& guard, const Folder& folder, const std::string& matchingpattern /*= ""*/)
 {
     const auto usePattern = !matchingpattern.empty();
 
@@ -2193,6 +2193,11 @@ void Database::InsertFolderToFolder(LockT& guard, Folder& folder, const Folder& 
         return;
     }
 
+    if(folder.GetID() == DATABASE_ROOT_FOLDER_ID) {
+        LOG_ERROR("Can't add root folder to a folder");
+        return;
+    }
+
     const char str[] = "INSERT INTO folder_folder (parent, child) VALUES(?, ?);";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
@@ -2249,12 +2254,38 @@ int64_t Database::SelectFolderParentCount(LockT& guard, Folder& folder)
     return 0;
 }
 
+std::vector<std::shared_ptr<Folder>> Database::SelectFoldersFolderIsIn(
+    LockT& guard, Folder& folder)
+{
+    if(!folder.IsInDatabase())
+        return {};
+
+    std::vector<std::shared_ptr<Folder>> result;
+
+    const char str[] = "SELECT vf.* FROM folder_folder ff INNER JOIN virtual_folders vf on "
+                       "ff.parent = vf.id WHERE ff.child = ? AND vf.deleted IS NOT TRUE;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(folder.GetID());
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        const auto folder = _LoadFolderFromRow(guard, statementobj);
+
+        if(folder)
+            result.push_back(folder);
+    }
+
+    return result;
+}
+
 std::shared_ptr<Folder> Database::SelectFolderByNameAndParent(
     LockT& guard, const std::string& name, const Folder& parent)
 {
-    const char str[] =
-        "SELECT virtual_folders.* FROM folder_folder "
-        "LEFT JOIN virtual_folders ON id = child WHERE parent = ?1 AND name = ?2;";
+    const char str[] = "SELECT virtual_folders.* FROM folder_folder "
+                       "LEFT JOIN virtual_folders ON id = child WHERE parent = ?1 AND name = "
+                       "?2 AND DELETED IS NOT TRUE;";
 
     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
 
@@ -2311,8 +2342,8 @@ std::shared_ptr<Folder> Database::SelectFirstParentFolderWithChildFolderNamed(
     return nullptr;
 }
 
-std::vector<std::shared_ptr<Folder>> Database::SelectFoldersInFolder(LockT& guard,
-    const Folder& folder, const std::string& matchingpattern /*= ""*/)
+std::vector<std::shared_ptr<Folder>> Database::SelectFoldersInFolder(
+    LockT& guard, const Folder& folder, const std::string& matchingpattern /*= ""*/)
 {
     std::vector<std::shared_ptr<Folder>> result;
 
@@ -4660,7 +4691,7 @@ void Database::RedoAction(FolderDeleteAction& action)
 
     if(!target || target->IsDeleted())
         throw InvalidState(
-            "cannot undo action: invalid target folder (or it is deleted already)");
+            "cannot redo action: invalid target folder (or it is deleted already)");
 
     auto rootFolder = SelectFolderByID(guard, DATABASE_ROOT_FOLDER_ID);
 
@@ -4705,13 +4736,28 @@ void Database::UndoAction(FolderDeleteAction& action)
 {
     GUARD_LOCK();
 
+    // Unmark the resource as deleted
+    const auto id = action.GetResourceToDelete();
+    auto target = SelectFolderByID(guard, id);
+
+    if(!target)
+        throw InvalidState(
+            "cannot undo action: target folder has already been purged from the db)");
+
     auto rootFolder = SelectFolderByID(guard, DATABASE_ROOT_FOLDER_ID);
 
     if(!rootFolder)
         throw Exception("Root folder is missing");
 
-    // Unmark the resource as deleted
-    const auto id = action.GetResourceToDelete();
+    // Disallow undo if it would cause name conflicts
+    for(const auto& parent : SelectFoldersFolderIsIn(guard, *target)) {
+        // As this skips deleted folders, we don't need a special method to guard against
+        // detecting the target folder being in parent
+        if(SelectFolderByNameAndParent(guard, target->GetName(), *parent)) {
+            throw InvalidState("Can't undo action as it would create conflicting name \"" +
+                               target->GetName() + "\" in folder: " + parent->GetName());
+        }
+    }
 
     {
         DoDBSavePoint transaction(*this, guard, "folder_delete_undo");

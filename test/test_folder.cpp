@@ -202,3 +202,36 @@ TEST_CASE("Delete folder works", "[folder][action]")
         CHECK(db.SelectFoldersInFolderAG(*root) == initialRootContainedFolders);
     }
 }
+
+TEST_CASE("Undoing folder delete doesn't cause name conflict", "[folder][action]")
+{
+    DummyDualView dv(std::make_unique<TestDatabase>());
+    Database& db = dv.GetDatabase();
+
+    REQUIRE_NOTHROW(db.Init());
+
+    auto root = db.SelectFolderByIDAG(DATABASE_ROOT_FOLDER_ID);
+    REQUIRE(root);
+
+    auto folder1 = db.InsertFolder("Folder 1", false, *root);
+    REQUIRE(folder1);
+
+    CHECK(db.SelectFoldersInFolderAG(*root) == std::vector<std::shared_ptr<Folder>>{folder1});
+
+    auto action = db.DeleteFolder(*folder1);
+    REQUIRE(action);
+    CHECK(action->IsPerformed());
+
+    CHECK(db.SelectFoldersInFolderAG(*root) == std::vector<std::shared_ptr<Folder>>{});
+
+    auto folder2 = db.InsertFolder("Folder 1", false, *root);
+    REQUIRE(folder2);
+
+    CHECK(folder1 != folder2);
+
+    CHECK(db.SelectFoldersInFolderAG(*root) == std::vector<std::shared_ptr<Folder>>{folder2});
+
+    CHECK_THROWS(action->Undo());
+
+    CHECK(db.SelectFoldersInFolderAG(*root) == std::vector<std::shared_ptr<Folder>>{folder2});
+}
