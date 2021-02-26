@@ -34,6 +34,8 @@ public:
 
     void StartRename();
 
+    void Reorder();
+
     //! \brief Called when an image is added or removed from the collection
     void OnNotified(
         Lock& ownlock, Leviathan::BaseNotifierAll* parent, Lock& parentlock) override;
@@ -57,6 +59,7 @@ private:
     TagEditor* CollectionTags;
     Gtk::ToolButton* OpenTagEdit;
     Gtk::ToolButton* DeleteSelected;
+    Gtk::ToolButton* ReorderThisCollection;
     Gtk::ToolButton* OpenSelectedImporter;
     Gtk::ToolButton* DeleteThisCollection;
 

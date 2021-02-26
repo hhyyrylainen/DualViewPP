@@ -55,6 +55,11 @@ SingleCollection::SingleCollection(_GtkWindow* window, Glib::RefPtr<Gtk::Builder
 
     rename->signal_clicked().connect(sigc::mem_fun(*this, &SingleCollection::StartRename));
 
+    BUILDER_GET_WIDGET(ReorderThisCollection);
+
+    ReorderThisCollection->signal_clicked().connect(
+        sigc::mem_fun(*this, &SingleCollection::Reorder));
+
     _UpdateDeletedStatus();
 }
 
@@ -151,6 +156,11 @@ void SingleCollection::ReloadImages(Lock& guard)
 void SingleCollection::StartRename()
 {
     DualView::Get().OpenCollectionRename(ShownCollection, this);
+}
+// ------------------------------------ //
+void SingleCollection::Reorder()
+{
+    DualView::Get().OpenReorder(ShownCollection);
 }
 // ------------------------------------ //
 void SingleCollection::_OnClose() {}
