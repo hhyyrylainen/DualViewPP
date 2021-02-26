@@ -176,6 +176,7 @@ TEST_CASE("Delete folder works", "[folder][action]")
     auto action = db.DeleteFolder(*folder1);
     REQUIRE(action);
     CHECK(action->IsPerformed());
+    CHECK(folder1->IsDeleted());
 
     CHECK(db.SelectFoldersInFolderAG(*root) ==
           std::vector<std::shared_ptr<Folder>>{folder2, folder3});
@@ -192,6 +193,7 @@ TEST_CASE("Delete folder works", "[folder][action]")
     SECTION("Undo works")
     {
         CHECK(action->Undo());
+        CHECK(!folder1->IsDeleted());
 
         const auto newRootContents = db.SelectCollectionsInFolderAG(*root);
         CHECK(std::find(newRootContents.begin(), newRootContents.end(), collection1) ==
@@ -234,4 +236,46 @@ TEST_CASE("Undoing folder delete doesn't cause name conflict", "[folder][action]
     CHECK_THROWS(action->Undo());
 
     CHECK(db.SelectFoldersInFolderAG(*root) == std::vector<std::shared_ptr<Folder>>{folder2});
+}
+
+TEST_CASE("Can't delete a folder that would cause name conflict in root", "[folder][action]")
+{
+    DummyDualView dv(std::make_unique<TestDatabase>());
+    Database& db = dv.GetDatabase();
+
+    REQUIRE_NOTHROW(db.Init());
+
+    auto root = db.SelectFolderByIDAG(DATABASE_ROOT_FOLDER_ID);
+    REQUIRE(root);
+
+    auto folder1 = db.InsertFolder("Folder", false, *root);
+    auto folder2 = db.InsertFolder("Folder 2", false, *root);
+    auto folder3 = db.InsertFolder("Folder", false, *folder2);
+
+    // Collections don't need to be tested as their names are globally unique always
+
+    {
+        const auto rootContents = db.SelectFoldersInFolderAG(*root);
+        CHECK(std::find(rootContents.begin(), rootContents.end(), folder1) !=
+              rootContents.end());
+        CHECK(std::find(rootContents.begin(), rootContents.end(), folder2) !=
+              rootContents.end());
+        CHECK(std::find(rootContents.begin(), rootContents.end(), folder3) ==
+              rootContents.end());
+    }
+
+    std::shared_ptr<DatabaseAction> action;
+    CHECK_THROWS(action = db.DeleteFolder(*folder2));
+    CHECK(!action);
+    CHECK(!folder2->IsDeleted());
+
+    {
+        const auto rootContents = db.SelectFoldersInFolderAG(*root);
+        CHECK(std::find(rootContents.begin(), rootContents.end(), folder1) !=
+              rootContents.end());
+        CHECK(std::find(rootContents.begin(), rootContents.end(), folder2) !=
+              rootContents.end());
+        CHECK(std::find(rootContents.begin(), rootContents.end(), folder3) ==
+              rootContents.end());
+    }
 }

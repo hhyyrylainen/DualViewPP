@@ -4706,7 +4706,12 @@ void Database::RedoAction(FolderDeleteAction& action)
         std::vector<DBID> collectionsAddedToRoot;
 
         for(const auto& addToRoot : SelectFoldersOnlyInFolder(guard, *target)) {
-            // TODO: check for name conflict
+            if(SelectFolderByNameAndParent(guard, addToRoot->GetName(), *rootFolder)) {
+                throw InvalidState("Cannot redo action: moving folder \"" +
+                                   addToRoot->GetName() +
+                                   "\" to root folder would cause a name conflict");
+            }
+
             InsertFolderToFolder(guard, *addToRoot, *rootFolder);
             foldersAddedToRoot.push_back(addToRoot->GetID());
         }
