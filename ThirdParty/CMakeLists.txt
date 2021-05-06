@@ -2,9 +2,15 @@
 # For date library
 # add_definitions(-DINSTALL=.)
 
-set(USE_SYSTEM_TZ_DB ON CACHE BOOL "Use the operating system's timezone database")
-set(ENABLE_DATE_TESTING OFF CACHE BOOL "Enable unit tests")
-set(BUILD_TZ_LIB ON)
+# overridden default values that are required
+option(USE_SYSTEM_TZ_DB "Use the operating system's timezone database" ON)
+option(ENABLE_DATE_TESTING "Enable unit tests" OFF)
+option(BUILD_TZ_LIB "build/install of TZ library" ON)
+
+if(NOT ${BUILD_TZ_LIB})
+  message(FATAL_ERROR Build TZ must be on!)
+endif()
+
 add_subdirectory(date)
 
 add_subdirectory(libpuzzle-0.11)
