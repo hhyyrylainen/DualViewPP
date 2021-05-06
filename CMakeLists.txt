@@ -64,13 +64,13 @@ include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
 
 
-find_package(CryptoPP REQUIRED)
+find_package(cryptopp REQUIRED)
 
-if(NOT CRYPTOPP_FOUND)
+if(NOT cryptopp_FOUND)
   message(SEND_ERROR "Crypto++ not found")
 endif()
 
-include_directories(${CRYPTOPP_INCLUDE_DIRS})
+include_directories(${cryptopp_INCLUDE_DIRS})
 
 
 find_package(CURL REQUIRED)
