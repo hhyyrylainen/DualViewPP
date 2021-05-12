@@ -25,8 +25,17 @@ using namespace DV;
 // ------------------------------------ //
 
 Importer::Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
-    Gtk::Window(window)
+    Gtk::Window(window), OpenAlreadyImportedDeleted("Delete Already Imported Files...")
 {
+    // Primary menu buttons
+    OpenAlreadyImportedDeleted.property_relief() = Gtk::RELIEF_NONE;
+    OpenAlreadyImportedDeleted.signal_clicked().connect(
+        sigc::mem_fun(*this, &Importer::_OnOpenAlreadyImportedDeleter));
+    MenuPopover.Container.pack_start(OpenAlreadyImportedDeleted);
+
+    // Get and apply primary menu options
+    BUILDER_GET_PRIMARY_MENU_NAMED("MenuButton", Menu, MenuPopover);
+
     builder->get_widget_derived(
         "PreviewImage", PreviewImage, nullptr, SuperViewer::ENABLED_EVENTS::ALL, false);
 
@@ -748,6 +757,12 @@ void Importer::_OnAddImagesFromFolder()
         return;
     }
     }
+}
+
+void Importer::_OnOpenAlreadyImportedDeleter()
+{
+    DualView::Get().OpenAlreadyImportedDeleteWindow();
+    MenuPopover.hide();
 }
 
 void Importer::_OnBrowseForImages()

@@ -3,6 +3,7 @@
 #include "BaseWindow.h"
 
 #include "components/EasyEntryCompletion.h"
+#include "components/PrimaryMenu.h"
 
 #include "IsAlive.h"
 
@@ -81,6 +82,7 @@ protected:
     void _OnMoveToCollection();
     void _OnBrowseForImages();
     void _OnAddImagesFromFolder();
+    void _OnOpenAlreadyImportedDeleter();
 
     void _OnImportProgress();
 
@@ -91,6 +93,12 @@ protected:
     void _OnSelectPrevious();
 
 protected:
+    Gtk::MenuButton* Menu;
+
+    // Primary menu
+    PrimaryMenu MenuPopover;
+    Gtk::Button OpenAlreadyImportedDeleted;
+
     SuperViewer* PreviewImage;
     SuperContainer* ImageList;
 
