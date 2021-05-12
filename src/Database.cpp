@@ -1333,7 +1333,7 @@ std::shared_ptr<DatabaseAction> Database::DeleteImagesFromCollection(
     if(!collection.IsInDatabase())
         return nullptr;
 
-    for(const auto image : images)
+    for(const auto& image : images)
         if(!image || !image->IsInDatabase())
             return nullptr;
 
@@ -1343,7 +1343,7 @@ std::shared_ptr<DatabaseAction> Database::DeleteImagesFromCollection(
     std::vector<std::tuple<DBID, int64_t>> removeData;
     removeData.reserve(images.size());
 
-    for(const auto image : images) {
+    for(const auto& image : images) {
 
         const auto order = SelectImageShowOrderInCollection(guard, collection, *image);
 
@@ -1807,7 +1807,7 @@ std::shared_ptr<DatabaseAction> Database::UpdateCollectionImagesOrder(
     if(!collection.IsInDatabase() /*|| collection.IsDeleted()*/)
         return nullptr;
 
-    for(const auto image : neworder)
+    for(const auto& image : neworder)
         if(!image->IsInDatabase() || image->IsDeleted())
             return nullptr;
 
@@ -3676,7 +3676,7 @@ std::shared_ptr<DatabaseAction> Database::MergeImages(
     if(!mergetarget.IsInDatabase() || mergetarget.IsDeleted())
         return nullptr;
 
-    for(const auto image : tomerge)
+    for(const auto& image : tomerge)
         if(!image->IsInDatabase() || image->IsDeleted())
             return nullptr;
 
