@@ -4,6 +4,7 @@
 
 #include "windows/ActionEditors.h"
 #include "windows/AddToFolder.h"
+#include "windows/AlreadyImportedImageDeleter.h"
 #include "windows/CollectionView.h"
 #include "windows/DebugWindow.h"
 #include "windows/DownloadItemEditor.h"
@@ -13,6 +14,7 @@
 #include "windows/FolderCreator.h"
 #include "windows/ImageFinder.h"
 #include "windows/Importer.h"
+#include "windows/MaintenanceTools.h"
 #include "windows/RemoveFromFolders.h"
 #include "windows/RenameWindow.h"
 #include "windows/Reorder.h"
@@ -318,19 +320,24 @@ void DualView::_OnInstanceLoaded()
 
 
     Gtk::ToolButton* OpenDebug = nullptr;
-
     MainBuilder->get_widget("OpenDebug", OpenDebug);
     LEVIATHAN_ASSERT(OpenDebug, "Invalid .glade file");
 
     OpenDebug->signal_clicked().connect(sigc::mem_fun(*this, &DualView::OpenDebug_OnClick));
 
     Gtk::ToolButton* OpenUndo = nullptr;
-
     MainBuilder->get_widget("OpenUndoWindow", OpenUndo);
     LEVIATHAN_ASSERT(OpenUndo, "Invalid .glade file");
 
     OpenUndo->signal_clicked().connect(
         sigc::mem_fun(*this, &DualView::OpenUndoWindow_OnClick));
+
+    Gtk::ToolButton* openMaintenance = nullptr;
+    MainBuilder->get_widget("OpenMaintenance", openMaintenance);
+    LEVIATHAN_ASSERT(openMaintenance, "Invalid .glade file");
+
+    openMaintenance->signal_clicked().connect(
+        sigc::mem_fun<void>(*this, &DualView::OpenMaintenance_OnClick));
 
     Gtk::Button* OpenImporter = nullptr;
     MainBuilder->get_widget("OpenImporter", OpenImporter);
@@ -401,6 +408,24 @@ void DualView::_OnInstanceLoaded()
     // Store the window //
     _DebugWindow = std::shared_ptr<DebugWindow>(tmpDebug);
 
+
+    // Already imported
+    AlreadyImportedImageDeleter* tmpAlreadyImported = nullptr;
+    MainBuilder->get_widget_derived("AlreadyImportedImageDeleter", tmpAlreadyImported);
+    LEVIATHAN_ASSERT(tmpAlreadyImported, "Invalid .glade file");
+
+    // Store the window //
+    _AlreadyImportedImageDeleter =
+        std::shared_ptr<AlreadyImportedImageDeleter>(tmpAlreadyImported);
+
+
+    // Maintenance window
+    MaintenanceTools* tmpMaintenance = nullptr;
+    MainBuilder->get_widget_derived("MaintenanceTools", tmpMaintenance);
+    LEVIATHAN_ASSERT(tmpMaintenance, "Invalid .glade file");
+
+    // Store the window //
+    _MaintenanceTools = std::shared_ptr<MaintenanceTools>(tmpMaintenance);
 
     // Initialize accelerator keys here
     // Gtk::AccelMap::add_entry("<CollectionList-Item>/Right/Help", GDK_KEY_H,
@@ -1341,6 +1366,15 @@ void DualView::OpenUndoWindow()
     window->show();
 
     _UndoWindow = window;
+}
+
+void DualView::OpenAlreadyImportedDeleteWindow()
+{
+    AssertIfNotMainThread();
+
+    Application->add_window(*_AlreadyImportedImageDeleter);
+    _AlreadyImportedImageDeleter->show();
+    _AlreadyImportedImageDeleter->present();
 }
 
 void DualView::OpenDuplicateFinder()
@@ -2718,6 +2752,13 @@ void DualView::OpenDuplicateFinder_OnClick()
 
     if(window)
         window->present();
+}
+
+void DualView::OpenMaintenance_OnClick()
+{
+    Application->add_window(*_MaintenanceTools);
+    _MaintenanceTools->show();
+    _MaintenanceTools->present();
 }
 // ------------------------------------ //
 std::string DualView::MakePathUniqueAndShort(const std::string& path)

@@ -83,6 +83,8 @@ add_library(Core
   windows/ActionEditors.h windows/ActionEditors.cpp
   windows/DownloadItemEditor.h windows/DownloadItemEditor.cpp
   windows/RenameWindow.h windows/RenameWindow.cpp
+  windows/AlreadyImportedImageDeleter.h windows/AlreadyImportedImageDeleter.cpp
+  windows/MaintenanceTools.h windows/MaintenanceTools.cpp
 
   # Components for windows
   components/SuperViewer.h components/SuperViewer.cpp

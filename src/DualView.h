@@ -51,6 +51,8 @@ class DuplicateFinderWindow;
 class UndoWindow;
 class ReorderWindow;
 class DownloadItemEditor;
+class AlreadyImportedImageDeleter;
+class MaintenanceTools;
 
 struct ResolvePathInfinityBlocker;
 
@@ -83,7 +85,7 @@ public:
     //! \brief Opens a window that allows removing a Collection from folder(s)
     void OpenRemoveFromFolders(std::shared_ptr<Collection> collection);
 
-//! \brief Opens a window that allows removing a folder from folder(s)
+    //! \brief Opens a window that allows removing a folder from folder(s)
     void OpenRemoveFromFolders(std::shared_ptr<Folder> folder);
 
     //! \brief Opens the tag creation window with the text already filled in
@@ -112,6 +114,9 @@ public:
 
     //! \brief Opens the undo actions window
     void OpenUndoWindow();
+
+    //! \brief Opens the delete already imported images window
+    void OpenAlreadyImportedDeleteWindow();
 
     //! \brief Opens the window for finding duplicate images
     void OpenDuplicateFinder();
@@ -442,6 +447,8 @@ private:
 
     void OpenDebug_OnClick();
 
+    void OpenMaintenance_OnClick();
+
     void OpenUndoWindow_OnClick();
 
     void OpenDuplicateFinder_OnClick();
@@ -555,6 +562,12 @@ private:
 
     //! Debug buttons window
     std::shared_ptr<DebugWindow> _DebugWindow;
+
+    //! Tool window to delete images from a path that already exist in library
+    std::shared_ptr<AlreadyImportedImageDeleter> _AlreadyImportedImageDeleter;
+
+    //! Maintenance action triggering window
+    std::shared_ptr<MaintenanceTools> _MaintenanceTools;
 
     //! Undo window (strong ref is in OpenWindows)
     std::weak_ptr<UndoWindow> _UndoWindow;
