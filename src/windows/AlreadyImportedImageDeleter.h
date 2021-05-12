@@ -7,6 +7,9 @@
 
 #include <gtkmm.h>
 
+#include <atomic>
+#include <thread>
+
 namespace DV {
 
 //! \brief Tool for deleting images from a path that are already imported, helper to quickly
@@ -18,16 +21,41 @@ public:
 
     void OnStartStopPressed();
 
+    void Stop(bool wait);
+    void Start();
+
 private:
     bool _OnClose(GdkEventAny* event);
 
     void _OnHidden();
+    void _OnShown();
+
+    void _UpdateButtonState();
+    void _OnSelectedPathChanged();
+
+    void _RunTaskThread();
 
 private:
     Gtk::MenuButton* Menu;
 
     // Primary menu
     PrimaryMenu MenuPopover;
+
+    Gtk::Button* AlreadyImportedStartStopButton;
+    Gtk::FileChooserButton* AlreadyImportedCheckPathChooser;
+    Gtk::Spinner* AlreadyImportedProcessingSpinner;
+    Gtk::Label* AlreadyImportedStatusLabel;
+    Gtk::Label* AlreadyImportedFilesCheckedLabel;
+
+    std::string TargetFolderToProcess;
+
+    std::atomic<bool> StopProcessing{true};
+    std::thread TaskThread;
+    bool ThreadJoined = true;
+
+    int TotalItemsProcessed = 0;
+    int TotalItemsDeleted = 0;
+    int TotalItemsCopiedToRepairCollection = 0;
 };
 
 } // namespace DV

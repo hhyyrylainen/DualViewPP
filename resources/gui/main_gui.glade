@@ -27,6 +27,8 @@
           <object class="GtkFileChooserButton" id="AlreadyImportedCheckPathChooser">
             <property name="visible">True</property>
             <property name="can-focus">False</property>
+            <property name="action">select-folder</property>
+            <property name="create-folders">False</property>
             <property name="title" translatable="yes"/>
           </object>
           <packing>
@@ -55,6 +57,9 @@
               <object class="GtkLabel" id="AlreadyImportedStatusLabel">
                 <property name="visible">True</property>
                 <property name="can-focus">False</property>
+                <property name="wrap">True</property>
+                <property name="wrap-mode">char</property>
+                <property name="max-width-chars">80</property>
               </object>
               <packing>
                 <property name="expand">False</property>
