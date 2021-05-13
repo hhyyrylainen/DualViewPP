@@ -9,6 +9,7 @@
 #include "resources/DatabaseAction.h"
 #include "resources/Folder.h"
 #include "resources/Image.h"
+#include "resources/ImagePath.h"
 #include "resources/NetGallery.h"
 #include "resources/Tags.h"
 
@@ -329,7 +330,10 @@ bool Database::UpdateImage(LockT& guard, Image& image)
 
     const auto id = image.GetID();
 
-    // Only the signature property can change
+    // TODO: there's probably cases where this goes wrong due to sharing the same in-memory
+    // instances...
+
+    // If signature save mode is selected do that
     if(image.HasSignatureRetrieved()) {
 
         const auto& signature = image.GetSignature();
@@ -354,9 +358,23 @@ bool Database::UpdateImage(LockT& guard, Image& image)
             // Also insert constituent parts
             _InsertImageSignatureParts(guard, id, signature);
         }
+    } else {
+        // Save normal properties
+        const auto relativePath = CacheManager::GetDatabaseImagePath(image.GetResourcePath());
+
+        const char str[] =
+            "UPDATE pictures SET relative_path = ?2, width = ?3, height = ?4, name = ?5, "
+            "extension = ?6, last_view = ?7, is_private = ?8 WHERE id = ?1;";
+
+        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+        statementobj.StepAll(statementobj.Setup(id, relativePath, image.GetWidth(),
+            image.GetHeight(), image.GetName(), image.GetExtension(), image.GetLastViewStr(),
+            image.GetIsPrivate()));
+
+        return sqlite3_changes(SQLiteDb);
     }
 
-    // Don't forget to call CacheManager::GetDatabaseImagePath when saving the path
     return true;
 }
 
@@ -507,6 +525,44 @@ std::string Database::SelectImageNameByID(LockT& guard, DBID id)
     }
 
     return "";
+}
+
+size_t Database::SelectImageCount(LockT& guard)
+{
+    const char str[] = "SELECT COUNT(*) FROM pictures;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup();
+
+    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+
+        return statementobj.GetColumnAsInt64(0);
+    }
+
+    return 0;
+}
+
+void Database::SelectImagePaths(
+    LockT& guard, std::vector<ImagePath>& results, int64_t offset, int64_t max /*= 10000 */)
+{
+    results.resize(0);
+
+    const char str[] =
+        "SELECT id, relative_path, file_hash FROM pictures ORDER BY id LIMIT ? OFFSET ?;";
+
+    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+
+    auto statementinuse = statementobj.Setup(max, offset);
+
+    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+        DBID id;
+        if(!statementobj.GetObjectIDFromColumn(id, 0))
+            throw Leviathan::Exception("couldn't get image id from query");
+
+        results.emplace_back(
+            id, CacheManager::GetFinalImagePath(statementobj.GetColumnAsString(1)));
+    }
 }
 
 std::string Database::SelectImageSignatureByID(LockT& guard, DBID image)

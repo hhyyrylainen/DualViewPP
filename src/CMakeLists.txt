@@ -116,6 +116,7 @@ add_library(Core
   resources/Folder.h resources/Folder.cpp
   resources/Tags.h resources/Tags.cpp
   resources/NetGallery.h resources/NetGallery.cpp
+  resources/ImagePath.h
 
   resources/DatabaseAction.h resources/DatabaseAction.cpp
 

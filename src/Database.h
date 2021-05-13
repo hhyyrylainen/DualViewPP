@@ -36,6 +36,7 @@ class CollectionReorderAction;
 class NetGalleryDeleteAction;
 class CollectionDeleteAction;
 class FolderDeleteAction;
+class ImagePath;
 
 class Tag;
 class AppliedTag;
@@ -158,6 +159,11 @@ public:
     std::string SelectImageNameByID(LockT& guard, DBID id);
     CREATE_NON_LOCKING_WRAPPER(SelectImageNameByID);
 
+    //! \brief Counts the number of images in the database
+    size_t SelectImageCount(LockT& guard);
+
+    void SelectImagePaths(
+        LockT& guard, std::vector<ImagePath>& results, int64_t offset, int64_t max = 10000);
 
     //! \brief Retrieves signature (or empty string) for image id
     std::string SelectImageSignatureByID(LockT& guard, DBID image);
