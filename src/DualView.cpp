@@ -55,6 +55,8 @@
 using namespace DV;
 // ------------------------------------ //
 
+constexpr auto MAX_INVOKES_PER_CALL = 200;
+
 //! Used for thread detection
 thread_local static int32_t ThreadSpecifier = 0;
 
@@ -901,6 +903,10 @@ void DualView::_ProcessInvokeQueue()
 
     std::unique_lock<std::mutex> lock(InvokeQueueMutex);
 
+    // To not completely lock up the main thread, there's a max  number of invokes to process
+    // at once
+    int processedInvokes = 0;
+
     while(!InvokeQueue.empty()) {
 
         const auto func = InvokeQueue.front();
@@ -912,6 +918,9 @@ void DualView::_ProcessInvokeQueue()
         func();
 
         lock.lock();
+
+        if(++processedInvokes >= MAX_INVOKES_PER_CALL)
+            break;
     }
 }
 // ------------------------------------ //
