@@ -25,6 +25,9 @@ constexpr auto SHOW_IMAGE_CACHE_SIZE = false;
 
 constexpr int ANIMATED_IMAGE_THUMBNAIL_WIDTH = 148;
 constexpr int OTHER_IMAGE_THUMBNAIL_WIDTH = 192;
+constexpr int TALL_IMAGE_HEIGHT_THRESHOLD = 2000;
+constexpr int TALL_IMAGE_THUMBNAIL_WIDTH = OTHER_IMAGE_THUMBNAIL_WIDTH * 2;
+constexpr float TALL_ASPECT_RATIO_THRESHOLD = 0.49f;
 constexpr int THUMBNAIL_JPG_QUALITY = 70;
 
 class CacheManager;

@@ -385,16 +385,31 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
 
     // Single frame image
     if(FullImage->size() < 2) {
-        resizeSize =
-            CreateResizeSizeForImage(FullImage->at(0), OTHER_IMAGE_THUMBNAIL_WIDTH, 0);
-        FullImage->at(0).resize(resizeSize);
+
+        auto& imageToResize = FullImage->at(0);
+        const auto originalHeight = imageToResize.rows();
+        const auto originalWidth = imageToResize.columns();
+
+        // Tall images look very blurry as thumbnails if their width is not allowed to be
+        // larger
+        if(originalHeight >= TALL_IMAGE_HEIGHT_THRESHOLD ||
+            static_cast<float>(originalWidth) / static_cast<float>(originalHeight) <
+                TALL_ASPECT_RATIO_THRESHOLD) {
+            resizeSize =
+                CreateResizeSizeForImage(imageToResize, TALL_IMAGE_THUMBNAIL_WIDTH, 0);
+        } else {
+            resizeSize =
+                CreateResizeSizeForImage(imageToResize, OTHER_IMAGE_THUMBNAIL_WIDTH, 0);
+        }
+
+        imageToResize.resize(resizeSize);
 
         // Reduce quality of jpgs (and other stuff)
         if(extension != ".png") {
-            FullImage->at(0).quality(THUMBNAIL_JPG_QUALITY);
+            imageToResize.quality(THUMBNAIL_JPG_QUALITY);
         } else {
             // And increase png compression
-            FullImage->at(0).quality(90);
+            imageToResize.quality(90);
         }
 
         thumb.OnLoadSuccess(FullImage);
