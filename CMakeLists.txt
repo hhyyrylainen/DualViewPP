@@ -51,8 +51,6 @@ endif(WIN32)
 # Needed for date library
 add_compile_definitions(HAS_UNCAUGHT_EXCEPTIONS=1)
 
-# TODO: should set GTKMM_DISABLE_DEPRECATED
-
 # Find boost
 find_package(Boost REQUIRED COMPONENTS filesystem locale)
 
