@@ -1,4 +1,4 @@
-<b>DualView++ by Henri Hyyryläinen, 2016-2021</b>
+<b>DualView++ by Henri Hyyryläinen, 2016-2022</b>
 
 Licensed under the MIT license
 
