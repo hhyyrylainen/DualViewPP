@@ -61,8 +61,13 @@ std::string Collection::GetNameForFolder() const
 {
     LEVIATHAN_ASSERT(!Name.empty(), "GetNameForFolder called when Name is empty");
 
-    std::string sanitized = Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(
-        Name, "\\/<>:\"|", ' ');
+    // TODO: a more efficient way to do this
+    std::string sanitized = Name;
+    for(char invalid : "\\/<>:\"|") {
+        std::string sanitized =
+            Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(
+                Name, invalid, ' ');
+    }
 
     // And then get rid of all characters under 0x1F
     for(auto iter = sanitized.begin(); iter != sanitized.end(); ++iter) {

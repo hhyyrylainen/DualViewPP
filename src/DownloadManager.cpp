@@ -128,7 +128,9 @@ std::string DownloadManager::ExtractFileName(const std::string& url)
 
     // Remove unwanted characters like /'s
     // (Looks like curl refuses to decode %2 (/) so it might be safe without this)
-    return Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(name, "/\\", '_');
+    return Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(
+        Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(name, '/', '_'), '\\',
+        '_');
 }
 
 std::string DownloadManager::GetCachePathForURL(const std::string& url)
@@ -146,7 +148,8 @@ class RetryDownload : std::exception {};
 // DownloadJob
 DownloadJob::DownloadJob(const std::string& url, const std::string& referrer) :
     URL(url), Referrer(referrer)
-{}
+{
+}
 
 void DownloadJob::SetFinishCallback(const std::function<void(DownloadJob&, bool)>& callback)
 {
@@ -423,7 +426,8 @@ ImageFileDLJob::ImageFileDLJob(
     const std::string& url, const std::string& referrer, bool replacelocal /*= false*/) :
     DownloadJob(url, referrer),
     ReplaceLocal(replacelocal)
-{}
+{
+}
 
 void ImageFileDLJob::HandleContent()
 {
@@ -475,7 +479,8 @@ void LocallyCachedDLJob::HandleContent()
 // MemoryDLJob
 MemoryDLJob::MemoryDLJob(const std::string& url, const std::string& referrer) :
     DownloadJob(url, referrer)
-{}
+{
+}
 
 void MemoryDLJob::HandleContent()
 {

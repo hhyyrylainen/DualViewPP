@@ -1977,7 +1977,8 @@ std::shared_ptr<Folder> Database::InsertFolder(
     std::string name, bool isprivate, const Folder& parent)
 {
     // Sanitize name //
-    Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(name, "\\/", ' ');
+    name = Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(name, '\\', ' ');
+    name = Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(name, '/', ' ');
 
     if(name.empty()) {
 

@@ -2844,5 +2844,5 @@ std::string DualView::CalculateBase64EncodedHash(const std::string& str)
     std::string hash = base64_encode(digest, sizeof(digest));
 
     // Make it path safe //
-    return Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(hash, "/", '_');
+    return Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(hash, '/', '_');
 }

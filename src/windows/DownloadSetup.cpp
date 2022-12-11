@@ -1058,8 +1058,12 @@ void DownloadSetup::StartPageScanning()
 // ------------------------------------ //
 void DownloadSetup::SetTargetCollectionName(const std::string& str)
 {
-    TargetCollectionName->set_text(
-        Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(str, "/\\", ' '));
+    auto sanitized =
+        Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(str, '/', ' ');
+    sanitized =
+        Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(str, '\\', ' ');
+
+    TargetCollectionName->set_text(sanitized);
 }
 // ------------------------------------ //
 void DownloadSetup::_SetState(STATE newstate)
