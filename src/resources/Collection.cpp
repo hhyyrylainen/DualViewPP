@@ -64,9 +64,8 @@ std::string Collection::GetNameForFolder() const
     // TODO: a more efficient way to do this
     std::string sanitized = Name;
     for(char invalid : "\\/<>:\"|") {
-        std::string sanitized =
-            Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(
-                Name, invalid, ' ');
+        sanitized = Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(
+            sanitized, invalid, ' ');
     }
 
     // And then get rid of all characters under 0x1F
