@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.10)
 
 cmake_policy(SET CMP0077 NEW)
 
@@ -95,11 +95,7 @@ link_directories(${GTKCANBERRA_LIBRARY_DIRS})
 
 # This is not in the default ImageMagick-devel package.
 # it is in: ImageMagick-c++-devel
-pkg_check_modules(MAGICK REQUIRED Magick++)
-
-include_directories(${MAGICK_INCLUDE_DIRS})
-link_directories(${MAGICK_LIBRARY_DIRS})
-
+find_package(ImageMagick COMPONENTS Magick++ MagickCore)
 
 pkg_check_modules(SQLITE3 REQUIRED sqlite3)
 

@@ -58,9 +58,9 @@ void CheckPixel(Glib::RefPtr<Gdk::Pixbuf>& pixbuf, Magick::Image& image, size_t 
     const auto gtkGreen = pixels[(x * 3) + (y * pixbuf->get_rowstride()) + 1];
     const auto gtkBlue = pixels[(x * 3) + (y * pixbuf->get_rowstride()) + 2];
 
-    const auto magickRed = MagickCore::ScaleQuantumToChar(magickColour.redQuantum());
-    const auto magickGreen = MagickCore::ScaleQuantumToChar(magickColour.greenQuantum());
-    const auto magickBlue = MagickCore::ScaleQuantumToChar(magickColour.blueQuantum());
+    const auto magickRed = MagickCore::ScaleQuantumToChar(magickColour.quantumRed());
+    const auto magickGreen = MagickCore::ScaleQuantumToChar(magickColour.quantumGreen());
+    const auto magickBlue = MagickCore::ScaleQuantumToChar(magickColour.quantumBlue());
 
 #ifdef PRINT_PIXEL_VALUES
     std::cout << "Comparing: " << (int)magickRed << ", " << (int)magickGreen << ", "
