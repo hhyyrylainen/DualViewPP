@@ -1,21 +1,19 @@
 #pragma once
 
-#include "BaseWindow.h"
-
-#include "components/EasyEntryCompletion.h"
-#include "components/PrimaryMenu.h"
-
-#include "IsAlive.h"
-
-#include <gtkmm.h>
-
 #include <atomic>
 #include <thread>
 #include <unordered_map>
 
+#include <gtkmm.h>
 
-namespace DV {
+#include "components/EasyEntryCompletion.h"
+#include "components/PrimaryMenu.h"
 
+#include "BaseWindow.h"
+#include "IsAlive.h"
+
+namespace DV
+{
 class SuperContainer;
 class SuperViewer;
 class Image;
@@ -26,10 +24,13 @@ class TagCollection;
 class TagEditor;
 class FolderSelector;
 
-class Importer : public BaseWindow, public Gtk::Window, public IsAlive {
+class Importer : public BaseWindow,
+                 public Gtk::Window,
+                 public IsAlive
+{
 public:
     Importer(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder);
-    ~Importer();
+    ~Importer() override;
 
     //! \brief Adds content from a file or a folder
     //!
@@ -58,7 +59,7 @@ protected:
     //! \return True if the file extension is a valid image, false if not
     bool _AddImageToList(const std::string& file);
 
-    bool _OnClosed(GdkEventAny* event);
+    bool _OnClosed(GdkEventAny* event) override;
 
     void _OnClose() override;
 
@@ -69,8 +70,7 @@ protected:
     void _OnFileDropped(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y,
         const Gtk::SelectionData& selection_data, guint info, guint time);
 
-    bool _OnDragMotion(
-        const Glib::RefPtr<Gdk::DragContext>& context, int x, int y, guint time);
+    bool _OnDragMotion(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y, guint time);
 
     bool _OnDrop(const Glib::RefPtr<Gdk::DragContext>& context, int x, int y, guint time);
 
@@ -82,6 +82,7 @@ protected:
     void _OnMoveToCollection();
     void _OnBrowseForImages();
     void _OnAddImagesFromFolder();
+    void _OnReverseImages();
     void _OnOpenAlreadyImportedDeleter();
 
     void _OnImportProgress();
@@ -122,8 +123,6 @@ protected:
 
     Gtk::LevelBar* ProgressBar;
 
-
-
     std::atomic<bool> DoingImport = {false};
     std::thread ImportThread;
 
@@ -158,6 +157,5 @@ protected:
     //! If true prevents individual image select callbacks from running
     bool SuppressIndividualSelectCallback = false;
 };
-
 
 } // namespace DV

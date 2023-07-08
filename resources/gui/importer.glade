@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.38.2 -->
+<!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.20"/>
   <object class="GtkAdjustment" id="adjustment1">
@@ -183,13 +183,41 @@
                     <property name="margin-top">10</property>
                     <property name="orientation">vertical</property>
                     <child>
-                      <object class="GtkButton" id="AddImagesFromFolder">
-                        <property name="label" translatable="yes">Add Images From Folder</property>
+                      <object class="GtkBox">
                         <property name="visible">True</property>
-                        <property name="can-focus">True</property>
-                        <property name="receives-default">True</property>
-                        <property name="halign">center</property>
-                        <property name="valign">center</property>
+                        <property name="can-focus">False</property>
+                        <property name="homogeneous">True</property>
+                        <child>
+                          <object class="GtkButton" id="AddImagesFromFolder">
+                            <property name="label" translatable="yes">Add Images From Folder</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="receives-default">True</property>
+                            <property name="halign">center</property>
+                            <property name="valign">center</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkButton" id="BrowseForImages">
+                            <property name="label" translatable="yes">Browse For Images</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="receives-default">True</property>
+                            <property name="halign">center</property>
+                            <property name="valign">center</property>
+                            <property name="margin-bottom">3</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -198,17 +226,28 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkButton" id="BrowseForImages">
-                        <property name="label" translatable="yes">Browse For Images</property>
+                      <object class="GtkBox">
                         <property name="visible">True</property>
-                        <property name="can-focus">True</property>
-                        <property name="receives-default">True</property>
-                        <property name="halign">center</property>
-                        <property name="valign">center</property>
-                        <property name="margin-bottom">3</property>
+                        <property name="can-focus">False</property>
+                        <child>
+                          <object class="GtkButton" id="ReverseImages">
+                            <property name="label" translatable="yes">Reverse Images</property>
+                            <property name="visible">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="receives-default">True</property>
+                            <property name="tooltip-text" translatable="yes">Reverse order of all images or if selected only in the selection</property>
+                            <property name="halign">center</property>
+                            <accelerator key="r" signal="activate" modifiers="GDK_MOD1_MASK"/>
+                          </object>
+                          <packing>
+                            <property name="expand">True</property>
+                            <property name="fill">True</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
                       </object>
                       <packing>
-                        <property name="expand">False</property>
+                        <property name="expand">True</property>
                         <property name="fill">True</property>
                         <property name="position">1</property>
                       </packing>
@@ -240,7 +279,7 @@
                             <property name="can-focus">True</property>
                             <property name="receives-default">True</property>
                             <property name="valign">center</property>
-                            <accelerator key="d" signal="clicked" modifiers="GDK_CONTROL_MASK"/>
+                            <accelerator key="d" signal="activate" modifiers="GDK_MOD1_MASK"/>
                           </object>
                           <packing>
                             <property name="expand">False</property>
@@ -267,7 +306,7 @@
                       <packing>
                         <property name="expand">False</property>
                         <property name="fill">True</property>
-                        <property name="position">2</property>
+                        <property name="position">3</property>
                       </packing>
                     </child>
                   </object>
@@ -629,7 +668,7 @@
     </child>
     <child type="titlebar">
       <object class="GtkHeaderBar">
-        <property name="visible">True</property>        
+        <property name="visible">True</property>
         <property name="can-focus">False</property>
         <property name="title" translatable="yes">DualView++ - Import</property>
         <property name="show-close-button">True</property>
