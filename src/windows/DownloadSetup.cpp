@@ -275,7 +275,9 @@ void DownloadSetup::OnUserAcceptSettings()
 
     // Collection Path
     const auto collectionPath = TargetFolder->GetPath();
-    TargetFolder->GoToRoot();
+
+    if (!TargetFolder->TargetPathLockedIn())
+        TargetFolder->GoToRoot();
 
     const auto alive = GetAliveMarker();
 
