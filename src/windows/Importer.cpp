@@ -628,7 +628,7 @@ void Importer::_OnImportFinished(bool success)
                 targetfolder, DualView::Get().GetDatabase().SelectCollectionByNameAG(CollectionName->get_text()));
         }
 
-        LOG_INFO("Import was successfull");
+        LOG_INFO(std::string("Import (to: ") + CollectionName->get_text().c_str() + ") was successful");
 
         if (RemoveAfterAdding->get_active())
         {
