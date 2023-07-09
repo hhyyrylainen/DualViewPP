@@ -240,7 +240,7 @@ void CacheManager::_RunCacheCleanupThread()
             if (useUnloadAnyway)
             {
                 LastCacheInsertTime.compare_exchange_weak(
-                    previous, time, std::memory_order_acquire, std::memory_order_release);
+                    previous, time, std::memory_order_acquire, std::memory_order_consume);
             }
 
             for (auto iter = ImageCache.begin(); iter != ImageCache.end();)
