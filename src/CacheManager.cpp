@@ -515,7 +515,7 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
         return;
     }
 
-    const auto sizeStr = std::to_string(static_cast<float>(size / 1024.0));
+    const auto sizeStr = std::to_string(static_cast<uint64_t>(std::round(size / 1024.0)));
 
     LOG_INFO(
         "Generated thumbnail for: " + thumb.GetPath() + " resolution: " + resizeSize + " size: " + sizeStr + " KiB");
