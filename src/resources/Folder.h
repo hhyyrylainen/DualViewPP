@@ -27,7 +27,7 @@ public:
     //! \brief Adds a new folder into this folder
     //! \returns True on success, false if name is duplicate, folder is already in here or some
     //! other problem
-    bool AddFolder(std::shared_ptr<Folder> otherFolder);
+    bool AddFolder(const std::shared_ptr<Folder>& otherFolder);
 
     //! \brief Removes a new folder from this folder
     //! \returns True if removed

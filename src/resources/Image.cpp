@@ -21,8 +21,8 @@
 #include <boost/filesystem.hpp>
 
 using namespace DV;
-// ------------------------------------ //
 
+// ------------------------------------ //
 Image::Image(const std::string& file) :
     DatabaseResource(true), ResourcePath(file),
 

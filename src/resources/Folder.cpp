@@ -1,13 +1,14 @@
 // ------------------------------------ //
 #include "Folder.h"
 
-#include "Database.h"
-#include "PreparedStatement.h"
 #include "components/FolderListItem.h"
 
-using namespace DV;
-// ------------------------------------ //
+#include "Database.h"
+#include "PreparedStatement.h"
 
+using namespace DV;
+
+// ------------------------------------ //
 Folder::Folder(Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id) :
 
     DatabaseResource(id, db)
@@ -15,15 +16,19 @@ Folder::Folder(Database& db, DatabaseLockT& dblock, PreparedStatement& statement
     // Load properties //
     CheckRowID(statement, 1, "name");
     CheckRowID(statement, 2, "is_private");
+    CheckRowID(statement, 3, "deleted");
 
     Name = statement.GetColumnAsString(1);
     IsPrivate = statement.GetColumnAsBool(2);
+
+    Deleted = statement.GetColumnAsOptionalBool(3);
 }
 
 Folder::~Folder()
 {
     DBResourceDestruct();
 }
+
 // ------------------------------------ //
 void Folder::_DoSave(Database& db)
 {
@@ -35,16 +40,18 @@ void Folder::_DoSave(Database& db, DatabaseLockT& dbLock)
 {
     db.UpdateFolder(dbLock, *this);
 }
+
 // ------------------------------------ //
 bool Folder::Rename(const std::string& newName)
 {
-    if(Name == newName)
+    if (Name == newName)
         return true;
 
-    if(newName.empty())
+    if (newName.empty())
         return false;
 
-    if(!IsInDatabase()) {
+    if (!IsInDatabase())
+    {
         Name = newName;
         OnMarkDirty();
         return true;
@@ -53,19 +60,23 @@ bool Folder::Rename(const std::string& newName)
     {
         GUARD_LOCK_OTHER(InDatabase);
 
-        if(InDatabase->SelectFirstParentFolderWithChildFolderNamed(guard, *this, newName))
+        if (InDatabase->SelectFirstParentFolderWithChildFolderNamed(guard, *this, newName))
             return false;
 
         const auto oldName = std::move(Name);
         Name = newName;
 
-        try {
-            if(!InDatabase->UpdateFolder(guard, *this)) {
+        try
+        {
+            if (!InDatabase->UpdateFolder(guard, *this))
+            {
                 // Old name is restored on failure
                 Name = oldName;
                 return false;
             }
-        } catch(const InvalidSQL& e) {
+        }
+        catch (const InvalidSQL& e)
+        {
             LOG_INFO("Failed to rename folder due to SQL error:");
             e.PrintToLog();
 
@@ -80,41 +91,43 @@ bool Folder::Rename(const std::string& newName)
 
     return true;
 }
+
 // ------------------------------------ //
-bool Folder::AddFolder(std::shared_ptr<Folder> otherFolder)
+bool Folder::AddFolder(const std::shared_ptr<Folder>& otherFolder)
 {
-    if(!otherFolder || !otherFolder->IsInDatabase() || !IsInDatabase())
+    if (!otherFolder || !otherFolder->IsInDatabase() || !IsInDatabase())
         return false;
 
     GUARD_LOCK_OTHER(InDatabase);
 
-    const auto conflict =
-        InDatabase->SelectFolderByNameAndParent(guard, otherFolder->GetName(), *this);
+    const auto conflict = InDatabase->SelectFolderByNameAndParent(guard, otherFolder->GetName(), *this);
 
-    if(conflict)
+    if (conflict)
         return false;
 
     InDatabase->InsertFolderToFolder(guard, *otherFolder, *this);
     return true;
 }
 
-bool Folder::RemoveFolder(std::shared_ptr<Folder> otherFolder){
-    if(!otherFolder || !otherFolder->IsInDatabase() || !IsInDatabase())
+bool Folder::RemoveFolder(std::shared_ptr<Folder> otherFolder)
+{
+    if (!otherFolder || !otherFolder->IsInDatabase() || !IsInDatabase())
         return false;
 
     GUARD_LOCK_OTHER(InDatabase);
 
-    if(!InDatabase->DeleteFolderFromFolder(guard, *otherFolder, *this))
+    if (!InDatabase->DeleteFolderFromFolder(guard, *otherFolder, *this))
         return false;
 
     InDatabase->InsertToRootFolderIfInNoFolders(guard, *otherFolder);
     return true;
 }
+
 // ------------------------------------ //
 bool Folder::operator==(const Folder& other) const
 {
-    if(static_cast<const DatabaseResource&>(*this) ==
-        static_cast<const DatabaseResource&>(other)) {
+    if (static_cast<const DatabaseResource&>(*this) == static_cast<const DatabaseResource&>(other))
+    {
         return true;
     }
 
@@ -125,10 +138,10 @@ bool Folder::IsRoot() const
 {
     return ID == DATABASE_ROOT_FOLDER_ID;
 }
+
 // ------------------------------------ //
 // Implementation of ResourceWithPreview
-std::shared_ptr<ListItem> Folder::CreateListItem(
-    const std::shared_ptr<ItemSelectable>& selectable)
+std::shared_ptr<ListItem> Folder::CreateListItem(const std::shared_ptr<ItemSelectable>& selectable)
 {
     auto widget = std::make_shared<FolderListItem>(selectable);
 
@@ -141,7 +154,7 @@ bool Folder::IsSame(const ResourceWithPreview& other)
 {
     auto* asThis = dynamic_cast<const Folder*>(&other);
 
-    if(!asThis)
+    if (!asThis)
         return false;
 
     // Check is the folder same //
@@ -152,7 +165,7 @@ bool Folder::UpdateWidgetWithValues(ListItem& control)
 {
     auto* asOurType = dynamic_cast<FolderListItem*>(&control);
 
-    if(!asOurType)
+    if (!asOurType)
         return false;
 
     // Update the properties //

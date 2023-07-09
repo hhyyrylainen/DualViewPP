@@ -1,12 +1,11 @@
 #include "catch.hpp"
 
-#include "TestDualView.h"
+#include "resources/Collection.h"
+#include "resources/DatabaseAction.h"
 
 #include "DummyLog.h"
 #include "TestDatabase.h"
-
-#include "resources/Collection.h"
-#include "resources/DatabaseAction.h"
+#include "TestDualView.h"
 
 using namespace DV;
 
@@ -86,7 +85,6 @@ TEST_CASE("Collection rename works", "[collection][action]")
 
     SECTION("Conflict disallows rename")
     {
-
         SECTION("exact")
         {
             CHECK(!collection1->Rename("Collection 2"));
@@ -117,7 +115,7 @@ TEST_CASE("Collection delete works", "[collection][action]")
 
     auto uncategorized = db.SelectCollectionByIDAG(DATABASE_UNCATEGORIZED_COLLECTION_ID);
     REQUIRE(uncategorized);
-    CHECK(uncategorized->GetImages().size() == 0);
+    CHECK(uncategorized->GetImages().empty());
 
     const auto name = "Collection 1";
     const auto name2 = "Another collection";
@@ -173,8 +171,7 @@ TEST_CASE("Collection delete works", "[collection][action]")
         db.PurgeOldActionsUntilSpecificCountAG(0);
         CHECK(action->IsDeleted());
 
-        CHECK(
-            uncategorized->GetImages() == std::vector<std::shared_ptr<Image>>{image1, image2});
+        CHECK(uncategorized->GetImages() == std::vector<std::shared_ptr<Image>>{image1, image2});
     }
 
     SECTION("Another collection is left untouched")
@@ -200,8 +197,7 @@ TEST_CASE("Can't delete uncategorized", "[collection]")
     CHECK(!uncategorized->IsDeleted());
 }
 
-TEST_CASE(
-    "Collection delete purge doesn't add extra stuff to uncategorized", "[collection][action]")
+TEST_CASE("Collection delete purge doesn't add extra stuff to uncategorized", "[collection][action]")
 {
     DummyDualView dv;
     TestDatabase db;
@@ -244,8 +240,7 @@ TEST_CASE(
 
     db.PurgeOldActionsUntilSpecificCountAG(0);
 
-    CHECK(uncategorized->GetImages() ==
-          std::vector<std::shared_ptr<Image>>{image1, image4, image2});
+    CHECK(uncategorized->GetImages() == std::vector<std::shared_ptr<Image>>{image1, image4, image2});
 }
 
 TEST_CASE("Undone collection delete doesn't move images", "[collection][action]")
@@ -279,4 +274,45 @@ TEST_CASE("Undone collection delete doesn't move images", "[collection][action]"
     CHECK(!collection1->IsDeleted());
 
     CHECK(uncategorized->GetImages().empty());
+}
+
+TEST_CASE("Collection delete with collection no longer in memory works", "[collection][action]")
+{
+    DummyDualView dv;
+    TestDatabase db;
+
+    REQUIRE_NOTHROW(db.Init());
+
+    const auto name = "Collection to delete";
+
+    std::shared_ptr<DatabaseAction> action;
+    DBID collectionId;
+
+    {
+        auto collection = db.InsertCollectionAG(name, false);
+        REQUIRE(collection);
+        collectionId = collection->GetID();
+        CHECK(!collection->IsDeleted());
+
+        action = db.DeleteCollection(*collection);
+        REQUIRE(action);
+        REQUIRE(collection->IsDeleted());
+    }
+
+    SECTION("Loaded collection preserves deleted flag")
+    {
+        auto collection = db.SelectCollectionByIDAG(collectionId);
+        REQUIRE(collection);
+        CHECK(collection->IsDeleted());
+    }
+
+    SECTION("Collection is purged correctly")
+    {
+        CHECK(!action->IsDeleted());
+        db.PurgeOldActionsUntilSpecificCountAG(0);
+        CHECK(action->IsDeleted());
+
+        auto collection = db.SelectCollectionByIDAG(collectionId);
+        CHECK(!collection);
+    }
 }

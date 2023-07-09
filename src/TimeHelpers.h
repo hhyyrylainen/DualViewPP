@@ -1,48 +1,47 @@
 #pragma once
 
 #include <atomic>
+#include <ctime>
 
-#include "Common.h"
-
-#include "CurlWrapper.h"
 #include "date/tz.h"
 
-#include <ctime>
+#include "Common.h"
+#include "CurlWrapper.h"
 
 //! \file Helper functions for saving / loading times from the database
 
-namespace DV {
+namespace DV
+{
 
 //! \brief Time parsing functions
-class TimeHelpers {
+class TimeHelpers
+{
 public:
     static inline void TimeZoneDatabaseSetup()
     {
-        if(IsInitialized)
+        if (IsInitialized)
             return;
 
         std::lock_guard<std::mutex> lock(InitializeMutex);
 
-        if(IsInitialized)
+        if (IsInitialized)
             return;
 
         // Make sure curl is initialized //
         CurlWrapper wrapper;
 
-        try {
+        try
+        {
             date::get_tzdb();
-
-        } catch(const std::exception& e) {
-
-            LOG_FATAL(
-                "Failed to initialize / download timezone database: " + std::string(e.what()));
+        }
+        catch (const std::exception& e)
+        {
+            LOG_FATAL("Failed to initialize / download timezone database: " + std::string(e.what()));
             throw;
         }
 
-        StartTime =
-            std::make_shared<date::zoned_time<std::chrono::milliseconds>>(date::make_zoned(
-                date::current_zone(), std::chrono::time_point_cast<std::chrono::milliseconds>(
-                                          std::chrono::system_clock::now())));
+        StartTime = std::make_shared<date::zoned_time<std::chrono::milliseconds>>(date::make_zoned(date::current_zone(),
+            std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now())));
 
         IsInitialized = true;
     }
@@ -67,7 +66,8 @@ public:
         date::sys_time<std::chrono::milliseconds> tp;
         in >> date::parse("%FT%TZ", tp);
 
-        if(in.fail()) {
+        if (in.fail())
+        {
             in.clear();
             in.exceptions(std::ios::failbit);
             in.str(str);
@@ -87,7 +87,8 @@ public:
         date::sys_time<std::chrono::milliseconds> tp;
         in >> date::parse("%FT%TZ", tp);
 
-        if(in.fail()) {
+        if (in.fail())
+        {
             in.clear();
             in.exceptions(std::ios::failbit);
             in.str(str);
@@ -97,18 +98,18 @@ public:
         return tp;
     }
 
-
     //! Parses any time thing known to man
     static auto ParseTime(const std::string& str)
     {
         // Cannot be iso-8601 format without a 'T' in the string
-        if(str.find_first_of('T') != std::string::npos) {
-            try {
-
+        if (str.find_first_of('T') != std::string::npos)
+        {
+            try
+            {
                 return parse8601(str);
-
-            } catch(const std::exception&) {
-
+            }
+            catch (const std::exception&)
+            {
                 // Wasn't according to the iso standard...
             }
         }
@@ -119,8 +120,8 @@ public:
         date::sys_time<std::chrono::milliseconds> tp;
         in >> date::parse("%F %T", tp);
 
-        if(in.fail()) {
-
+        if (in.fail())
+        {
             throw std::runtime_error("ParseTime unknown format: " + str);
         }
 
@@ -136,13 +137,19 @@ public:
     //! \brief Formats current zoned time as a string
     static auto FormatCurrentTimeAs8601()
     {
-        return format8601(date::make_zoned(
-            date::current_zone(), std::chrono::time_point_cast<std::chrono::milliseconds>(
-                                      std::chrono::system_clock::now())));
+        return format8601(date::make_zoned(date::current_zone(),
+            std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now())));
     }
 
-    static auto GetCurrentUnixTimestamp(){
+    static auto GetCurrentUnixTimestamp()
+    {
         return std::time(nullptr);
+    }
+
+    static auto GetCurrentTimestamp()
+    {
+        return date::make_zoned(date::current_zone(),
+            std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()));
     }
 
 private:
@@ -151,8 +158,6 @@ private:
 
     static std::shared_ptr<date::zoned_time<std::chrono::milliseconds>> StartTime;
 };
-
-
 
 } // namespace DV
 
