@@ -647,7 +647,7 @@
             </child>
             <child>
               <object class="GtkButton" id="FixOrphanedResources">
-                <property name="label" translatable="yes">Delete / fix incorrectly orphaned resources</property>
+                <property name="label" translatable="yes">Fix incorrectly deleted and dangling resources</property>
                 <property name="visible">True</property>
                 <property name="can-focus">True</property>
                 <property name="receives-default">True</property>
@@ -656,6 +656,19 @@
                 <property name="expand">False</property>
                 <property name="fill">True</property>
                 <property name="position">2</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="FixOrphanedImages">
+                <property name="label" translatable="yes">Fix orphaned resources (images)</property>
+                <property name="visible">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">3</property>
               </packing>
             </child>
           </object>

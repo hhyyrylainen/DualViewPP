@@ -1,20 +1,19 @@
 #pragma once
 
-#include "DatabaseResource.h"
-#include "ResourceWithPreview.h"
-#include "Tags.h"
-
-#include "components/ImageListScroll.h"
-
-#include "TimeHelpers.h"
-
-#include "Common/Types.h"
-
 #include <memory>
 #include <string>
 
-namespace DV {
+#include "Common/Types.h"
+#include "components/ImageListScroll.h"
 
+#include "DatabaseResource.h"
+#include "Exceptions.h"
+#include "ResourceWithPreview.h"
+#include "Tags.h"
+#include "TimeHelpers.h"
+
+namespace DV
+{
 class Image;
 class DatabaseTagCollection;
 class CollectionListItem;
@@ -25,8 +24,11 @@ class PreparedStatement;
 class Collection : public DatabaseResource,
                    public ResourceWithPreview,
                    public ImageListScroll,
-                   public std::enable_shared_from_this<Collection> {
+                   public std::enable_shared_from_this<Collection>
+{
     friend Database;
+    friend MaintenanceTools;
+
 public:
     //! \brief Creates a collection for database testing
     //! \protected
@@ -49,7 +51,6 @@ public:
     //! \note Only works if this is in the database
     //! \return True if successfully added
     bool AddTags(const TagCollection& tags, DatabaseLockT& dblock);
-
 
     //! \brief Adds an image to this Collection
     //!
@@ -132,17 +133,14 @@ public:
     bool operator==(const Collection& other) const;
 
     // Implementation of ResourceWithPreview
-    std::shared_ptr<ListItem> CreateListItem(
-        const std::shared_ptr<ItemSelectable>& selectable) override;
+    std::shared_ptr<ListItem> CreateListItem(const std::shared_ptr<ItemSelectable>& selectable) override;
     bool IsSame(const ResourceWithPreview& other) override;
     bool UpdateWidgetWithValues(ListItem& control) override;
 
     // ImageListScroll implementation //
-    std::shared_ptr<Image> GetNextImage(
-        std::shared_ptr<Image> current, bool wrap = true) override;
+    std::shared_ptr<Image> GetNextImage(std::shared_ptr<Image> current, bool wrap = true) override;
 
-    std::shared_ptr<Image> GetPreviousImage(
-        std::shared_ptr<Image> current, bool wrap = true) override;
+    std::shared_ptr<Image> GetPreviousImage(std::shared_ptr<Image> current, bool wrap = true) override;
 
     bool HasCount() const override;
     size_t GetCount() const override;
@@ -165,6 +163,14 @@ protected:
 
         GUARD_LOCK();
         NotifyAll(guard);
+    }
+
+    void ForceUnDeleteToFixMissingAction()
+    {
+        if (!Deleted)
+            throw Leviathan::Exception("This needs to be in deleted state to call this fix missing action");
+
+        Deleted = false;
     }
 
     //! \brief Fills a widget with this resource

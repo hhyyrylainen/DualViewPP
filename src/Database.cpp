@@ -699,7 +699,7 @@ void Database::SelectOrphanedImages(LockT& guard, std::vector<DBID>& result)
 void Database::SelectIncorrectlyDeletedImages(LockT& guard, std::vector<DBID>& result)
 {
     const char str[] = "SELECT id FROM pictures WHERE deleted = TRUE AND NOT EXISTS "
-                       "(SELECT id FROM action_history WHERE json_data LIKE '%' + id + '%');";
+                       "(SELECT id FROM action_history WHERE json_data LIKE '%' || pictures.id || '%');";
 
     PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
@@ -1141,7 +1141,7 @@ int64_t Database::SelectCollectionImageCount(LockT& guard, const Collection& col
 void Database::SelectIncorrectlyDeletedCollections(LockT& guard, std::vector<DBID>& result)
 {
     const char str[] = "SELECT id FROM collections WHERE deleted = TRUE AND NOT EXISTS "
-                       "(SELECT id FROM action_history WHERE json_data LIKE '%' + id + '%');";
+                       "(SELECT id FROM action_history WHERE json_data LIKE '%' || collections.id || '%');";
 
     PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
@@ -1977,7 +1977,7 @@ std::shared_ptr<Folder> Database::SelectFolderByID(LockT& guard, DBID id)
 void Database::SelectIncorrectlyDeletedFolders(LockT& guard, std::vector<DBID>& result)
 {
     const char str[] = "SELECT id FROM virtual_folders WHERE deleted = TRUE AND NOT EXISTS "
-                       "(SELECT id FROM action_history WHERE json_data LIKE '%' + id + '%');";
+                       "(SELECT id FROM action_history WHERE json_data LIKE '%' || virtual_folders.id || '%');";
 
     PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
@@ -3484,7 +3484,7 @@ std::shared_ptr<NetGallery> Database::SelectNetGalleryByID(LockT& guard, DBID id
 void Database::SelectIncorrectlyDeletedNetGalleries(LockT& guard, std::vector<DBID>& result)
 {
     const char str[] = "SELECT id FROM net_gallery WHERE deleted = TRUE AND NOT EXISTS "
-                       "(SELECT id FROM action_history WHERE json_data LIKE '%' + id + '%');";
+                       "(SELECT id FROM action_history WHERE json_data LIKE '%' || net_gallery.id || '%');";
 
     PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 

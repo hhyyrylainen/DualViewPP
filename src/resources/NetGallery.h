@@ -1,21 +1,22 @@
 #pragma once
 
 #include "DatabaseResource.h"
-
+#include "Exceptions.h"
 #include "VirtualPath.h"
 
-namespace DV {
-
+namespace DV
+{
 class PreparedStatement;
 
 class InternetImage;
 
 //! \brief A file belonging to a NetGallery
-class NetFile : public DatabaseResource {
+class NetFile : public DatabaseResource
+{
 public:
     //! \brief Constructor for creating new ones
-    NetFile(const std::string& url, const std::string& referrer, const std::string& name,
-        const std::string& tagstr = "");
+    NetFile(
+        const std::string& url, const std::string& referrer, const std::string& name, const std::string& tagstr = "");
 
     //! \brief Constructor for database loading
     NetFile(Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id);
@@ -42,7 +43,6 @@ public:
         return TagsString;
     }
 
-
 protected:
     void _DoSave(Database& db) override;
 
@@ -56,8 +56,10 @@ protected:
 //! \brief Gallery that contains URL addresses of images
 //!
 //! Can be downloaded with DownloadManager
-class NetGallery : public DatabaseResource {
+class NetGallery : public DatabaseResource
+{
     friend Database;
+    friend MaintenanceTools;
 
 public:
     //! \brief Constructor for creating new ones
@@ -117,8 +119,8 @@ public:
 
     void SetTargetPath(const VirtualPath& path)
     {
-        if(path.IsRootPath()) {
-
+        if (path.IsRootPath())
+        {
             TargetPath = "";
             OnMarkDirty();
             return;
@@ -136,13 +138,11 @@ public:
 
     //! \brief Adds all images to this gallery
     //! \note Doesn't check for duplicates
-    void AddFilesToDownload(const std::vector<std::shared_ptr<InternetImage>>& images,
-        DatabaseLockT& databaselock);
+    void AddFilesToDownload(const std::vector<std::shared_ptr<InternetImage>>& images, DatabaseLockT& databaselock);
 
     //! \brief Replaces all existing items with new ones
     //! \todo Make this a reversible action
-    void ReplaceItemsWith(const std::vector<std::shared_ptr<InternetImage>>& images,
-        DatabaseLockT& databaselock);
+    void ReplaceItemsWith(const std::vector<std::shared_ptr<InternetImage>>& images, DatabaseLockT& databaselock);
 
 protected:
     void _DoSave(Database& db) override;
@@ -156,6 +156,13 @@ protected:
         NotifyAll(guard);
     }
 
+    void ForceUnDeleteToFixMissingAction()
+    {
+        if (!Deleted)
+            throw Leviathan::Exception("This needs to be in deleted state to call this fix missing action");
+
+        Deleted = false;
+    }
 
 protected:
     std::string GalleryURL;

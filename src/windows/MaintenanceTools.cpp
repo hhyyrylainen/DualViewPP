@@ -8,8 +8,10 @@
 
 #include "Common/StringOperations.h"
 #include "resources/Collection.h"
+#include "resources/Folder.h"
 #include "resources/Image.h"
 #include "resources/ImagePath.h"
+#include "resources/NetGallery.h"
 
 #include "Common.h"
 #include "Database.h"
@@ -219,6 +221,9 @@ MaintenanceTools::MaintenanceTools(_GtkWindow* window, Glib::RefPtr<Gtk::Builder
     FixOrphanedResources->signal_clicked().connect(
         sigc::mem_fun(*this, &MaintenanceTools::StartDeleteOrphanedResources));
 
+    BUILDER_GET_WIDGET(FixOrphanedImages);
+    FixOrphanedImages->signal_clicked().connect(sigc::mem_fun(*this, &MaintenanceTools::StartFixOrphanedResources));
+
     BUILDER_GET_WIDGET(MaintenanceResults);
     BUILDER_GET_WIDGET(MaintenanceClearResults);
     MaintenanceClearResults->signal_clicked().connect(sigc::mem_fun(*this, &MaintenanceTools::_ClearResultsPressed));
@@ -319,13 +324,34 @@ void MaintenanceTools::StartDeleteOrphanedResources()
 
     Stop(true);
 
-    MaintenanceStatusLabel->set_text("Finding orphaned resources that weren't correctly deleted...");
+    MaintenanceStatusLabel->set_text("Finding resources that weren't correctly deleted...");
     ProgressFraction = 0;
 
     HasRunSomething = true;
     RunTaskThread = true;
     TaskRunning = true;
     TaskThread = std::thread([this] { _RunTaskThread([this] { _RunDeleteOrphaned(); }); });
+
+    _UpdateState();
+}
+
+void MaintenanceTools::StartFixOrphanedResources()
+{
+    if (RunTaskThread)
+    {
+        LOG_ERROR("Already doing an operation can't start a new maintenance operation");
+        return;
+    }
+
+    Stop(true);
+
+    MaintenanceStatusLabel->set_text("Finding orphaned resources to restore...");
+    ProgressFraction = 0;
+
+    HasRunSomething = true;
+    RunTaskThread = true;
+    TaskRunning = true;
+    TaskThread = std::thread([this] { _RunTaskThread([this] { _RunFixOrphaned(); }); });
 
     _UpdateState();
 }
@@ -399,12 +425,16 @@ void MaintenanceTools::_UpdateState()
         MaintenanceCancelButton->set_sensitive(true);
         CheckAllExist->set_sensitive(false);
         DeleteAllThumbnails->set_sensitive(false);
+        FixOrphanedResources->set_sensitive(false);
+        FixOrphanedImages->set_sensitive(false);
     }
     else
     {
         MaintenanceCancelButton->set_sensitive(false);
         CheckAllExist->set_sensitive(true);
         DeleteAllThumbnails->set_sensitive(true);
+        FixOrphanedResources->set_sensitive(true);
+        FixOrphanedImages->set_sensitive(true);
 
         if (HasRunSomething)
         {
@@ -645,7 +675,7 @@ void MaintenanceTools::_RunDeleteThumbnails()
 // ------------------------------------ //
 void MaintenanceTools::_RunDeleteOrphaned()
 {
-    LOG_INFO("Starting check for orphaned resources");
+    LOG_INFO("Starting check for badly deleted resources");
 
     auto alive = GetAliveMarker();
 
@@ -653,12 +683,9 @@ void MaintenanceTools::_RunDeleteOrphaned()
 
     // First detect things to delete
     std::vector<DBID> collectionsToPurge;
-    std::vector<DBID> imagesToAddToUncategorized;
     std::vector<DBID> imagesToPurge;
     std::vector<DBID> netGalleriesToPurge;
     std::vector<DBID> foldersToPurge;
-
-    // TODO: find orphaned folders and collections that are nowhere and put them in root?
 
     LOG_INFO("Detecting collections to purge");
 
@@ -667,7 +694,7 @@ void MaintenanceTools::_RunDeleteOrphaned()
         database.SelectIncorrectlyDeletedCollections(guard, collectionsToPurge);
     }
 
-    LOG_INFO("Detecting images to put in uncategorized");
+    LOG_INFO("Detecting images to purge");
 
     if (!RunTaskThread)
         return;
@@ -676,12 +703,11 @@ void MaintenanceTools::_RunDeleteOrphaned()
         [=]
         {
             INVOKE_CHECK_ALIVE_MARKER(alive);
-            MaintenanceStatusLabel->set_text("Detecting orphaned images to put in uncategorized...");
+            MaintenanceStatusLabel->set_text("Detecting badly deleted images...");
         });
 
     {
         GUARD_LOCK_OTHER(database);
-        database.SelectOrphanedImages(guard, imagesToAddToUncategorized);
         database.SelectIncorrectlyDeletedImages(guard, imagesToPurge);
     }
 
@@ -706,8 +732,235 @@ void MaintenanceTools::_RunDeleteOrphaned()
         return;
 
     // Then start fixing the detected things
-    const auto total = static_cast<int64_t>(collectionsToPurge.size() + imagesToAddToUncategorized.size() +
-        imagesToPurge.size() + netGalleriesToPurge.size() + foldersToPurge.size());
+    const auto total = static_cast<int64_t>(
+        collectionsToPurge.size() + imagesToPurge.size() + netGalleriesToPurge.size() + foldersToPurge.size());
+
+    if (total < 1)
+    {
+        LOG_INFO("Nothing to fix badly deleted");
+
+        DualView::Get().InvokeFunction(
+            [=]
+            {
+                INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                _InsertTextResult("No deleted resources need fixing");
+            });
+
+        return;
+    }
+
+    LOG_INFO("Starting fixing " + std::to_string(total) + " badly deleted resources");
+    int64_t processed = 0;
+
+    while (RunTaskThread)
+    {
+        if (!imagesToPurge.empty())
+        {
+            const auto resourceId = imagesToPurge.back();
+            imagesToPurge.pop_back();
+
+            LOG_INFO("Purging image " + std::to_string(resourceId));
+
+            try
+            {
+                auto image = database.SelectImageByIDAG(resourceId);
+
+                if (!image || !image->IsDeleted())
+                    throw Leviathan::Exception("Target image to delete not found or not deleted");
+
+                image->ForceUnDeleteToFixMissingAction();
+
+                if (!database.DeleteImage(*image))
+                    throw Leviathan::Exception("Delete action did not get created for an image");
+            }
+            catch (const Leviathan::Exception& e)
+            {
+                LOG_ERROR("Failed to delete orphaned resource:");
+                e.PrintToLog();
+
+                DualView::Get().InvokeFunction(
+                    [=]
+                    {
+                        INVOKE_CHECK_ALIVE_MARKER(alive);
+                        _InsertTextResult("Orphaned resource deletion failed");
+                    });
+
+                RunTaskThread = false;
+                break;
+            }
+        }
+        else if (!collectionsToPurge.empty())
+        {
+            const auto resourceId = collectionsToPurge.back();
+            collectionsToPurge.pop_back();
+
+            LOG_INFO("Purging collection " + std::to_string(resourceId));
+
+            try
+            {
+                auto collection = database.SelectCollectionByIDAG(resourceId);
+
+                if (!collection || !collection->IsDeleted())
+                    throw Leviathan::Exception("Target collection to delete not found or not deleted");
+
+                collection->ForceUnDeleteToFixMissingAction();
+
+                if (!database.DeleteCollection(*collection))
+                    throw Leviathan::Exception("Delete action did not get created for a collection");
+            }
+            catch (const Leviathan::Exception& e)
+            {
+                LOG_ERROR("Failed to delete orphaned resource:");
+                e.PrintToLog();
+
+                DualView::Get().InvokeFunction(
+                    [=]
+                    {
+                        INVOKE_CHECK_ALIVE_MARKER(alive);
+                        _InsertTextResult("Orphaned resource deletion failed");
+                    });
+
+                RunTaskThread = false;
+                break;
+            }
+        }
+        else if (!netGalleriesToPurge.empty())
+        {
+            const auto resourceId = netGalleriesToPurge.back();
+            netGalleriesToPurge.pop_back();
+
+            LOG_INFO("Purging NetGallery " + std::to_string(resourceId));
+
+            try
+            {
+                auto netGallery = database.SelectNetGalleryByIDAG(resourceId);
+
+                if (!netGallery || !netGallery->IsDeleted())
+                    throw Leviathan::Exception("Target NetGallery to delete not found or not deleted");
+
+                netGallery->ForceUnDeleteToFixMissingAction();
+
+                if (!database.DeleteNetGallery(*netGallery))
+                    throw Leviathan::Exception("Delete action did not get created for a NetGallery");
+            }
+            catch (const Leviathan::Exception& e)
+            {
+                LOG_ERROR("Failed to delete orphaned resource:");
+                e.PrintToLog();
+
+                DualView::Get().InvokeFunction(
+                    [=]
+                    {
+                        INVOKE_CHECK_ALIVE_MARKER(alive);
+                        _InsertTextResult("Orphaned resource deletion failed");
+                    });
+
+                RunTaskThread = false;
+                break;
+            }
+        }
+        else if (!foldersToPurge.empty())
+        {
+            const auto resourceId = foldersToPurge.back();
+            foldersToPurge.pop_back();
+
+            LOG_INFO("Purging folder " + std::to_string(resourceId));
+
+            try
+            {
+                auto folder = database.SelectFolderByIDAG(resourceId);
+
+                if (!folder || !folder->IsDeleted())
+                    throw Leviathan::Exception("Target folder to delete not found or not deleted");
+
+                folder->ForceUnDeleteToFixMissingAction();
+
+                if (!database.DeleteFolder(*folder))
+                    throw Leviathan::Exception("Delete action did not get created for a folder");
+            }
+            catch (const Leviathan::Exception& e)
+            {
+                LOG_ERROR("Failed to delete orphaned resource:");
+                e.PrintToLog();
+
+                DualView::Get().InvokeFunction(
+                    [=]
+                    {
+                        INVOKE_CHECK_ALIVE_MARKER(alive);
+                        _InsertTextResult("Orphaned resource deletion failed");
+                    });
+
+                RunTaskThread = false;
+                break;
+            }
+        }
+        else
+        {
+            // All done
+            DualView::Get().InvokeFunction(
+                [=]
+                {
+                    INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                    ProgressFraction = 1;
+                    MaintenanceStatusLabel->set_text("Fixed badly deleted resources");
+                    _InsertTextResult("Deleted " + std::to_string(processed) + " badly deleted resources");
+                    _UpdateState();
+                });
+
+            break;
+        }
+
+        ++processed;
+
+        DualView::Get().InvokeFunction(
+            [=]
+            {
+                INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                ProgressFraction = static_cast<float>((static_cast<double>(processed) / static_cast<double>(total)));
+                MaintenanceStatusLabel->set_text("Fixing badly deleted resources");
+                _UpdateState();
+            });
+    }
+}
+
+void MaintenanceTools::_RunFixOrphaned()
+{
+    LOG_INFO("Starting check for orphaned resources");
+
+    auto alive = GetAliveMarker();
+
+    auto& database = DualView::Get().GetDatabase();
+
+    // First detect things to delete
+    std::vector<DBID> imagesToAddToUncategorized;
+
+    // TODO: find orphaned folders and collections that are nowhere and put them in root
+
+    LOG_INFO("Detecting images to put in uncategorized");
+
+    if (!RunTaskThread)
+        return;
+
+    DualView::Get().InvokeFunction(
+        [=]
+        {
+            INVOKE_CHECK_ALIVE_MARKER(alive);
+            MaintenanceStatusLabel->set_text("Detecting orphaned images to put in uncategorized...");
+        });
+
+    {
+        GUARD_LOCK_OTHER(database);
+        database.SelectOrphanedImages(guard, imagesToAddToUncategorized);
+    }
+
+    if (!RunTaskThread)
+        return;
+
+    // Then start fixing the detected things
+    const auto total = static_cast<int64_t>(imagesToAddToUncategorized.size());
 
     if (total < 1)
     {
@@ -772,134 +1025,6 @@ void MaintenanceTools::_RunDeleteOrphaned()
                     INVOKE_CHECK_ALIVE_MARKER(alive);
                     _InsertTextResult("Restored image " + std::to_string(addToUncategorized) + " to Uncategorized");
                 });
-        }
-        else if (!imagesToPurge.empty())
-        {
-            const auto resourceId = imagesToPurge.back();
-            imagesToPurge.pop_back();
-
-            LOG_INFO("Purging image " + std::to_string(resourceId));
-
-            try
-            {
-                auto image = database.SelectImageByIDAG(resourceId);
-
-                if (!image)
-                    throw Leviathan::Exception("Target image to delete not found");
-
-                database.DeleteImage(*image);
-            }
-            catch (const Leviathan::Exception& e)
-            {
-                LOG_ERROR("Failed to delete orphaned resource:");
-                e.PrintToLog();
-
-                DualView::Get().InvokeFunction(
-                    [=]
-                    {
-                        INVOKE_CHECK_ALIVE_MARKER(alive);
-                        _InsertTextResult("Orphaned resource deletion failed");
-                    });
-
-                RunTaskThread = false;
-                break;
-            }
-        }
-        else if (!collectionsToPurge.empty())
-        {
-            const auto resourceId = collectionsToPurge.back();
-            collectionsToPurge.pop_back();
-
-            LOG_INFO("Purging collection " + std::to_string(resourceId));
-
-            try
-            {
-                auto collection = database.SelectCollectionByIDAG(resourceId);
-
-                if (!collection)
-                    throw Leviathan::Exception("Target collection to delete not found");
-
-                database.DeleteCollection(*collection);
-            }
-            catch (const Leviathan::Exception& e)
-            {
-                LOG_ERROR("Failed to delete orphaned resource:");
-                e.PrintToLog();
-
-                DualView::Get().InvokeFunction(
-                    [=]
-                    {
-                        INVOKE_CHECK_ALIVE_MARKER(alive);
-                        _InsertTextResult("Orphaned resource deletion failed");
-                    });
-
-                RunTaskThread = false;
-                break;
-            }
-        }
-        else if (!netGalleriesToPurge.empty())
-        {
-            const auto resourceId = netGalleriesToPurge.back();
-            netGalleriesToPurge.pop_back();
-
-            LOG_INFO("Purging NetGallery " + std::to_string(resourceId));
-
-            try
-            {
-                auto netGallery = database.SelectNetGalleryByIDAG(resourceId);
-
-                if (!netGallery)
-                    throw Leviathan::Exception("Target NetGallery to delete not found");
-
-                database.DeleteNetGallery(*netGallery);
-            }
-            catch (const Leviathan::Exception& e)
-            {
-                LOG_ERROR("Failed to delete orphaned resource:");
-                e.PrintToLog();
-
-                DualView::Get().InvokeFunction(
-                    [=]
-                    {
-                        INVOKE_CHECK_ALIVE_MARKER(alive);
-                        _InsertTextResult("Orphaned resource deletion failed");
-                    });
-
-                RunTaskThread = false;
-                break;
-            }
-        }
-        else if (!foldersToPurge.empty())
-        {
-            const auto resourceId = foldersToPurge.back();
-            foldersToPurge.pop_back();
-
-            LOG_INFO("Purging folder " + std::to_string(resourceId));
-
-            try
-            {
-                auto folder = database.SelectFolderByIDAG(resourceId);
-
-                if (!folder)
-                    throw Leviathan::Exception("Target folder to delete not found");
-
-                database.DeleteFolder(*folder);
-            }
-            catch (const Leviathan::Exception& e)
-            {
-                LOG_ERROR("Failed to delete orphaned resource:");
-                e.PrintToLog();
-
-                DualView::Get().InvokeFunction(
-                    [=]
-                    {
-                        INVOKE_CHECK_ALIVE_MARKER(alive);
-                        _InsertTextResult("Orphaned resource deletion failed");
-                    });
-
-                RunTaskThread = false;
-                break;
-            }
         }
         else
         {

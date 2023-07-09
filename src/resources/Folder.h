@@ -1,19 +1,23 @@
 #pragma once
 
-#include "DatabaseResource.h"
-#include "ResourceWithPreview.h"
-
 #include <string>
 
-namespace DV {
+#include "DatabaseResource.h"
+#include "Exceptions.h"
+#include "ResourceWithPreview.h"
 
+namespace DV
+{
 class PreparedStatement;
 class FolderListItem;
 
 class Folder : public DatabaseResource,
                public ResourceWithPreview,
-               public std::enable_shared_from_this<Folder> {
+               public std::enable_shared_from_this<Folder>
+{
     friend Database;
+    friend MaintenanceTools;
+
 public:
     //! \brief Database load function
     Folder(Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id);
@@ -55,8 +59,7 @@ public:
     bool operator==(const Folder& other) const;
 
     // Implementation of ResourceWithPreview
-    std::shared_ptr<ListItem> CreateListItem(
-        const std::shared_ptr<ItemSelectable>& selectable) override;
+    std::shared_ptr<ListItem> CreateListItem(const std::shared_ptr<ItemSelectable>& selectable) override;
     bool IsSame(const ResourceWithPreview& other) override;
     bool UpdateWidgetWithValues(ListItem& control) override;
 
@@ -75,6 +78,14 @@ protected:
 
         GUARD_LOCK();
         NotifyAll(guard);
+    }
+
+    void ForceUnDeleteToFixMissingAction()
+    {
+        if (!Deleted)
+            throw Leviathan::Exception("This needs to be in deleted state to call this fix missing action");
+
+        Deleted = false;
     }
 
 protected:

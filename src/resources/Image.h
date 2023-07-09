@@ -1,16 +1,16 @@
 #pragma once
 
-#include "DatabaseResource.h"
-#include "ResourceWithPreview.h"
-
-#include "TimeHelpers.h"
-
 #include <atomic>
 #include <memory>
 #include <string>
 
+#include "DatabaseResource.h"
+#include "ResourceWithPreview.h"
+#include "TimeHelpers.h"
+#include "Exceptions.h"
 
-namespace DV {
+namespace DV
+{
 
 class LoadedImage;
 class ImageListItem;
@@ -27,9 +27,11 @@ class PreparedStatement;
 //! another image that is in the database IF the hashes match
 class Image : public ResourceWithPreview,
               public DatabaseResource,
-              public std::enable_shared_from_this<Image> {
+              public std::enable_shared_from_this<Image>
+{
     friend DualView;
     friend Database;
+    friend MaintenanceTools;
 
 protected:
     //! \brief Creates a non-db version of an Image.
@@ -56,7 +58,7 @@ public:
 
     //! \brief Loads a database image
     //! \exception InvalidSQL if data is missing in the statement
-    inline static std::shared_ptr<Image> Create(
+    static inline std::shared_ptr<Image> Create(
         Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id)
     {
         auto obj = std::shared_ptr<Image>(new Image(db, dblock, statement, id));
@@ -66,7 +68,7 @@ public:
 
     //! \brief Creates a non-db version of an Image.
     //! \exception Leviathan::InvalidArgument if something is wrong with the file
-    inline static std::shared_ptr<Image> Create(const std::string& file)
+    static inline std::shared_ptr<Image> Create(const std::string& file)
     {
         auto obj = std::shared_ptr<Image>(new Image(file));
         obj->Init();
@@ -76,7 +78,7 @@ public:
     //! \brief Creates a non-db version of an Image.
     //! \exception Leviathan::InvalidArgument if something is wrong with the file
     //! \param importoverride Sets the import location property
-    inline static std::shared_ptr<Image> Create(
+    static inline std::shared_ptr<Image> Create(
         const std::string& file, const std::string& name, const std::string& importoverride)
     {
         auto obj = std::shared_ptr<Image>(new Image(file, name, importoverride));
@@ -94,7 +96,6 @@ public:
     //! \brief Returns the hash
     //! \exception Leviathan::InvalidState if hash hasn't been calculated yet
     std::string GetHash() const;
-
 
     //! \brief Returns a tag collection
     //!
@@ -119,7 +120,8 @@ public:
     }
 
     //! \returns True if hash calculation has been attempted but it failed
-    inline bool IsHashInvalid() const{
+    inline bool IsHashInvalid() const
+    {
         return HashCalculateAttempted && !IsHashValid;
     }
 
@@ -210,7 +212,6 @@ public:
 
     std::string GetSignatureBase64();
 
-
     //! \brief Returns a hash calculated from the file at ResourcePath
     //! \note This takes a while and should be called from a background thread
     //! \returns A base64 encoded sha256 of the entire file contents. With /'s replaced
@@ -221,10 +222,8 @@ public:
     //! \todo Fix this
     bool operator==(const Image& other) const;
 
-
     // Implementation of ResourceWithPreview
-    std::shared_ptr<ListItem> CreateListItem(
-        const std::shared_ptr<ItemSelectable>& selectable) override;
+    std::shared_ptr<ListItem> CreateListItem(const std::shared_ptr<ItemSelectable>& selectable) override;
     bool IsSame(const ResourceWithPreview& other) override;
     bool UpdateWidgetWithValues(ListItem& control) override;
 
@@ -253,6 +252,13 @@ protected:
         NotifyAll(guard);
     }
 
+    void ForceUnDeleteToFixMissingAction()
+    {
+        if (!Deleted)
+            throw Leviathan::Exception("This needs to be in deleted state to call this fix missing action");
+
+        Deleted = false;
+    }
 
     //! \brief Once hash is calculated this is called if this is a duplicate of an
     //! existing image
