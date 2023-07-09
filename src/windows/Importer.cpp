@@ -510,6 +510,13 @@ bool Importer::StartImporting(bool move)
 
     // Value was changed to true //
 
+    if (SelectedImages.empty())
+    {
+        StatusLabel->set_text("No images selected to import!");
+        DoingImport.store(false);
+        return false;
+    }
+
     // Set progress //
     ReportedProgress = 0.01f;
     _OnImportProgress();
@@ -761,7 +768,7 @@ void Importer::_OnReverseImages()
     if (DoingImport.load(std::memory_order_consume))
         return;
 
-    if(ImagesToImport.empty())
+    if (ImagesToImport.empty())
         return;
 
     bool hasSelected = ImageList->CountSelectedItems() > 0;
