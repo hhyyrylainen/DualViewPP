@@ -1,16 +1,16 @@
 #pragma once
 
-#include "CacheManager.h"
-#include "resources/Image.h"
-
-#include "Common/Types.h"
+#include <chrono>
 
 #include <gtkmm.h>
 
+#include "Common/Types.h"
+#include "resources/Image.h"
 
-#include <chrono>
+#include "CacheManager.h"
 
-namespace DV {
+namespace DV
+{
 
 class ImageListScroll;
 
@@ -31,14 +31,14 @@ constexpr auto VIEWER_LOAD_BUMP_INTERVAL = 800;
 //! \brief Image viewing widget
 //!
 //! Manages drawing ImageMagick images with cairo
-class SuperViewer : public Gtk::DrawingArea {
-
+class SuperViewer : public Gtk::DrawingArea
+{
     using ClockType = std::chrono::high_resolution_clock;
     using Point = Leviathan::Float2;
 
 public:
-    enum class ENABLED_EVENTS : uint8_t {
-
+    enum class ENABLED_EVENTS : uint8_t
+    {
         NONE = 0,
         DRAG = 0x1,
         SCROLL = 0x2,
@@ -50,15 +50,13 @@ public:
 
 public:
     //! \brief Non-glade constructor
-    SuperViewer(
-        std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events, bool forcethumbnail);
+    SuperViewer(std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events, bool forceThumbnail);
 
     //! \brief Constructor called by glade builder when loading a widget of this type
-    SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder,
-        std::shared_ptr<Image> displayedResource, ENABLED_EVENTS events, bool forcethumbnail);
+    SuperViewer(_GtkDrawingArea* area, Glib::RefPtr<Gtk::Builder> builder, std::shared_ptr<Image> displayedResource,
+        ENABLED_EVENTS events, bool forceThumbnail);
 
-
-    ~SuperViewer();
+    ~SuperViewer() override;
 
     //! \brief Moves between collection images
     //!
@@ -133,7 +131,6 @@ protected:
     //! \brief Adds a redraw timer with the specific amount of milliseconds
     void _AddRedrawTimer(int32_t ms);
 
-
     //! \brief Returns true if DisplayImage has finished loading
     bool IsImageReadyToShow() const;
 
@@ -147,7 +144,6 @@ protected:
 
     //! \brief Sets the LoadedImage to be shown
     void _SetLoadedImage(std::shared_ptr<LoadedImage> image);
-
 
     // Gtk events //
     bool _OnMouseMove(GdkEventMotion* motion_event);
@@ -207,7 +203,6 @@ private:
 
     //! If true currently has the thumbnail image loaded
     bool IsInThumbnailMode = false;
-
 
     //! Used to browse images in a collection
     // std::shared_ptr<Collection> ContainedInCollection = nullptr;
