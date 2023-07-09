@@ -1,11 +1,5 @@
 #pragma once
 
-#include "TaskListWithPriority.h"
-
-#include "Exceptions.h"
-
-#include <gdkmm/pixbuf.h>
-
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -14,31 +8,45 @@
 #include <thread>
 #include <vector>
 
-namespace Magick {
+#include <gdkmm/pixbuf.h>
+#include <Magick++/Color.h>
 
+#include "Exceptions.h"
+#include "TaskListWithPriority.h"
+
+namespace Magick
+{
 class Image;
-}
+} // namespace Magick
 
-namespace DV {
-
+namespace DV
+{
 constexpr auto SHOW_IMAGE_CACHE_SIZE = false;
 
 constexpr int ANIMATED_IMAGE_THUMBNAIL_WIDTH = 148;
 constexpr int OTHER_IMAGE_THUMBNAIL_WIDTH = 192;
 constexpr int TALL_IMAGE_HEIGHT_THRESHOLD = 2000;
-constexpr int TALL_IMAGE_THUMBNAIL_WIDTH = OTHER_IMAGE_THUMBNAIL_WIDTH * 2;
+constexpr int BIG_IMAGE_THRESHOLD = 1500;
+constexpr int ALMOST_BIG_IMAGE_THRESHOLD = 1100;
+constexpr int HUGE_IMAGE_THRESHOLD = 2300;
+constexpr int TALL_IMAGE_THUMBNAIL_WIDTH = OTHER_IMAGE_THUMBNAIL_WIDTH * 3;
+constexpr int BIG_IMAGE_THUMBNAIL_WIDTH = OTHER_IMAGE_THUMBNAIL_WIDTH * 2;
+constexpr int HUGE_IMAGE_THUMBNAIL_WIDTH = OTHER_IMAGE_THUMBNAIL_WIDTH * 4;
 constexpr float TALL_ASPECT_RATIO_THRESHOLD = 0.49f;
+constexpr const char* THUMBNAIL_BACKGROUND_COLOUR = "#FFFFFF";
 constexpr int THUMBNAIL_JPG_QUALITY = 70;
 
 class CacheManager;
 
 //! \brief Holds an image that has been loaded into memory
-class LoadedImage {
+class LoadedImage
+{
     friend CacheManager;
 
 public:
     //! \brief Status of image
-    enum class IMAGE_LOAD_STATUS {
+    enum class IMAGE_LOAD_STATUS
+    {
         //! The object has just been created and is waiting
         Waiting,
         //! The image is loaded correctly
@@ -83,7 +91,7 @@ public:
     void OnMoved(const std::string& newfile)
     {
         // Don't erase error message
-        if(Status == IMAGE_LOAD_STATUS::Error)
+        if (Status == IMAGE_LOAD_STATUS::Error)
             return;
 
         FromPath = newfile;
@@ -104,7 +112,7 @@ public:
     //! \brief Returns the path or empty if the path has been replaced by an error message
     inline std::string GetPath() const
     {
-        if(Status == IMAGE_LOAD_STATUS::Error)
+        if (Status == IMAGE_LOAD_STATUS::Error)
             return "error has occured";
 
         return FromPath;
@@ -113,7 +121,7 @@ public:
     //! \brief Returns the error message if IsValid is false
     std::string GetError() const
     {
-        if(Status != IMAGE_LOAD_STATUS::Error)
+        if (Status != IMAGE_LOAD_STATUS::Error)
             return "no error";
 
         return FromPath;
@@ -130,7 +138,6 @@ public:
     //! \brief Returns the number of frames in the image
     //! \exception Leviathan::InvalidState if no image loaded
     size_t GetFrameCount() const;
-
 
     //! \brief Returns the time current frame should be shown for
     std::chrono::duration<float> GetAnimationTime(size_t page) const;
@@ -159,8 +166,7 @@ public:
 
     //! \brief Loads an image from file to the Magick++ object
     //! \exception Leviathan::InvalidArgument If the file couldn't be loaded
-    static void LoadImage(
-        const std::string& file, std::shared_ptr<std::vector<Magick::Image>>& image);
+    static void LoadImage(const std::string& file, std::shared_ptr<std::vector<Magick::Image>>& image);
 
 public:
     //! \brief Create new LoadedImage
@@ -195,8 +201,7 @@ protected:
 
 protected:
     //! Used to unload old images
-    std::chrono::high_resolution_clock::time_point LastUsed =
-        std::chrono::high_resolution_clock::now();
+    std::chrono::high_resolution_clock::time_point LastUsed = std::chrono::high_resolution_clock::now();
 
     IMAGE_LOAD_STATUS Status = IMAGE_LOAD_STATUS::Waiting;
 
@@ -212,7 +217,8 @@ protected:
 
 //! \brief Manages loading images
 //! \note This class will perform ImageMagick initialization automatically
-class CacheManager {
+class CacheManager
+{
 public:
     //! \brief Readies ImageMagick to be used by this instance
     CacheManager();
@@ -226,8 +232,7 @@ public:
     //! \brief Returns an image that will get the thumbnail for a file
     //! \param hash Hash of the image file. Used to get the target thumbnail file name
     //! \todo Test if this should also be cached
-    std::shared_ptr<LoadedImage> LoadThumbImage(
-        const std::string& file, const std::string& hash);
+    std::shared_ptr<LoadedImage> LoadThumbImage(const std::string& file, const std::string& hash);
 
     //! \brief Creates a LoadedImage that is in failed state
     //!
@@ -243,7 +248,6 @@ public:
 
     //! \brief Called when a file is moved, updates cache references to that file
     void NotifyMovedFile(const std::string& oldfile, const std::string& newfile);
-
 
     // Resource loading
 
@@ -263,13 +267,11 @@ public:
         const int currentWidth, const int currentHeight, int targetWidth, int targetHeight);
 
     //! \brief Helper variant that extracts image size from image
-    static std::string CreateResizeSizeForImage(
-        const Magick::Image& image, int targetWidth, int targetHeight);
+    static std::string CreateResizeSizeForImage(const Magick::Image& image, int targetWidth, int targetHeight);
 
     //! \brief Loads an image and looks up the size then unloads it
     //! \returns False if the image cannot be opened
-    static bool GetImageSize(
-        const std::string& image, int& width, int& height, std::string& extension);
+    static bool GetImageSize(const std::string& image, int& width, int& height, std::string& extension);
 
     //! \brief Returns true if a byte string is an image
     //! \note Probably not the worlds fastest implementation as this opens the whole thing
@@ -283,9 +285,13 @@ public:
     //! \brief Returns a database version for a path
     static std::string GetDatabaseImagePath(const std::string& path);
 
+    //! \brief Apparently there's no inbuilt method for this so this does an alpha premultiply and replaces the alpha
+    //! channel entirely then with the given colour
+    static void PremultiplyAlphaImageWithBackground(Magick::Image& image, const Magick::Color& backgroundColour,
+        bool mixBackground = true, float transparencyCutoff = 0.01f);
+
 protected:
-    std::shared_ptr<LoadedImage> GetCachedImage(
-        const std::lock_guard<std::mutex>& lock, const std::string& file);
+    std::shared_ptr<LoadedImage> GetCachedImage(const std::lock_guard<std::mutex>& lock, const std::string& file);
 
     void _RunFullSizeLoaderThread();
 
@@ -297,7 +303,6 @@ protected:
     //!
     //! The thumnail will be created if it doesn't exist already
     void _LoadThumbnail(LoadedImage& thumb, const std::string& hash) const;
-
 
 protected:
     //! When set to true the loader threads will quit
@@ -344,10 +349,8 @@ protected:
     Glib::RefPtr<Gdk::Pixbuf> FolderIcon;
     Glib::RefPtr<Gdk::Pixbuf> CollectionIcon;
 
-
     //! The folder icon as an image
     std::shared_ptr<LoadedImage> FolderIconAsImage;
 };
-
 
 } // namespace DV

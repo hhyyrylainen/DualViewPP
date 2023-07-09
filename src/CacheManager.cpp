@@ -1,10 +1,9 @@
 // ------------------------------------ //
 #include "CacheManager.h"
 
-#include <Magick++.h>
-
 #include <boost/filesystem.hpp>
 #include <gtkmm.h>
+#include <Magick++.h>
 
 #include "Common/StringOperations.h"
 
@@ -332,17 +331,17 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
     {
         LOG_WARNING("Creating thumbnail for image with empty extension, full path: " + thumb.FromPath);
 
-        // TODO: make a database upgrade guaranteeing all images have
-        // an extensions and then remove this
+        // TODO: make a database upgrade guaranteeing all images have an extensions and then remove this
 
-        // Failed //
         // thumb.OnLoadFail("Filename has no extension"); return;
     }
 
     // Save non-animated images as jpgs to save space
     if (std::find(ANIMATED_IMAGE_EXTENSIONS.begin(), ANIMATED_IMAGE_EXTENSIONS.end(), extension) ==
         ANIMATED_IMAGE_EXTENSIONS.end())
+    {
         extension = ".jpg";
+    }
 
     const auto target =
         boost::filesystem::path(DualView::Get().GetThumbnailFolder()) / boost::filesystem::path(hash + extension);
@@ -372,7 +371,7 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
     {
         LoadedImage::LoadImage(thumb.GetPath(), FullImage);
 
-        if (!FullImage || FullImage->size() < 1)
+        if (!FullImage || FullImage->empty())
             throw std::runtime_error("FullImage is null or empty");
     }
     catch (const std::exception& e)
@@ -393,11 +392,20 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
         const auto originalHeight = imageToResize.rows();
         const auto originalWidth = imageToResize.columns();
 
-        // Tall images look very blurry as thumbnails if their width is not allowed to be
-        // larger
-        if (originalHeight >= TALL_IMAGE_HEIGHT_THRESHOLD ||
+        if (originalHeight >= HUGE_IMAGE_THRESHOLD || originalWidth >= HUGE_IMAGE_THRESHOLD)
+        {
+            resizeSize = CreateResizeSizeForImage(imageToResize, HUGE_IMAGE_THUMBNAIL_WIDTH, 0);
+        }
+        else if ((originalHeight >= BIG_IMAGE_THRESHOLD && originalWidth >= BIG_IMAGE_THRESHOLD) ||
+            (originalHeight >= BIG_IMAGE_THRESHOLD && (originalWidth >= ALMOST_BIG_IMAGE_THRESHOLD)) ||
+            (originalWidth >= BIG_IMAGE_THRESHOLD && (originalHeight >= ALMOST_BIG_IMAGE_THRESHOLD)))
+        {
+            resizeSize = CreateResizeSizeForImage(imageToResize, BIG_IMAGE_THUMBNAIL_WIDTH, 0);
+        }
+        else if (originalHeight >= TALL_IMAGE_HEIGHT_THRESHOLD ||
             static_cast<float>(originalWidth) / static_cast<float>(originalHeight) < TALL_ASPECT_RATIO_THRESHOLD)
         {
+            // Tall images look very blurry as thumbnails if their width is not allowed to be larger
             resizeSize = CreateResizeSizeForImage(imageToResize, TALL_IMAGE_THUMBNAIL_WIDTH, 0);
         }
         else
@@ -410,11 +418,15 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
         // Reduce quality of jpgs (and other stuff)
         if (extension != ".png")
         {
+            // Add a background to the thumbnails as they can't save transparency
+            // Consider almost transparent pixels as transparent to make small thumbnail images nicer
+            PremultiplyAlphaImageWithBackground(imageToResize, Magick::Color(THUMBNAIL_BACKGROUND_COLOUR), true, 0.08f);
+
             imageToResize.quality(THUMBNAIL_JPG_QUALITY);
         }
         else
         {
-            // And increase png compression
+            // Increase png compression when saving thumbnails as pngs
             imageToResize.quality(90);
         }
 
@@ -423,9 +435,10 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
     else
     {
         if (extension == ".jpg")
-            LOG_WARNING("CacheManager: _LoadThumbnail: accidentally made animated image save "
-                        "as jpg: " +
-                thumb.FromPath);
+        {
+            LOG_WARNING(
+                "CacheManager: _LoadThumbnail: accidentally made animated image save as jpg: " + thumb.FromPath);
+        }
 
         // This will remove the optimization and change the image to how it looks at that point
         // during the animation.
@@ -452,16 +465,18 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
                 else
                 {
                     // Increase delay and resize //
-                    size_t extradelay = 0;
+                    size_t extraDelay = 0;
 
                     if (i + 1 < FullImage->size())
                     {
-                        extradelay = FullImage->at(i + 1).animationDelay();
+                        extraDelay = FullImage->at(i + 1).animationDelay();
                     }
 
-                    FullImage->at(i).animationDelay(FullImage->at(i).animationDelay() + extradelay);
+                    FullImage->at(i).animationDelay(FullImage->at(i).animationDelay() + extraDelay);
 
                     resizeSize = CreateResizeSizeForImage(FullImage->at(i), ANIMATED_IMAGE_THUMBNAIL_WIDTH, 0);
+
+                    // TODO: background colour if needed for gifs?
                     FullImage->at(i).resize(resizeSize);
 
                     ++i;
@@ -477,6 +492,8 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
             {
                 resizeSize = CreateResizeSizeForImage(frame, ANIMATED_IMAGE_THUMBNAIL_WIDTH, 0);
                 frame.resize(resizeSize);
+
+                // TODO: background colour?
             }
         }
 
@@ -486,11 +503,11 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
     // Save it to a file //
     Magick::writeImages(FullImage->begin(), FullImage->end(), target.c_str());
 
-    int64_t size;
+    double size;
 
     try
     {
-        size = boost::filesystem::file_size(target);
+        size = static_cast<double>(boost::filesystem::file_size(target));
     }
     catch (const boost::filesystem::filesystem_error& e)
     {
@@ -498,7 +515,7 @@ void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) c
         return;
     }
 
-    const auto sizeStr = std::to_string(static_cast<decltype(size)>(std::round(size / 1024.f)));
+    const auto sizeStr = std::to_string(static_cast<float>(size / 1024.0));
 
     LOG_INFO(
         "Generated thumbnail for: " + thumb.GetPath() + " resolution: " + resizeSize + " size: " + sizeStr + " KiB");
@@ -657,6 +674,104 @@ std::string CacheManager::GetDatabaseImagePath(const std::string& path)
 
     // That's an error //
     return "ERROR_DATABASIFYING:" + path;
+}
+
+// ------------------------------------ //
+void CacheManager::PremultiplyAlphaImageWithBackground(
+    Magick::Image& image, const Magick::Color& backgroundColour, bool mixBackground, float transparencyCutoff)
+{
+    if (!image.alpha())
+        return;
+
+    // Entirely opaque images don't need handled
+    if (image.isOpaque())
+        return;
+
+    // Ensure expected pixel format
+    if (image.type() != MagickCore::TrueColorAlphaType)
+    {
+        image.type(MagickCore::TrueColorAlphaType);
+    }
+
+    // According to documentation this should be done to flatten all pending modifications
+    image.modifyImage();
+
+    const auto width = image.columns();
+    const auto height = image.rows();
+
+    constexpr auto fullColourPixel = QuantumRange;
+    constexpr decltype(fullColourPixel) fullAlphaValue = fullColourPixel;
+
+    const auto fullTransparencyCutoff = static_cast<decltype(fullColourPixel)>(fullColourPixel * transparencyCutoff);
+
+    // Perform the premultiply operation
+    Magick::Quantum* pixels = image.getPixels(0, 0, width, height);
+
+    for (size_t y = 0; y < height; ++y)
+    {
+        for (size_t x = 0; x < width; ++x)
+        {
+            // 4 Quantums per pixel, RGBA
+            const auto pixelIndex = y * width * 4 + x * 4;
+
+            auto& red = pixels[pixelIndex];
+            auto& green = pixels[pixelIndex + 1];
+            auto& blue = pixels[pixelIndex + 2];
+            auto& alpha = pixels[pixelIndex + 3];
+
+            if (alpha <= fullTransparencyCutoff || (red <= 0 && green <= 0 && blue <= 0))
+            {
+                // Entirely transparent, replace with background
+                red = backgroundColour.quantumRed();
+                green = backgroundColour.quantumGreen();
+                blue = backgroundColour.quantumBlue();
+
+                // Make sure all of these pixels are kept when alpha is removed
+                alpha = fullAlphaValue;
+            }
+            else if (alpha >= fullAlphaValue)
+            {
+                // Pixel that doesn't need handling
+            }
+            else
+            {
+                // Premultiply the alpha value and mix in the background
+
+                // Create the alpha multipliers to get alpha into a fraction range for proper colour mixing
+                const auto alphaMultiplier = alpha / fullAlphaValue;
+                const auto reverseAlpha = 1 - alpha;
+
+                if (mixBackground)
+                {
+                    red = std::clamp<Magick::Quantum>(
+                        (red * alphaMultiplier + backgroundColour.quantumRed() * reverseAlpha) / 2, 0, fullColourPixel);
+                    green = std::clamp<Magick::Quantum>(
+                        (green * alphaMultiplier + backgroundColour.quantumGreen() * reverseAlpha) / 2, 0,
+                        fullColourPixel);
+                    blue = std::clamp<Magick::Quantum>(
+                        (blue * alphaMultiplier + backgroundColour.quantumBlue() * reverseAlpha) / 2, 0,
+                        fullColourPixel);
+                }
+                else
+                {
+                    red = std::clamp<Magick::Quantum>(
+                        (red * alphaMultiplier * backgroundColour.quantumRed() * reverseAlpha), 0, fullColourPixel);
+                    green = std::clamp<Magick::Quantum>(
+                        (green * alphaMultiplier * backgroundColour.quantumGreen() * reverseAlpha), 0, fullColourPixel);
+                    blue = std::clamp<Magick::Quantum>(
+                        (blue * alphaMultiplier * backgroundColour.quantumBlue() * reverseAlpha), 0, fullColourPixel);
+                }
+
+                // Keep this pixel
+                alpha = fullAlphaValue;
+            }
+        }
+    }
+
+    image.syncPixels();
+
+    // Remove the alpha channel entirely to ensure consistent operation
+    image.alpha(false);
 }
 
 // ------------------------------------ //
