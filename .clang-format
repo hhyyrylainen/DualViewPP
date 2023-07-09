@@ -64,7 +64,7 @@ EmptyLineBeforeAccessModifier: LogicalBlock
 FixNamespaceComments: true
 IncludeBlocks: Regroup
 IncludeCategories:
-  - Regex: "(<|\")(gtkmm|boost).*"
+  - Regex: "(<|\")(gtkmm|gdkmm|Magick|boost).*"
     Priority: 2
   - Regex: "<.*>"
     Priority: 1
