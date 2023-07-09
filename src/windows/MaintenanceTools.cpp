@@ -1,43 +1,45 @@
 // ------------------------------------ //
 #include "MaintenanceTools.h"
 
-#include "Database.h"
-#include "DualView.h"
+#include <filesystem>
+#include <utility>
 
+#include <boost/filesystem.hpp>
+
+#include "Common/StringOperations.h"
 #include "resources/Image.h"
 #include "resources/ImagePath.h"
 
 #include "Common.h"
-
-#include "Common/StringOperations.h"
+#include "Database.h"
+#include "DualView.h"
 #include "Exceptions.h"
-
-#include <filesystem>
 
 constexpr auto IMAGE_CHECK_REPORT_PROGRESS_EVERY_N = 200;
 constexpr auto MAX_MAINTENANCE_RESULTS = 10000;
 
 using namespace DV;
+
 // ------------------------------------ //
 // InvalidImagePathResultWidget
-class InvalidImagePathResultWidget : public Gtk::Box, IsAlive {
+class InvalidImagePathResultWidget : public Gtk::Box,
+                                     IsAlive
+{
 public:
-    InvalidImagePathResultWidget(
-        DBID imageId, const std::string& invalidPath, const std::string& autoFix) :
-        Gtk::Box(Gtk::ORIENTATION_VERTICAL),
-        TopHalf(Gtk::ORIENTATION_HORIZONTAL), BottomHalf(Gtk::ORIENTATION_HORIZONTAL),
-        AutoFixButton("Apply AutoFix"), DeleteButton("Delete"), IgnoreButton("Ignore For Now"),
-        ImageID(imageId), Path(invalidPath), AutoFix(autoFix)
+    InvalidImagePathResultWidget(DBID imageId, const std::string& invalidPath, std::string autoFix) :
+        Gtk::Box(Gtk::ORIENTATION_VERTICAL), TopHalf(Gtk::ORIENTATION_HORIZONTAL),
+        BottomHalf(Gtk::ORIENTATION_HORIZONTAL), AutoFixButton("Apply AutoFix"), DeleteButton("Delete"),
+        IgnoreButton("Ignore For Now"), ImageID(imageId), Path(invalidPath), AutoFix(std::move(autoFix))
     {
         TopHalf.pack_start(Working, false, true);
         InfoLabel.set_selectable(true);
         InfoLabel.set_line_wrap_mode(Pango::WRAP_CHAR);
         InfoLabel.set_max_width_chars(80);
 
-        std::string text =
-            "Image " + std::to_string(imageId) + " doesn't exist at path: " + invalidPath;
+        std::string text = "Image " + std::to_string(imageId) + " doesn't exist at path: " + invalidPath;
 
-        if(HasAutoFix()) {
+        if (HasAutoFix())
+        {
             text += " Can be automatically fixed to: " + AutoFix;
         }
 
@@ -47,18 +49,15 @@ public:
 
         DeleteButton.get_style_context()->add_class("destructive-action");
 
-        AutoFixButton.signal_clicked().connect(
-            sigc::mem_fun(*this, &InvalidImagePathResultWidget::_AutoFixPressed));
+        AutoFixButton.signal_clicked().connect(sigc::mem_fun(*this, &InvalidImagePathResultWidget::_AutoFixPressed));
 
-        if(HasAutoFix())
+        if (HasAutoFix())
             BottomHalf.pack_start(AutoFixButton);
 
-        DeleteButton.signal_clicked().connect(
-            sigc::mem_fun(*this, &InvalidImagePathResultWidget::_DeletePressed));
+        DeleteButton.signal_clicked().connect(sigc::mem_fun(*this, &InvalidImagePathResultWidget::_DeletePressed));
         BottomHalf.pack_start(DeleteButton);
 
-        IgnoreButton.signal_clicked().connect(
-            sigc::mem_fun(*this, &InvalidImagePathResultWidget::_IgnorePressed));
+        IgnoreButton.signal_clicked().connect(sigc::mem_fun(*this, &InvalidImagePathResultWidget::_IgnorePressed));
         BottomHalf.pack_start(IgnoreButton);
 
         pack_end(BottomHalf, false, true);
@@ -74,7 +73,7 @@ public:
 private:
     void _AutoFixPressed()
     {
-        if(!HasAutoFix())
+        if (!HasAutoFix())
             return;
 
         Working.property_active() = true;
@@ -84,32 +83,38 @@ private:
 
         auto alive = GetAliveMarker();
 
-        DualView::Get().QueueDBThreadFunction([=, id = ImageID, fix = AutoFix]() {
-            auto& database = DualView::Get().GetDatabase();
-            GUARD_LOCK_OTHER(database);
+        DualView::Get().QueueDBThreadFunction(
+            [=, id = ImageID, fix = AutoFix]()
+            {
+                auto& database = DualView::Get().GetDatabase();
+                GUARD_LOCK_OTHER(database);
 
-            const auto image = database.SelectImageByID(guard, id);
+                const auto image = database.SelectImageByID(guard, id);
 
-            std::string message;
+                std::string message;
 
-            if(!image) {
-                LOG_ERROR("Could not find image for fixing by id: " + std::to_string(ImageID));
-                message = "Failed to find target image";
-            } else {
+                if (!image)
+                {
+                    LOG_ERROR("Could not find image for fixing by id: " + std::to_string(ImageID));
+                    message = "Failed to find target image";
+                }
+                else
+                {
+                    image->SetResourcePath(fix);
+                    image->Save(database, guard);
 
-                image->SetResourcePath(fix);
-                image->Save(database, guard);
+                    message = "Successfully saved updated path";
+                    LOG_INFO(message);
+                }
 
-                message = "Successfully saved updated path";
-                LOG_INFO(message);
-            }
-
-            DualView::Get().InvokeFunction([=]() {
-                INVOKE_CHECK_ALIVE_MARKER(alive);
-                Working.property_active() = false;
-                InfoLabel.set_text(message);
+                DualView::Get().InvokeFunction(
+                    [=]()
+                    {
+                        INVOKE_CHECK_ALIVE_MARKER(alive);
+                        Working.property_active() = false;
+                        InfoLabel.set_text(message);
+                    });
             });
-        });
     }
 
     void _DeletePressed()
@@ -121,34 +126,41 @@ private:
 
         auto alive = GetAliveMarker();
 
-        DualView::Get().QueueDBThreadFunction([=, id = ImageID, fix = AutoFix]() {
-            auto& database = DualView::Get().GetDatabase();
-            GUARD_LOCK_OTHER(database);
+        DualView::Get().QueueDBThreadFunction(
+            [=, id = ImageID, fix = AutoFix]()
+            {
+                auto& database = DualView::Get().GetDatabase();
+                GUARD_LOCK_OTHER(database);
 
-            const auto image = database.SelectImageByID(guard, id);
+                const auto image = database.SelectImageByID(guard, id);
 
-            std::string message;
+                std::string message;
 
-            if(!image) {
-                LOG_ERROR(
-                    "Could not find image for deletion by id: " + std::to_string(ImageID));
-                message = "Failed to find target image";
-            } else if(image->IsDeleted()) {
-                message = "Image was already deleted";
-            } else {
+                if (!image)
+                {
+                    LOG_ERROR("Could not find image for deletion by id: " + std::to_string(ImageID));
+                    message = "Failed to find target image";
+                }
+                else if (image->IsDeleted())
+                {
+                    message = "Image was already deleted";
+                }
+                else
+                {
+                    database.DeleteImage(*image);
 
-                database.DeleteImage(*image);
+                    message = "Image deleted successfully";
+                    LOG_INFO(message);
+                }
 
-                message = "Image deleted successfully";
-                LOG_INFO(message);
-            }
-
-            DualView::Get().InvokeFunction([=]() {
-                INVOKE_CHECK_ALIVE_MARKER(alive);
-                Working.property_active() = false;
-                InfoLabel.set_text(message);
+                DualView::Get().InvokeFunction(
+                    [=]()
+                    {
+                        INVOKE_CHECK_ALIVE_MARKER(alive);
+                        Working.property_active() = false;
+                        InfoLabel.set_text(message);
+                    });
             });
-        });
     }
 
     void _IgnorePressed()
@@ -181,11 +193,9 @@ private:
     const std::string AutoFix;
 };
 
-
 // ------------------------------------ //
 // MaintenanceTools
-MaintenanceTools::MaintenanceTools(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
-    Gtk::Window(window)
+MaintenanceTools::MaintenanceTools(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) : Gtk::Window(window)
 {
     signal_delete_event().connect(sigc::mem_fun(*this, &MaintenanceTools::_OnClose));
 
@@ -196,17 +206,17 @@ MaintenanceTools::MaintenanceTools(_GtkWindow* window, Glib::RefPtr<Gtk::Builder
     BUILDER_GET_PRIMARY_MENU_NAMED("MenuButtonMaintenance", Menu, MenuPopover);
 
     BUILDER_GET_WIDGET(MaintenanceCancelButton);
-    MaintenanceCancelButton->signal_clicked().connect(
-        sigc::mem_fun(*this, &MaintenanceTools::_CancelPressed));
+    MaintenanceCancelButton->signal_clicked().connect(sigc::mem_fun(*this, &MaintenanceTools::_CancelPressed));
 
     BUILDER_GET_WIDGET(CheckAllExist);
-    CheckAllExist->signal_clicked().connect(
-        sigc::mem_fun(*this, &MaintenanceTools::StartImageExistCheck));
+    CheckAllExist->signal_clicked().connect(sigc::mem_fun(*this, &MaintenanceTools::StartImageExistCheck));
+
+    BUILDER_GET_WIDGET(DeleteAllThumbnails);
+    DeleteAllThumbnails->signal_clicked().connect(sigc::mem_fun(*this, &MaintenanceTools::StartDeleteThumbnails));
 
     BUILDER_GET_WIDGET(MaintenanceResults);
     BUILDER_GET_WIDGET(MaintenanceClearResults);
-    MaintenanceClearResults->signal_clicked().connect(
-        sigc::mem_fun(*this, &MaintenanceTools::_ClearResultsPressed));
+    MaintenanceClearResults->signal_clicked().connect(sigc::mem_fun(*this, &MaintenanceTools::_ClearResultsPressed));
 
     BUILDER_GET_WIDGET(MaintenanceSpinner);
     BUILDER_GET_WIDGET(MaintenanceStatusLabel);
@@ -217,6 +227,7 @@ MaintenanceTools::~MaintenanceTools()
 {
     Stop(true);
 }
+
 // ------------------------------------ //
 bool MaintenanceTools::_OnClose(GdkEventAny* event)
 {
@@ -235,22 +246,26 @@ void MaintenanceTools::_OnShown()
 {
     _UpdateState();
 }
+
 // ------------------------------------ //
 void MaintenanceTools::Stop(bool wait)
 {
     RunTaskThread = false;
 
-    if(wait && TaskRunning) {
+    if (wait && TaskRunning)
+    {
         TaskThread.join();
         TaskRunning = false;
     }
 
     _UpdateState();
 }
+
 // ------------------------------------ //
 void MaintenanceTools::StartImageExistCheck()
 {
-    if(RunTaskThread) {
+    if (RunTaskThread)
+    {
         LOG_ERROR("Already doing an operation can't start a new maintenance operation");
         return;
     }
@@ -267,10 +282,32 @@ void MaintenanceTools::StartImageExistCheck()
 
     _UpdateState();
 }
+
+void MaintenanceTools::StartDeleteThumbnails()
+{
+    if (RunTaskThread)
+    {
+        LOG_ERROR("Already doing an operation can't start a new maintenance operation");
+        return;
+    }
+
+    Stop(true);
+
+    MaintenanceStatusLabel->set_text("Deleting all thumbnails");
+    ProgressFraction = 0;
+
+    HasRunSomething = true;
+    RunTaskThread = true;
+    TaskRunning = true;
+    TaskThread = std::thread([this] { _RunTaskThread([this] { _RunDeleteThumbnails(); }); });
+
+    _UpdateState();
+}
+
 // ------------------------------------ //
 void MaintenanceTools::_InsertTextResult(const std::string& text)
 {
-    if(_LimitResults())
+    if (_LimitResults())
         return;
 
     MaintenanceResultWidgets.push_back(std::make_shared<Gtk::Label>(text));
@@ -279,14 +316,12 @@ void MaintenanceTools::_InsertTextResult(const std::string& text)
     widget.show();
 }
 
-void MaintenanceTools::_InsertBrokenImageResult(
-    DBID image, const std::string& brokenPath, const std::string& autoFix)
+void MaintenanceTools::_InsertBrokenImageResult(DBID image, const std::string& brokenPath, const std::string& autoFix)
 {
-    if(_LimitResults())
+    if (_LimitResults())
         return;
 
-    MaintenanceResultWidgets.push_back(
-        std::make_shared<InvalidImagePathResultWidget>(image, brokenPath, autoFix));
+    MaintenanceResultWidgets.push_back(std::make_shared<InvalidImagePathResultWidget>(image, brokenPath, autoFix));
     auto& widget = *MaintenanceResultWidgets.back();
     MaintenanceResults->add(widget);
     widget.show();
@@ -294,10 +329,11 @@ void MaintenanceTools::_InsertBrokenImageResult(
 
 bool MaintenanceTools::_LimitResults()
 {
-    if(MaintenanceResultWidgets.size() > MAX_MAINTENANCE_RESULTS)
+    if (MaintenanceResultWidgets.size() > MAX_MAINTENANCE_RESULTS)
         return true;
 
-    if(MaintenanceResultWidgets.size() == MAX_MAINTENANCE_RESULTS) {
+    if (MaintenanceResultWidgets.size() == MAX_MAINTENANCE_RESULTS)
+    {
         MaintenanceResultWidgets.push_back(
             std::make_unique<Gtk::Label>("Too many results. Not showing further results."));
         auto& widget = *MaintenanceResultWidgets.back();
@@ -311,33 +347,41 @@ bool MaintenanceTools::_LimitResults()
 
 void MaintenanceTools::_ClearResultsPressed()
 {
-    for(auto& widget : MaintenanceResultWidgets) {
-        if(widget)
+    for (auto& widget : MaintenanceResultWidgets)
+    {
+        if (widget)
             MaintenanceResults->remove(*widget);
     }
 
     MaintenanceResultWidgets.clear();
 }
+
 // ------------------------------------ //
 void MaintenanceTools::_CancelPressed()
 {
     Stop(false);
 }
+
 // ------------------------------------ //
 void MaintenanceTools::_UpdateState()
 {
     MaintenanceSpinner->property_active() = RunTaskThread;
     MaintenanceProgressBar->set_fraction(ProgressFraction);
 
-    if(RunTaskThread) {
+    if (RunTaskThread)
+    {
         MaintenanceCancelButton->set_sensitive(true);
         CheckAllExist->set_sensitive(false);
-
-    } else {
+        DeleteAllThumbnails->set_sensitive(false);
+    }
+    else
+    {
         MaintenanceCancelButton->set_sensitive(false);
         CheckAllExist->set_sensitive(true);
+        DeleteAllThumbnails->set_sensitive(true);
 
-        if(HasRunSomething) {
+        if (HasRunSomething)
+        {
             MaintenanceStatusLabel->set_text("Operation finished");
         }
     }
@@ -349,28 +393,34 @@ void MaintenanceTools::_OnTaskFinished()
 
     auto alive = GetAliveMarker();
 
-    DualView::Get().RunOnMainThread([=] {
-        INVOKE_CHECK_ALIVE_MARKER(alive);
+    DualView::Get().RunOnMainThread(
+        [=]
+        {
+            INVOKE_CHECK_ALIVE_MARKER(alive);
 
-        ProgressFraction = 1;
-        RunTaskThread = false;
-        _UpdateState();
-    });
+            ProgressFraction = 1;
+            RunTaskThread = false;
+            _UpdateState();
+        });
 }
+
 // ------------------------------------ //
-void MaintenanceTools::_RunTaskThread(std::function<void()> operation)
+void MaintenanceTools::_RunTaskThread(const std::function<void()>& operation)
 {
     operation();
 
-    if(!RunTaskThread) {
+    if (!RunTaskThread)
+    {
         // Canceled
         auto alive = GetAliveMarker();
 
-        DualView::Get().InvokeFunction([=] {
-            INVOKE_CHECK_ALIVE_MARKER(alive);
+        DualView::Get().InvokeFunction(
+            [=]
+            {
+                INVOKE_CHECK_ALIVE_MARKER(alive);
 
-            _InsertTextResult("Operation canceled");
-        });
+                _InsertTextResult("Operation canceled");
+            });
     }
 
     _OnTaskFinished();
@@ -384,41 +434,49 @@ void MaintenanceTools::_RunFileExistCheck()
 
     auto& database = DualView::Get().GetDatabase();
 
-    int total;
+    int64_t total;
 
     {
         GUARD_LOCK_OTHER(database);
-        total = database.SelectImageCount(guard);
+        total = static_cast<int64_t>(database.SelectImageCount(guard));
     }
 
     LOG_INFO("Total number of images: " + std::to_string(total));
 
-    int processed = 0;
+    int64_t processed = 0;
 
     std::vector<ImagePath> imageBatch;
 
-    while(RunTaskThread) {
-        if(imageBatch.empty()) {
+    while (RunTaskThread)
+    {
+        if (imageBatch.empty())
+        {
             // Need to get a new batch
-            try {
+            try
+            {
                 GUARD_LOCK_OTHER(database);
                 database.SelectImagePaths(guard, imageBatch, processed);
-            } catch(const Leviathan::Exception& e) {
+            }
+            catch (const Leviathan::Exception& e)
+            {
                 LOG_ERROR("Failed to get next batch of DB images:");
                 e.PrintToLog();
 
-                DualView::Get().InvokeFunction([=] {
-                    INVOKE_CHECK_ALIVE_MARKER(alive);
+                DualView::Get().InvokeFunction(
+                    [=]
+                    {
+                        INVOKE_CHECK_ALIVE_MARKER(alive);
 
-                    _InsertTextResult("Operation canceled");
-                });
+                        _InsertTextResult("Operation canceled");
+                    });
 
                 RunTaskThread = false;
                 break;
             }
 
-            // If we get an empty batch that means we have processed all of the images
-            if(imageBatch.empty()) {
+            // If we get an empty batch that means we have processed all the images
+            if (imageBatch.empty())
+            {
                 LOG_INFO("All db images have been processed in batches");
                 break;
             }
@@ -431,57 +489,127 @@ void MaintenanceTools::_RunFileExistCheck()
 
         const auto& path = current.GetPath();
 
-        if(!std::filesystem::exists(path) || std::filesystem::file_size(path) < 1) {
+        if (!std::filesystem::exists(path) || std::filesystem::file_size(path) < 1)
+        {
             LOG_ERROR("Image path that should exist doesn't (or size is 0): " + path);
 
             std::string autoFix;
 
             // Detect if auto-fix is possible
-            if(path.find("/ ") != path.npos) {
+            if (path.find("/ ") != std::string::npos)
+            {
+                auto potentialFix = Leviathan::StringOperations::Replace<std::string>(path, "/ ", "/");
 
-                auto potentialFix =
-                    Leviathan::StringOperations::Replace<std::string>(path, "/ ", "/");
-
-                if(std::filesystem::exists(potentialFix)) {
+                if (std::filesystem::exists(potentialFix))
+                {
                     autoFix = std::move(potentialFix);
                 }
-            } else if(path.find("...") != path.npos) {
-                auto potentialFix =
-                    Leviathan::StringOperations::Replace<std::string>(path, "...", "");
+            }
+            else if (path.find("...") != std::string::npos)
+            {
+                auto potentialFix = Leviathan::StringOperations::Replace<std::string>(path, "...", "");
 
-                if(std::filesystem::exists(potentialFix)) {
+                if (std::filesystem::exists(potentialFix))
+                {
                     autoFix = std::move(potentialFix);
                 }
             }
 
-            if(!autoFix.empty()) {
+            if (!autoFix.empty())
+            {
                 LOG_INFO("Found auto fix for the above path: " + autoFix);
             }
 
-            DualView::Get().InvokeFunction([=] {
-                INVOKE_CHECK_ALIVE_MARKER(alive);
+            DualView::Get().InvokeFunction(
+                [=]
+                {
+                    INVOKE_CHECK_ALIVE_MARKER(alive);
 
-                _InsertBrokenImageResult(current.GetID(), current.GetPath(), autoFix);
-            });
+                    _InsertBrokenImageResult(current.GetID(), current.GetPath(), autoFix);
+                });
         }
 
         imageBatch.pop_back();
         ++processed;
 
-        if(processed % IMAGE_CHECK_REPORT_PROGRESS_EVERY_N == 0) {
-
-            if(processed > total) {
+        if (processed % IMAGE_CHECK_REPORT_PROGRESS_EVERY_N == 0)
+        {
+            if (processed > total)
+            {
                 // More images were probably added since we started
                 total = processed;
             }
 
-            DualView::Get().InvokeFunction([=] {
-                INVOKE_CHECK_ALIVE_MARKER(alive);
+            DualView::Get().InvokeFunction(
+                [=]
+                {
+                    INVOKE_CHECK_ALIVE_MARKER(alive);
 
-                ProgressFraction = static_cast<float>(processed) / total;
-                MaintenanceStatusLabel->set_text("Checking images");
-                _UpdateState();
-            });
+                    ProgressFraction =
+                        static_cast<float>((static_cast<double>(processed) / static_cast<double>(total)));
+                    MaintenanceStatusLabel->set_text("Checking images");
+                    _UpdateState();
+                });
         }
     }
+}
+
+void MaintenanceTools::_RunDeleteThumbnails()
+{
+    namespace bf = boost::filesystem;
+
+    auto alive = GetAliveMarker();
+
+    const auto thumbnailFolder = DV::DualView::Get().GetThumbnailFolder();
+
+    if (!bf::is_directory(thumbnailFolder))
+    {
+        // A single file //
+        LOG_INFO("Thumbnails folder doesn't exist")
+
+        DualView::Get().InvokeFunction(
+            [=]
+            {
+                INVOKE_CHECK_ALIVE_MARKER(alive);
+                _InsertTextResult("Thumbnail folder doesn't exist");
+            });
+
+        return;
+    }
+
+    LOG_INFO("Started deleting all thumbnails");
+
+    int64_t processed = 0;
+
+    // We can't use a directory iterator as that goes invalid when deleting stuff, so we just delete everything in one
+    // go and recreate the folder
+
+    boost::system::error_code error;
+    bf::remove_all(thumbnailFolder, error);
+
+    if (error.failed())
+    {
+        LOG_WARNING("Failed to delete thumbnail folder content: " + error.to_string());
+        _InsertTextResult("Error deleting thumbnails: " + error.to_string());
+    }
+
+    bf::create_directories(thumbnailFolder, error);
+
+    if (error.failed())
+    {
+        LOG_WARNING("Failed to recreate thumbnail folder after deleting: " + error.to_string());
+        _InsertTextResult("Creating a blank thumbnail folder failed: " + error.to_string());
+    }
+
+    DualView::Get().InvokeFunction(
+        [=]
+        {
+            INVOKE_CHECK_ALIVE_MARKER(alive);
+
+            ProgressFraction = 1;
+            MaintenanceStatusLabel->set_text("Deleted cached thumbnails");
+            _UpdateState();
+        });
+
+    LOG_INFO("Thumbnail deleting finished");
 }
