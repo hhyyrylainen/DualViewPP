@@ -123,6 +123,8 @@ add_library(Core
   # Generated headers
   Common.h)
 
+target_precompile_headers(Core PUBLIC DualView.h Database.h Common.h)
+
 target_link_libraries(Core PUBLIC ThirdParty Engine puzzle
   ${GTKMM_LIBRARIES} ${GTKCANBERRA_LIBRARIES}
   ImageMagick::Magick++ ImageMagick::MagickCore ${Boost_LIBRARIES} ${cryptopp_LIBRARIES} ${SQLITE3_LIBRARIES}
