@@ -1,28 +1,27 @@
 // ------------------------------------ //
 #include "InternetImage.h"
 
-
-#include "DownloadManager.h"
-#include "DualView.h"
-#include "Settings.h"
-
-#include "Common/StringOperations.h"
-#include "Exceptions.h"
-#include "FileSystem.h"
-
 #include <Magick++.h>
 
 #include <boost/filesystem.hpp>
 
+#include "Common/StringOperations.h"
+
+#include "DownloadManager.h"
+#include "DualView.h"
+#include "Exceptions.h"
+#include "FileSystem.h"
+#include "Settings.h"
+
 using namespace DV;
+
 // ------------------------------------ //
-InternetImage::InternetImage(const ScanFoundImage& link) :
-    DLURL(link.URL), Referrer(link.Referrer)
+InternetImage::InternetImage(const ScanFoundImage& link) : DLURL(link.URL), Referrer(link.Referrer)
 {
     // Extract filename from the url
     ResourceName = DownloadManager::ExtractFileName(DLURL);
 
-    if(ResourceName.empty())
+    if (ResourceName.empty())
         throw Leviathan::InvalidArgument("link doesn't contain filename");
 
     Extension = Leviathan::StringOperations::GetExtension(ResourceName);
@@ -36,6 +35,7 @@ void InternetImage::Init()
 {
     // TODO: parse tags
 }
+
 // ------------------------------------ //
 std::shared_ptr<LoadedImage> InternetImage::GetImage()
 {
@@ -43,20 +43,21 @@ std::shared_ptr<LoadedImage> InternetImage::GetImage()
 
     GUARD_LOCK();
 
-    if(!FullImage) {
-
+    if (!FullImage)
+    {
         FullImage = std::make_shared<DownloadLoadedImage>(false);
         FullImage->RegisterLoadTask(DLTask);
 
-        if(DLReady) {
-
+        if (DLReady)
+        {
             // Data is ready to set //
-            if(FileDL->GetDownloadedBytes().empty()) {
-
+            if (FileDL->GetDownloadedBytes().empty())
+            {
                 // Fail //
                 FullImage->OnFail(FullImage);
-            } else {
-
+            }
+            else
+            {
                 FullImage->OnSuccess(FullImage, FileDL->GetDownloadedBytes());
                 _UpdateDimensions(guard);
             }
@@ -72,20 +73,21 @@ std::shared_ptr<LoadedImage> InternetImage::GetThumbnail()
 
     GUARD_LOCK();
 
-    if(!ThumbImage) {
-
+    if (!ThumbImage)
+    {
         ThumbImage = std::make_shared<DownloadLoadedImage>(true);
         ThumbImage->RegisterLoadTask(DLTask);
 
-        if(DLReady) {
-
+        if (DLReady)
+        {
             // Data is ready to set //
-            if(FileDL->GetDownloadedBytes().empty()) {
-
+            if (FileDL->GetDownloadedBytes().empty())
+            {
                 // Fail //
                 ThumbImage->OnFail(ThumbImage);
-            } else {
-
+            }
+            else
+            {
                 ThumbImage->OnSuccess(ThumbImage, FileDL->GetDownloadedBytes());
             }
         }
@@ -99,20 +101,19 @@ void InternetImage::_CheckFileDownload()
 {
     GUARD_LOCK();
 
-    if(FileDL)
+    if (FileDL)
         return;
 
     // Check does the file exist already //
-    if(boost::filesystem::exists(ResourcePath)) {
-
-        LOG_INFO("InternetImage: hashed url file already exists: " + DLURL +
-                 " at path: " + ResourcePath);
+    if (boost::filesystem::exists(ResourcePath))
+    {
+        LOG_INFO("InternetImage: hashed url file already exists: " + DLURL + " at path: " + ResourcePath);
 
         FileDL = std::make_shared<LocallyCachedDLJob>(ResourcePath);
         WasAlreadyCached = true;
-
-    } else {
-
+    }
+    else
+    {
         FileDL = std::make_shared<MemoryDLJob>(DLURL, Referrer);
     }
 
@@ -121,80 +122,92 @@ void InternetImage::_CheckFileDownload()
     {
         auto casted = std::dynamic_pointer_cast<InternetImage>(shared_from_this());
 
-        LEVIATHAN_ASSERT(
-            casted, "InternetImage shared_ptr isn't actually of type InternetImage");
+        LEVIATHAN_ASSERT(casted, "InternetImage shared_ptr isn't actually of type InternetImage");
 
         us = casted;
     }
 
-    FileDL->SetFinishCallback([usWeak{us}](DownloadJob& job, bool success) {
-        auto us = usWeak.lock();
+    FileDL->SetFinishCallback(
+        [usWeak{us}](DownloadJob& job, bool success)
+        {
+            auto us = usWeak.lock();
 
-        if(!us)
-            return;
+            if (!us)
+                return true;
 
-        GUARD_LOCK_OTHER(*us);
+            GUARD_LOCK_OTHER(*us);
 
-        us->DLReady = true;
+            // See the TODO below (for now we just prevent the retried download from doing anything)
+            if (us->DLReady)
+                return true;
 
-        us->FileDL->GetDownloadedBytes();
+            us->DLReady = true;
 
-        if(!success) {
+            us->FileDL->GetDownloadedBytes();
 
-            LOG_WRITE("InternetImage: TODO: retry");
+            if (!success)
+            {
+                // LOG_WRITE("InternetImage: TODO: retry nicely");
 
-            if(us->ThumbImage)
-                us->ThumbImage->OnFail(us->ThumbImage);
+                // LOG_WRITE("InternetImage: success false, requesting a retry");
 
-            if(us->FullImage)
-                us->FullImage->OnFail(us->FullImage);
+                if (us->ThumbImage)
+                    us->ThumbImage->OnFail(us->ThumbImage);
 
-        } else {
+                if (us->FullImage)
+                    us->FullImage->OnFail(us->FullImage);
 
-            if(us->ThumbImage)
-                us->ThumbImage->OnSuccess(us->ThumbImage, us->FileDL->GetDownloadedBytes());
+                return false;
+            }
+            else
+            {
+                if (us->ThumbImage)
+                    us->ThumbImage->OnSuccess(us->ThumbImage, us->FileDL->GetDownloadedBytes());
 
-            if(us->FullImage)
-                us->FullImage->OnSuccess(us->FullImage, us->FileDL->GetDownloadedBytes());
+                if (us->FullImage)
+                    us->FullImage->OnSuccess(us->FullImage, us->FileDL->GetDownloadedBytes());
 
-            // Save the bytes to disk (if over 40KB) //
-            if(!us->WasAlreadyCached && us->FileDL->GetDownloadedBytes().size() > 40000 &&
-                us->AutoSaveCache && us->FullImage && us->FullImage->IsValid()) {
-                LOG_INFO("InternetImage: caching image to: " + us->ResourcePath);
-                us->SaveFileToDisk(guard);
+                // Save the bytes to disk (if over 40KB) //
+                if (!us->WasAlreadyCached && us->FileDL->GetDownloadedBytes().size() > 40000 && us->AutoSaveCache &&
+                    us->FullImage && us->FullImage->IsValid())
+                {
+                    LOG_INFO("InternetImage: caching image to: " + us->ResourcePath);
+                    us->SaveFileToDisk(guard);
+                }
+
+                if (us->FullImage)
+                    us->_UpdateDimensions(guard);
             }
 
-            if(us->FullImage)
-                us->_UpdateDimensions(guard);
-        }
-    });
+            return true;
+        });
 
     DLTask = DualView::Get().GetDownloadManager().QueueDownload(FileDL);
 }
+
 // ------------------------------------ //
 bool InternetImage::SaveFileToDisk(Lock& guard)
 {
-    if(!FileDL || FileDL->GetDownloadedBytes().size() < 1000)
+    if (!FileDL || FileDL->GetDownloadedBytes().size() < 1000)
         return false;
 
     bool isvalid = true;
 
-    if(FullImage) {
-
-        if(!FullImage->IsValid()) {
-
-            LOG_WARNING(
-                "Not saving InternetImage to disk because FullImage is invalid, url:" + DLURL);
+    if (FullImage)
+    {
+        if (!FullImage->IsValid())
+        {
+            LOG_WARNING("Not saving InternetImage to disk because FullImage is invalid, url:" + DLURL);
             isvalid = false;
         }
-
-    } else {
-
+    }
+    else
+    {
         // Check it now //
         isvalid = CacheManager::CheckIsBytesAnImage(FileDL->GetDownloadedBytes());
     }
 
-    if(!isvalid)
+    if (!isvalid)
         return false;
 
     Leviathan::FileSystem::WriteToFile(FileDL->GetDownloadedBytes(), ResourcePath);
@@ -204,47 +217,51 @@ bool InternetImage::SaveFileToDisk(Lock& guard)
 void InternetImage::_UpdateDimensions(Lock& guard)
 {
     // If not loaded start waiting //
-    if(FullImage && !FullImage->IsLoaded()) {
-
+    if (FullImage && !FullImage->IsLoaded())
+    {
         std::weak_ptr<InternetImage> us;
 
         {
             auto casted = std::dynamic_pointer_cast<InternetImage>(shared_from_this());
 
-            LEVIATHAN_ASSERT(casted, "InternetImage shared_ptr isn't actually of "
-                                     "type InternetImage");
+            LEVIATHAN_ASSERT(casted,
+                "InternetImage shared_ptr isn't actually of "
+                "type InternetImage");
 
             us = casted;
         }
 
         const auto image = FullImage;
 
-        DualView::Get().QueueConditional([=]() -> bool {
-            if(!image->IsLoaded()) {
-                // Still waiting
-                return false;
-            }
+        DualView::Get().QueueConditional(
+            [=]() -> bool
+            {
+                if (!image->IsLoaded())
+                {
+                    // Still waiting
+                    return false;
+                }
 
-            auto locked = us.lock();
+                auto locked = us.lock();
 
-            if(!locked) {
+                if (!locked)
+                {
+                    LOG_WARNING("Internet image destroyed before queued dimension "
+                                "set finished");
+                    return true;
+                }
 
-                LOG_WARNING("Internet image destroyed before queued dimension "
-                            "set finished");
+                GUARD_LOCK_OTHER(locked);
+                locked->_UpdateDimensions(guard);
+
                 return true;
-            }
-
-            GUARD_LOCK_OTHER(locked);
-            locked->_UpdateDimensions(guard);
-
-            return true;
-        });
+            });
 
         return;
     }
 
-    if(!FullImage || !FullImage->IsValid()) {
-
+    if (!FullImage || !FullImage->IsValid())
+    {
         LOG_WARNING("InternetImage trying to update dimensions with invalid / "
                     "not loaded FullImage");
         return;
@@ -256,103 +273,103 @@ void InternetImage::_UpdateDimensions(Lock& guard)
     NotifyAll(guard);
 }
 
-
 // ------------------------------------ //
 // DownloadLoadedImage
-DownloadLoadedImage::DownloadLoadedImage(bool thumb) :
-    LoadedImage("DownloadLoadedImage"), Thumb(thumb)
-{}
+DownloadLoadedImage::DownloadLoadedImage(bool thumb) : LoadedImage("DownloadLoadedImage"), Thumb(thumb)
+{
+}
 
-void DownloadLoadedImage::OnFail(std::shared_ptr<DownloadLoadedImage> thisobject,
-    const std::string& error /*= "HTTP request failed"*/)
+void DownloadLoadedImage::OnFail(
+    std::shared_ptr<DownloadLoadedImage> thisobject, const std::string& error /*= "HTTP request failed"*/)
 {
     OnLoadFail(error);
 }
 
-void DownloadLoadedImage::OnSuccess(
-    std::shared_ptr<DownloadLoadedImage> thisobject, const std::string& data)
+void DownloadLoadedImage::OnSuccess(std::shared_ptr<DownloadLoadedImage> thisobject, const std::string& data)
 {
     bool resize = Thumb;
 
     auto datablob = std::make_shared<Magick::Blob>(data.c_str(), data.size());
 
-    DualView::Get().QueueWorkerFunction([=]() {
-        auto image = std::make_shared<std::vector<Magick::Image>>();
+    DualView::Get().QueueWorkerFunction(
+        [=]()
+        {
+            auto image = std::make_shared<std::vector<Magick::Image>>();
 
-        // Load image //
-        try {
+            // Load image //
+            try
+            {
+                readImages(image.get(), *datablob);
+            }
+            catch (const Magick::Error& e)
+            {
+                // Loading failed //
+                thisobject->OnFail(thisobject, "Downloaded image is invalid, error: " + std::string(e.what()));
+                return;
+            }
 
-            readImages(image.get(), *datablob);
+            if (image->empty())
+            {
+                thisobject->OnFail(thisobject, "Downloaded image is empty or invalid");
+                return;
+            }
 
-        } catch(const Magick::Error& e) {
+            // Coalesce animated images //
+            if (image->size() > 1)
+            {
+                auto coalesced = std::make_shared<std::vector<Magick::Image>>();
+                coalesceImages(coalesced.get(), image->begin(), image->end());
 
-            // Loading failed //
-            thisobject->OnFail(
-                thisobject, "Downloaded image is invalid, error: " + std::string(e.what()));
-            return;
-        }
+                image = coalesced;
+            }
 
-        if(image->empty()) {
+            if (resize && image->size() > 4)
+            {
+                // Drop all but 4 (+ keep the last frame) frames //
+                const auto dropmodulo = image->size() / 4;
 
-            thisobject->OnFail(thisobject, "Downloaded image is empty or invalid");
-            return;
-        }
+                // Keep track of dropped frames //
+                size_t losttime = 0;
+                size_t actualnumber = 0;
 
-        // Coalesce animated images //
-        if(image->size() > 1) {
+                for (size_t i = 0; i < image->size();)
+                {
+                    if (actualnumber % dropmodulo != 0 && i + 1 < image->size())
+                    {
+                        losttime += image->at(i).animationDelay();
+                        image->erase(image->begin() + i);
+                    }
+                    else
+                    {
+                        // Increase delay of last frame //
+                        if (losttime > 0)
+                        {
+                            image->at(i - 1).animationDelay(image->at(i - 1).animationDelay() + losttime);
 
-            auto coalesced = std::make_shared<std::vector<Magick::Image>>();
-            coalesceImages(coalesced.get(), image->begin(), image->end());
+                            losttime = 0;
+                        }
 
-            image = coalesced;
-        }
-
-        if(resize && image->size() > 4) {
-
-            // Drop all but 4 (+ keep the last frame) frames //
-            const auto dropmodulo = image->size() / 4;
-
-            // Keep track of dropped frames //
-            size_t losttime = 0;
-            size_t actualnumber = 0;
-
-            for(size_t i = 0; i < image->size();) {
-
-                if(actualnumber % dropmodulo != 0 && i + 1 < image->size()) {
-                    losttime += image->at(i).animationDelay();
-                    image->erase(image->begin() + i);
-
-                } else {
-
-                    // Increase delay of last frame //
-                    if(losttime > 0) {
-
-                        image->at(i - 1).animationDelay(
-                            image->at(i - 1).animationDelay() + losttime);
-
-                        losttime = 0;
+                        ++i;
                     }
 
-                    ++i;
+                    actualnumber++;
                 }
 
-                actualnumber++;
+                // Add time to last frame //
+                if (losttime > 0)
+                    image->at(image->size() - 1)
+                        .animationDelay(image->at(image->size() - 1).animationDelay() + losttime);
             }
 
-            // Add time to last frame //
-            if(losttime > 0)
-                image->at(image->size() - 1)
-                    .animationDelay(image->at(image->size() - 1).animationDelay() + losttime);
-        }
-
-        // Resize all frames //
-        if(resize) {
-            for(auto iter = image->begin(); iter != image->end(); ++iter) {
-
-                iter->resize(CacheManager::CreateResizeSizeForImage(*iter, 128, 0));
+            // Resize all frames //
+            if (resize)
+            {
+                for (auto iter = image->begin(); iter != image->end(); ++iter)
+                {
+                    iter->resize(CacheManager::CreateResizeSizeForImage(*iter, 128, 0));
+                }
             }
-        }
 
-        thisobject->OnLoadSuccess(image);
-    });
+            thisobject->OnLoadSuccess(image);
+        });
 }

@@ -1,19 +1,18 @@
 #pragma once
 
-#include "Plugin.h"
-#include "TaskListWithPriority.h"
-
-#include <list>
-#include <thread>
-#include <vector>
-
 #include <atomic>
 #include <condition_variable>
 #include <functional>
+#include <list>
 #include <mutex>
+#include <thread>
+#include <vector>
 
-namespace DV {
+#include "Plugin.h"
+#include "TaskListWithPriority.h"
 
+namespace DV
+{
 constexpr auto PAGE_SCAN_RETRIES = 6;
 
 class DownloadManager;
@@ -21,7 +20,8 @@ class DownloadManager;
 size_t CurlWriteCallback(char* ptr, size_t size, size_t nmemb, void* userdata);
 
 //! \brief A job for the downloader to do
-class DownloadJob {
+class DownloadJob
+{
     friend size_t CurlWriteCallback(char* ptr, size_t size, size_t nmemb, void* userdata);
 
 public:
@@ -36,7 +36,8 @@ public:
     virtual bool OnDownloadProgress(float dlprogress, float uploadprogress);
 
     //! \brief Sets a finish callback for this job
-    void SetFinishCallback(const std::function<void(DownloadJob&, bool)>& callback);
+    //! \param callback Called on finish, gets passed the data and success flag. If returns false this forces a retry
+    void SetFinishCallback(const std::function<bool(DownloadJob&, bool)>& callback);
 
     const std::string& GetDownloadedBytes() const
     {
@@ -75,6 +76,7 @@ public:
 
 protected:
     virtual void HandleContent() = 0;
+
     virtual void HandleError()
     {
         OnFinished(false);
@@ -99,17 +101,19 @@ protected:
     //! Current progress. Range 0.0f - 1.0f
     std::atomic<float> Progress;
 
-    std::function<void(DownloadJob&, bool)> FinishCallback;
+    std::function<bool(DownloadJob&, bool)> FinishCallback;
 };
 
 //! \brief Scans a single page and gets a list of all the links and content on it
 //! with the help of a plugin that can handle this website
-class PageScanJob : public DownloadJob {
+class PageScanJob : public DownloadJob
+{
 public:
     //! \exception Leviathan::InvalidArgument if the URL is not supported
     //! \param initialpage True if this is the main page and tag scanning should be forced
     //! on even if the scanner for the url doesn't usually automatically find tags
     PageScanJob(const std::string& url, bool initialpage, const std::string& referrer = "");
+    virtual ~PageScanJob() = default;
 
     ScanResult& GetResult()
     {
@@ -128,12 +132,12 @@ protected:
 };
 
 //! \brief Downloads a file to a local file in the staging folder
-class ImageFileDLJob : public DownloadJob {
+class ImageFileDLJob : public DownloadJob
+{
 public:
     //! \param replacelocal If true the local filename is not made unique before downloading.
     //! if false numbers are added to the end of the name if it exists already
-    ImageFileDLJob(
-        const std::string& url, const std::string& referrer, bool replacelocal = false);
+    ImageFileDLJob(const std::string& url, const std::string& referrer, bool replacelocal = false);
 
     auto GetLocalFile() const
     {
@@ -152,7 +156,8 @@ protected:
 };
 
 //! \brief A fake download that loads a local file
-class LocallyCachedDLJob : public DownloadJob {
+class LocallyCachedDLJob : public DownloadJob
+{
 public:
     //! \exception Leviathan::InvalidArgument if file doesn't exist
     LocallyCachedDLJob(const std::string& file);
@@ -164,7 +169,8 @@ protected:
 };
 
 //! \brief A basic download that saves response to memory
-class MemoryDLJob : public DownloadJob {
+class MemoryDLJob : public DownloadJob
+{
 public:
     MemoryDLJob(const std::string& url, const std::string& referrer);
 
@@ -172,12 +178,11 @@ protected:
     void HandleContent() override;
 };
 
-
-
 //! \brief Handles scanning pages for content and downloading found content
 //!
 //! Uses plugins to handle contents of webpages once downloaded
-class DownloadManager {
+class DownloadManager
+{
 public:
     DownloadManager();
     ~DownloadManager();
@@ -186,8 +191,7 @@ public:
     void StopDownloads();
 
     //! \brief Adds an item to the work queue
-    std::shared_ptr<BaseTaskItem> QueueDownload(
-        std::shared_ptr<DownloadJob> job, int64_t priority = -1);
+    std::shared_ptr<BaseTaskItem> QueueDownload(std::shared_ptr<DownloadJob> job, int64_t priority = -1);
 
     //! \brief Extracts a filename from an url
     static std::string ExtractFileName(const std::string& url);
@@ -208,6 +212,5 @@ protected:
 
     TaskListWithPriority<std::shared_ptr<DownloadJob>> WorkQueue;
 };
-
 
 } // namespace DV

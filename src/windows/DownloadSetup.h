@@ -1,20 +1,19 @@
 #pragma once
 
-#include "BaseWindow.h"
-#include "IsAlive.h"
-
-#include "Plugin.h"
-
-#include "components/EasyEntryCompletion.h"
-#include "components/PrimaryMenu.h"
-
-#include "Common/BaseNotifiable.h"
+#include <atomic>
 
 #include <gtkmm.h>
 
-#include <atomic>
+#include "Common/BaseNotifiable.h"
+#include "components/EasyEntryCompletion.h"
+#include "components/PrimaryMenu.h"
 
-namespace DV {
+#include "BaseWindow.h"
+#include "IsAlive.h"
+#include "Plugin.h"
+
+namespace DV
+{
 
 class SuperViewer;
 class TagEditor;
@@ -30,18 +29,20 @@ class InternetImage;
 
 struct SetupScanQueueData;
 
-void QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup* setup,
-    IsAlive::AliveMarkerT alive, std::shared_ptr<PageScanJob> scanned);
+bool QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup* setup, IsAlive::AliveMarkerT alive,
+    std::shared_ptr<PageScanJob> scanned);
 
 //! \brief Manages setting up a new gallery to be downloaded
 //! \todo Merge single image selection and tag editing from Importer to a base class
-class DownloadSetup : public BaseWindow, public Gtk::Window, public IsAlive {
-
-    friend void QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup* setup,
+class DownloadSetup : public BaseWindow,
+                      public Gtk::Window,
+                      public IsAlive
+{
+    friend bool QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup* setup,
         IsAlive::AliveMarkerT alive, std::shared_ptr<PageScanJob> scanned);
 
-    enum class STATE {
-
+    enum class STATE
+    {
         //! Url has changed and is waiting to be accepted
         URL_CHANGED,
 
@@ -63,7 +64,6 @@ public:
 
     //! \brief Accepts this window settings and closes
     void OnUserAcceptSettings();
-
 
     //! \brief Called when the url is changed and it should be scanned again
     void OnURLChanged();
@@ -103,10 +103,8 @@ public:
     //! This will steal the status from other DownloadSetupsi fany others are active
     void EnableAddActive();
 
-
     //! \brief Sets the url
     void SetNewUrlToDl(const std::string& url);
-
 
     void AddExternalScanLink(const std::string& url);
 
@@ -140,7 +138,6 @@ protected:
     void _SetState(STATE newstate);
 
     void _UpdateWidgetStates();
-
 
     void OnItemSelected(ListItem& item);
 
@@ -197,7 +194,6 @@ private:
     //! get the original URL when URL rewriting has changed it
     std::string CurrentlyCheckedURL;
 
-
     // Previous stored size when going to small size
     int PreviousWidth = 1;
     int PreviousHeight = 1;
@@ -211,8 +207,6 @@ private:
     Gtk::Button* OKButton;
     Gtk::Button* SelectAllAndOK;
     Gtk::Label* MainStatusLabel;
-
-
 
     FolderSelector* TargetFolder;
 
@@ -230,14 +224,12 @@ private:
     Gtk::Label* DetectedSettings;
     Gtk::Spinner* URLCheckSpinner;
 
-
     // Scanning
     Gtk::Label* PageRangeLabel;
     Gtk::Button* ScanPages;
     Gtk::Spinner* PageScanSpinner;
     Gtk::LinkButton* CurrentScanURL;
     Gtk::LevelBar* PageScanProgress;
-
 
     Gtk::Entry* TargetCollectionName;
     EasyEntryCompletion CollectionNameCompletion;
@@ -253,7 +245,6 @@ private:
     // If this is enabled then this is the active add target
     Gtk::Switch* ActiveAsAddTarget;
 
-
     // For toggling away the full view
     Gtk::Switch* ShowFullControls;
 
@@ -261,14 +252,12 @@ private:
     Gtk::Button* BrowseForward;
     Gtk::Button* BrowseBack;
 
-
     Gtk::Button* SelectAllImagesButton;
 
     // List of all links
     Gtk::Box* FoundLinksBox;
     Gtk::Button* CopyToClipboard;
     Gtk::Button* LoadFromClipboard;
-
 
 private:
     //! Called when another DownloadSetup steals our active lock

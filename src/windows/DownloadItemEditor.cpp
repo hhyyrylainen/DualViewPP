@@ -318,6 +318,8 @@ void DownloadItemEditor::QueueNextThing(std::shared_ptr<ScanJobData> data,
                         std::bind(&DownloadItemEditor::QueueNextThing, data, editor, alive,
                             weakScan.lock()));
                 });
+
+                return true;
             });
 
         DualView::Get().GetDownloadManager().QueueDownload(scan);
