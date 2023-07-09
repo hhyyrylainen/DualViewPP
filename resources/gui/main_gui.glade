@@ -1081,7 +1081,6 @@
             <property name="margin-top">8</property>
             <child>
               <object class="GtkLabel">
-                <property name="visible">True</property>
                 <property name="can-focus">False</property>
                 <property name="label" translatable="yes">Items Per Page</property>
               </object>
@@ -1093,7 +1092,7 @@
             </child>
             <child>
               <object class="GtkSpinButton">
-                <property name="visible">True</property>
+                <property name="sensitive">False</property>
                 <property name="can-focus">True</property>
                 <property name="adjustment">adjustment1</property>
               </object>
