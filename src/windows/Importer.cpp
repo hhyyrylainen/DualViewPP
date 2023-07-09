@@ -645,7 +645,8 @@ void Importer::_OnImportFinished(bool success)
             CollectionName->set_text("");
 
         // Reset target folder //
-        TargetFolder->GoToRoot();
+        if (!TargetFolder->TargetPathLockedIn())
+            TargetFolder->GoToRoot();
 
         // Delete empty folders //
         for (auto iter = FoldersToDelete.begin(); iter != FoldersToDelete.end();)
