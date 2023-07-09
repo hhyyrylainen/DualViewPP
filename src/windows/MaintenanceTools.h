@@ -25,6 +25,7 @@ public:
 
     void StartImageExistCheck();
     void StartDeleteThumbnails();
+    void StartDeleteOrphanedResources();
 
 private:
     bool _OnClose(GdkEventAny* event);
@@ -45,6 +46,7 @@ private:
     void _RunTaskThread(const std::function<void()>& operation);
     void _RunFileExistCheck();
     void _RunDeleteThumbnails();
+    void _RunDeleteOrphaned();
 
 private:
     Gtk::MenuButton* Menu;
@@ -55,6 +57,7 @@ private:
     Gtk::Button* MaintenanceCancelButton;
     Gtk::Button* CheckAllExist;
     Gtk::Button* DeleteAllThumbnails;
+    Gtk::Button* FixOrphanedResources;
 
     Gtk::Box* MaintenanceResults;
     std::vector<std::shared_ptr<Gtk::Widget>> MaintenanceResultWidgets;

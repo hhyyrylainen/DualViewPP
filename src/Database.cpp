@@ -1,10 +1,13 @@
 // ------------------------------------ //
 #include "Database.h"
-#include "Common.h"
-#include "Exceptions.h"
 
-#include "PreparedStatement.h"
+#include <sqlite3.h>
+#include <thread>
+#include <unordered_set>
 
+#include <boost/filesystem.hpp>
+
+#include "Common/StringOperations.h"
 #include "resources/Collection.h"
 #include "resources/DatabaseAction.h"
 #include "resources/Folder.h"
@@ -14,27 +17,18 @@
 #include "resources/Tags.h"
 
 #include "CacheManager.h"
+#include "ChangeEvents.h"
+#include "Common.h"
+#include "CurlWrapper.h"
+#include "DualView.h"
+#include "Exceptions.h"
+#include "PreparedStatement.h"
 #include "TimeHelpers.h"
 #include "UtilityHelpers.h"
 
-#include "ChangeEvents.h"
-#include "DualView.h"
-
-#include "CurlWrapper.h"
-
-#include "Common/StringOperations.h"
-
-#include <sqlite3.h>
-
-#include <boost/filesystem.hpp>
-
-#include <thread>
-#include <unordered_set>
-
 using namespace DV;
 // ------------------------------------ //
-static_assert(
-    std::is_same_v<DatabaseLockT, Database::LockT>, "DatabaseLockT is no longer up to date");
+static_assert(std::is_same_v<DatabaseLockT, Database::LockT>, "DatabaseLockT is no longer up to date");
 
 std::string PreparePathForSQLite(std::string path)
 {
@@ -47,7 +41,7 @@ std::string PreparePathForSQLite(std::string path)
 
     // If begins with ':' add a ./ to the beginning
     // as recommended by sqlite documentation
-    if(path[0] == ':')
+    if (path[0] == ':')
         path = "./" + path;
 
     // Add the file uri specifier
@@ -58,13 +52,12 @@ std::string PreparePathForSQLite(std::string path)
 
 Database::Database(std::string dbfile) : DatabaseFile(dbfile)
 {
-    if(dbfile.empty())
+    if (dbfile.empty())
         throw Leviathan::InvalidArgument("dbfile is empty");
 
     //
     auto pictureSignatureFile =
-        Leviathan::StringOperations::RemoveExtension(DatabaseFile, false) +
-        "_picture_signatures.sqlite";
+        Leviathan::StringOperations::RemoveExtension(DatabaseFile, false) + "_picture_signatures.sqlite";
 
 #ifdef _WIN32
     // This needs to be set to work properly on windows
@@ -78,37 +71,35 @@ Database::Database(std::string dbfile) : DatabaseFile(dbfile)
 
     // Open with SQLITE_OPEN_NOMUTEX because we already use explicit mutex locks
     auto result = sqlite3_open_v2(dbfile.c_str(), &SQLiteDb,
-        SQLITE_OPEN_URI | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX,
-        nullptr);
+        SQLITE_OPEN_URI | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, nullptr);
 
-    if(!SQLiteDb) {
-
+    if (!SQLiteDb)
+    {
         throw Leviathan::InvalidState("failed to allocate memory for sqlite database");
     }
 
-    if(result != SQLITE_OK) {
-
+    if (result != SQLITE_OK)
+    {
         const std::string errormessage(sqlite3_errmsg(SQLiteDb));
 
         sqlite3_close(SQLiteDb);
         SQLiteDb = nullptr;
-        LOG_ERROR("Sqlite failed to open database '" + dbfile +
-                  "' errorcode: " + Convert::ToString(result) + " message: " + errormessage);
+        LOG_ERROR("Sqlite failed to open database '" + dbfile + "' errorcode: " + Convert::ToString(result) +
+            " message: " + errormessage);
         throw Leviathan::InvalidState("failed to open sqlite database");
     }
 
     // Open with SQLITE_OPEN_NOMUTEX because we already use explicit mutex locks
     result = sqlite3_open_v2(pictureSignatureFile.c_str(), &PictureSignatureDb,
-        SQLITE_OPEN_URI | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX,
-        nullptr);
+        SQLITE_OPEN_URI | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, nullptr);
 
-    if(!PictureSignatureDb) {
-
+    if (!PictureSignatureDb)
+    {
         throw Leviathan::InvalidState("failed to allocate memory for sqlite database");
     }
 
-    if(result != SQLITE_OK) {
-
+    if (result != SQLITE_OK)
+    {
         const std::string errormessage(sqlite3_errmsg(PictureSignatureDb));
 
         sqlite3_close(SQLiteDb);
@@ -116,7 +107,7 @@ Database::Database(std::string dbfile) : DatabaseFile(dbfile)
         sqlite3_close(PictureSignatureDb);
         PictureSignatureDb = nullptr;
         LOG_ERROR("Sqlite failed to open signature database '" + pictureSignatureFile +
-                  "' errorcode: " + Convert::ToString(result) + " message: " + errormessage);
+            "' errorcode: " + Convert::ToString(result) + " message: " + errormessage);
         throw Leviathan::InvalidState("failed to open sqlite database");
     }
 }
@@ -127,22 +118,20 @@ Database::Database(bool tests)
 
     // const auto result = sqlite3_open(":memory:", &SQLiteDb);
     const auto result = sqlite3_open_v2(":memory:", &SQLiteDb,
-        SQLITE_OPEN_URI | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX,
-        nullptr);
+        SQLITE_OPEN_URI | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, nullptr);
 
-    if(result != SQLITE_OK || SQLiteDb == nullptr) {
-
+    if (result != SQLITE_OK || SQLiteDb == nullptr)
+    {
         sqlite3_close(SQLiteDb);
         SQLiteDb = nullptr;
         throw Leviathan::InvalidState("failed to open memory sqlite database");
     }
 
     const auto result2 = sqlite3_open_v2(":memory:", &PictureSignatureDb,
-        SQLITE_OPEN_URI | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX,
-        nullptr);
+        SQLITE_OPEN_URI | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_NOMUTEX, nullptr);
 
-    if(result2 != SQLITE_OK || PictureSignatureDb == nullptr) {
-
+    if (result2 != SQLITE_OK || PictureSignatureDb == nullptr)
+    {
         sqlite3_close(SQLiteDb);
         sqlite3_close(PictureSignatureDb);
         SQLiteDb = nullptr;
@@ -157,17 +146,14 @@ Database::~Database()
     // But if there were that would be an error in DualView not properly
     // shutting everything down
 
-
     // Stop all active operations //
-
 
     // Release all prepared objects //
 
-
-    if(SQLiteDb) {
-
-        while(sqlite3_close(SQLiteDb) != SQLITE_OK) {
-
+    if (SQLiteDb)
+    {
+        while (sqlite3_close(SQLiteDb) != SQLITE_OK)
+        {
             LOG_WARNING("Database waiting for sqlite3 resources to be released, "
                         "database cannot be closed yet");
         }
@@ -175,10 +161,10 @@ Database::~Database()
         SQLiteDb = nullptr;
     }
 
-    if(PictureSignatureDb) {
-
-        while(sqlite3_close(PictureSignatureDb) != SQLITE_OK) {
-
+    if (PictureSignatureDb)
+    {
+        while (sqlite3_close(PictureSignatureDb) != SQLITE_OK)
+        {
             LOG_WARNING("Database waiting for sqlite3 resources to be released, "
                         "database cannot be closed yet");
         }
@@ -186,28 +172,30 @@ Database::~Database()
         PictureSignatureDb = nullptr;
     }
 }
+
 // ------------------------------------ //
 void Database::Init()
 {
     GUARD_LOCK();
 
-    _RunSQL(guard, "PRAGMA foreign_keys = ON; PRAGMA recursive_triggers = ON; "
-                   // Note if this is changed also places where journal_mode is restored
-                   //! need to be updated
-                   "PRAGMA journal_mode = WAL;");
+    _RunSQL(guard,
+        "PRAGMA foreign_keys = ON; PRAGMA recursive_triggers = ON; "
+        // Note if this is changed also places where journal_mode is restored
+        //! need to be updated
+        "PRAGMA journal_mode = WAL;");
 
     // Verify foreign keys are on //
     {
         const char str[] = "PRAGMA foreign_keys; PRAGMA recursive_triggers;";
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+        PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-        auto statementinuse = statementobj.Setup();
+        auto statementInUse = statementObj.Setup();
 
-        while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-            if(statementobj.GetColumnAsInt(0) != 1) {
-
+        while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+        {
+            if (statementObj.GetColumnAsInt(0) != 1)
+            {
                 throw Leviathan::InvalidState("Foreign keys didn't get enabled");
             }
         }
@@ -216,16 +204,16 @@ void Database::Init()
     // Verify database version and setup tables if they don't exist //
     int fileVersion = -1;
 
-    if(!SelectDatabaseVersion(guard, SQLiteDb, fileVersion)) {
-
+    if (!SelectDatabaseVersion(guard, SQLiteDb, fileVersion))
+    {
         // Database is newly created //
         _CreateTableStructure(guard);
-
-    } else {
-
+    }
+    else
+    {
         // Check that the version is compatible, upgrade if needed //
-        if(!_VerifyLoadedVersion(guard, fileVersion)) {
-
+        if (!_VerifyLoadedVersion(guard, fileVersion))
+        {
             throw Leviathan::InvalidState("Database file is unsupported version");
         }
     }
@@ -235,16 +223,16 @@ void Database::Init()
         "PRAGMA journal_mode = WAL;");
 
     // Setup the auxiliary DBs
-    if(!SelectDatabaseVersion(guard, PictureSignatureDb, fileVersion)) {
-
+    if (!SelectDatabaseVersion(guard, PictureSignatureDb, fileVersion))
+    {
         // Database is newly created //
         _CreateTableStructureSignatures(guard);
-
-    } else {
-
+    }
+    else
+    {
         // Check that the version is compatible, upgrade if needed //
-        if(!_VerifyLoadedVersionSignatures(guard, fileVersion)) {
-
+        if (!_VerifyLoadedVersionSignatures(guard, fileVersion))
+        {
             throw Leviathan::InvalidState("Database file is unsupported version");
         }
     }
@@ -261,25 +249,26 @@ void Database::PurgeInactiveCache()
     LoadedNetGalleries.Purge();
     LoadedDatabaseActions.Purge();
 }
+
 // ------------------------------------ //
 bool Database::SelectDatabaseVersion(LockT& guard, sqlite3* db, int& result)
 {
     const char str[] = "SELECT number FROM version;";
 
-    try {
+    try
+    {
+        PreparedStatement statementObj(db, str, sizeof(str));
 
-        PreparedStatement statementobj(db, str, sizeof(str));
+        auto statementInUse = statementObj.Setup();
 
-        auto statementinuse = statementobj.Setup();
-
-        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-            result = statementobj.GetColumnAsInt(0);
+        if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+        {
+            result = statementObj.GetColumnAsInt(0);
             return true;
         }
-
-    } catch(const InvalidSQL&) {
-
+    }
+    catch (const InvalidSQL&)
+    {
         // No version info
         result = -1;
         return false;
@@ -289,6 +278,7 @@ bool Database::SelectDatabaseVersion(LockT& guard, sqlite3* db, int& result)
     result = -1;
     return false;
 }
+
 // ------------------------------------ //
 // Image
 void Database::InsertImage(LockT& guard, Image& image)
@@ -303,21 +293,20 @@ void Database::InsertImage(LockT& guard, Image& image)
                        "add_date, last_view, is_private, from_file, file_hash) VALUES "
                        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(
-        CacheManager::GetDatabaseImagePath(image.GetResourcePath()), image.GetWidth(),
-        image.GetHeight(), image.GetName(), image.GetExtension(), image.GetAddDateStr(),
+    auto statementInUse = statementObj.Setup(CacheManager::GetDatabaseImagePath(image.GetResourcePath()),
+        image.GetWidth(), image.GetHeight(), image.GetName(), image.GetExtension(), image.GetAddDateStr(),
         image.GetLastViewStr(), image.GetIsPrivate(), image.GetFromFile(), image.GetHash());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 
     const DBID id = SelectImageIDByHash(guard, image.GetHash());
 
     // This is usually executed within a transaction so this isn't grouped with the image
     // insert here
     // TODO: this does some extra work when inserting but shouldn't be too bad
-    if(!signature.empty())
+    if (!signature.empty())
         _InsertImageSignatureParts(guard, id, signature);
 
     image.OnAdopted(id, *this);
@@ -325,7 +314,7 @@ void Database::InsertImage(LockT& guard, Image& image)
 
 bool Database::UpdateImage(LockT& guard, Image& image)
 {
-    if(!image.IsInDatabase())
+    if (!image.IsInDatabase())
         return false;
 
     const auto id = image.GetID();
@@ -334,43 +323,43 @@ bool Database::UpdateImage(LockT& guard, Image& image)
     // instances...
 
     // If signature save mode is selected do that
-    if(image.HasSignatureRetrieved()) {
-
+    if (image.HasSignatureRetrieved())
+    {
         const auto& signature = image.GetSignature();
         // Detect if the signature changed
-        if(signature != SelectImageSignatureByID(guard, id)) {
-
+        if (signature != SelectImageSignatureByID(guard, id))
+        {
             DoDBSavePoint transaction(*this, guard, "update_image", true);
 
             // // Update
             // {
             //     const char str[] = "UPDATE pictures SET stuff hereWHERE id = ?;";
 
-            //     PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+            // PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-            //     auto statementinuse = !signature.empty() ?
-            //                               statementobj.Setup(signature, image.GetID()) :
-            //                               statementobj.Setup(nullptr, image.GetID());
+            // auto statementInUse = !signature.empty() ?
+            //                           statementObj.Setup(signature, image.GetID()) :
+            //                           statementObj.Setup(nullptr, image.GetID());
 
-            //     statementobj.StepAll(statementinuse);
+            // statementObj.StepAll(statementInUse);
             // }
 
             // Also insert constituent parts
             _InsertImageSignatureParts(guard, id, signature);
         }
-    } else {
+    }
+    else
+    {
         // Save normal properties
         const auto relativePath = CacheManager::GetDatabaseImagePath(image.GetResourcePath());
 
-        const char str[] =
-            "UPDATE pictures SET relative_path = ?2, width = ?3, height = ?4, name = ?5, "
-            "extension = ?6, last_view = ?7, is_private = ?8 WHERE id = ?1;";
+        const char str[] = "UPDATE pictures SET relative_path = ?2, width = ?3, height = ?4, name = ?5, "
+                           "extension = ?6, last_view = ?7, is_private = ?8 WHERE id = ?1;";
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+        PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-        statementobj.StepAll(statementobj.Setup(id, relativePath, image.GetWidth(),
-            image.GetHeight(), image.GetName(), image.GetExtension(), image.GetLastViewStr(),
-            image.GetIsPrivate()));
+        statementObj.StepAll(statementObj.Setup(id, relativePath, image.GetWidth(), image.GetHeight(), image.GetName(),
+            image.GetExtension(), image.GetLastViewStr(), image.GetIsPrivate()));
 
         return sqlite3_changes(SQLiteDb);
     }
@@ -378,32 +367,28 @@ bool Database::UpdateImage(LockT& guard, Image& image)
     return true;
 }
 
-void Database::_InsertImageSignatureParts(
-    LockT& guard, DBID image, const std::string& signature)
+void Database::_InsertImageSignatureParts(LockT& guard, DBID image, const std::string& signature)
 {
     // This will also clear old entries if there were any with the foreign keys
-    RunOnSignatureDB(guard, "INSERT OR REPLACE INTO pictures (id, signature) VALUES(?, ?);",
-        image, signature);
+    RunOnSignatureDB(guard, "INSERT OR REPLACE INTO pictures (id, signature) VALUES(?, ?);", image, signature);
 
-    const char str[] =
-        "INSERT INTO picture_signature_words (picture_id, sig_word) VALUES (?, ?);";
+    const char str[] = "INSERT INTO picture_signature_words (picture_id, sig_word) VALUES (?, ?);";
 
-    PreparedStatement statementobj(PictureSignatureDb, str, sizeof(str));
+    PreparedStatement statementObj(PictureSignatureDb, str, sizeof(str));
 
     // Then insert new
-    if(signature.length() > IMAGE_SIGNATURE_WORD_LENGTH) {
+    if (signature.length() > IMAGE_SIGNATURE_WORD_LENGTH)
+    {
+        size_t loopCount =
+            std::min<size_t>(IMAGE_SIGNATURE_WORD_COUNT, signature.length() - IMAGE_SIGNATURE_WORD_LENGTH + 1);
 
-        size_t loopCount = std::min<size_t>(
-            IMAGE_SIGNATURE_WORD_COUNT, signature.length() - IMAGE_SIGNATURE_WORD_LENGTH + 1);
-
-        for(size_t i = 0; i < loopCount; ++i) {
-
+        for (size_t i = 0; i < loopCount; ++i)
+        {
             // The index is part of the word key in the table
-            std::string finalKey =
-                std::to_string(i) + "__" + signature.substr(i, IMAGE_SIGNATURE_WORD_LENGTH);
-            auto statementinuse = statementobj.Setup(image, finalKey);
+            std::string finalKey = std::to_string(i) + "__" + signature.substr(i, IMAGE_SIGNATURE_WORD_LENGTH);
+            auto statementInUse = statementObj.Setup(image, finalKey);
 
-            statementobj.StepAll(statementinuse);
+            statementObj.StepAll(statementInUse);
         }
     }
 }
@@ -417,11 +402,11 @@ std::shared_ptr<DatabaseAction> Database::DeleteImage(Image& image)
         action = CreateDeleteImageAction(guard, image);
     }
 
-    if(!action)
+    if (!action)
         return nullptr;
 
-    if(!action->Redo()) {
-
+    if (!action->Redo())
+    {
         LOG_ERROR("Database: freshly created action failed to Redo");
         return nullptr;
     }
@@ -429,10 +414,9 @@ std::shared_ptr<DatabaseAction> Database::DeleteImage(Image& image)
     return action;
 }
 
-std::shared_ptr<ImageDeleteAction> Database::CreateDeleteImageAction(
-    LockT& guard, Image& image)
+std::shared_ptr<ImageDeleteAction> Database::CreateDeleteImageAction(LockT& guard, Image& image)
 {
-    if(!image.IsInDatabase() || image.IsDeleted())
+    if (!image.IsInDatabase() || image.IsDeleted())
         return nullptr;
 
     // Create the action
@@ -456,55 +440,56 @@ std::shared_ptr<ImageDeleteAction> Database::CreateDeleteImageAction(
     auto casted = std::static_pointer_cast<DatabaseAction>(action);
     LoadedDatabaseActions.OnLoad(casted);
 
-    if(casted.get() != action.get())
+    if (casted.get() != action.get())
         LOG_ERROR("Database: action got changed on store");
 
     PurgeOldActionsUntilUnderLimit(guard);
     return action;
 }
+
 // ------------------------------------ //
-std::shared_ptr<ImageDeleteAction> Database::SelectImageDeleteActionForImage(
-    Image& image, bool performed)
+std::shared_ptr<ImageDeleteAction> Database::SelectImageDeleteActionForImage(Image& image, bool performed)
 {
     GUARD_LOCK();
 
     const char str[] = "SELECT * FROM action_history WHERE json_data LIKE ?1 AND type = ?2 "
                        "AND performed = ?3 ORDER BY id DESC;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup("%" + std::to_string(image.GetID()) + "%",
+    auto statementInUse = statementObj.Setup("%" + std::to_string(image.GetID()) + "%",
         static_cast<int>(DATABASE_ACTION_TYPE::ImageDelete), performed ? 1 : 0);
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        auto action = std::dynamic_pointer_cast<ImageDeleteAction>(_LoadDatabaseActionFromRow(guard, statementObj));
 
-        auto action = std::dynamic_pointer_cast<ImageDeleteAction>(
-            _LoadDatabaseActionFromRow(guard, statementobj));
-
-        if(!action)
+        if (!action)
             continue;
 
-        if(std::find(action->GetImagesToDelete().begin(), action->GetImagesToDelete().end(),
-               image.GetID()) != action->GetImagesToDelete().end()) {
+        if (std::find(action->GetImagesToDelete().begin(), action->GetImagesToDelete().end(), image.GetID()) !=
+            action->GetImagesToDelete().end())
+        {
             return action;
         }
     }
 
     return nullptr;
 }
+
 // ------------------------------------ //
 DBID Database::SelectImageIDByHash(LockT& guard, const std::string& hash)
 {
     const char str[] = "SELECT id FROM pictures WHERE file_hash = ?1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(hash);
+    auto statementInUse = statementObj.Setup(hash);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
-        if(statementobj.GetObjectIDFromColumn(id, 0))
+        if (statementObj.GetObjectIDFromColumn(id, 0))
             return id;
     }
 
@@ -515,13 +500,13 @@ std::string Database::SelectImageNameByID(LockT& guard, DBID id)
 {
     const char str[] = "SELECT name FROM pictures WHERE id = ?1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(id);
+    auto statementInUse = statementObj.Setup(id);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return statementobj.GetColumnAsString(0);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return statementObj.GetColumnAsString(0);
     }
 
     return "";
@@ -531,37 +516,35 @@ size_t Database::SelectImageCount(LockT& guard)
 {
     const char str[] = "SELECT COUNT(*) FROM pictures;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup();
+    auto statementInUse = statementObj.Setup();
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return statementobj.GetColumnAsInt64(0);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return statementObj.GetColumnAsInt64(0);
     }
 
     return 0;
 }
 
-void Database::SelectImagePaths(
-    LockT& guard, std::vector<ImagePath>& results, int64_t offset, int64_t max /*= 10000 */)
+void Database::SelectImagePaths(LockT& guard, std::vector<ImagePath>& results, int64_t offset, int64_t max /*= 10000 */)
 {
     results.resize(0);
 
-    const char str[] =
-        "SELECT id, relative_path, file_hash FROM pictures ORDER BY id LIMIT ? OFFSET ?;";
+    const char str[] = "SELECT id, relative_path, file_hash FROM pictures ORDER BY id LIMIT ? OFFSET ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(max, offset);
+    auto statementInUse = statementObj.Setup(max, offset);
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
-        if(!statementobj.GetObjectIDFromColumn(id, 0))
+        if (!statementObj.GetObjectIDFromColumn(id, 0))
             throw Leviathan::Exception("couldn't get image id from query");
 
-        results.emplace_back(
-            id, CacheManager::GetFinalImagePath(statementobj.GetColumnAsString(1)));
+        results.emplace_back(id, CacheManager::GetFinalImagePath(statementObj.GetColumnAsString(1)));
     }
 }
 
@@ -569,13 +552,13 @@ std::string Database::SelectImageSignatureByID(LockT& guard, DBID image)
 {
     const char str[] = "SELECT signature FROM pictures WHERE id = ?1;";
 
-    PreparedStatement statementobj(PictureSignatureDb, str, sizeof(str));
+    PreparedStatement statementObj(PictureSignatureDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(image);
+    auto statementInUse = statementObj.Setup(image);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return statementobj.GetColumnAsString(0);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return statementObj.GetColumnAsString(0);
     }
 
     return "";
@@ -586,19 +569,20 @@ std::vector<DBID> Database::SelectImageIDsWithoutSignature(LockT& guard)
     std::unordered_set<DBID> imagesWithSignature;
 
     // This is really slow so we do it in memory with an unordered set (a map was also slow)
-    // PreparedStatement statementobj2(
+    // PreparedStatement statementObj2(
     //     PictureSignatureDb, "SELECT EXISTS(SELECT 1 FROM pictures WHERE id = ?);");
     {
         const char str[] = "SELECT id FROM pictures;";
 
-        PreparedStatement statementobj2(PictureSignatureDb, str, sizeof(str));
+        PreparedStatement statementObj2(PictureSignatureDb, str, sizeof(str));
 
-        auto statementinuse2 = statementobj2.Setup();
+        auto statementInUse2 = statementObj2.Setup();
 
-        while(statementobj2.Step(statementinuse2) == PreparedStatement::STEP_RESULT::ROW) {
-
+        while (statementObj2.Step(statementInUse2) == PreparedStatement::STEP_RESULT::ROW)
+        {
             DBID id;
-            if(statementobj2.GetObjectIDFromColumn(id)) {
+            if (statementObj2.GetObjectIDFromColumn(id))
+            {
                 imagesWithSignature.insert(id);
             }
         }
@@ -606,21 +590,20 @@ std::vector<DBID> Database::SelectImageIDsWithoutSignature(LockT& guard)
 
     const char str[] = "SELECT id FROM pictures WHERE deleted IS NOT 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup();
+    auto statementInUse = statementObj.Setup();
 
     std::vector<DBID> result;
 
-
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
-        if(statementobj.GetObjectIDFromColumn(id)) {
-
+        if (statementObj.GetObjectIDFromColumn(id))
+        {
             bool exists = imagesWithSignature.find(id) != imagesWithSignature.end();
 
-            if(!exists)
+            if (!exists)
                 result.push_back(id);
         }
     }
@@ -632,13 +615,13 @@ std::shared_ptr<Image> Database::SelectImageByHash(LockT& guard, const std::stri
 {
     const char str[] = "SELECT * FROM pictures WHERE file_hash = ?1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(hash);
+    auto statementInUse = statementObj.Setup(hash);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadImageFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadImageFromRow(guard, statementObj);
     }
 
     return nullptr;
@@ -648,13 +631,13 @@ std::shared_ptr<Image> Database::SelectImageByID(LockT& guard, DBID id)
 {
     const char str[] = "SELECT * FROM pictures WHERE id = ?1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(id);
+    auto statementInUse = statementObj.Setup(id);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadImageFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadImageFromRow(guard, statementObj);
     }
 
     return nullptr;
@@ -664,13 +647,13 @@ std::shared_ptr<Image> Database::SelectImageByIDSkipDeleted(LockT& guard, DBID i
 {
     const char str[] = "SELECT * FROM pictures WHERE id = ?1 AND deleted IS NOT 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(id);
+    auto statementInUse = statementObj.Setup(id);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadImageFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadImageFromRow(guard, statementObj);
     }
 
     return nullptr;
@@ -683,68 +666,98 @@ std::vector<std::shared_ptr<Image>> Database::SelectImageByTag(LockT& guard, DBI
     const char str[] = "SELECT * FROM pictures WHERE deleted IS NOT 1 AND pictures.id IN "
                        "(SELECT image_tag.image FROM image_tag WHERE image_tag.tag = ?1);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(tagid);
+    auto statementInUse = statementObj.Setup(tagid);
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        result.push_back(_LoadImageFromRow(guard, statementobj));
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        result.push_back(_LoadImageFromRow(guard, statementObj));
     }
 
     return result;
 }
+
+// ------------------------------------ //
+void Database::SelectOrphanedImages(LockT& guard, std::vector<DBID>& result)
+{
+    const char str[] = "SELECT id FROM pictures WHERE NOT EXISTS "
+                       "(SELECT COUNT(*) FROM collection_image WHERE image = id);";
+
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
+
+    auto statementInUse = statementObj.Setup();
+
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        DBID id;
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+            result.push_back(id);
+    }
+}
+
+void Database::SelectIncorrectlyDeletedImages(LockT& guard, std::vector<DBID>& result)
+{
+    const char str[] = "SELECT id FROM pictures WHERE deleted = TRUE AND NOT EXISTS "
+                       "(SELECT id FROM action_history WHERE json_data LIKE '%' + id + '%');";
+
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
+
+    auto statementInUse = statementObj.Setup();
+
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        DBID id;
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+            result.push_back(id);
+    }
+}
+
 // ------------------------------------ //
 std::shared_ptr<TagCollection> Database::LoadImageTags(const std::shared_ptr<Image>& image)
 {
-    if(!image || !image->IsInDatabase())
+    if (!image || !image->IsInDatabase())
         return nullptr;
 
     std::weak_ptr<Image> weak = image;
 
     auto tags = std::make_shared<DatabaseTagCollection>(
-        std::bind(&Database::SelectImageTags, this, std::placeholders::_1, weak,
-            std::placeholders::_2),
-        std::bind(&Database::InsertImageTag, this, std::placeholders::_1, weak,
-            std::placeholders::_2),
-        std::bind(&Database::DeleteImageTag, this, std::placeholders::_1, weak,
-            std::placeholders::_2),
-        *this);
+        std::bind(&Database::SelectImageTags, this, std::placeholders::_1, weak, std::placeholders::_2),
+        std::bind(&Database::InsertImageTag, this, std::placeholders::_1, weak, std::placeholders::_2),
+        std::bind(&Database::DeleteImageTag, this, std::placeholders::_1, weak, std::placeholders::_2), *this);
 
     return tags;
 }
 
-void Database::SelectImageTags(
-    LockT& guard, std::weak_ptr<Image> image, std::vector<std::shared_ptr<AppliedTag>>& tags)
+void Database::SelectImageTags(LockT& guard, std::weak_ptr<Image> image, std::vector<std::shared_ptr<AppliedTag>>& tags)
 {
     auto imageLock = image.lock();
 
-    if(!imageLock)
+    if (!imageLock)
         return;
 
     const char str[] = "SELECT tag FROM image_tag WHERE image = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(imageLock->GetID());
+    auto statementInUse = statementObj.Setup(imageLock->GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0)) {
-
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+        {
             // Load tag //
             auto tag = SelectAppliedTagByID(guard, id);
 
             // Skip applied tag that contains deleted tag
-            if(tag->HasDeletedParts())
+            if (tag->HasDeletedParts())
                 continue;
 
-            if(!tag) {
-
-                LOG_ERROR("Loading AppliedTag for image, no tag with id exists: " +
-                          Convert::ToString(id));
+            if (!tag)
+            {
+                LOG_ERROR("Loading AppliedTag for image, no tag with id exists: " + Convert::ToString(id));
                 continue;
             }
 
@@ -757,20 +770,20 @@ void Database::InsertImageTag(LockT& guard, std::weak_ptr<Image> image, AppliedT
 {
     auto imageLock = image.lock();
 
-    if(!imageLock)
+    if (!imageLock)
         return;
 
     auto existing = SelectExistingAppliedTag(guard, tag);
 
-    if(existing) {
-
+    if (existing)
+    {
         InsertTagImage(guard, *imageLock, existing->GetID());
         return;
     }
 
     // Need to create a new tag //
-    if(!InsertAppliedTag(guard, tag)) {
-
+    if (!InsertAppliedTag(guard, tag))
+    {
         throw InvalidSQL("Failed to create AppliedTag for adding to resource", 0, "");
     }
 
@@ -781,34 +794,33 @@ void Database::InsertTagImage(LockT& guard, Image& image, DBID appliedtagid)
 {
     const char str[] = "INSERT INTO image_tag (image, tag) VALUES (?, ?);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(image.GetID(), appliedtagid);
+    auto statementInUse = statementObj.Setup(image.GetID(), appliedtagid);
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 }
 
 void Database::DeleteImageTag(LockT& guard, std::weak_ptr<Image> image, AppliedTag& tag)
 {
     auto imageLock = image.lock();
 
-    if(!imageLock)
+    if (!imageLock)
         return;
 
     const char str[] = "DELETE FROM image_tag WHERE image = ? AND tag = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(imageLock->GetID(), tag.GetID());
+    auto statementInUse = statementObj.Setup(imageLock->GetID(), tag.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 
     // This calls orphan on the tag object
     DeleteAppliedTagIfNotUsed(guard, tag);
 }
 
-std::map<DBID, std::vector<std::tuple<DBID, int>>> Database::SelectPotentialImageDuplicates(
-    int sensitivity /*= 15*/)
+std::map<DBID, std::vector<std::tuple<DBID, int>>> Database::SelectPotentialImageDuplicates(int sensitivity /*= 15*/)
 {
     std::map<DBID, std::vector<std::tuple<DBID, int>>> result;
 
@@ -816,45 +828,44 @@ std::map<DBID, std::vector<std::tuple<DBID, int>>> Database::SelectPotentialImag
     // TODO: if that change is done then the ignore check step needs to be changed
     GUARD_LOCK();
 
-    const char checkIgnoreSql[] =
-        "SELECT 1 FROM ignored_duplicates WHERE primary_image = ?1 AND other_image = ?2;";
+    const char checkIgnoreSql[] = "SELECT 1 FROM ignored_duplicates WHERE primary_image = ?1 AND other_image = ?2;";
 
     PreparedStatement checkStatement(SQLiteDb, checkIgnoreSql, sizeof(checkIgnoreSql));
 
-    const char sql[] =
-        "SELECT isw.picture_id, COUNT(isw.sig_word) as strength, isw_search.picture_id FROM "
-        "picture_signature_words isw JOIN picture_signature_words isw_search ON isw.sig_word "
-        "= isw_search.sig_word AND isw.picture_id < isw_search.picture_id GROUP BY "
-        "isw.picture_id, isw_search.picture_id HAVING strength >= ?;";
+    const char sql[] = "SELECT isw.picture_id, COUNT(isw.sig_word) as strength, isw_search.picture_id FROM "
+                       "picture_signature_words isw JOIN picture_signature_words isw_search ON isw.sig_word "
+                       "= isw_search.sig_word AND isw.picture_id < isw_search.picture_id GROUP BY "
+                       "isw.picture_id, isw_search.picture_id HAVING strength >= ?;";
 
-    PreparedStatement statementobj(PictureSignatureDb, sql, sizeof(sql));
+    PreparedStatement statementObj(PictureSignatureDb, sql, sizeof(sql));
 
-    auto statementinuse = statementobj.Setup(sensitivity);
+    auto statementInUse = statementObj.Setup(sensitivity);
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID original;
         DBID duplicate;
 
-        if(statementobj.GetObjectIDFromColumn(original, 0) &&
-            statementobj.GetObjectIDFromColumn(duplicate, 2)) {
-
+        if (statementObj.GetObjectIDFromColumn(original, 0) && statementObj.GetObjectIDFromColumn(duplicate, 2))
+        {
             auto usedCheck = checkStatement.Setup(original, duplicate);
 
-            if(checkStatement.Step(usedCheck) == PreparedStatement::STEP_RESULT::ROW) {
+            if (checkStatement.Step(usedCheck) == PreparedStatement::STEP_RESULT::ROW)
+            {
                 // Ignored
                 continue;
             }
 
-
-            int strength = statementobj.GetColumnAsInt(1);
+            int strength = statementObj.GetColumnAsInt(1);
 
             auto found = result.find(original);
 
-            if(found != result.end()) {
+            if (found != result.end())
+            {
                 result[original].push_back(std::make_tuple(duplicate, strength));
-
-            } else {
+            }
+            else
+            {
                 result[original] = {std::make_tuple(duplicate, strength)};
             }
         }
@@ -862,24 +873,23 @@ std::map<DBID, std::vector<std::tuple<DBID, int>>> Database::SelectPotentialImag
 
     return result;
 }
+
 // ------------------------------------ //
 // Collection
-bool Database::CheckIsCollectionNameInUse(
-    LockT& guard, const std::string& name, int ignoreDuplicateId /*= -1*/)
+bool Database::CheckIsCollectionNameInUse(LockT& guard, const std::string& name, DBID ignoreDuplicateId /*= -1*/)
 {
     // TODO: should this check for deleted also? that would make undo easier for collection
     // delete
-    const char str[] =
-        "SELECT id FROM collections WHERE name = ?1 COLLATE NOCASE AND deleted IS NOT 1;";
+    const char str[] = "SELECT id FROM collections WHERE name = ?1 COLLATE NOCASE AND deleted IS NOT 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(name);
+    auto statementInUse = statementObj.Setup(name);
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         // Found a value //
-        if(statementobj.GetColumnAsInt64(0) == ignoreDuplicateId)
+        if (statementObj.GetColumnAsInt64(0) == ignoreDuplicateId)
             continue;
 
         return true;
@@ -890,24 +900,22 @@ bool Database::CheckIsCollectionNameInUse(
     return false;
 }
 
-std::shared_ptr<Collection> Database::InsertCollection(
-    LockT& guard, const std::string& name, bool isprivate)
+std::shared_ptr<Collection> Database::InsertCollection(LockT& guard, const std::string& name, bool isprivate)
 {
     const char str[] = "INSERT INTO collections (name, is_private, "
                        "add_date, modify_date, last_view) VALUES (?, ?, ?, ?, ?);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
     const auto currentTime = TimeHelpers::FormatCurrentTimeAs8601();
-    auto statementinuse =
-        statementobj.Setup(name, isprivate, currentTime, currentTime, currentTime);
+    auto statementInUse = statementObj.Setup(name, isprivate, currentTime, currentTime, currentTime);
 
-    try {
-
-        statementobj.StepAll(statementinuse);
-
-    } catch(const InvalidSQL& e) {
-
+    try
+    {
+        statementObj.StepAll(statementInUse);
+    }
+    catch (const InvalidSQL& e)
+    {
         LOG_WARNING("Failed to InsertCollection: ");
         e.PrintToLog();
         return nullptr;
@@ -916,8 +924,8 @@ std::shared_ptr<Collection> Database::InsertCollection(
     auto created = SelectCollectionByName(guard, name);
 
     // Add it to the root folder //
-    if(!InsertCollectionToFolder(guard, *SelectRootFolder(guard), *created)) {
-
+    if (!InsertCollectionToFolder(guard, *SelectRootFolder(guard), *created))
+    {
         LOG_ERROR("Failed to add a new Collection to the root folder");
     }
 
@@ -931,10 +939,9 @@ bool Database::UpdateCollection(LockT& guard, const Collection& collection)
 {
     const char str[] = "UPDATE collections SET name = ?2, is_private = ?3 WHERE id = ?1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    statementobj.StepAll(statementobj.Setup(
-        collection.GetID(), collection.GetName(), collection.GetIsPrivate()));
+    statementObj.StepAll(statementObj.Setup(collection.GetID(), collection.GetName(), collection.GetIsPrivate()));
 
     // TODO: check that this can't result in the collection having the same name as some other
     // one
@@ -944,10 +951,10 @@ bool Database::UpdateCollection(LockT& guard, const Collection& collection)
 
 std::shared_ptr<DatabaseAction> Database::DeleteCollection(Collection& collection)
 {
-    if(collection.InDatabase != this)
+    if (collection.InDatabase != this)
         return nullptr;
 
-    if(collection.ID == DATABASE_UNCATEGORIZED_COLLECTION_ID)
+    if (collection.ID == DATABASE_UNCATEGORIZED_COLLECTION_ID)
         throw Leviathan::InvalidArgument("Uncategorized collection may not be deleted");
 
     std::shared_ptr<CollectionDeleteAction> action;
@@ -957,11 +964,11 @@ std::shared_ptr<DatabaseAction> Database::DeleteCollection(Collection& collectio
         action = CreateDeleteCollectionAction(guard, collection);
     }
 
-    if(!action)
+    if (!action)
         return nullptr;
 
-    if(!action->Redo()) {
-
+    if (!action->Redo())
+    {
         LOG_ERROR("Database: freshly created action failed to Redo");
         return nullptr;
     }
@@ -969,10 +976,9 @@ std::shared_ptr<DatabaseAction> Database::DeleteCollection(Collection& collectio
     return action;
 }
 
-std::shared_ptr<CollectionDeleteAction> Database::CreateDeleteCollectionAction(
-    LockT& guard, Collection& collection)
+std::shared_ptr<CollectionDeleteAction> Database::CreateDeleteCollectionAction(LockT& guard, Collection& collection)
 {
-    if(!collection.IsInDatabase() || collection.IsDeleted())
+    if (!collection.IsInDatabase() || collection.IsDeleted())
         return nullptr;
 
     // Create the action
@@ -982,73 +988,72 @@ std::shared_ptr<CollectionDeleteAction> Database::CreateDeleteCollectionAction(
     auto casted = std::static_pointer_cast<DatabaseAction>(action);
     LoadedDatabaseActions.OnLoad(casted);
 
-    if(casted.get() != action.get())
+    if (casted.get() != action.get())
         LOG_ERROR("Database: action got changed on store");
 
     PurgeOldActionsUntilUnderLimit(guard);
     return action;
 }
 
-std::shared_ptr<CollectionDeleteAction> Database::SelectCollectionDeleteAction(
-    Collection& collection, bool performed)
+std::shared_ptr<CollectionDeleteAction> Database::SelectCollectionDeleteAction(Collection& collection, bool performed)
 {
     GUARD_LOCK();
 
     const char str[] = "SELECT * FROM action_history WHERE json_data LIKE ?1 AND type = ?2 "
                        "AND performed = ?3 ORDER BY id DESC;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup("%" + std::to_string(collection.GetID()) + "%",
+    auto statementInUse = statementObj.Setup("%" + std::to_string(collection.GetID()) + "%",
         static_cast<int>(DATABASE_ACTION_TYPE::CollectionDelete), performed ? 1 : 0);
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        auto action =
+            std::dynamic_pointer_cast<CollectionDeleteAction>(_LoadDatabaseActionFromRow(guard, statementObj));
 
-        auto action = std::dynamic_pointer_cast<CollectionDeleteAction>(
-            _LoadDatabaseActionFromRow(guard, statementobj));
-
-        if(!action)
+        if (!action)
             continue;
 
-        if(action->GetResourceToDelete() == collection.GetID()) {
+        if (action->GetResourceToDelete() == collection.GetID())
+        {
             return action;
         }
     }
 
     return nullptr;
 }
+
 // ------------------------------------ //
 std::shared_ptr<Collection> Database::SelectCollectionByID(LockT& guard, DBID id)
 {
     const char str[] = "SELECT * FROM collections WHERE id = ?1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(id);
+    auto statementInUse = statementObj.Setup(id);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         // Found a value //
-        return _LoadCollectionFromRow(guard, statementobj);
+        return _LoadCollectionFromRow(guard, statementObj);
     }
 
     return nullptr;
 }
 
-std::shared_ptr<Collection> Database::SelectCollectionByName(
-    LockT& guard, const std::string& name)
+std::shared_ptr<Collection> Database::SelectCollectionByName(LockT& guard, const std::string& name)
 {
-    const char str[] =
-        "SELECT * FROM collections WHERE name = ?1 COLLATE NOCASE AND deleted IS NOT 1;";
+    const char str[] = "SELECT * FROM collections WHERE name = ?1 COLLATE NOCASE AND deleted IS NOT 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(name);
+    auto statementInUse = statementObj.Setup(name);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         // Found a value //
-        return _LoadCollectionFromRow(guard, statementobj);
+        return _LoadCollectionFromRow(guard, statementObj);
     }
 
     return nullptr;
@@ -1058,20 +1063,19 @@ std::string Database::SelectCollectionNameByID(DBID id)
 {
     const char str[] = "SELECT name FROM collections WHERE id = ?1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(id);
+    auto statementInUse = statementObj.Setup(id);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return statementobj.GetColumnAsString(0);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return statementObj.GetColumnAsString(0);
     }
 
     return "";
 }
 
-std::vector<std::string> Database::SelectCollectionNamesByWildcard(
-    const std::string& pattern, int64_t max /*= 50*/)
+std::vector<std::string> Database::SelectCollectionNamesByWildcard(const std::string& pattern, int64_t max /*= 50*/)
 {
     GUARD_LOCK();
 
@@ -1081,14 +1085,14 @@ std::vector<std::string> Database::SelectCollectionNamesByWildcard(
                        "ORDER BY (CASE WHEN name = ?2 THEN 1 WHEN name LIKE ?3 THEN 2 ELSE "
                        "name END) LIMIT ?4 COLLATE NOCASE;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup("%" + pattern + "%", pattern, pattern + "%", max);
+    auto statementInUse = statementObj.Setup("%" + pattern + "%", pattern, pattern + "%", max);
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         // Found a value //
-        result.push_back(statementobj.GetColumnAsString(0));
+        result.push_back(statementObj.GetColumnAsString(0));
     }
 
     return result;
@@ -1096,19 +1100,19 @@ std::vector<std::string> Database::SelectCollectionNamesByWildcard(
 
 int64_t Database::SelectCollectionLargestShowOrder(LockT& guard, const Collection& collection)
 {
-    if(!collection.IsInDatabase())
+    if (!collection.IsInDatabase())
         return 0;
 
     const char str[] = "SELECT show_order FROM collection_image WHERE collection = ?1 "
                        "ORDER BY show_order DESC LIMIT 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID());
+    auto statementInUse = statementObj.Setup(collection.GetID());
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return statementobj.GetColumnAsInt64(0);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return statementObj.GetColumnAsInt64(0);
     }
 
     return 0;
@@ -1116,74 +1120,87 @@ int64_t Database::SelectCollectionLargestShowOrder(LockT& guard, const Collectio
 
 int64_t Database::SelectCollectionImageCount(LockT& guard, const Collection& collection)
 {
-    if(!collection.IsInDatabase())
+    if (!collection.IsInDatabase())
         return 0;
 
     const char str[] = "SELECT COUNT(*) FROM collection_image WHERE collection = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID());
+    auto statementInUse = statementObj.Setup(collection.GetID());
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return statementobj.GetColumnAsInt64(0);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return statementObj.GetColumnAsInt64(0);
     }
 
     return 0;
 }
+
 // ------------------------------------ //
-std::shared_ptr<TagCollection> Database::LoadCollectionTags(
-    const std::shared_ptr<Collection>& collection)
+void Database::SelectIncorrectlyDeletedCollections(LockT& guard, std::vector<DBID>& result)
 {
-    if(!collection || !collection->IsInDatabase())
+    const char str[] = "SELECT id FROM collections WHERE deleted = TRUE AND NOT EXISTS "
+                       "(SELECT id FROM action_history WHERE json_data LIKE '%' + id + '%');";
+
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
+
+    auto statementInUse = statementObj.Setup();
+
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        DBID id;
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+            result.push_back(id);
+    }
+}
+
+// ------------------------------------ //
+std::shared_ptr<TagCollection> Database::LoadCollectionTags(const std::shared_ptr<Collection>& collection)
+{
+    if (!collection || !collection->IsInDatabase())
         return nullptr;
 
     std::weak_ptr<Collection> weak = collection;
 
     auto tags = std::make_shared<DatabaseTagCollection>(
-        std::bind(&Database::SelectCollectionTags, this, std::placeholders::_1, weak,
-            std::placeholders::_2),
-        std::bind(&Database::InsertCollectionTag, this, std::placeholders::_1, weak,
-            std::placeholders::_2),
-        std::bind(&Database::DeleteCollectionTag, this, std::placeholders::_1, weak,
-            std::placeholders::_2),
-        *this);
+        std::bind(&Database::SelectCollectionTags, this, std::placeholders::_1, weak, std::placeholders::_2),
+        std::bind(&Database::InsertCollectionTag, this, std::placeholders::_1, weak, std::placeholders::_2),
+        std::bind(&Database::DeleteCollectionTag, this, std::placeholders::_1, weak, std::placeholders::_2), *this);
 
     return tags;
 }
 
-void Database::SelectCollectionTags(LockT& guard, std::weak_ptr<Collection> collection,
-    std::vector<std::shared_ptr<AppliedTag>>& tags)
+void Database::SelectCollectionTags(
+    LockT& guard, std::weak_ptr<Collection> collection, std::vector<std::shared_ptr<AppliedTag>>& tags)
 {
     auto collectionLock = collection.lock();
 
-    if(!collectionLock)
+    if (!collectionLock)
         return;
 
     const char str[] = "SELECT tag FROM collection_tag WHERE collection = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collectionLock->GetID());
+    auto statementInUse = statementObj.Setup(collectionLock->GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0)) {
-
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+        {
             // Load tag //
             auto tag = SelectAppliedTagByID(guard, id);
 
             // Skip applied tag that contains deleted tag
-            if(tag->HasDeletedParts())
+            if (tag->HasDeletedParts())
                 continue;
 
-            if(!tag) {
-
-                LOG_ERROR("Loading AppliedTag for collection, no tag with id exists: " +
-                          Convert::ToString(id));
+            if (!tag)
+            {
+                LOG_ERROR("Loading AppliedTag for collection, no tag with id exists: " + Convert::ToString(id));
                 continue;
             }
 
@@ -1192,25 +1209,24 @@ void Database::SelectCollectionTags(LockT& guard, std::weak_ptr<Collection> coll
     }
 }
 
-void Database::InsertCollectionTag(
-    LockT& guard, std::weak_ptr<Collection> collection, AppliedTag& tag)
+void Database::InsertCollectionTag(LockT& guard, std::weak_ptr<Collection> collection, AppliedTag& tag)
 {
     auto collectionLock = collection.lock();
 
-    if(!collectionLock)
+    if (!collectionLock)
         return;
 
     auto existing = SelectExistingAppliedTag(guard, tag);
 
-    if(existing) {
-
+    if (existing)
+    {
         InsertTagCollection(guard, *collectionLock, existing->GetID());
         return;
     }
 
     // Need to create a new tag //
-    if(!InsertAppliedTag(guard, tag)) {
-
+    if (!InsertAppliedTag(guard, tag))
+    {
         throw InvalidSQL("Failed to create AppliedTag for adding to resource", 0, "");
     }
 
@@ -1221,59 +1237,58 @@ void Database::InsertTagCollection(LockT& guard, Collection& collection, DBID ap
 {
     const char str[] = "INSERT INTO collection_tag (collection, tag) VALUES (?, ?);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID(), appliedtagid);
+    auto statementInUse = statementObj.Setup(collection.GetID(), appliedtagid);
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 }
 
-void Database::DeleteCollectionTag(
-    LockT& guard, std::weak_ptr<Collection> collection, AppliedTag& tag)
+void Database::DeleteCollectionTag(LockT& guard, std::weak_ptr<Collection> collection, AppliedTag& tag)
 {
     auto collectionLock = collection.lock();
 
-    if(!collectionLock)
+    if (!collectionLock)
         return;
 
     const char str[] = "DELETE FROM collection_tag WHERE collection = ? AND tag = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collectionLock->GetID(), tag.GetID());
+    auto statementInUse = statementObj.Setup(collectionLock->GetID(), tag.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 
     // This calls orphan on the tag object
     DeleteAppliedTagIfNotUsed(guard, tag);
 }
+
 // ------------------------------------ //
 // Collection image
-bool Database::InsertImageToCollection(
-    LockT& guard, DBID collection, DBID image, int64_t showorder)
+bool Database::InsertImageToCollection(LockT& guard, DBID collection, DBID image, int64_t showorder)
 {
-    if(collection < 0 || image < 0)
+    if (collection < 0 || image < 0)
         return false;
 
     // Skip if the image is in this collection
-    if(SelectIsImageInCollection(guard, collection, image))
+    if (SelectIsImageInCollection(guard, collection, image))
         return false;
 
     // Push back all show orders that are equal or more than showorder *if* there is a
     // duplicate
-    if(SelectImageIDInCollectionByShowOrder(guard, collection, showorder) != -1) {
-
+    if (SelectImageIDInCollectionByShowOrder(guard, collection, showorder) != -1)
+    {
         UpdateShowOrdersInCollection(guard, collection, showorder);
     }
 
     const char str[] = "INSERT INTO collection_image (collection, image, show_order) VALUES "
                        "(?1, ?2, ?3);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection, image, showorder);
+    auto statementInUse = statementObj.Setup(collection, image, showorder);
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 
     const auto changes = sqlite3_changes(SQLiteDb);
 
@@ -1282,20 +1297,17 @@ bool Database::InsertImageToCollection(
     return changes == 1;
 }
 
-bool Database::InsertImageToCollection(
-    LockT& guard, DBID collection, Image& image, int64_t showorder)
+bool Database::InsertImageToCollection(LockT& guard, DBID collection, Image& image, int64_t showorder)
 {
     return InsertImageToCollection(guard, collection, image.GetID(), showorder);
 }
 
-bool Database::InsertImageToCollection(
-    LockT& guard, Collection& collection, Image& image, int64_t showorder)
+bool Database::InsertImageToCollection(LockT& guard, Collection& collection, Image& image, int64_t showorder)
 {
     return InsertImageToCollection(guard, collection.GetID(), image.GetID(), showorder);
 }
 
-bool Database::InsertImageToCollection(
-    LockT& guard, Collection& collection, DBID image, int64_t showorder)
+bool Database::InsertImageToCollection(LockT& guard, Collection& collection, DBID image, int64_t showorder)
 {
     return InsertImageToCollection(guard, collection.GetID(), image, showorder);
 }
@@ -1304,12 +1316,12 @@ bool Database::SelectIsImageInAnyCollection(LockT& guard, const Image& image)
 {
     const char str[] = "SELECT 1 FROM collection_image WHERE image = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(image.GetID());
+    auto statementInUse = statementObj.Setup(image.GetID());
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         return true;
     }
 
@@ -1320,12 +1332,12 @@ bool Database::SelectIsImageInCollection(LockT& guard, DBID collection, DBID ima
 {
     const char str[] = "SELECT 1 FROM collection_image WHERE collection = ?1 AND image = ?2;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection, image);
+    auto statementInUse = statementObj.Setup(collection, image);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         return true;
     }
 
@@ -1337,13 +1349,13 @@ int64_t Database::SelectCollectionCountImageIsIn(LockT& guard, const Image& imag
     // TODO: check against not deleted collections
     const char str[] = "SELECT COUNT(*) FROM collection_image WHERE image = ?1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(image.GetID());
+    auto statementInUse = statementObj.Setup(image.GetID());
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return statementobj.GetColumnAsInt64(0);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return statementObj.GetColumnAsInt64(0);
     }
 
     return 0;
@@ -1351,33 +1363,33 @@ int64_t Database::SelectCollectionCountImageIsIn(LockT& guard, const Image& imag
 
 bool Database::DeleteImageFromCollection(LockT& guard, Collection& collection, Image& image)
 {
-    if(!collection.IsInDatabase() || !image.IsInDatabase())
+    if (!collection.IsInDatabase() || !image.IsInDatabase())
         return false;
 
     const char str[] = "DELETE FROM collection_image WHERE collection = ?1 AND image = ?2;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID(), image.GetID());
+    auto statementInUse = statementObj.Setup(collection.GetID(), image.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 
     const auto changes = sqlite3_changes(SQLiteDb);
 
     LEVIATHAN_ASSERT(changes <= 1, "DeleteImageFromCollection changed more than one row");
 
-    if(changes < 1)
+    if (changes < 1)
         return false;
 
     // Make sure it is in some collection
-    if(!SelectIsImageInAnyCollection(guard, image)) {
-
+    if (!SelectIsImageInAnyCollection(guard, image))
+    {
         LOG_INFO("Adding removed image to Uncategorized");
         auto uncategorized = SelectCollectionByID(guard, DATABASE_UNCATEGORIZED_COLLECTION_ID);
 
-        if(uncategorized)
-            InsertImageToCollection(guard, *uncategorized, image,
-                SelectCollectionLargestShowOrder(guard, *uncategorized) + 1);
+        if (uncategorized)
+            InsertImageToCollection(
+                guard, *uncategorized, image, SelectCollectionLargestShowOrder(guard, *uncategorized) + 1);
     }
 
     return true;
@@ -1386,11 +1398,11 @@ bool Database::DeleteImageFromCollection(LockT& guard, Collection& collection, I
 std::shared_ptr<DatabaseAction> Database::DeleteImagesFromCollection(
     Collection& collection, const std::vector<std::shared_ptr<Image>>& images)
 {
-    if(!collection.IsInDatabase())
+    if (!collection.IsInDatabase())
         return nullptr;
 
-    for(const auto& image : images)
-        if(!image || !image->IsInDatabase())
+    for (const auto& image : images)
+        if (!image || !image->IsInDatabase())
             return nullptr;
 
     GUARD_LOCK();
@@ -1399,11 +1411,12 @@ std::shared_ptr<DatabaseAction> Database::DeleteImagesFromCollection(
     std::vector<std::tuple<DBID, int64_t>> removeData;
     removeData.reserve(images.size());
 
-    for(const auto& image : images) {
-
+    for (const auto& image : images)
+    {
         const auto order = SelectImageShowOrderInCollection(guard, collection, *image);
 
-        if(order < 0) {
+        if (order < 0)
+        {
             LOG_ERROR("Database: DeleteImagesFromCollection: called with an image that is not "
                       "in the collection");
             return nullptr;
@@ -1412,8 +1425,7 @@ std::shared_ptr<DatabaseAction> Database::DeleteImagesFromCollection(
         removeData.emplace_back(image->GetID(), order);
     }
 
-    auto action =
-        std::make_shared<ImageDeleteFromCollectionAction>(collection.GetID(), removeData);
+    auto action = std::make_shared<ImageDeleteFromCollectionAction>(collection.GetID(), removeData);
 
     {
         DoDBSavePoint transaction(*this, guard, "image_del_from_collection");
@@ -1422,8 +1434,8 @@ std::shared_ptr<DatabaseAction> Database::DeleteImagesFromCollection(
         InsertDatabaseAction(guard, *action);
 
         // The action must be done here as this
-        if(!action->Redo()) {
-
+        if (!action->Redo())
+        {
             LOG_ERROR("Database: freshly created ImageDeleteFromCollection action failed");
             return nullptr;
         }
@@ -1434,29 +1446,27 @@ std::shared_ptr<DatabaseAction> Database::DeleteImagesFromCollection(
     auto casted = std::static_pointer_cast<DatabaseAction>(action);
     LoadedDatabaseActions.OnLoad(casted);
 
-    if(casted.get() != action.get())
+    if (casted.get() != action.get())
         LOG_ERROR("Database: action got changed on store");
 
     PurgeOldActionsUntilUnderLimit(guard);
     return action;
 }
 
-std::vector<DBID> Database::SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection(
-    LockT& guard, DBID collection)
+std::vector<DBID> Database::SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection(LockT& guard, DBID collection)
 {
     std::vector<DBID> result;
 
-    const char str[] =
-        "SELECT a.image FROM collection_image a WHERE collection = ? AND (SELECT COUNT(*) "
-        "FROM collection_image b WHERE a.image == b.image) < 2 ORDER BY show_order ASC;";
+    const char str[] = "SELECT a.image FROM collection_image a WHERE collection = ? AND (SELECT COUNT(*) "
+                       "FROM collection_image b WHERE a.image == b.image) < 2 ORDER BY show_order ASC;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection);
+    auto statementInUse = statementObj.Setup(collection);
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        result.push_back(statementobj.GetColumnAsInt64(0));
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        result.push_back(statementObj.GetColumnAsInt64(0));
     }
 
     return result;
@@ -1465,26 +1475,24 @@ std::vector<DBID> Database::SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCo
 std::vector<DBID> Database::SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection(
     LockT& guard, Collection& collection)
 {
-    return SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection(
-        guard, collection.GetID());
+    return SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection(guard, collection.GetID());
 }
 
-int64_t Database::SelectImageShowOrderInCollection(
-    LockT& guard, const Collection& collection, const Image& image)
+int64_t Database::SelectImageShowOrderInCollection(LockT& guard, const Collection& collection, const Image& image)
 {
-    if(!collection.IsInDatabase() || !image.IsInDatabase())
+    if (!collection.IsInDatabase() || !image.IsInDatabase())
         return -1;
 
     const char str[] = "SELECT show_order FROM collection_image WHERE collection = ? AND "
                        "image = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID(), image.GetID());
+    auto statementInUse = statementObj.Setup(collection.GetID(), image.GetID());
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return statementobj.GetColumnAsInt64(0);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return statementObj.GetColumnAsInt64(0);
     }
 
     return -1;
@@ -1493,40 +1501,39 @@ int64_t Database::SelectImageShowOrderInCollection(
 std::shared_ptr<Image> Database::SelectImageInCollectionByShowOrder(
     LockT& guard, const Collection& collection, int64_t showorder)
 {
-    if(!collection.IsInDatabase())
+    if (!collection.IsInDatabase())
         return nullptr;
 
     const char str[] = "SELECT image FROM collection_image WHERE collection = ? AND "
                        "show_order = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID(), showorder);
+    auto statementInUse = statementObj.Setup(collection.GetID(), showorder);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
-        if(statementobj.GetObjectIDFromColumn(id, 0))
+        if (statementObj.GetObjectIDFromColumn(id, 0))
             return SelectImageByIDSkipDeleted(guard, id);
     }
 
     return nullptr;
 }
 
-DBID Database::SelectImageIDInCollectionByShowOrder(
-    LockT& guard, DBID collection, int64_t showorder)
+DBID Database::SelectImageIDInCollectionByShowOrder(LockT& guard, DBID collection, int64_t showorder)
 {
     const char str[] = "SELECT image FROM collection_image WHERE collection = ? AND "
                        "show_order = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection, showorder);
+    auto statementInUse = statementObj.Setup(collection, showorder);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
-        if(statementobj.GetObjectIDFromColumn(id, 0))
+        if (statementObj.GetObjectIDFromColumn(id, 0))
             return id;
     }
 
@@ -1536,7 +1543,7 @@ DBID Database::SelectImageIDInCollectionByShowOrder(
 std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollectionByShowOrder(
     LockT& guard, const Collection& collection, int64_t showorder)
 {
-    if(!collection.IsInDatabase())
+    if (!collection.IsInDatabase())
         return {};
 
     std::vector<std::shared_ptr<Image>> result;
@@ -1544,17 +1551,18 @@ std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollectionByShowOrde
     const char str[] = "SELECT image FROM collection_image WHERE collection = ? AND "
                        "show_order = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID(), showorder);
+    auto statementInUse = statementObj.Setup(collection.GetID(), showorder);
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
-        if(statementobj.GetObjectIDFromColumn(id, 0)) {
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+        {
             auto image = SelectImageByIDSkipDeleted(guard, id);
 
-            if(image)
+            if (image)
                 result.push_back(image);
         }
     }
@@ -1568,16 +1576,16 @@ std::shared_ptr<Image> Database::SelectCollectionPreviewImage(const Collection& 
 
     const char str[] = "SELECT preview_image FROM collections WHERE id = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID());
+    auto statementInUse = statementObj.Setup(collection.GetID());
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID preview;
 
-        if(statementobj.GetObjectIDFromColumn(preview, 0)) {
-
+        if (statementObj.GetObjectIDFromColumn(preview, 0))
+        {
             // It was set //
             return SelectImageByIDSkipDeleted(guard, preview);
         }
@@ -1587,24 +1595,24 @@ std::shared_ptr<Image> Database::SelectCollectionPreviewImage(const Collection& 
     return SelectFirstImageInCollection(guard, collection);
 }
 
-std::shared_ptr<Image> Database::SelectFirstImageInCollection(
-    LockT& guard, const Collection& collection)
+std::shared_ptr<Image> Database::SelectFirstImageInCollection(LockT& guard, const Collection& collection)
 {
     const char str[] = "SELECT image FROM collection_image WHERE collection = ? "
                        "ORDER BY show_order ASC;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID());
+    auto statementInUse = statementObj.Setup(collection.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0)) {
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+        {
             auto image = SelectImageByIDSkipDeleted(guard, id);
 
-            if(image)
+            if (image)
                 return image;
         }
     }
@@ -1612,24 +1620,24 @@ std::shared_ptr<Image> Database::SelectFirstImageInCollection(
     return nullptr;
 }
 
-std::shared_ptr<Image> Database::SelectLastImageInCollection(
-    LockT& guard, const Collection& collection)
+std::shared_ptr<Image> Database::SelectLastImageInCollection(LockT& guard, const Collection& collection)
 {
     const char str[] = "SELECT image FROM collection_image WHERE collection = ? "
                        "ORDER BY show_order DESC;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID());
+    auto statementInUse = statementObj.Setup(collection.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0)) {
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+        {
             auto image = SelectImageByIDSkipDeleted(guard, id);
 
-            if(image)
+            if (image)
                 return image;
         }
     }
@@ -1637,23 +1645,21 @@ std::shared_ptr<Image> Database::SelectLastImageInCollection(
     return nullptr;
 }
 
-int64_t Database::SelectImageShowIndexInCollection(
-    const Collection& collection, const Image& image)
+int64_t Database::SelectImageShowIndexInCollection(const Collection& collection, const Image& image)
 {
     GUARD_LOCK();
 
-    const char str[] =
-        "SELECT COUNT(*) FROM collection_image WHERE collection = ?1 "
-        "AND show_order < ( SELECT show_order FROM collection_image WHERE collection = ?1 AND "
-        "image = ?2 );";
+    const char str[] = "SELECT COUNT(*) FROM collection_image WHERE collection = ?1 "
+                       "AND show_order < ( SELECT show_order FROM collection_image WHERE collection = ?1 AND "
+                       "image = ?2 );";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID(), image.GetID());
+    auto statementInUse = statementObj.Setup(collection.GetID(), image.GetID());
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return statementobj.GetColumnAsInt64(0);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return statementObj.GetColumnAsInt64(0);
     }
 
     // Image wasn't in collection //
@@ -1666,42 +1672,41 @@ std::shared_ptr<Image> Database::SelectImageInCollectionByShowIndex(
     const char str[] = "SELECT * FROM collection_image WHERE collection = ? ORDER BY "
                        "show_order LIMIT 1 OFFSET ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID(), index);
+    auto statementInUse = statementObj.Setup(collection.GetID(), index);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0))
+        if (statementObj.GetObjectIDFromColumn(id, 0))
             return SelectImageByIDSkipDeleted(guard, id);
     }
 
     return nullptr;
 }
 
-std::shared_ptr<Image> Database::SelectNextImageInCollectionByShowOrder(
-    const Collection& collection, int64_t showorder)
+std::shared_ptr<Image> Database::SelectNextImageInCollectionByShowOrder(const Collection& collection, int64_t showorder)
 {
     GUARD_LOCK();
 
     const char str[] = "SELECT image FROM collection_image WHERE collection = ?1 "
                        "AND show_order - ?2 > 0 ORDER BY ABS(show_order - ?2);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID(), showorder);
+    auto statementInUse = statementObj.Setup(collection.GetID(), showorder);
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0)) {
-
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+        {
             auto image = SelectImageByIDSkipDeleted(guard, id);
 
-            if(image)
+            if (image)
                 return image;
         }
     }
@@ -1717,19 +1722,19 @@ std::shared_ptr<Image> Database::SelectPreviousImageInCollectionByShowOrder(
     const char str[] = "SELECT image FROM collection_image WHERE collection = ?1 "
                        "AND show_order - ?2 < 0 ORDER BY ABS(show_order - ?2);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID(), showorder);
+    auto statementInUse = statementObj.Setup(collection.GetID(), showorder);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0)) {
-
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+        {
             auto image = SelectImageByIDSkipDeleted(guard, id);
 
-            if(image)
+            if (image)
                 return image;
         }
     }
@@ -1752,21 +1757,20 @@ std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollection(
 
     const auto limitUsed = limit > 0;
 
-    PreparedStatement statementobj(
-        SQLiteDb, limitUsed ? str2 : str, limitUsed ? sizeof(str2) : sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, limitUsed ? str2 : str, limitUsed ? sizeof(str2) : sizeof(str));
 
-    auto statementinuse = limitUsed ? statementobj.Setup(collection.GetID(), limit) :
-                                      statementobj.Setup(collection.GetID());
+    auto statementInUse =
+        limitUsed ? statementObj.Setup(collection.GetID(), limit) : statementObj.Setup(collection.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0)) {
-
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+        {
             auto image = SelectImageByIDSkipDeleted(guard, id);
 
-            if(image)
+            if (image)
                 result.push_back(image);
         }
     }
@@ -1774,8 +1778,7 @@ std::vector<std::shared_ptr<Image>> Database::SelectImagesInCollection(
     return result;
 }
 
-std::vector<std::tuple<DBID, int64_t>> Database::SelectImageIDsAndShowOrderInCollection(
-    const Collection& collection)
+std::vector<std::tuple<DBID, int64_t>> Database::SelectImageIDsAndShowOrderInCollection(const Collection& collection)
 {
     GUARD_LOCK();
 
@@ -1784,75 +1787,71 @@ std::vector<std::tuple<DBID, int64_t>> Database::SelectImageIDsAndShowOrderInCol
     const char str[] = "SELECT image, show_order FROM collection_image WHERE collection = ? "
                        "ORDER BY show_order ASC;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID());
+    auto statementInUse = statementObj.Setup(collection.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0)) {
-
-            result.emplace_back(id, statementobj.GetColumnAsInt64(1));
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+        {
+            result.emplace_back(id, statementObj.GetColumnAsInt64(1));
         }
     }
 
     return result;
 }
 
-std::vector<std::tuple<DBID, int64_t>> Database::SelectCollectionIDsImageIsIn(
-    LockT& guard, const Image& image)
+std::vector<std::tuple<DBID, int64_t>> Database::SelectCollectionIDsImageIsIn(LockT& guard, const Image& image)
 {
     return SelectCollectionIDsImageIsIn(guard, image.GetID());
 }
 
-std::vector<std::tuple<DBID, int64_t>> Database::SelectCollectionIDsImageIsIn(
-    LockT& guard, DBID image)
+std::vector<std::tuple<DBID, int64_t>> Database::SelectCollectionIDsImageIsIn(LockT& guard, DBID image)
 {
     std::vector<std::tuple<DBID, int64_t>> result;
 
     const char str[] = "SELECT collection, show_order FROM collection_image WHERE image = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(image);
+    auto statementInUse = statementObj.Setup(image);
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0)) {
-
-            result.push_back(std::make_tuple(id, statementobj.GetColumnAsInt64(1)));
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+        {
+            result.push_back(std::make_tuple(id, statementObj.GetColumnAsInt64(1)));
         }
     }
 
     return result;
 }
 
-int Database::UpdateShowOrdersInCollection(
-    LockT& guard, DBID collection, int64_t startpoint, int incrementby /*= 1*/)
+int Database::UpdateShowOrdersInCollection(LockT& guard, DBID collection, int64_t startpoint, int incrementby /*= 1*/)
 {
     const char str[] = "UPDATE collection_image SET show_order = show_order + ?3 WHERE "
                        "collection = ?1 AND show_order >= ?2;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    statementobj.StepAll(statementobj.Setup(collection, startpoint, incrementby));
+    statementObj.StepAll(statementObj.Setup(collection, startpoint, incrementby));
 
     return sqlite3_changes(SQLiteDb);
 }
 
-bool Database::UpdateCollectionImageShowOrder(
-    LockT& guard, DBID collection, DBID image, int64_t showorder)
+bool Database::UpdateCollectionImageShowOrder(LockT& guard, DBID collection, DBID image, int64_t showorder)
 {
     const char str[] = "UPDATE collection_image SET show_order = ?3 WHERE "
                        "collection = ?1 AND image = ?2;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    statementobj.StepAll(statementobj.Setup(collection, image, showorder));
+    statementObj.StepAll(statementObj.Setup(collection, image, showorder));
 
     return sqlite3_changes(SQLiteDb) == 1;
 }
@@ -1860,11 +1859,11 @@ bool Database::UpdateCollectionImageShowOrder(
 std::shared_ptr<DatabaseAction> Database::UpdateCollectionImagesOrder(
     Collection& collection, const std::vector<std::shared_ptr<Image>>& neworder)
 {
-    if(!collection.IsInDatabase() /*|| collection.IsDeleted()*/)
+    if (!collection.IsInDatabase() /*|| collection.IsDeleted()*/)
         return nullptr;
 
-    for(const auto& image : neworder)
-        if(!image->IsInDatabase() || image->IsDeleted())
+    for (const auto& image : neworder)
+        if (!image->IsInDatabase() || image->IsDeleted())
             return nullptr;
 
     // Create the action
@@ -1883,8 +1882,8 @@ std::shared_ptr<DatabaseAction> Database::UpdateCollectionImagesOrder(
         InsertDatabaseAction(guard, *action);
 
         // The action must be done here as this captures undo information
-        if(!action->Redo()) {
-
+        if (!action->Redo())
+        {
             LOG_ERROR("Database: freshly created ReorderCollection action failed");
             return nullptr;
         }
@@ -1895,7 +1894,7 @@ std::shared_ptr<DatabaseAction> Database::UpdateCollectionImagesOrder(
     auto casted = std::static_pointer_cast<DatabaseAction>(action);
     LoadedDatabaseActions.OnLoad(casted);
 
-    if(casted.get() != action.get())
+    if (casted.get() != action.get())
         LOG_ERROR("Database: action got changed on store");
 
     PurgeOldActionsUntilUnderLimit(guard);
@@ -1909,13 +1908,13 @@ size_t Database::CountExistingTags()
 
     const char str[] = "SELECT COUNT(*) FROM tags WHERE deleted IS NOT 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup();
+    auto statementInUse = statementObj.Setup();
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return statementobj.GetColumnAsInt64(0);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return statementObj.GetColumnAsInt64(0);
     }
 
     return 0;
@@ -1927,30 +1926,31 @@ size_t Database::CountDatabaseActions()
 
     const char str[] = "SELECT COUNT(*) FROM action_history;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup();
+    auto statementInUse = statementObj.Setup();
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return statementobj.GetColumnAsInt64(0);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return statementObj.GetColumnAsInt64(0);
     }
 
     return 0;
 }
+
 // ------------------------------------ //
 // Folder
 std::shared_ptr<Folder> Database::SelectRootFolder(LockT& guard)
 {
     const char str[] = "SELECT * FROM virtual_folders WHERE id = 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup();
+    auto statementInUse = statementObj.Setup();
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadFolderFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadFolderFromRow(guard, statementObj);
     }
 
     LEVIATHAN_ASSERT(false, "Root folder is missing from the database");
@@ -1961,44 +1961,62 @@ std::shared_ptr<Folder> Database::SelectFolderByID(LockT& guard, DBID id)
 {
     const char str[] = "SELECT * FROM virtual_folders WHERE id = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(id);
+    auto statementInUse = statementObj.Setup(id);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadFolderFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadFolderFromRow(guard, statementObj);
     }
 
     return nullptr;
 }
 
-std::shared_ptr<Folder> Database::InsertFolder(
-    std::string name, bool isprivate, const Folder& parent)
+// ------------------------------------ //
+void Database::SelectIncorrectlyDeletedFolders(LockT& guard, std::vector<DBID>& result)
+{
+    const char str[] = "SELECT id FROM virtual_folders WHERE deleted = TRUE AND NOT EXISTS "
+                       "(SELECT id FROM action_history WHERE json_data LIKE '%' + id + '%');";
+
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
+
+    auto statementInUse = statementObj.Setup();
+
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        DBID id;
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+            result.push_back(id);
+    }
+}
+
+// ------------------------------------ //
+std::shared_ptr<Folder> Database::InsertFolder(std::string name, bool isprivate, const Folder& parent)
 {
     // Sanitize name //
     name = Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(name, '\\', ' ');
     name = Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(name, '/', ' ');
 
-    if(name.empty()) {
-
+    if (name.empty())
+    {
         throw InvalidSQL("InsertFolder name is empty", 1, "");
     }
 
     GUARD_LOCK();
 
     // Make sure it isn't there already //
-    if(SelectFolderByNameAndParent(guard, name, parent))
+    if (SelectFolderByNameAndParent(guard, name, parent))
         return nullptr;
 
     const char str[] = "INSERT INTO virtual_folders (name, is_private) VALUES "
                        "(?1, ?2);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(name, isprivate);
+    auto statementInUse = statementObj.Setup(name, isprivate);
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 
     const auto id = sqlite3_last_insert_rowid(SQLiteDb);
 
@@ -2014,20 +2032,20 @@ bool Database::UpdateFolder(LockT& guard, Folder& folder)
 {
     const char str[] = "UPDATE virtual_folders SET name = ?2, is_private = ?3 WHERE id = ?1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    statementobj.StepAll(
-        statementobj.Setup(folder.GetID(), folder.GetName(), folder.GetIsPrivate()));
+    statementObj.StepAll(statementObj.Setup(folder.GetID(), folder.GetName(), folder.GetIsPrivate()));
 
     return sqlite3_changes(SQLiteDb);
 }
+
 // ------------------------------------ //
 std::shared_ptr<DatabaseAction> Database::DeleteFolder(Folder& folder)
 {
-    if(folder.InDatabase != this)
+    if (folder.InDatabase != this)
         return nullptr;
 
-    if(folder.ID == DATABASE_ROOT_FOLDER_ID)
+    if (folder.ID == DATABASE_ROOT_FOLDER_ID)
         throw Leviathan::InvalidArgument("Root folder may not be deleted");
 
     std::shared_ptr<FolderDeleteAction> action;
@@ -2037,10 +2055,11 @@ std::shared_ptr<DatabaseAction> Database::DeleteFolder(Folder& folder)
         action = CreateDeleteFolderAction(guard, folder);
     }
 
-    if(!action)
+    if (!action)
         return nullptr;
 
-    if(!action->Redo()) {
+    if (!action->Redo())
+    {
         LOG_ERROR("Database: freshly created action failed to Redo");
         return nullptr;
     }
@@ -2048,10 +2067,9 @@ std::shared_ptr<DatabaseAction> Database::DeleteFolder(Folder& folder)
     return action;
 }
 
-std::shared_ptr<FolderDeleteAction> Database::CreateDeleteFolderAction(
-    LockT& guard, Folder& folder)
+std::shared_ptr<FolderDeleteAction> Database::CreateDeleteFolderAction(LockT& guard, Folder& folder)
 {
-    if(!folder.IsInDatabase() || folder.IsDeleted())
+    if (!folder.IsInDatabase() || folder.IsDeleted())
         return nullptr;
 
     // Create the action
@@ -2061,42 +2079,41 @@ std::shared_ptr<FolderDeleteAction> Database::CreateDeleteFolderAction(
     auto casted = std::static_pointer_cast<DatabaseAction>(action);
     LoadedDatabaseActions.OnLoad(casted);
 
-    if(casted.get() != action.get())
+    if (casted.get() != action.get())
         LOG_ERROR("Database: action got changed on store");
 
     PurgeOldActionsUntilUnderLimit(guard);
     return action;
 }
+
 // ------------------------------------ //
 // Folder collection
-bool Database::InsertCollectionToFolder(
-    LockT& guard, Folder& folder, const Collection& collection)
+bool Database::InsertCollectionToFolder(LockT& guard, Folder& folder, const Collection& collection)
 {
-    if(!collection.IsInDatabase() || !folder.IsInDatabase())
+    if (!collection.IsInDatabase() || !folder.IsInDatabase())
         return false;
 
     const char str[] = "INSERT INTO folder_collection (parent, child) VALUES(?, ?);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(folder.GetID(), collection.GetID());
+    auto statementInUse = statementObj.Setup(folder.GetID(), collection.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 
     const auto changes = sqlite3_changes(SQLiteDb);
     return changes == 1;
 }
 
-void Database::DeleteCollectionFromFolder(
-    LockT& guard, Folder& folder, const Collection& collection)
+void Database::DeleteCollectionFromFolder(LockT& guard, Folder& folder, const Collection& collection)
 {
     const char str[] = "DELETE FROM folder_collection WHERE parent = ? AND child = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(folder.GetID(), collection.GetID());
+    auto statementInUse = statementObj.Setup(folder.GetID(), collection.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 }
 
 std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsInFolder(
@@ -2116,24 +2133,23 @@ std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsInFolder(
                               "LEFT JOIN collections ON id = child WHERE parent = ?1 "
                               "AND collections.deleted IS NOT 1 ORDER BY name;";
 
-    PreparedStatement statementobj(SQLiteDb, usePattern ? str : strNoMatch,
-        usePattern ? sizeof(str) : sizeof(strNoMatch));
+    PreparedStatement statementObj(
+        SQLiteDb, usePattern ? str : strNoMatch, usePattern ? sizeof(str) : sizeof(strNoMatch));
 
-    auto statementinuse = usePattern ?
-                              statementobj.Setup(folder.GetID(), "%" + matchingpattern + "%",
-                                  matchingpattern, matchingpattern) :
-                              statementobj.Setup(folder.GetID());
+    auto statementInUse = usePattern ?
+        statementObj.Setup(folder.GetID(), "%" + matchingpattern + "%", matchingpattern, matchingpattern) :
+        statementObj.Setup(folder.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        result.push_back(_LoadCollectionFromRow(guard, statementobj));
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        result.push_back(_LoadCollectionFromRow(guard, statementObj));
     }
 
     return result;
 }
+
 // ------------------------------------ //
-std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsOnlyInFolder(
-    LockT& guard, const Folder& folder)
+std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsOnlyInFolder(LockT& guard, const Folder& folder)
 {
     std::vector<std::shared_ptr<Collection>> result;
 
@@ -2142,45 +2158,46 @@ std::vector<std::shared_ptr<Collection>> Database::SelectCollectionsOnlyInFolder
                        "folder_collection f2 INNER JOIN virtual_folders v2 on f2.parent = "
                        "v2.id WHERE f2.child == f1.child AND v2.deleted IS NOT TRUE) < 2;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(folder.GetID());
+    auto statementInUse = statementObj.Setup(folder.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-        result.push_back(_LoadCollectionFromRow(guard, statementobj));
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        result.push_back(_LoadCollectionFromRow(guard, statementObj));
     }
 
     return result;
 }
+
 // ------------------------------------ //
 bool Database::SelectCollectionIsInFolder(LockT& guard, const Collection& collection)
 {
     const char str[] = "SELECT 1 FROM folder_collection WHERE child = ? LIMIT 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID());
+    auto statementInUse = statementObj.Setup(collection.GetID());
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         return true;
     }
 
     return false;
 }
 
-bool Database::SelectCollectionIsInAnotherFolder(
-    LockT& guard, const Folder& folder, const Collection& collection)
+bool Database::SelectCollectionIsInAnotherFolder(LockT& guard, const Folder& folder, const Collection& collection)
 {
     const char str[] = "SELECT 1 FROM folder_collection WHERE child = ? AND parent != ? "
                        "LIMIT 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID(), folder.GetID());
+    auto statementInUse = statementObj.Setup(collection.GetID(), folder.GetID());
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         // There is
         return true;
     }
@@ -2195,14 +2212,14 @@ std::vector<DBID> Database::SelectFoldersCollectionIsIn(const Collection& collec
     std::vector<DBID> result;
     const char str[] = "SELECT parent FROM folder_collection WHERE child = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID());
+    auto statementInUse = statementObj.Setup(collection.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
-        if(statementobj.GetObjectIDFromColumn(id, 0))
+        if (statementObj.GetObjectIDFromColumn(id, 0))
             result.push_back(id);
     }
 
@@ -2215,23 +2232,23 @@ void Database::DeleteCollectionFromRootIfInAnotherFolder(const Collection& colle
 
     auto& root = *SelectRootFolder(guard);
 
-    if(!SelectCollectionIsInAnotherFolder(guard, root, collection)) {
-
+    if (!SelectCollectionIsInAnotherFolder(guard, root, collection))
+    {
         return;
     }
 
     const char str[] = "DELETE FROM folder_collection WHERE child = ? AND parent = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(collection.GetID(), root.GetID());
+    auto statementInUse = statementObj.Setup(collection.GetID(), root.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 }
 
 void Database::InsertCollectionToRootIfInNone(LockT& guard, const Collection& collection)
 {
-    if(SelectCollectionIsInFolder(guard, collection))
+    if (SelectCollectionIsInFolder(guard, collection))
         return;
 
     auto& root = *SelectRootFolder(guard);
@@ -2243,34 +2260,37 @@ void Database::InsertCollectionToRootIfInNone(LockT& guard, const Collection& co
 // Folder folder
 void Database::InsertFolderToFolder(LockT& guard, Folder& folder, const Folder& parent)
 {
-    if(folder.GetID() == parent.GetID()) {
+    if (folder.GetID() == parent.GetID())
+    {
         // Should this throw or just print error?
         LOG_ERROR("Can't add folder as its own child");
         // throw Leviathan::InvalidArgument("Can't add folder as its own child");
         return;
     }
 
-    if(folder.GetID() == DATABASE_ROOT_FOLDER_ID) {
+    if (folder.GetID() == DATABASE_ROOT_FOLDER_ID)
+    {
         LOG_ERROR("Can't add root folder to a folder");
         return;
     }
 
     const char str[] = "INSERT INTO folder_folder (parent, child) VALUES(?, ?);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(parent.GetID(), folder.GetID());
+    auto statementInUse = statementObj.Setup(parent.GetID(), folder.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 }
 
 void Database::InsertToRootFolderIfInNoFolders(LockT& guard, Folder& folder)
 {
-    if(SelectFolderParentCount(guard, folder) < 1) {
-
+    if (SelectFolderParentCount(guard, folder) < 1)
+    {
         const auto root = SelectFolderByID(guard, DATABASE_ROOT_FOLDER_ID);
 
-        if(!root) {
+        if (!root)
+        {
             LOG_ERROR("Database Root folder doesn't exist, can't add orphan folder to it");
             return;
         }
@@ -2283,38 +2303,38 @@ bool Database::DeleteFolderFromFolder(LockT& guard, Folder& folder, const Folder
 {
     const char str[] = "DELETE FROM folder_folder WHERE parent == ?1 AND child == ?2;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(parent.GetID(), folder.GetID());
+    auto statementInUse = statementObj.Setup(parent.GetID(), folder.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 
     return sqlite3_changes(SQLiteDb);
 }
 
 int64_t Database::SelectFolderParentCount(LockT& guard, Folder& folder)
 {
-    if(!folder.IsInDatabase())
+    if (!folder.IsInDatabase())
         return 0;
 
     const char str[] = "SELECT COUNT(*) FROM folder_folder ff LEFT JOIN virtual_folders vf on "
                        "ff.parent = vf.id WHERE ff.child = ? AND vf.deleted IS NOT TRUE;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(folder.GetID());
+    auto statementInUse = statementObj.Setup(folder.GetID());
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-        return statementobj.GetColumnAsInt64(0);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return statementObj.GetColumnAsInt64(0);
     }
 
     return 0;
 }
 
-std::vector<std::shared_ptr<Folder>> Database::SelectFoldersFolderIsIn(
-    LockT& guard, Folder& folder)
+std::vector<std::shared_ptr<Folder>> Database::SelectFoldersFolderIsIn(LockT& guard, Folder& folder)
 {
-    if(!folder.IsInDatabase())
+    if (!folder.IsInDatabase())
         return {};
 
     std::vector<std::shared_ptr<Folder>> result;
@@ -2322,15 +2342,15 @@ std::vector<std::shared_ptr<Folder>> Database::SelectFoldersFolderIsIn(
     const char str[] = "SELECT vf.* FROM folder_folder ff INNER JOIN virtual_folders vf on "
                        "ff.parent = vf.id WHERE ff.child = ? AND vf.deleted IS NOT TRUE;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(folder.GetID());
+    auto statementInUse = statementObj.Setup(folder.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        const auto folder = _LoadFolderFromRow(guard, statementObj);
 
-        const auto folder = _LoadFolderFromRow(guard, statementobj);
-
-        if(folder)
+        if (folder)
             result.push_back(folder);
     }
 
@@ -2344,13 +2364,13 @@ std::shared_ptr<Folder> Database::SelectFolderByNameAndParent(
                        "LEFT JOIN virtual_folders ON id = child WHERE parent = ?1 AND name = "
                        "?2 AND DELETED IS NOT TRUE;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(parent.GetID(), name);
+    auto statementInUse = statementObj.Setup(parent.GetID(), name);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadFolderFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadFolderFromRow(guard, statementObj);
     }
 
     return nullptr;
@@ -2363,14 +2383,14 @@ std::vector<DBID> Database::SelectFolderParents(const Folder& folder)
     std::vector<DBID> result;
     const char str[] = "SELECT parent FROM folder_folder WHERE child = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(folder.GetID());
+    auto statementInUse = statementObj.Setup(folder.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
-        if(statementobj.GetObjectIDFromColumn(id, 0))
+        if (statementObj.GetObjectIDFromColumn(id, 0))
             result.push_back(id);
     }
 
@@ -2380,19 +2400,18 @@ std::vector<DBID> Database::SelectFolderParents(const Folder& folder)
 std::shared_ptr<Folder> Database::SelectFirstParentFolderWithChildFolderNamed(
     LockT& guard, const Folder& parentsOf, const std::string& name)
 {
-    const char str[] =
-        "SELECT parent FROM folder_folder LEFT JOIN virtual_folders ON folder_folder.child = "
-        "virtual_folders.id WHERE name == ?2 AND (SELECT TRUE FROM folder_folder b WHERE "
-        "b.parent == b.parent AND b.child == ?1);";
+    const char str[] = "SELECT parent FROM folder_folder LEFT JOIN virtual_folders ON folder_folder.child = "
+                       "virtual_folders.id WHERE name == ?2 AND (SELECT TRUE FROM folder_folder b WHERE "
+                       "b.parent == b.parent AND b.child == ?1);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(parentsOf.GetID(), name);
+    auto statementInUse = statementObj.Setup(parentsOf.GetID(), name);
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
-        if(statementobj.GetObjectIDFromColumn(id, 0))
+        if (statementObj.GetObjectIDFromColumn(id, 0))
             return SelectFolderByID(guard, id);
     }
 
@@ -2416,24 +2435,22 @@ std::vector<std::shared_ptr<Folder>> Database::SelectFoldersInFolder(
                               "LEFT JOIN virtual_folders ON id = child WHERE parent = ?1 "
                               "AND virtual_folders.deleted IS NOT 1 ORDER BY name;";
 
-    PreparedStatement statementobj(SQLiteDb, usePattern ? str : strNoMatch,
-        usePattern ? sizeof(str) : sizeof(strNoMatch));
+    PreparedStatement statementObj(
+        SQLiteDb, usePattern ? str : strNoMatch, usePattern ? sizeof(str) : sizeof(strNoMatch));
 
-    auto statementinuse = usePattern ?
-                              statementobj.Setup(folder.GetID(), "%" + matchingpattern + "%",
-                                  matchingpattern, matchingpattern) :
-                              statementobj.Setup(folder.GetID());
+    auto statementInUse = usePattern ?
+        statementObj.Setup(folder.GetID(), "%" + matchingpattern + "%", matchingpattern, matchingpattern) :
+        statementObj.Setup(folder.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        result.push_back(_LoadFolderFromRow(guard, statementobj));
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        result.push_back(_LoadFolderFromRow(guard, statementObj));
     }
 
     return result;
 }
 
-std::vector<std::shared_ptr<Folder>> Database::SelectFoldersOnlyInFolder(
-    LockT& guard, const Folder& folder)
+std::vector<std::shared_ptr<Folder>> Database::SelectFoldersOnlyInFolder(LockT& guard, const Folder& folder)
 {
     std::vector<std::shared_ptr<Folder>> result;
 
@@ -2442,12 +2459,13 @@ std::vector<std::shared_ptr<Folder>> Database::SelectFoldersOnlyInFolder(
                        "folder_folder f2 INNER JOIN virtual_folders v2 on f2.parent = v2.id "
                        "WHERE f2.child == f1.child AND v2.deleted IS NOT TRUE) < 2;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(folder.GetID());
+    auto statementInUse = statementObj.Setup(folder.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-        result.push_back(_LoadFolderFromRow(guard, statementobj));
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        result.push_back(_LoadFolderFromRow(guard, statementObj));
     }
 
     return result;
@@ -2463,12 +2481,11 @@ std::shared_ptr<Tag> Database::InsertTag(
     const char str[] = "INSERT INTO tags (name, category, description, is_private) VALUES "
                        "(?, ?, ?, ?);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse =
-        statementobj.Setup(name, static_cast<int64_t>(category), description, isprivate);
+    auto statementInUse = statementObj.Setup(name, static_cast<int64_t>(category), description, isprivate);
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 
     return SelectTagByID(guard, sqlite3_last_insert_rowid(SQLiteDb));
 }
@@ -2477,13 +2494,13 @@ std::shared_ptr<Tag> Database::SelectTagByID(LockT& guard, DBID id)
 {
     const char str[] = "SELECT * FROM tags WHERE id = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(id);
+    auto statementInUse = statementObj.Setup(id);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadTagFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadTagFromRow(guard, statementObj);
     }
 
     return nullptr;
@@ -2493,13 +2510,13 @@ std::shared_ptr<Tag> Database::SelectTagByName(LockT& guard, const std::string& 
 {
     const char str[] = "SELECT * FROM tags WHERE name = ? AND deleted IS NOT 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(name);
+    auto statementInUse = statementObj.Setup(name);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadTagFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadTagFromRow(guard, statementObj);
     }
 
     return nullptr;
@@ -2516,13 +2533,13 @@ std::vector<std::shared_ptr<Tag>> Database::SelectTagsWildcard(
         const char str[] = "SELECT * FROM tags WHERE name LIKE ? AND deleted IS NOT 1 "
                            "ORDER BY name LIMIT ?;";
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+        PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-        auto statementinuse = statementobj.Setup("%" + pattern + "%", max);
+        auto statementInUse = statementObj.Setup("%" + pattern + "%", max);
 
-        while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-            result.push_back(_LoadTagFromRow(guard, statementobj));
+        while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+        {
+            result.push_back(_LoadTagFromRow(guard, statementObj));
         }
     }
 
@@ -2532,40 +2549,40 @@ std::vector<std::shared_ptr<Tag>> Database::SelectTagsWildcard(
                            "tags.id = tag_aliases.meant_tag WHERE tag_aliases.name LIKE ?1 "
                            "ORDER BY tag_aliases.name LIMIT ?2;";
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+        PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
         // The limit guarantees at least one alias
-        auto statementinuse = statementobj.Setup(
-            "%" + pattern + "%", static_cast<int64_t>(1 + (max - result.size())));
+        auto statementInUse = statementObj.Setup("%" + pattern + "%", static_cast<int64_t>(1 + (max - result.size())));
 
-        while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+        while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+        {
             // Skip duplicates //
             DBID id;
 
-            if(!statementobj.GetObjectIDFromColumn(id, 0))
+            if (!statementObj.GetObjectIDFromColumn(id, 0))
                 continue;
 
             bool skip = false;
 
-            for(const auto& tag : result) {
-
-                if(tag->GetID() == id) {
-
+            for (const auto& tag : result)
+            {
+                if (tag->GetID() == id)
+                {
                     skip = true;
                     break;
                 }
             }
 
-            if(skip)
+            if (skip)
                 continue;
 
-            auto newTag = _LoadTagFromRow(guard, statementobj);
+            auto newTag = _LoadTagFromRow(guard, statementObj);
 
-            if(!newTag->IsDeleted()) {
+            if (!newTag->IsDeleted())
+            {
                 result.push_back(newTag);
 
-                if(static_cast<int64_t>(result.size()) > max)
+                if (static_cast<int64_t>(result.size()) > max)
                     break;
             }
         }
@@ -2576,18 +2593,17 @@ std::vector<std::shared_ptr<Tag>> Database::SelectTagsWildcard(
 
 std::shared_ptr<Tag> Database::SelectTagByAlias(LockT& guard, const std::string& alias)
 {
-    const char str[] =
-        "SELECT tags.* FROM tag_aliases "
-        "LEFT JOIN tags ON tags.id = tag_aliases.meant_tag WHERE tag_aliases.name = ? AND "
-        "tags.deleted IS NOT 1;";
+    const char str[] = "SELECT tags.* FROM tag_aliases "
+                       "LEFT JOIN tags ON tags.id = tag_aliases.meant_tag WHERE tag_aliases.name = ? AND "
+                       "tags.deleted IS NOT 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(alias);
+    auto statementInUse = statementObj.Setup(alias);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadTagFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadTagFromRow(guard, statementObj);
     }
 
     return nullptr;
@@ -2599,7 +2615,7 @@ std::shared_ptr<Tag> Database::SelectTagByNameOrAlias(const std::string& name)
 
     auto tag = SelectTagByName(guard, name);
 
-    if(tag)
+    if (tag)
         return tag;
 
     return SelectTagByAlias(guard, name);
@@ -2611,13 +2627,13 @@ std::string Database::SelectTagSuperAlias(const std::string& name)
 
     const char str[] = "SELECT expanded FROM tag_super_aliases WHERE alias = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(name);
+    auto statementInUse = statementObj.Setup(name);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return statementobj.GetColumnAsString(0);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return statementObj.GetColumnAsString(0);
     }
 
     return "";
@@ -2625,7 +2641,7 @@ std::string Database::SelectTagSuperAlias(const std::string& name)
 
 void Database::UpdateTag(Tag& tag)
 {
-    if(!tag.IsInDatabase())
+    if (!tag.IsInDatabase())
         return;
 
     GUARD_LOCK();
@@ -2633,18 +2649,17 @@ void Database::UpdateTag(Tag& tag)
     const char str[] = "UPDATE tags SET name = ?, category = ?, description = ?, "
                        "is_private = ?, deleted = NULL WHERE id = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse =
-        statementobj.Setup(tag.GetName(), static_cast<int64_t>(tag.GetCategory()),
-            tag.GetDescription(), tag.GetIsPrivate(), tag.GetID());
+    auto statementInUse = statementObj.Setup(
+        tag.GetName(), static_cast<int64_t>(tag.GetCategory()), tag.GetDescription(), tag.GetIsPrivate(), tag.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 }
 
 bool Database::InsertTagAlias(Tag& tag, const std::string& alias)
 {
-    if(!tag.IsInDatabase())
+    if (!tag.IsInDatabase())
         return false;
 
     GUARD_LOCK();
@@ -2652,23 +2667,23 @@ bool Database::InsertTagAlias(Tag& tag, const std::string& alias)
     {
         const char str[] = "SELECT * FROM tag_aliases WHERE name = ?;";
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+        PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-        auto statementinuse = statementobj.Setup(alias);
+        auto statementInUse = statementObj.Setup(alias);
 
-        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+        if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+        {
             return false;
         }
     }
 
     const char str[] = "INSERT INTO tag_aliases (name, meant_tag) VALUES (?, ?);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(alias, tag.GetID());
+    auto statementInUse = statementObj.Setup(alias, tag.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
     return true;
 }
 
@@ -2678,11 +2693,11 @@ void Database::DeleteTagAlias(const std::string& alias)
 
     const char str[] = "DELETE FROM tag_aliases WHERE name = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(alias);
+    auto statementInUse = statementObj.Setup(alias);
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 }
 
 void Database::DeleteTagAlias(const Tag& tag, const std::string& alias)
@@ -2691,11 +2706,11 @@ void Database::DeleteTagAlias(const Tag& tag, const std::string& alias)
 
     const char str[] = "DELETE FROM tag_aliases WHERE name = ? AND meant_tag = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(alias, tag.GetID());
+    auto statementInUse = statementObj.Setup(alias, tag.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 }
 
 std::vector<std::string> Database::SelectTagAliases(const Tag& tag)
@@ -2706,13 +2721,13 @@ std::vector<std::string> Database::SelectTagAliases(const Tag& tag)
 
     const char str[] = "SELECT name FROM tag_aliases WHERE meant_tag = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(tag.GetID());
+    auto statementInUse = statementObj.Setup(tag.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        result.push_back(statementobj.GetColumnAsString(0));
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        result.push_back(statementObj.GetColumnAsString(0));
     }
 
     return result;
@@ -2725,23 +2740,23 @@ bool Database::InsertTagImply(Tag& tag, const Tag& implied)
     {
         const char str[] = "SELECT 1 FROM tag_implies WHERE primary_tag = ? AND to_apply = ?;";
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+        PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-        auto statementinuse = statementobj.Setup(tag.GetID(), implied.GetID());
+        auto statementInUse = statementObj.Setup(tag.GetID(), implied.GetID());
 
-        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+        if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+        {
             return false;
         }
     }
 
     const char str[] = "INSERT INTO tag_implies (primary_tag, to_apply) VALUES (?, ?);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(tag.GetID(), implied.GetID());
+    auto statementInUse = statementObj.Setup(tag.GetID(), implied.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
     return true;
 }
 
@@ -2751,11 +2766,11 @@ void Database::DeleteTagImply(Tag& tag, const Tag& implied)
 
     const char str[] = "DELETE FROM tag_implies WHERE primary_tag = ? AND to_apply = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(tag.GetID(), implied.GetID());
+    auto statementInUse = statementObj.Setup(tag.GetID(), implied.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 }
 
 std::vector<std::shared_ptr<Tag>> Database::SelectTagImpliesAsTag(const Tag& tag)
@@ -2765,12 +2780,12 @@ std::vector<std::shared_ptr<Tag>> Database::SelectTagImpliesAsTag(const Tag& tag
     std::vector<std::shared_ptr<Tag>> result;
     const auto tags = SelectTagImplies(guard, tag);
 
-    for(auto id : tags) {
-
+    for (auto id : tags)
+    {
         auto tag = SelectTagByID(guard, id);
 
-        if(!tag) {
-
+        if (!tag)
+        {
             LOG_ERROR("Database: implied tag not found, id: " + Convert::ToString(id));
             continue;
         }
@@ -2787,16 +2802,16 @@ std::vector<DBID> Database::SelectTagImplies(LockT& guard, const Tag& tag)
 
     const char str[] = "SELECT to_apply FROM tag_implies WHERE primary_tag = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(tag.GetID());
+    auto statementInUse = statementObj.Setup(tag.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0)) {
-
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+        {
             result.push_back(id);
         }
     }
@@ -2811,24 +2826,23 @@ std::shared_ptr<AppliedTag> Database::SelectAppliedTagByID(LockT& guard, DBID id
 {
     const char str[] = "SELECT * FROM applied_tag WHERE id = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(id);
+    auto statementInUse = statementObj.Setup(id);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadAppliedTagFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadAppliedTagFromRow(guard, statementObj);
     }
 
     return nullptr;
 }
 
-std::shared_ptr<AppliedTag> Database::SelectExistingAppliedTag(
-    LockT& guard, const AppliedTag& tag)
+std::shared_ptr<AppliedTag> Database::SelectExistingAppliedTag(LockT& guard, const AppliedTag& tag)
 {
     DBID id = SelectExistingAppliedTagID(guard, tag);
 
-    if(id == -1)
+    if (id == -1)
         return nullptr;
 
     return SelectAppliedTagByID(guard, id);
@@ -2838,22 +2852,22 @@ DBID Database::SelectExistingAppliedTagID(LockT& guard, const AppliedTag& tag)
 {
     const char str[] = "SELECT id FROM applied_tag WHERE tag = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(tag.GetTag()->GetID());
+    auto statementInUse = statementObj.Setup(tag.GetTag()->GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
 
-        if(!statementobj.GetObjectIDFromColumn(id, 0))
+        if (!statementObj.GetObjectIDFromColumn(id, 0))
             continue;
 
         // Check are modifiers and combines the same //
-        if(!CheckDoesAppliedTagModifiersMatch(guard, id, tag))
+        if (!CheckDoesAppliedTagModifiersMatch(guard, id, tag))
             continue;
 
-        if(!CheckDoesAppliedTagCombinesMatch(guard, id, tag))
+        if (!CheckDoesAppliedTagCombinesMatch(guard, id, tag))
             continue;
 
         // Everything matched //
@@ -2870,16 +2884,16 @@ std::vector<std::shared_ptr<TagModifier>> Database::SelectAppliedTagModifiers(
 
     const char str[] = "SELECT modifier FROM applied_tag_modifier WHERE to_tag = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(appliedtag.GetID());
+    auto statementInUse = statementObj.Setup(appliedtag.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0)) {
-
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+        {
             result.push_back(SelectTagModifierByID(guard, id));
         }
     }
@@ -2892,39 +2906,38 @@ std::tuple<std::string, std::shared_ptr<AppliedTag>> Database::SelectAppliedTagC
 {
     const char str[] = "SELECT * FROM applied_tag_combine WHERE tag_left = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(appliedtag.GetID());
+    auto statementInUse = statementObj.Setup(appliedtag.GetID());
 
-    if(statementobj.Step(statementinuse) != PreparedStatement::STEP_RESULT::ROW) {
-
+    if (statementObj.Step(statementInUse) != PreparedStatement::STEP_RESULT::ROW)
+    {
         return std::make_tuple("", nullptr);
     }
 
-    CheckRowID(statementobj, 1, "tag_right");
-    CheckRowID(statementobj, 2, "combined_with");
+    CheckRowID(statementObj, 1, "tag_right");
+    CheckRowID(statementObj, 2, "combined_with");
 
     DBID id;
-    if(!statementobj.GetObjectIDFromColumn(id, 1)) {
-
+    if (!statementObj.GetObjectIDFromColumn(id, 1))
+    {
         LOG_ERROR("Database SelectAppliedTagModifier: missing tag_right id");
         return std::make_tuple("", nullptr);
     }
 
-    return std::make_tuple(statementobj.GetColumnAsString(2), SelectAppliedTagByID(guard, id));
+    return std::make_tuple(statementObj.GetColumnAsString(2), SelectAppliedTagByID(guard, id));
 }
 
 bool Database::InsertAppliedTag(LockT& guard, AppliedTag& tag)
 {
-
     {
         const char str[] = "INSERT INTO applied_tag (tag) VALUES (?);";
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+        PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-        auto statementinuse = statementobj.Setup(tag.GetTag()->GetID());
+        auto statementInUse = statementObj.Setup(tag.GetTag()->GetID());
 
-        statementobj.StepAll(statementinuse);
+        statementObj.StepAll(statementInUse);
     }
 
     const auto id = sqlite3_last_insert_rowid(SQLiteDb);
@@ -2933,54 +2946,55 @@ bool Database::InsertAppliedTag(LockT& guard, AppliedTag& tag)
 
     std::string combinestr;
     std::shared_ptr<AppliedTag> combined;
-    if(tag.GetCombinedWith(combinestr, combined)) {
-
-        LEVIATHAN_ASSERT(
-            !combinestr.empty(), "Trying to insert tag with empty combine string");
+    if (tag.GetCombinedWith(combinestr, combined))
+    {
+        LEVIATHAN_ASSERT(!combinestr.empty(), "Trying to insert tag with empty combine string");
 
         // Insert combine //
         DBID otherid = -1;
 
-        if(combined->GetID() != -1) {
-
+        if (combined->GetID() != -1)
+        {
             otherid = combined->GetID();
-
-        } else {
-
+        }
+        else
+        {
             auto existingother = SelectExistingAppliedTag(guard, *combined);
 
-            if(existingother) {
-
+            if (existingother)
+            {
                 otherid = existingother->GetID();
-
-            } else {
-
+            }
+            else
+            {
                 // Need to create the other side //
-                if(!InsertAppliedTag(guard, *combined)) {
-
+                if (!InsertAppliedTag(guard, *combined))
+                {
                     LOG_ERROR("Database: failed to create right side of combine_with tag");
-
-                } else {
-
+                }
+                else
+                {
                     otherid = combined->GetID();
                 }
             }
         }
 
-        if(otherid != -1 && otherid != id) {
-
+        if (otherid != -1 && otherid != id)
+        {
             // Insert it //
             const char str[] = "INSERT INTO applied_tag_combine (tag_left, tag_right, "
                                "combined_with) VALUES (?, ?, ?);";
 
-            PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+            PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-            auto statementinuse = statementobj.Setup(id, otherid, combinestr);
+            auto statementInUse = statementObj.Setup(id, otherid, combinestr);
 
-            try {
-                statementobj.StepAll(statementinuse);
-            } catch(const InvalidSQL& e) {
-
+            try
+            {
+                statementObj.StepAll(statementInUse);
+            }
+            catch (const InvalidSQL& e)
+            {
                 LOG_ERROR("Database: failed to insert combined with, exception: ");
                 e.PrintToLog();
             }
@@ -2988,22 +3002,24 @@ bool Database::InsertAppliedTag(LockT& guard, AppliedTag& tag)
     }
 
     // Insert modifiers //
-    for(auto& modifier : tag.GetModifiers()) {
-
-        if(!modifier->IsInDatabase())
+    for (auto& modifier : tag.GetModifiers())
+    {
+        if (!modifier->IsInDatabase())
             continue;
 
         const char str[] = "INSERT INTO applied_tag_modifier (to_tag, modifier) "
                            "VALUES (?, ?);";
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+        PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-        auto statementinuse = statementobj.Setup(id, modifier->GetID());
+        auto statementInUse = statementObj.Setup(id, modifier->GetID());
 
-        try {
-            statementobj.StepAll(statementinuse);
-        } catch(const InvalidSQL& e) {
-
+        try
+        {
+            statementObj.StepAll(statementInUse);
+        }
+        catch (const InvalidSQL& e)
+        {
             LOG_ERROR("Database: failed to insert modifier to AppliedTag, exception: ");
             e.PrintToLog();
         }
@@ -3014,17 +3030,17 @@ bool Database::InsertAppliedTag(LockT& guard, AppliedTag& tag)
 
 void Database::DeleteAppliedTagIfNotUsed(LockT& guard, AppliedTag& tag)
 {
-    if(SelectIsAppliedTagUsed(guard, tag.GetID()))
+    if (SelectIsAppliedTagUsed(guard, tag.GetID()))
         return;
 
     // Not used, delete //
     const char str[] = "DELETE FROM applied_tag WHERE id = ?1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(tag.GetID());
+    auto statementInUse = statementObj.Setup(tag.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 
     tag.Orphaned();
 }
@@ -3035,12 +3051,12 @@ bool Database::SelectIsAppliedTagUsed(LockT& guard, DBID id)
     {
         const char str[] = "SELECT 1 FROM image_tag WHERE tag = ? LIMIT 1;";
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+        PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-        auto statementinuse = statementobj.Setup(id);
+        auto statementInUse = statementObj.Setup(id);
 
-        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+        if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+        {
             // In use //
             return true;
         }
@@ -3050,12 +3066,12 @@ bool Database::SelectIsAppliedTagUsed(LockT& guard, DBID id)
     {
         const char str[] = "SELECT 1 FROM collection_tag WHERE tag = ? LIMIT 1;";
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+        PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-        auto statementinuse = statementobj.Setup(id);
+        auto statementInUse = statementObj.Setup(id);
 
-        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+        if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+        {
             // In use //
             return true;
         }
@@ -3066,12 +3082,12 @@ bool Database::SelectIsAppliedTagUsed(LockT& guard, DBID id)
         const char str[] = "SELECT 1 FROM applied_tag_combine WHERE tag_left = ?1 OR "
                            "tag_right = ?1 LIMIT 1;";
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+        PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-        auto statementinuse = statementobj.Setup(id);
+        auto statementInUse = statementObj.Setup(id);
 
-        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+        if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+        {
             // In use //
             return true;
         }
@@ -3084,35 +3100,35 @@ bool Database::CheckDoesAppliedTagModifiersMatch(LockT& guard, DBID id, const Ap
 {
     const char str[] = "SELECT modifier FROM applied_tag_modifier WHERE to_tag = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(id);
+    auto statementInUse = statementObj.Setup(id);
 
     std::vector<DBID> modifierids;
     const auto& tagmodifiers = tag.GetModifiers();
 
     modifierids.reserve(tagmodifiers.size());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID modid;
 
-        if(!statementobj.GetObjectIDFromColumn(modid, 0))
+        if (!statementObj.GetObjectIDFromColumn(modid, 0))
             continue;
 
         // Early fail if we loaded a tag that didn't match anything in tagmodifiers //
         bool found = false;
 
-        for(const auto& tagmod : tagmodifiers) {
-
-            if(tagmod->GetID() == modid) {
-
+        for (const auto& tagmod : tagmodifiers)
+        {
+            if (tagmod->GetID() == modid)
+            {
                 found = true;
                 break;
             }
         }
 
-        if(!found)
+        if (!found)
             return false;
 
         // Store for matching other way //
@@ -3120,27 +3136,27 @@ bool Database::CheckDoesAppliedTagModifiersMatch(LockT& guard, DBID id, const Ap
     }
 
     // Fail if modifierids and tagmodifiers don't contain the same things //
-    if(modifierids.size() != tagmodifiers.size()) {
-
+    if (modifierids.size() != tagmodifiers.size())
+    {
         return false;
     }
 
-    for(const auto& tagmod : tagmodifiers) {
-
+    for (const auto& tagmod : tagmodifiers)
+    {
         DBID neededid = tagmod->GetID();
 
         bool found = false;
 
-        for(const auto& dbmodifier : modifierids) {
-
-            if(dbmodifier == neededid) {
-
+        for (const auto& dbmodifier : modifierids)
+        {
+            if (dbmodifier == neededid)
+            {
                 found = true;
                 break;
             }
         }
 
-        if(!found)
+        if (!found)
             return false;
     }
 
@@ -3155,40 +3171,40 @@ bool Database::CheckDoesAppliedTagCombinesMatch(LockT& guard, DBID id, const App
     std::string combinestr;
     std::shared_ptr<AppliedTag> otherside;
 
-    if(tag.GetCombinedWith(combinestr, otherside)) {
-
+    if (tag.GetCombinedWith(combinestr, otherside))
+    {
         rightside = SelectExistingAppliedTagID(guard, *otherside);
     }
 
     const char str[] = "SELECT * FROM applied_tag_combine WHERE tag_left = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(id);
+    auto statementInUse = statementObj.Setup(id);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         // No combine used //
-        if(rightside == -1) {
-
+        if (rightside == -1)
+        {
             // Which means that this failed //
             return false;
         }
 
-        std::string combined_with = statementobj.GetColumnAsString(2);
+        std::string combined_with = statementObj.GetColumnAsString(2);
 
-        if(combined_with != combinestr) {
-
+        if (combined_with != combinestr)
+        {
             // Combine doesn't match //
             return false;
         }
 
         DBID dbright = 0;
 
-        statementobj.GetObjectIDFromColumn(dbright, 1);
+        statementObj.GetObjectIDFromColumn(dbright, 1);
 
-        if(dbright != rightside) {
-
+        if (dbright != rightside)
+        {
             // Doesn't match //
             return false;
         }
@@ -3205,18 +3221,17 @@ DBID Database::SelectAppliedTagIDByOffset(LockT& guard, int64_t offset)
 {
     const char str[] = "SELECT id FROM applied_tag ORDER BY id ASC LIMIT 1 OFFSET ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(offset);
+    auto statementInUse = statementObj.Setup(offset);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return statementobj.GetColumnAsInt64(0);
-
-    } else {
-
-        LOG_WARNING("Database failed to retrieve applied_tag with offset: " +
-                    Convert::ToString(offset));
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return statementObj.GetColumnAsInt64(0);
+    }
+    else
+    {
+        LOG_WARNING("Database failed to retrieve applied_tag with offset: " + Convert::ToString(offset));
     }
 
     return -1;
@@ -3231,8 +3246,7 @@ void Database::CombineAppliedTagDuplicate(LockT& guard, DBID first, DBID second)
     // So after updating delete the rest
 
     // Collection
-    RunSQLAsPrepared(
-        guard, "UPDATE collection_tag SET tag = ?1 WHERE tag = ?2;", first, second);
+    RunSQLAsPrepared(guard, "UPDATE collection_tag SET tag = ?1 WHERE tag = ?2;", first, second);
 
     RunSQLAsPrepared(guard, "DELETE FROM collection_tag WHERE tag = ?;", second);
 
@@ -3257,19 +3271,18 @@ void Database::CombineAppliedTagDuplicate(LockT& guard, DBID first, DBID second)
 
     RunSQLAsPrepared(guard, "DELETE FROM applied_tag_combine WHERE tag_right = ?;", second);
 
-    LEVIATHAN_ASSERT(!SelectIsAppliedTagUsed(guard, second),
-        "CombienAppliedTagDuplicate failed to remove all references to tag");
+    LEVIATHAN_ASSERT(
+        !SelectIsAppliedTagUsed(guard, second), "CombienAppliedTagDuplicate failed to remove all references to tag");
 
     // And the delete it //
     const char str[] = "DELETE FROM applied_tag WHERE id = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(second);
+    auto statementInUse = statementObj.Setup(second);
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 }
-
 
 //
 // TagModifier
@@ -3278,61 +3291,57 @@ std::shared_ptr<TagModifier> Database::SelectTagModifierByID(LockT& guard, DBID 
 {
     const char str[] = "SELECT * FROM tag_modifiers WHERE id = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(id);
+    auto statementInUse = statementObj.Setup(id);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadTagModifierFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadTagModifierFromRow(guard, statementObj);
     }
 
     return nullptr;
 }
 
-std::shared_ptr<TagModifier> Database::SelectTagModifierByName(
-    LockT& guard, const std::string& name)
+std::shared_ptr<TagModifier> Database::SelectTagModifierByName(LockT& guard, const std::string& name)
 {
     const char str[] = "SELECT * FROM tag_modifiers WHERE name = ? AND deleted IS NOT 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(name);
+    auto statementInUse = statementObj.Setup(name);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadTagModifierFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadTagModifierFromRow(guard, statementObj);
     }
 
     return nullptr;
 }
 
-std::shared_ptr<TagModifier> Database::SelectTagModifierByAlias(
-    LockT& guard, const std::string& alias)
+std::shared_ptr<TagModifier> Database::SelectTagModifierByAlias(LockT& guard, const std::string& alias)
 {
-    const char str[] =
-        "SELECT tag_modifiers.* FROM tag_modifier_aliases "
-        "LEFT JOIN tag_modifiers ON tag_modifiers.id = tag_modifier_aliases.meant_modifier "
-        "WHERE tag_modifier_aliases.name = ? AND tag_modifiers.deleted IS NOT 1;";
+    const char str[] = "SELECT tag_modifiers.* FROM tag_modifier_aliases "
+                       "LEFT JOIN tag_modifiers ON tag_modifiers.id = tag_modifier_aliases.meant_modifier "
+                       "WHERE tag_modifier_aliases.name = ? AND tag_modifiers.deleted IS NOT 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(alias);
+    auto statementInUse = statementObj.Setup(alias);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadTagModifierFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadTagModifierFromRow(guard, statementObj);
     }
 
     return nullptr;
 }
 
-std::shared_ptr<TagModifier> Database::SelectTagModifierByNameOrAlias(
-    LockT& guard, const std::string& name)
+std::shared_ptr<TagModifier> Database::SelectTagModifierByNameOrAlias(LockT& guard, const std::string& name)
 {
     auto tag = SelectTagModifierByName(guard, name);
 
-    if(tag)
+    if (tag)
         return tag;
 
     return SelectTagModifierByAlias(guard, name);
@@ -3340,7 +3349,7 @@ std::shared_ptr<TagModifier> Database::SelectTagModifierByNameOrAlias(
 
 void Database::UpdateTagModifier(const TagModifier& modifier)
 {
-    if(!modifier.IsInDatabase())
+    if (!modifier.IsInDatabase())
         return;
 
     GUARD_LOCK();
@@ -3348,29 +3357,28 @@ void Database::UpdateTagModifier(const TagModifier& modifier)
     const char str[] = "UPDATE tag_modifiers SET name = ?, description = ?, "
                        "is_private = ? WHERE id = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(modifier.GetName(), modifier.GetDescription(),
-        modifier.GetIsPrivate(), modifier.GetID());
+    auto statementInUse =
+        statementObj.Setup(modifier.GetName(), modifier.GetDescription(), modifier.GetIsPrivate(), modifier.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 }
 
 //
 // TagBreakRule
 //
-std::shared_ptr<TagBreakRule> Database::SelectTagBreakRuleByExactPattern(
-    LockT& guard, const std::string& pattern)
+std::shared_ptr<TagBreakRule> Database::SelectTagBreakRuleByExactPattern(LockT& guard, const std::string& pattern)
 {
     const char str[] = "SELECT * FROM common_composite_tags WHERE tag_string = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(pattern);
+    auto statementInUse = statementObj.Setup(pattern);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadTagBreakRuleFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadTagBreakRuleFromRow(guard, statementObj);
     }
 
     return nullptr;
@@ -3382,41 +3390,40 @@ std::shared_ptr<TagBreakRule> Database::SelectTagBreakRuleByStr(const std::strin
 
     auto exact = SelectTagBreakRuleByExactPattern(guard, searchstr);
 
-    if(exact)
+    if (exact)
         return exact;
 
     const char str[] = "SELECT * FROM common_composite_tags WHERE "
                        "REPLACE(tag_string, '*', '') = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(searchstr);
+    auto statementInUse = statementObj.Setup(searchstr);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadTagBreakRuleFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadTagBreakRuleFromRow(guard, statementObj);
     }
 
     return nullptr;
 }
 
-std::vector<std::shared_ptr<TagModifier>> Database::SelectModifiersForBreakRule(
-    LockT& guard, const TagBreakRule& rule)
+std::vector<std::shared_ptr<TagModifier>> Database::SelectModifiersForBreakRule(LockT& guard, const TagBreakRule& rule)
 {
     std::vector<std::shared_ptr<TagModifier>> result;
 
     const char str[] = "SELECT modifier FROM composite_tag_modifiers WHERE composite = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(rule.GetID());
+    auto statementInUse = statementObj.Setup(rule.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0)) {
-
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+        {
             result.push_back(SelectTagModifierByID(guard, id));
         }
     }
@@ -3438,19 +3445,18 @@ std::vector<DBID> Database::SelectNetGalleryIDs(bool nodownloaded)
 
     std::vector<DBID> result;
 
-    PreparedStatement statementobj(SQLiteDb,
-        (nodownloaded ?
-                "SELECT id FROM net_gallery WHERE is_downloaded = 0 AND deleted IS NOT 1;" :
-                "SELECT id FROM net_gallery WHERE deleted IS NOT 1;"));
+    PreparedStatement statementObj(SQLiteDb,
+        (nodownloaded ? "SELECT id FROM net_gallery WHERE is_downloaded = 0 AND deleted IS NOT 1;" :
+                        "SELECT id FROM net_gallery WHERE deleted IS NOT 1;"));
 
-    auto statementinuse = statementobj.Setup();
+    auto statementInUse = statementObj.Setup();
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID id;
 
-        if(statementobj.GetObjectIDFromColumn(id, 0)) {
-
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+        {
             result.push_back(id);
         }
     }
@@ -3462,34 +3468,52 @@ std::shared_ptr<NetGallery> Database::SelectNetGalleryByID(LockT& guard, DBID id
 {
     const char str[] = "SELECT * FROM net_gallery WHERE id = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(id);
+    auto statementInUse = statementObj.Setup(id);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadNetGalleryFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadNetGalleryFromRow(guard, statementObj);
     }
 
     return nullptr;
 }
 
+// ------------------------------------ //
+void Database::SelectIncorrectlyDeletedNetGalleries(LockT& guard, std::vector<DBID>& result)
+{
+    const char str[] = "SELECT id FROM net_gallery WHERE deleted = TRUE AND NOT EXISTS "
+                       "(SELECT id FROM action_history WHERE json_data LIKE '%' + id + '%');";
+
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
+
+    auto statementInUse = statementObj.Setup();
+
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        DBID id;
+        if (statementObj.GetObjectIDFromColumn(id, 0))
+            result.push_back(id);
+    }
+}
+
+// ------------------------------------ //
 bool Database::InsertNetGallery(LockT& guard, std::shared_ptr<NetGallery> gallery)
 {
-    if(gallery->IsInDatabase())
+    if (gallery->IsInDatabase())
         return false;
 
-    const char str[] =
-        "INSERT INTO net_gallery (gallery_url, target_path, gallery_name, "
-        "currently_scanned, is_downloaded, tags_string) VALUES (?, ?, ?, ?, ?, ?);";
+    const char str[] = "INSERT INTO net_gallery (gallery_url, target_path, gallery_name, "
+                       "currently_scanned, is_downloaded, tags_string) VALUES (?, ?, ?, ?, ?, ?);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(gallery->GetGalleryURL(),
-        gallery->GetTargetPath(), gallery->GetTargetGalleryName(),
-        gallery->GetCurrentlyScanned(), gallery->GetIsDownloaded(), gallery->GetTagsString());
+    auto statementInUse =
+        statementObj.Setup(gallery->GetGalleryURL(), gallery->GetTargetPath(), gallery->GetTargetGalleryName(),
+            gallery->GetCurrentlyScanned(), gallery->GetIsDownloaded(), gallery->GetTagsString());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 
     gallery->OnAdopted(sqlite3_last_insert_rowid(SQLiteDb), *this);
 
@@ -3502,28 +3526,27 @@ bool Database::InsertNetGallery(LockT& guard, std::shared_ptr<NetGallery> galler
 
 void Database::UpdateNetGallery(NetGallery& gallery)
 {
-    if(!gallery.IsInDatabase())
+    if (!gallery.IsInDatabase())
         return;
 
     GUARD_LOCK();
 
-    const char str[] =
-        "UPDATE net_gallery SET gallery_url = ?, target_path = ?, "
-        "gallery_name = ?, currently_scanned = ?, is_downloaded = ?, tags_string = ? "
-        "WHERE id = ?;";
+    const char str[] = "UPDATE net_gallery SET gallery_url = ?, target_path = ?, "
+                       "gallery_name = ?, currently_scanned = ?, is_downloaded = ?, tags_string = ? "
+                       "WHERE id = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(gallery.GetGalleryURL(), gallery.GetTargetPath(),
-        gallery.GetTargetGalleryName(), gallery.GetCurrentlyScanned(),
-        gallery.GetIsDownloaded(), gallery.GetTagsString(), gallery.GetID());
+    auto statementInUse =
+        statementObj.Setup(gallery.GetGalleryURL(), gallery.GetTargetPath(), gallery.GetTargetGalleryName(),
+            gallery.GetCurrentlyScanned(), gallery.GetIsDownloaded(), gallery.GetTagsString(), gallery.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 }
 
 std::shared_ptr<DatabaseAction> Database::DeleteNetGallery(NetGallery& gallery)
 {
-    if(!gallery.IsInDatabase() || gallery.IsDeleted())
+    if (!gallery.IsInDatabase() || gallery.IsDeleted())
         return nullptr;
 
     GUARD_LOCK();
@@ -3533,17 +3556,16 @@ std::shared_ptr<DatabaseAction> Database::DeleteNetGallery(NetGallery& gallery)
 
     InsertDatabaseAction(guard, *action);
 
-    if(!action->Redo()) {
-
+    if (!action->Redo())
+    {
         LOG_ERROR("Database: freshly created action failed to Redo");
         return nullptr;
     }
 
-
     auto casted = std::static_pointer_cast<DatabaseAction>(action);
     LoadedDatabaseActions.OnLoad(casted);
 
-    if(casted.get() != action.get())
+    if (casted.get() != action.get())
         LOG_ERROR("Database: action got changed on store");
 
     PurgeOldActionsUntilUnderLimit(guard);
@@ -3559,14 +3581,15 @@ std::vector<std::shared_ptr<NetFile>> Database::SelectNetFilesFromGallery(NetGal
 
     std::vector<std::shared_ptr<NetFile>> result;
 
-    PreparedStatement statementobj(SQLiteDb, "SELECT * FROM net_files WHERE "
-                                             "belongs_to_gallery = ?;");
+    PreparedStatement statementObj(SQLiteDb,
+        "SELECT * FROM net_files WHERE "
+        "belongs_to_gallery = ?;");
 
-    auto statementinuse = statementobj.Setup(gallery.GetID());
+    auto statementInUse = statementObj.Setup(gallery.GetID());
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        result.push_back(_LoadNetFileFromRow(guard, statementobj));
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        result.push_back(_LoadNetFileFromRow(guard, statementObj));
     }
 
     return result;
@@ -3576,13 +3599,13 @@ std::shared_ptr<NetFile> Database::SelectNetFileByID(LockT& guard, DBID id)
 {
     const char str[] = "SELECT * FROM net_files WHERE id = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(id);
+    auto statementInUse = statementObj.Setup(id);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadNetFileFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadNetFileFromRow(guard, statementObj);
     }
 
     return nullptr;
@@ -3590,18 +3613,18 @@ std::shared_ptr<NetFile> Database::SelectNetFileByID(LockT& guard, DBID id)
 
 void Database::InsertNetFile(LockT& guard, NetFile& netfile, NetGallery& gallery)
 {
-    if(!gallery.IsInDatabase())
+    if (!gallery.IsInDatabase())
         return;
 
     const char str[] = "INSERT INTO net_files (file_url, page_referrer, preferred_name, "
                        "tags_string, belongs_to_gallery) VALUES (?, ?, ?, ?, ?);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(netfile.GetFileURL(), netfile.GetPageReferrer(),
+    auto statementInUse = statementObj.Setup(netfile.GetFileURL(), netfile.GetPageReferrer(),
         netfile.GetPreferredName(), netfile.GetTagsString(), gallery.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
     netfile.OnAdopted(sqlite3_last_insert_rowid(SQLiteDb), *this);
 }
 
@@ -3612,12 +3635,12 @@ void Database::UpdateNetFile(NetFile& netfile)
     const char str[] = "UPDATE net_files SET file_url = ?, referrer = ?, preferred_name = ?, "
                        "tags_string = ?, belongs_to_gallery = ? WHERE id = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(netfile.GetFileURL(), netfile.GetPageReferrer(),
+    auto statementInUse = statementObj.Setup(netfile.GetFileURL(), netfile.GetPageReferrer(),
         netfile.GetPreferredName(), netfile.GetTagsString(), netfile.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 }
 
 void Database::DeleteNetFile(NetFile& netfile)
@@ -3626,102 +3649,95 @@ void Database::DeleteNetFile(NetFile& netfile)
 
     const char str[] = "DELETE FROM net_files WHERE id = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(netfile.GetID());
+    auto statementInUse = statementObj.Setup(netfile.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
 }
-
 
 //
 // Wilcard searches for tag suggestions
 //
 //! \brief Returns text of all break rules that contain str
-void Database::SelectTagBreakRulesByStrWildcard(
-    std::vector<std::string>& breakrules, const std::string& pattern)
+void Database::SelectTagBreakRulesByStrWildcard(std::vector<std::string>& breakrules, const std::string& pattern)
 {
     GUARD_LOCK();
 
     const char str[] = "SELECT tag_string FROM common_composite_tags WHERE "
                        "REPLACE(tag_string, '*', '') LIKE ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup("%" + pattern + "%");
+    auto statementInUse = statementObj.Setup("%" + pattern + "%");
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        breakrules.push_back(statementobj.GetColumnAsString(0));
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        breakrules.push_back(statementObj.GetColumnAsString(0));
     }
 }
 
-void Database::SelectTagNamesWildcard(
-    std::vector<std::string>& result, const std::string& pattern)
+void Database::SelectTagNamesWildcard(std::vector<std::string>& result, const std::string& pattern)
 {
     GUARD_LOCK();
 
     const char str[] = "SELECT name FROM tags WHERE name LIKE ? AND deleted IS NOT 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup("%" + pattern + "%");
+    auto statementInUse = statementObj.Setup("%" + pattern + "%");
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        result.push_back(statementobj.GetColumnAsString(0));
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        result.push_back(statementObj.GetColumnAsString(0));
     }
 }
 
-void Database::SelectTagAliasesWildcard(
-    std::vector<std::string>& result, const std::string& pattern)
+void Database::SelectTagAliasesWildcard(std::vector<std::string>& result, const std::string& pattern)
 {
     GUARD_LOCK();
 
     const char str[] = "SELECT name FROM tag_aliases WHERE name LIKE ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup("%" + pattern + "%");
+    auto statementInUse = statementObj.Setup("%" + pattern + "%");
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        result.push_back(statementobj.GetColumnAsString(0));
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        result.push_back(statementObj.GetColumnAsString(0));
     }
 }
 
-void Database::SelectTagModifierNamesWildcard(
-    std::vector<std::string>& result, const std::string& pattern)
+void Database::SelectTagModifierNamesWildcard(std::vector<std::string>& result, const std::string& pattern)
 {
     GUARD_LOCK();
 
-    const char str[] =
-        "SELECT name FROM tag_modifiers WHERE name LIKE ? AND deleted IS NOT 1;";
+    const char str[] = "SELECT name FROM tag_modifiers WHERE name LIKE ? AND deleted IS NOT 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup("%" + pattern + "%");
+    auto statementInUse = statementObj.Setup("%" + pattern + "%");
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        result.push_back(statementobj.GetColumnAsString(0));
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        result.push_back(statementObj.GetColumnAsString(0));
     }
 }
 
-void Database::SelectTagSuperAliasWildcard(
-    std::vector<std::string>& result, const std::string& pattern)
+void Database::SelectTagSuperAliasWildcard(std::vector<std::string>& result, const std::string& pattern)
 {
     GUARD_LOCK();
 
     const char str[] = "SELECT alias FROM tag_super_aliases WHERE alias LIKE ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup("%" + pattern + "%");
+    auto statementInUse = statementObj.Setup("%" + pattern + "%");
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        result.push_back(statementobj.GetColumnAsString(0));
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        result.push_back(statementObj.GetColumnAsString(0));
     }
 }
 
@@ -3730,11 +3746,11 @@ void Database::SelectTagSuperAliasWildcard(
 std::shared_ptr<DatabaseAction> Database::MergeImages(
     const Image& mergetarget, const std::vector<std::shared_ptr<Image>>& tomerge)
 {
-    if(!mergetarget.IsInDatabase() || mergetarget.IsDeleted())
+    if (!mergetarget.IsInDatabase() || mergetarget.IsDeleted())
         return nullptr;
 
-    for(const auto& image : tomerge)
-        if(!image->IsInDatabase() || image->IsDeleted())
+    for (const auto& image : tomerge)
+        if (!image->IsInDatabase() || image->IsDeleted())
             return nullptr;
 
     // Create the action
@@ -3751,7 +3767,7 @@ std::shared_ptr<DatabaseAction> Database::MergeImages(
         transaction.AllowCommit(false);
 
         // The signature DB is a cache and it doesn't need to be restored
-        for(DBID id : toMergeIDs)
+        for (DBID id : toMergeIDs)
             RunOnSignatureDB(guard,
                 "DELETE FROM pictures WHERE id = ?1; DELETE FROM picture_signature_words "
                 "WHERE "
@@ -3761,8 +3777,8 @@ std::shared_ptr<DatabaseAction> Database::MergeImages(
         InsertDatabaseAction(guard, *action);
 
         // The action must be done here as this captures undo information
-        if(!action->Redo()) {
-
+        if (!action->Redo())
+        {
             LOG_ERROR("Database: freshly created MergeImages action failed");
             return nullptr;
         }
@@ -3773,7 +3789,7 @@ std::shared_ptr<DatabaseAction> Database::MergeImages(
     auto casted = std::static_pointer_cast<DatabaseAction>(action);
     LoadedDatabaseActions.OnLoad(casted);
 
-    if(casted.get() != action.get())
+    if (casted.get() != action.get())
         LOG_ERROR("Database: action got changed on store");
 
     PurgeOldActionsUntilUnderLimit(guard);
@@ -3786,13 +3802,13 @@ std::shared_ptr<DatabaseAction> Database::SelectDatabaseActionByID(LockT& guard,
 {
     const char str[] = "SELECT * FROM action_history WHERE id = ?1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(id);
+    auto statementInUse = statementObj.Setup(id);
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadDatabaseActionFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadDatabaseActionFromRow(guard, statementObj);
     }
 
     return nullptr;
@@ -3802,13 +3818,13 @@ std::shared_ptr<DatabaseAction> Database::SelectOldestDatabaseAction(LockT& guar
 {
     const char str[] = "SELECT * FROM action_history ORDER BY id ASC LIMIT 1;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup();
+    auto statementInUse = statementObj.Setup();
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return _LoadDatabaseActionFromRow(guard, statementobj);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return _LoadDatabaseActionFromRow(guard, statementObj);
     }
 
     return nullptr;
@@ -3819,32 +3835,30 @@ std::vector<std::shared_ptr<DatabaseAction>> Database::SelectLatestDatabaseActio
 {
     GUARD_LOCK();
 
-    std::string query =
-        search != "" ? "SELECT * FROM action_history WHERE json_data LIKE ?1 COLLATE NOCASE "
-                       "OR description LIKE ?1 COLLATE NOCASE ORDER BY ID DESC LIMIT ?2;" :
-                       "SELECT * FROM action_history ORDER BY ID DESC LIMIT ?1";
+    std::string query = search != "" ? "SELECT * FROM action_history WHERE json_data LIKE ?1 COLLATE NOCASE "
+                                       "OR description LIKE ?1 COLLATE NOCASE ORDER BY ID DESC LIMIT ?2;" :
+                                       "SELECT * FROM action_history ORDER BY ID DESC LIMIT ?1";
     std::vector<std::shared_ptr<DatabaseAction>> result;
 
-    PreparedStatement statementobj(SQLiteDb, query);
+    PreparedStatement statementObj(SQLiteDb, query);
 
-    auto statementinuse = search != "" ? statementobj.Setup("%" + search + "%", limit) :
-                                         statementobj.Setup(limit);
+    auto statementInUse = search != "" ? statementObj.Setup("%" + search + "%", limit) : statementObj.Setup(limit);
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        auto action = _LoadDatabaseActionFromRow(guard, statementObj);
 
-        auto action = _LoadDatabaseActionFromRow(guard, statementobj);
-
-        if(action)
+        if (action)
             result.push_back(action);
     }
 
-
     return result;
 }
+
 // ------------------------------------ //
 void Database::InsertDatabaseAction(LockT& guard, DatabaseAction& action)
 {
-    if(action.IsInDatabase())
+    if (action.IsInDatabase())
         return;
 
     // This, a bit dirty hack is done in order to have proper descriptions for actions in the
@@ -3854,8 +3868,7 @@ void Database::InsertDatabaseAction(LockT& guard, DatabaseAction& action)
     RunSQLAsPrepared(guard,
         "INSERT INTO action_history (type, performed, json_data, description) "
         "VALUES(?1, 1, ?2, ?3);",
-        static_cast<int>(action.GetType()), action.SerializeData(),
-        action.GenerateDescription());
+        static_cast<int>(action.GetType()), action.SerializeData(), action.GenerateDescription());
 
     const auto actionId = sqlite3_last_insert_rowid(SQLiteDb);
     action.OnAdopted(actionId, *this);
@@ -3863,24 +3876,24 @@ void Database::InsertDatabaseAction(LockT& guard, DatabaseAction& action)
 
 bool Database::UpdateDatabaseAction(LockT& guard, DatabaseAction& action)
 {
-    if(action.IsDeleted() || !action.IsInDatabase())
+    if (action.IsDeleted() || !action.IsInDatabase())
         return false;
 
     const char str[] = "UPDATE action_history SET performed = ?1, json_data = ?2, description "
                        "= ?3 WHERE id = ?4;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup(action.IsPerformed(), action.SerializeData(),
-        action.GenerateDescription(), action.GetID());
+    auto statementInUse =
+        statementObj.Setup(action.IsPerformed(), action.SerializeData(), action.GenerateDescription(), action.GetID());
 
-    statementobj.StepAll(statementinuse);
+    statementObj.StepAll(statementInUse);
     return true;
 }
 
 void Database::DeleteDatabaseAction(DatabaseAction& action)
 {
-    if(action.IsDeleted())
+    if (action.IsDeleted())
         return;
 
     const auto id = action.GetID();
@@ -3893,7 +3906,7 @@ void Database::DeleteDatabaseAction(DatabaseAction& action)
 
     LoadedDatabaseActions.Remove(id);
 
-    if(!action.IsDeleted())
+    if (!action.IsDeleted())
         LOG_ERROR("Database: delete action didn't mark it as deleted");
 }
 
@@ -3905,19 +3918,19 @@ void Database::PurgeOldActionsUntilUnderLimit(LockT& guard)
 
 void Database::PurgeOldActionsUntilSpecificCount(LockT& guard, uint32_t actionstokeep)
 {
-    while(CountDatabaseActions() > actionstokeep) {
-
+    while (CountDatabaseActions() > actionstokeep)
+    {
         auto action = SelectOldestDatabaseAction(guard);
 
-        if(!action) {
-
+        if (!action)
+        {
             LOG_ERROR("Database: action count is over the number of actions to keep but "
                       "loading oldest action failed");
             break;
         }
 
-        LOG_INFO("Database: purging an action to reduce count under " +
-                 std::to_string(actionstokeep) + ", id: " + std::to_string(action->GetID()));
+        LOG_INFO("Database: purging an action to reduce count under " + std::to_string(actionstokeep) +
+            ", id: " + std::to_string(action->GetID()));
 
         DeleteDatabaseAction(*action);
     }
@@ -3927,6 +3940,7 @@ void Database::SetMaxActionHistory(uint32_t maxactions)
 {
     ActionsToKeep = std::clamp<uint32_t>(maxactions, 1, 1000);
 }
+
 // ------------------------------------ //
 // Ignore pairs
 void Database::InsertIgnorePairs(const std::vector<std::tuple<DBID, DBID>>& pairs)
@@ -3935,14 +3949,13 @@ void Database::InsertIgnorePairs(const std::vector<std::tuple<DBID, DBID>>& pair
 
     DoDBSavePoint transaction(*this, guard, "insert_ignore_pair");
 
-    const char str[] =
-        "INSERT INTO ignored_duplicates (primary_image, other_image) VALUES (?1, ?2);";
+    const char str[] = "INSERT INTO ignored_duplicates (primary_image, other_image) VALUES (?1, ?2);";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    for(const auto& pair : pairs) {
-
-        statementobj.StepAll(statementobj.Setup(std::get<0>(pair), std::get<1>(pair)));
+    for (const auto& pair : pairs)
+    {
+        statementObj.StepAll(statementObj.Setup(std::get<0>(pair), std::get<1>(pair)));
     }
 }
 
@@ -3952,14 +3965,13 @@ void Database::DeleteIgnorePairs(const std::vector<std::tuple<DBID, DBID>>& pair
 
     DoDBSavePoint transaction(*this, guard, "delete_ignore_pair");
 
-    const char str[] =
-        "DELETE FROM ignored_duplicates WHERE primary_image = ?1 AND other_image = ?2;";
+    const char str[] = "DELETE FROM ignored_duplicates WHERE primary_image = ?1 AND other_image = ?2;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    for(const auto& pair : pairs) {
-
-        statementobj.StepAll(statementobj.Setup(std::get<0>(pair), std::get<1>(pair)));
+    for (const auto& pair : pairs)
+    {
+        statementObj.StepAll(statementObj.Setup(std::get<0>(pair), std::get<1>(pair)));
     }
 }
 
@@ -3979,57 +3991,57 @@ void Database::CombineAllPossibleAppliedTags(LockT& guard)
     {
         const char str[] = "SELECT COUNT(*) FROM applied_tag;";
 
-        PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+        PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-        auto statementinuse = statementobj.Setup();
+        auto statementInUse = statementObj.Setup();
 
-        if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-            count = statementobj.GetColumnAsInt64(0);
+        if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+        {
+            count = statementObj.GetColumnAsInt64(0);
         }
     }
 
     LOG_INFO("Database: Maintenance combining all applied_tags that are the same. "
              "applied_tag count: " +
-             Convert::ToString(count));
+        Convert::ToString(count));
 
     // For super speed check against only other tags that have the same primary tag
     const char str[] = "SELECT id FROM applied_tag WHERE tag = ?;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    for(int64_t i = 0; i < count; ++i) {
-
+    for (int64_t i = 0; i < count; ++i)
+    {
         DBID currentid = SelectAppliedTagIDByOffset(guard, i);
 
-        if(currentid < 0)
+        if (currentid < 0)
             continue;
 
         auto currenttag = SelectAppliedTagByID(guard, currentid);
 
-        auto statementinuse = statementobj.Setup(currenttag->GetTag()->GetID());
+        auto statementInUse = statementObj.Setup(currenttag->GetTag()->GetID());
 
-        while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+        while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+        {
             DBID otherid = -1;
-            if(!statementobj.GetObjectIDFromColumn(otherid, 0))
+            if (!statementObj.GetObjectIDFromColumn(otherid, 0))
                 continue;
 
             // Don't compare with self
-            if(currentid == otherid)
+            if (currentid == otherid)
                 continue;
 
             // Primary tags should match already //
 
             // Then check modifiers and combines
-            if(!CheckDoesAppliedTagModifiersMatch(guard, otherid, *currenttag))
+            if (!CheckDoesAppliedTagModifiersMatch(guard, otherid, *currenttag))
                 continue;
 
-            if(!CheckDoesAppliedTagCombinesMatch(guard, otherid, *currenttag))
+            if (!CheckDoesAppliedTagCombinesMatch(guard, otherid, *currenttag))
                 continue;
 
             LOG_INFO("Database: found matching AppliedTags, " + Convert::ToString(currentid) +
-                     " == " + Convert::ToString(otherid));
+                " == " + Convert::ToString(otherid));
 
             CombineAppliedTagDuplicate(guard, currentid, otherid);
 
@@ -4043,16 +4055,17 @@ void Database::CombineAllPossibleAppliedTags(LockT& guard)
     // Verify that count is still right, there shouldn't be anything at offset count
     DBID verifyisinvalid = SelectAppliedTagIDByOffset(guard, count);
 
-    LEVIATHAN_ASSERT(verifyisinvalid == -1, "Combine AppliedTag decreasing count has "
-                                            "resulted in wrong number");
+    LEVIATHAN_ASSERT(verifyisinvalid == -1,
+        "Combine AppliedTag decreasing count has "
+        "resulted in wrong number");
 
-    LOG_INFO(
-        "Database: maintainance shrunk applied_tag count to: " + Convert::ToString(count));
+    LOG_INFO("Database: maintainance shrunk applied_tag count to: " + Convert::ToString(count));
 
     // Finish off by deleting duplicate combines
-    RunSQLAsPrepared(guard, "DELETE FROM applied_tag_combine WHERE rowid NOT IN "
-                            "(SELECT min(rowid) FROM applied_tag_combine GROUP BY "
-                            "tag_left, tag_right, combined_with);");
+    RunSQLAsPrepared(guard,
+        "DELETE FROM applied_tag_combine WHERE rowid NOT IN "
+        "(SELECT min(rowid) FROM applied_tag_combine GROUP BY "
+        "tag_left, tag_right, combined_with);");
 
     LOG_INFO("Database: Maintenance for combining all applied_tags finished.");
 }
@@ -4063,13 +4076,13 @@ int64_t Database::CountAppliedTags()
 
     const char str[] = "SELECT COUNT(*) FROM applied_tag;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup();
+    auto statementInUse = statementObj.Setup();
 
-    if(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
-        return statementobj.GetColumnAsInt64(0);
+    if (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        return statementObj.GetColumnAsInt64(0);
     }
 
     return 0;
@@ -4079,28 +4092,27 @@ void Database::GenerateMissingDatabaseActionDescriptions(LockT& guard)
 {
     DoDBTransaction transaction(*this, guard);
 
-    const char str[] =
-        "SELECT * FROM action_history WHERE description IS NULL OR description IS '';";
+    const char str[] = "SELECT * FROM action_history WHERE description IS NULL OR description IS '';";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup();
-
+    auto statementInUse = statementObj.Setup();
 
     const char str2[] = "UPDATE action_history SET description = ?1 WHERE id = ?2;";
 
     PreparedStatement updateStatement(SQLiteDb, str2, sizeof(str2));
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
+        auto action = _LoadDatabaseActionFromRow(guard, statementObj);
 
-        auto action = _LoadDatabaseActionFromRow(guard, statementobj);
-
-        if(action) {
-            updateStatement.StepAll(
-                updateStatement.Setup(action->GenerateDescription(), action->GetID()));
-        } else {
-            LOG_WARNING(
-                "Database: can't generate description for DatabaseAction that failed to load");
+        if (action)
+        {
+            updateStatement.StepAll(updateStatement.Setup(action->GenerateDescription(), action->GetID()));
+        }
+        else
+        {
+            LOG_WARNING("Database: can't generate description for DatabaseAction that failed to load");
         }
     }
 
@@ -4115,11 +4127,12 @@ void Database::RedoAction(ImageDeleteAction& action)
     GUARD_LOCK();
 
     // Mark the image(s) as deleted
-    for(const auto& image : action.GetImagesToDelete()) {
+    for (const auto& image : action.GetImagesToDelete())
+    {
         RunSQLAsPrepared(guard, "UPDATE pictures SET deleted = 1 WHERE id = ?1;", image);
 
         auto obj = LoadedImages.GetIfLoaded(image);
-        if(obj)
+        if (obj)
             obj->_UpdateDeletedStatus(true);
     }
 
@@ -4131,11 +4144,12 @@ void Database::UndoAction(ImageDeleteAction& action)
     GUARD_LOCK();
 
     // Unmark the image(s) as deleted
-    for(const auto& image : action.GetImagesToDelete()) {
+    for (const auto& image : action.GetImagesToDelete())
+    {
         RunSQLAsPrepared(guard, "UPDATE pictures SET deleted = NULL WHERE id = ?1;", image);
 
         auto obj = LoadedImages.GetIfLoaded(image);
-        if(obj)
+        if (obj)
             obj->_UpdateDeletedStatus(false);
     }
 
@@ -4147,12 +4161,13 @@ void Database::PurgeAction(ImageDeleteAction& action)
     GUARD_LOCK();
 
     // If this action is currently not performed no resources related to it should be deleted
-    if(!action.IsPerformed())
+    if (!action.IsPerformed())
         return;
 
     // Permanently delete the images
     _PurgeImages(guard, action.GetImagesToDelete());
 }
+
 // ------------------------------------ //
 // ImageMergeAction
 void Database::RedoAction(ImageMergeAction& action)
@@ -4161,13 +4176,13 @@ void Database::RedoAction(ImageMergeAction& action)
 
     auto target = SelectImageByID(guard, action.GetTarget());
 
-    if(!target || target->IsDeleted())
+    if (!target || target->IsDeleted())
         throw InvalidState("cannot redo action: invalid target image");
 
     std::vector<DBID> existingCollections;
     auto existingTags = target->GetTags();
 
-    for(const auto& idAndOrder : SelectCollectionIDsImageIsIn(guard, *target))
+    for (const auto& idAndOrder : SelectCollectionIDsImageIsIn(guard, *target))
         existingCollections.push_back(std::get<0>(idAndOrder));
 
     // Detect collections and tags the merged images have that the target doesn't have
@@ -4180,70 +4195,71 @@ void Database::RedoAction(ImageMergeAction& action)
     transaction.AllowCommit(false);
 
     // Mark the image(s) as deleted and merged
-    for(const auto& image : action.GetImagesToMerge()) {
+    for (const auto& image : action.GetImagesToMerge())
+    {
         RunSQLAsPrepared(guard, "UPDATE pictures SET deleted = 1 WHERE id = ?1;", image);
 
         auto obj = LoadedImages.GetIfLoaded(image);
-        if(obj) {
+        if (obj)
+        {
             obj->_UpdateDeletedStatus(true);
             obj->_UpdateMergedStatus(true);
-        } else {
-
+        }
+        else
+        {
             obj = SelectImageByID(guard, image);
         }
 
-        if(obj) {
-
+        if (obj)
+        {
             // Collections
-            for(const auto& idAndOrder : SelectCollectionIDsImageIsIn(guard, *obj)) {
-
-                if(std::find(existingCollections.begin(), existingCollections.end(),
-                       std::get<0>(idAndOrder)) == existingCollections.end()) {
-
+            for (const auto& idAndOrder : SelectCollectionIDsImageIsIn(guard, *obj))
+            {
+                if (std::find(existingCollections.begin(), existingCollections.end(), std::get<0>(idAndOrder)) ==
+                    existingCollections.end())
+                {
                     // Not already added
-                    if(std::find_if(collectionsToAddTo.begin(), collectionsToAddTo.end(),
-                           [&](const std::tuple<DBID, int>& value) {
-                               return std::get<0>(value) == std::get<0>(idAndOrder);
-                           }) == collectionsToAddTo.end())
+                    if (std::find_if(collectionsToAddTo.begin(), collectionsToAddTo.end(),
+                            [&](const std::tuple<DBID, int>& value)
+                            { return std::get<0>(value) == std::get<0>(idAndOrder); }) == collectionsToAddTo.end())
                         collectionsToAddTo.push_back(idAndOrder);
                 }
             }
 
             // Tags
-            for(const auto& tag : *obj->GetTags()) {
-
-                if(!existingTags->HasTag(*tag)) {
-
+            for (const auto& tag : *obj->GetTags())
+            {
+                if (!existingTags->HasTag(*tag))
+                {
                     const auto asText = tag->ToAccurateString();
 
-
                     // Not already added
-                    if(std::find(tagsToAdd.begin(), tagsToAdd.end(), asText) ==
-                        tagsToAdd.end())
+                    if (std::find(tagsToAdd.begin(), tagsToAdd.end(), asText) == tagsToAdd.end())
                         tagsToAdd.push_back(asText);
                 }
             }
-
-        } else {
-            LOG_WARNING("Database: merged duplicate image couldn't be loaded, id: " +
-                        std::to_string(image));
+        }
+        else
+        {
+            LOG_WARNING("Database: merged duplicate image couldn't be loaded, id: " + std::to_string(image));
         }
     }
 
     // Apply the detected properties that need to be added to the target
-    for(auto iter = tagsToAdd.begin(); iter != tagsToAdd.end();) {
+    for (auto iter = tagsToAdd.begin(); iter != tagsToAdd.end();)
+    {
         const auto& newTag = *iter;
         std::shared_ptr<AppliedTag> tag;
 
-        try {
-
+        try
+        {
             tag = DualView::Get().ParseTagFromString(newTag);
 
-            if(!existingTags->Add(tag))
+            if (!existingTags->Add(tag))
                 throw Leviathan::Exception("adding tag failed");
-
-        } catch(const Leviathan::Exception& e) {
-
+        }
+        catch (const Leviathan::Exception& e)
+        {
             LOG_ERROR("Database: merged image has invalid tag: " + newTag);
             e.PrintToLog();
             iter = tagsToAdd.erase(iter);
@@ -4253,15 +4269,14 @@ void Database::RedoAction(ImageMergeAction& action)
         ++iter;
     }
 
-    for(auto iter = collectionsToAddTo.begin(); iter != collectionsToAddTo.end();) {
-
+    for (auto iter = collectionsToAddTo.begin(); iter != collectionsToAddTo.end();)
+    {
         const auto collection = std::get<0>(*iter);
         const auto order = std::get<1>(*iter);
 
-        if(!InsertImageToCollection(guard, collection, *target, order)) {
-
-            LOG_ERROR("Database: merge target could not be added to collection: " +
-                      std::to_string(collection));
+        if (!InsertImageToCollection(guard, collection, *target, order))
+        {
+            LOG_ERROR("Database: merge target could not be added to collection: " + std::to_string(collection));
             iter = collectionsToAddTo.erase(iter);
             continue;
         }
@@ -4284,18 +4299,20 @@ void Database::UndoAction(ImageMergeAction& action)
 
     auto target = SelectImageByID(guard, action.GetTarget());
 
-    if(!target)
+    if (!target)
         throw InvalidState("cannot undo action: invalid target image");
 
     DoDBSavePoint transaction(*this, guard, "image_merge_undo", true);
     transaction.AllowCommit(false);
 
     // Unmark the image(s) as deleted and merged
-    for(const auto& image : action.GetImagesToMerge()) {
+    for (const auto& image : action.GetImagesToMerge())
+    {
         RunSQLAsPrepared(guard, "UPDATE pictures SET deleted = NULL WHERE id = ?1;", image);
 
         auto obj = LoadedImages.GetIfLoaded(image);
-        if(obj) {
+        if (obj)
+        {
             obj->_UpdateDeletedStatus(false);
             obj->_UpdateMergedStatus(false);
         }
@@ -4306,49 +4323,50 @@ void Database::UndoAction(ImageMergeAction& action)
 
     auto existingTags = target->GetTags();
 
-    for(const auto& tag : tagsToAdd) {
-
+    for (const auto& tag : tagsToAdd)
+    {
         std::shared_ptr<AppliedTag> parsed;
 
-        try {
-
+        try
+        {
             parsed = DualView::Get().ParseTagFromString(tag);
-
-        } catch(const Leviathan::Exception& e) {
-
+        }
+        catch (const Leviathan::Exception& e)
+        {
             LOG_ERROR("Database: merge action has invalid tag for removal: " + tag);
             e.PrintToLog();
             continue;
         }
 
-        if(parsed)
-            if(!existingTags->RemoveTag(*parsed))
+        if (parsed)
+            if (!existingTags->RemoveTag(*parsed))
                 LOG_WARNING("Database: undoing merge action was unable to remove tag:" + tag);
     }
 
     bool removed = false;
 
-    for(const auto& idOrder : collectionsToAddTo) {
+    for (const auto& idOrder : collectionsToAddTo)
+    {
         auto collection = SelectCollectionByID(guard, std::get<0>(idOrder));
         const auto order = std::get<1>(idOrder);
 
-        if(!collection) {
-            LOG_ERROR("Database: merge action has non-existant collection: " +
-                      std::to_string(std::get<0>(idOrder)));
+        if (!collection)
+        {
+            LOG_ERROR("Database: merge action has non-existant collection: " + std::to_string(std::get<0>(idOrder)));
             continue;
         }
 
         const auto actualOrder = SelectImageShowOrderInCollection(guard, *collection, *target);
 
-        if(actualOrder != order) {
-            LOG_INFO("Database: merge action undo, order has changed from: " +
-                     std::to_string(order) + " to: " + std::to_string(actualOrder));
+        if (actualOrder != order)
+        {
+            LOG_INFO("Database: merge action undo, order has changed from: " + std::to_string(order) +
+                " to: " + std::to_string(actualOrder));
 
             // If there is another image with the same show order (potentially the now
             // undeleted duplicate) then it's fine to delete
-            if(SelectImagesInCollectionByShowOrder(guard, *collection, actualOrder).size() <
-                2) {
-
+            if (SelectImagesInCollectionByShowOrder(guard, *collection, actualOrder).size() < 2)
+            {
                 LOG_INFO("Database: the changed order has no other image with the same order, "
                          "assuming user wants to keep the image in this collection");
                 continue;
@@ -4366,16 +4384,16 @@ void Database::UndoAction(ImageMergeAction& action)
     }
 
     // TODO: extract this as a function
-    if(removed && !SelectIsImageInAnyCollection(guard, *target)) {
-
+    if (removed && !SelectIsImageInAnyCollection(guard, *target))
+    {
         LOG_WARNING("Database: merge action undo, image is no longer in any collection. "
                     "Adding to Uncategorized");
 
         auto uncategorized = SelectCollectionByID(guard, DATABASE_UNCATEGORIZED_COLLECTION_ID);
 
-        if(uncategorized)
-            InsertImageToCollection(guard, *uncategorized, *target,
-                SelectCollectionLargestShowOrder(guard, *uncategorized) + 1);
+        if (uncategorized)
+            InsertImageToCollection(
+                guard, *uncategorized, *target, SelectCollectionLargestShowOrder(guard, *uncategorized) + 1);
     }
 
     _SetActionStatus(guard, action, false);
@@ -4388,12 +4406,13 @@ void Database::PurgeAction(ImageMergeAction& action)
     GUARD_LOCK();
 
     // If this action is currently not performed no resources related to it should be merged
-    if(!action.IsPerformed())
+    if (!action.IsPerformed())
         return;
 
     // Permanently delete the images
     _PurgeImages(guard, action.GetImagesToMerge());
 }
+
 // ------------------------------------ //
 // ImageDeleteFromCollectionAction
 void Database::RedoAction(ImageDeleteFromCollectionAction& action)
@@ -4403,7 +4422,7 @@ void Database::RedoAction(ImageDeleteFromCollectionAction& action)
     const auto targetID = action.GetDeletedFromCollection();
     auto target = SelectCollectionByID(guard, targetID);
 
-    if(!target /*|| target->IsDeleted()*/)
+    if (!target /*|| target->IsDeleted()*/)
         throw InvalidState("cannot redo action: invalid target collection");
 
     // TODO: it's possible that the collection is reordered after this action is created so for
@@ -4414,8 +4433,7 @@ void Database::RedoAction(ImageDeleteFromCollectionAction& action)
 
     const auto& images = action.GetImagesToDelete();
 
-    const char deleteImageSql[] =
-        "DELETE FROM collection_image WHERE collection = ?1 AND image = ?2;";
+    const char deleteImageSql[] = "DELETE FROM collection_image WHERE collection = ?1 AND image = ?2;";
 
     PreparedStatement deleteStatement(SQLiteDb, deleteImageSql, sizeof(deleteImageSql));
 
@@ -4424,48 +4442,48 @@ void Database::RedoAction(ImageDeleteFromCollectionAction& action)
         transaction.AllowCommit(false);
 
         // Remove the wanted images
-        for(const auto& imageOrderPair : images) {
-
+        for (const auto& imageOrderPair : images)
+        {
             const auto& image = std::get<0>(imageOrderPair);
 
             const auto collections = SelectCollectionIDsImageIsIn(guard, image);
 
             bool found = false;
 
-            for(const auto& collectionPair : collections) {
-
-                if(std::get<0>(collectionPair) == targetID) {
+            for (const auto& collectionPair : collections)
+            {
+                if (std::get<0>(collectionPair) == targetID)
+                {
                     found = true;
                 }
             }
 
-            if(!found) {
-
-                LOG_WARNING(
-                    "Database: ImageDeleteFromCollectionAction redo: image is not in this "
-                    "collection, image: " +
+            if (!found)
+            {
+                LOG_WARNING("Database: ImageDeleteFromCollectionAction redo: image is not in this "
+                            "collection, image: " +
                     std::to_string(image) + ", collection: " + std::to_string(targetID));
                 continue;
             }
 
             // Needs to add to uncategorized if the removed from collection is the only one
-            if(collections.size() < 2)
+            if (collections.size() < 2)
                 imagesToAddToUncategorized.push_back(image);
 
             deleteStatement.StepAll(deleteStatement.Setup(targetID, image));
         }
 
         // Add the orphan images to uncategorized
-        if(!imagesToAddToUncategorized.empty()) {
+        if (!imagesToAddToUncategorized.empty())
+        {
+            auto uncategorized = SelectCollectionByID(guard, DATABASE_UNCATEGORIZED_COLLECTION_ID);
 
-            auto uncategorized =
-                SelectCollectionByID(guard, DATABASE_UNCATEGORIZED_COLLECTION_ID);
-
-            if(uncategorized) {
-
-                for(auto image : imagesToAddToUncategorized) {
-                    InsertImageToCollection(guard, *uncategorized, image,
-                        SelectCollectionLargestShowOrder(guard, *uncategorized) + 1);
+            if (uncategorized)
+            {
+                for (auto image : imagesToAddToUncategorized)
+                {
+                    InsertImageToCollection(
+                        guard, *uncategorized, image, SelectCollectionLargestShowOrder(guard, *uncategorized) + 1);
                 }
             }
         }
@@ -4490,11 +4508,10 @@ void Database::UndoAction(ImageDeleteFromCollectionAction& action)
     const auto targetID = action.GetDeletedFromCollection();
     auto target = SelectCollectionByID(guard, targetID);
 
-    if(!target /*|| target->IsDeleted()*/)
+    if (!target /*|| target->IsDeleted()*/)
         throw InvalidState("cannot undo action: invalid target collection");
 
-    const char deleteImageSql[] =
-        "DELETE FROM collection_image WHERE collection = ?1 AND image = ?2;";
+    const char deleteImageSql[] = "DELETE FROM collection_image WHERE collection = ?1 AND image = ?2;";
 
     PreparedStatement deleteStatement(SQLiteDb, deleteImageSql, sizeof(deleteImageSql));
 
@@ -4505,20 +4522,19 @@ void Database::UndoAction(ImageDeleteFromCollectionAction& action)
         // Remove the images from uncategorized
         const auto removeFromUncategorized = action.GetAddedToUncategorized();
 
-        if(!removeFromUncategorized.empty()) {
-
+        if (!removeFromUncategorized.empty())
+        {
             // Don't need to take into account the possibility that the image is no longer in
             // any collection as all of these will be added to the target collection next
-            for(auto image : removeFromUncategorized) {
-
-                deleteStatement.StepAll(
-                    deleteStatement.Setup(DATABASE_UNCATEGORIZED_COLLECTION_ID, image));
+            for (auto image : removeFromUncategorized)
+            {
+                deleteStatement.StepAll(deleteStatement.Setup(DATABASE_UNCATEGORIZED_COLLECTION_ID, image));
             }
         }
 
         // Add them to the target collection
-        for(const auto& imageOrder : action.GetImagesToDelete()) {
-
+        for (const auto& imageOrder : action.GetImagesToDelete())
+        {
             const auto image = std::get<0>(imageOrder);
             const auto order = std::get<1>(imageOrder);
 
@@ -4532,6 +4548,7 @@ void Database::UndoAction(ImageDeleteFromCollectionAction& action)
     GUARD_LOCK_OTHER_NAME(target, targetLock);
     target->NotifyAll(targetLock);
 }
+
 // ------------------------------------ //
 // CollectionReorderAction
 void Database::RedoAction(CollectionReorderAction& action)
@@ -4541,7 +4558,7 @@ void Database::RedoAction(CollectionReorderAction& action)
     const auto targetID = action.GetTargetCollection();
     auto target = SelectCollectionByID(guard, targetID);
 
-    if(!target /*|| target->IsDeleted()*/)
+    if (!target /*|| target->IsDeleted()*/)
         throw InvalidState("cannot redo action: invalid target collection");
 
     const auto existing = SelectImageIDsAndShowOrderInCollection(*target);
@@ -4559,21 +4576,19 @@ void Database::RedoAction(CollectionReorderAction& action)
         DoDBSavePoint transaction(*this, guard, "collection_reorder_redo");
         transaction.AllowCommit(false);
 
-        for(const auto& image : newOrder) {
-
-            updateStatement.StepAll(
-                updateStatement.Setup(targetID, image, currentShowOrder++));
+        for (const auto& image : newOrder)
+        {
+            updateStatement.StepAll(updateStatement.Setup(targetID, image, currentShowOrder++));
         }
 
         // Add the existing ones to the back that weren't mentioned in neworder
-        for(const auto& idOrder : existing) {
-
+        for (const auto& idOrder : existing)
+        {
             const auto id = std::get<0>(idOrder);
 
-            if(std::find(newOrder.begin(), newOrder.end(), id) == newOrder.end()) {
-
-                updateStatement.StepAll(
-                    updateStatement.Setup(targetID, id, currentShowOrder++));
+            if (std::find(newOrder.begin(), newOrder.end(), id) == newOrder.end())
+            {
+                updateStatement.StepAll(updateStatement.Setup(targetID, id, currentShowOrder++));
             }
         }
 
@@ -4597,7 +4612,7 @@ void Database::UndoAction(CollectionReorderAction& action)
     const auto targetID = action.GetTargetCollection();
     auto target = SelectCollectionByID(guard, targetID);
 
-    if(!target /*|| target->IsDeleted()*/)
+    if (!target /*|| target->IsDeleted()*/)
         throw InvalidState("cannot undo action: invalid target collection");
 
     const auto existing = SelectImageIDsAndShowOrderInCollection(*target);
@@ -4616,27 +4631,26 @@ void Database::UndoAction(CollectionReorderAction& action)
         transaction.AllowCommit(false);
 
         // Restore the old order
-        for(const auto& idOrder : oldOrder) {
-
+        for (const auto& idOrder : oldOrder)
+        {
             const auto id = std::get<0>(idOrder);
             const auto order = std::get<1>(idOrder);
 
             updateStatement.StepAll(updateStatement.Setup(targetID, id, order));
 
-            if(order > maxShowOrder)
+            if (order > maxShowOrder)
                 maxShowOrder = order;
         }
 
         // If there were images added after doing the action we need to make sure they also
         // have correct show order
-        for(const auto& idOrder : existing) {
-
+        for (const auto& idOrder : existing)
+        {
             const auto id = std::get<0>(idOrder);
 
-            if(std::find_if(oldOrder.begin(), oldOrder.end(), [&](const auto& tuple) {
-                   return std::get<0>(tuple) == id;
-               }) == oldOrder.end()) {
-
+            if (std::find_if(oldOrder.begin(), oldOrder.end(),
+                    [&](const auto& tuple) { return std::get<0>(tuple) == id; }) == oldOrder.end())
+            {
                 updateStatement.StepAll(updateStatement.Setup(targetID, id, ++maxShowOrder));
             }
         }
@@ -4648,6 +4662,7 @@ void Database::UndoAction(CollectionReorderAction& action)
     GUARD_LOCK_OTHER_NAME(target, targetLock);
     target->NotifyAll(targetLock);
 }
+
 // ------------------------------------ //
 // NetGalleryDeleteAction
 void Database::RedoAction(NetGalleryDeleteAction& action)
@@ -4660,7 +4675,7 @@ void Database::RedoAction(NetGalleryDeleteAction& action)
     RunSQLAsPrepared(guard, "UPDATE net_gallery SET deleted = 1 WHERE id = ?1;", id);
 
     auto obj = LoadedNetGalleries.GetIfLoaded(id);
-    if(obj)
+    if (obj)
         obj->_UpdateDeletedStatus(true);
 
     _SetActionStatus(guard, action, true);
@@ -4676,7 +4691,7 @@ void Database::UndoAction(NetGalleryDeleteAction& action)
     RunSQLAsPrepared(guard, "UPDATE net_gallery SET deleted = NULL WHERE id = ?1;", id);
 
     auto obj = LoadedNetGalleries.GetIfLoaded(id);
-    if(obj)
+    if (obj)
         obj->_UpdateDeletedStatus(false);
 
     _SetActionStatus(guard, action, false);
@@ -4687,12 +4702,13 @@ void Database::PurgeAction(NetGalleryDeleteAction& action)
     GUARD_LOCK();
 
     // If this action is currently not performed no resources related to it should be deleted
-    if(!action.IsPerformed())
+    if (!action.IsPerformed())
         return;
 
     // Permanently delete
     _PurgeNetGalleries(guard, action.GetResourceToDelete());
 }
+
 // ------------------------------------ //
 void Database::RedoAction(CollectionDeleteAction& action)
 {
@@ -4704,7 +4720,7 @@ void Database::RedoAction(CollectionDeleteAction& action)
     RunSQLAsPrepared(guard, "UPDATE collections SET deleted = 1 WHERE id = ?1;", id);
 
     auto obj = LoadedCollections.GetIfLoaded(id);
-    if(obj)
+    if (obj)
         obj->_UpdateDeletedStatus(true);
 
     _SetActionStatus(guard, action, true);
@@ -4720,7 +4736,7 @@ void Database::UndoAction(CollectionDeleteAction& action)
     RunSQLAsPrepared(guard, "UPDATE collections SET deleted = NULL WHERE id = ?1;", id);
 
     auto obj = LoadedCollections.GetIfLoaded(id);
-    if(obj)
+    if (obj)
         obj->_UpdateDeletedStatus(false);
 
     _SetActionStatus(guard, action, false);
@@ -4731,12 +4747,13 @@ void Database::PurgeAction(CollectionDeleteAction& action)
     GUARD_LOCK();
 
     // If this action is currently not performed no resources related to it should be deleted
-    if(!action.IsPerformed())
+    if (!action.IsPerformed())
         return;
 
     // Permanently delete
     _PurgeCollection(guard, action.GetResourceToDelete());
 }
+
 // ------------------------------------ //
 void Database::RedoAction(FolderDeleteAction& action)
 {
@@ -4746,13 +4763,12 @@ void Database::RedoAction(FolderDeleteAction& action)
     const auto id = action.GetResourceToDelete();
     auto target = SelectFolderByID(guard, id);
 
-    if(!target || target->IsDeleted())
-        throw InvalidState(
-            "cannot redo action: invalid target folder (or it is deleted already)");
+    if (!target || target->IsDeleted())
+        throw InvalidState("cannot redo action: invalid target folder (or it is deleted already)");
 
     auto rootFolder = SelectFolderByID(guard, DATABASE_ROOT_FOLDER_ID);
 
-    if(!rootFolder)
+    if (!rootFolder)
         throw Exception("Root folder is missing");
 
     {
@@ -4762,18 +4778,20 @@ void Database::RedoAction(FolderDeleteAction& action)
         std::vector<DBID> foldersAddedToRoot;
         std::vector<DBID> collectionsAddedToRoot;
 
-        for(const auto& addToRoot : SelectFoldersOnlyInFolder(guard, *target)) {
-            if(SelectFolderByNameAndParent(guard, addToRoot->GetName(), *rootFolder)) {
-                throw InvalidState("Cannot redo action: moving folder \"" +
-                                   addToRoot->GetName() +
-                                   "\" to root folder would cause a name conflict");
+        for (const auto& addToRoot : SelectFoldersOnlyInFolder(guard, *target))
+        {
+            if (SelectFolderByNameAndParent(guard, addToRoot->GetName(), *rootFolder))
+            {
+                throw InvalidState("Cannot redo action: moving folder \"" + addToRoot->GetName() +
+                    "\" to root folder would cause a name conflict");
             }
 
             InsertFolderToFolder(guard, *addToRoot, *rootFolder);
             foldersAddedToRoot.push_back(addToRoot->GetID());
         }
 
-        for(const auto& addToRoot : SelectCollectionsOnlyInFolder(guard, *target)) {
+        for (const auto& addToRoot : SelectCollectionsOnlyInFolder(guard, *target))
+        {
             InsertCollectionToFolder(guard, *rootFolder, *addToRoot);
             collectionsAddedToRoot.push_back(addToRoot->GetID());
         }
@@ -4790,7 +4808,7 @@ void Database::RedoAction(FolderDeleteAction& action)
     }
 
     auto obj = LoadedFolders.GetIfLoaded(id);
-    if(obj)
+    if (obj)
         obj->_UpdateDeletedStatus(true);
 }
 
@@ -4802,22 +4820,23 @@ void Database::UndoAction(FolderDeleteAction& action)
     const auto id = action.GetResourceToDelete();
     auto target = SelectFolderByID(guard, id);
 
-    if(!target)
-        throw InvalidState(
-            "cannot undo action: target folder has already been purged from the db)");
+    if (!target)
+        throw InvalidState("cannot undo action: target folder has already been purged from the db)");
 
     auto rootFolder = SelectFolderByID(guard, DATABASE_ROOT_FOLDER_ID);
 
-    if(!rootFolder)
+    if (!rootFolder)
         throw Exception("Root folder is missing");
 
     // Disallow undo if it would cause name conflicts
-    for(const auto& parent : SelectFoldersFolderIsIn(guard, *target)) {
+    for (const auto& parent : SelectFoldersFolderIsIn(guard, *target))
+    {
         // As this skips deleted folders, we don't need a special method to guard against
         // detecting the target folder being in parent
-        if(SelectFolderByNameAndParent(guard, target->GetName(), *parent)) {
-            throw InvalidState("Can't undo action as it would create conflicting name \"" +
-                               target->GetName() + "\" in folder: " + parent->GetName());
+        if (SelectFolderByNameAndParent(guard, target->GetName(), *parent))
+        {
+            throw InvalidState("Can't undo action as it would create conflicting name \"" + target->GetName() +
+                "\" in folder: " + parent->GetName());
         }
     }
 
@@ -4825,26 +4844,26 @@ void Database::UndoAction(FolderDeleteAction& action)
         DoDBSavePoint transaction(*this, guard, "folder_delete_undo");
         transaction.AllowCommit(false);
 
-        for(const auto id : action.GetFoldersAddedToRoot()) {
-
+        for (const auto id : action.GetFoldersAddedToRoot())
+        {
             const auto toRemove = SelectFolderByID(guard, id);
 
-            if(!toRemove) {
-                LOG_WARNING("Undo should remove a non-existent folder from root, id: " +
-                            std::to_string(id));
+            if (!toRemove)
+            {
+                LOG_WARNING("Undo should remove a non-existent folder from root, id: " + std::to_string(id));
                 continue;
             }
 
             DeleteFolderFromFolder(guard, *toRemove, *rootFolder);
         }
 
-        for(const auto id : action.GetCollectionsAddedToRoot()) {
-
+        for (const auto id : action.GetCollectionsAddedToRoot())
+        {
             const auto toRemove = SelectCollectionByID(guard, id);
 
-            if(!toRemove) {
-                LOG_WARNING("Undo should remove a non-existent folder from root, id: " +
-                            std::to_string(id));
+            if (!toRemove)
+            {
+                LOG_WARNING("Undo should remove a non-existent folder from root, id: " + std::to_string(id));
                 continue;
             }
 
@@ -4853,14 +4872,13 @@ void Database::UndoAction(FolderDeleteAction& action)
 
         _SetActionStatus(guard, action, false);
 
-        RunSQLAsPrepared(
-            guard, "UPDATE virtual_folders SET deleted = NULL WHERE id = ?1;", id);
+        RunSQLAsPrepared(guard, "UPDATE virtual_folders SET deleted = NULL WHERE id = ?1;", id);
 
         transaction.AllowCommit(true);
     }
 
     auto obj = LoadedFolders.GetIfLoaded(id);
-    if(obj)
+    if (obj)
         obj->_UpdateDeletedStatus(false);
 }
 
@@ -4869,22 +4887,22 @@ void Database::PurgeAction(FolderDeleteAction& action)
     GUARD_LOCK();
 
     // If this action is currently not performed no resources related to it should be deleted
-    if(!action.IsPerformed())
+    if (!action.IsPerformed())
         return;
 
     // Permanently delete
     _PurgeFolder(guard, action.GetResourceToDelete());
 }
+
 // ------------------------------------ //
 // Row parsing functions
-std::shared_ptr<NetFile> Database::_LoadNetFileFromRow(
-    LockT& guard, PreparedStatement& statement)
+std::shared_ptr<NetFile> Database::_LoadNetFileFromRow(LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
     DBID id;
-    if(!statement.GetObjectIDFromColumn(id, 0)) {
-
+    if (!statement.GetObjectIDFromColumn(id, 0))
+    {
         LOG_ERROR("Object id column is invalid");
         return nullptr;
     }
@@ -4892,21 +4910,20 @@ std::shared_ptr<NetFile> Database::_LoadNetFileFromRow(
     return std::make_shared<NetFile>(*this, guard, statement, id);
 }
 
-std::shared_ptr<NetGallery> Database::_LoadNetGalleryFromRow(
-    LockT& guard, PreparedStatement& statement)
+std::shared_ptr<NetGallery> Database::_LoadNetGalleryFromRow(LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
     DBID id;
-    if(!statement.GetObjectIDFromColumn(id, 0)) {
-
+    if (!statement.GetObjectIDFromColumn(id, 0))
+    {
         LOG_ERROR("Object id column is invalid");
         return nullptr;
     }
 
     auto loaded = LoadedNetGalleries.GetIfLoaded(id);
 
-    if(loaded)
+    if (loaded)
         return loaded;
 
     loaded = std::make_shared<NetGallery>(*this, guard, statement, id);
@@ -4915,14 +4932,13 @@ std::shared_ptr<NetGallery> Database::_LoadNetGalleryFromRow(
     return loaded;
 }
 
-std::shared_ptr<TagBreakRule> Database::_LoadTagBreakRuleFromRow(
-    LockT& guard, PreparedStatement& statement)
+std::shared_ptr<TagBreakRule> Database::_LoadTagBreakRuleFromRow(LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
     DBID id;
-    if(!statement.GetObjectIDFromColumn(id, 0)) {
-
+    if (!statement.GetObjectIDFromColumn(id, 0))
+    {
         LOG_ERROR("Object id column is invalid");
         return nullptr;
     }
@@ -4930,14 +4946,13 @@ std::shared_ptr<TagBreakRule> Database::_LoadTagBreakRuleFromRow(
     return std::make_shared<TagBreakRule>(*this, guard, statement, id);
 }
 
-std::shared_ptr<AppliedTag> Database::_LoadAppliedTagFromRow(
-    LockT& guard, PreparedStatement& statement)
+std::shared_ptr<AppliedTag> Database::_LoadAppliedTagFromRow(LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
     DBID id;
-    if(!statement.GetObjectIDFromColumn(id, 0)) {
-
+    if (!statement.GetObjectIDFromColumn(id, 0))
+    {
         LOG_ERROR("Object id column is invalid");
         return nullptr;
     }
@@ -4945,14 +4960,13 @@ std::shared_ptr<AppliedTag> Database::_LoadAppliedTagFromRow(
     return std::make_shared<AppliedTag>(*this, guard, statement, id);
 }
 
-std::shared_ptr<TagModifier> Database::_LoadTagModifierFromRow(
-    LockT& guard, PreparedStatement& statement)
+std::shared_ptr<TagModifier> Database::_LoadTagModifierFromRow(LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
     DBID id;
-    if(!statement.GetObjectIDFromColumn(id, 0)) {
-
+    if (!statement.GetObjectIDFromColumn(id, 0))
+    {
         LOG_ERROR("Object id column is invalid");
         return nullptr;
     }
@@ -4965,15 +4979,15 @@ std::shared_ptr<Tag> Database::_LoadTagFromRow(LockT& guard, PreparedStatement& 
     CheckRowID(statement, 0, "id");
 
     DBID id;
-    if(!statement.GetObjectIDFromColumn(id, 0)) {
-
+    if (!statement.GetObjectIDFromColumn(id, 0))
+    {
         LOG_ERROR("Object id column is invalid");
         return nullptr;
     }
 
     auto loaded = LoadedTags.GetIfLoaded(id);
 
-    if(loaded)
+    if (loaded)
         return loaded;
 
     loaded = std::make_shared<Tag>(*this, guard, statement, id);
@@ -4982,21 +4996,20 @@ std::shared_ptr<Tag> Database::_LoadTagFromRow(LockT& guard, PreparedStatement& 
     return loaded;
 }
 
-std::shared_ptr<Collection> Database::_LoadCollectionFromRow(
-    LockT& guard, PreparedStatement& statement)
+std::shared_ptr<Collection> Database::_LoadCollectionFromRow(LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
     DBID id;
-    if(!statement.GetObjectIDFromColumn(id, 0)) {
-
+    if (!statement.GetObjectIDFromColumn(id, 0))
+    {
         LOG_ERROR("Object id column is invalid");
         return nullptr;
     }
 
     auto loaded = LoadedCollections.GetIfLoaded(id);
 
-    if(loaded)
+    if (loaded)
         return loaded;
 
     loaded = std::make_shared<Collection>(*this, guard, statement, id);
@@ -5010,15 +5023,15 @@ std::shared_ptr<Image> Database::_LoadImageFromRow(LockT& guard, PreparedStateme
     CheckRowID(statement, 0, "id");
 
     DBID id;
-    if(!statement.GetObjectIDFromColumn(id, 0)) {
-
+    if (!statement.GetObjectIDFromColumn(id, 0))
+    {
         LOG_ERROR("Object id column is invalid");
         return nullptr;
     }
 
     auto loaded = LoadedImages.GetIfLoaded(id);
 
-    if(loaded)
+    if (loaded)
         return loaded;
 
     loaded = Image::Create(*this, guard, statement, id);
@@ -5027,21 +5040,20 @@ std::shared_ptr<Image> Database::_LoadImageFromRow(LockT& guard, PreparedStateme
     return loaded;
 }
 
-std::shared_ptr<Folder> Database::_LoadFolderFromRow(
-    LockT& guard, PreparedStatement& statement)
+std::shared_ptr<Folder> Database::_LoadFolderFromRow(LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
     DBID id;
-    if(!statement.GetObjectIDFromColumn(id, 0)) {
-
+    if (!statement.GetObjectIDFromColumn(id, 0))
+    {
         LOG_ERROR("Object id column is invalid");
         return nullptr;
     }
 
     auto loaded = LoadedFolders.GetIfLoaded(id);
 
-    if(loaded)
+    if (loaded)
         return loaded;
 
     loaded = std::make_shared<Folder>(*this, guard, statement, id);
@@ -5050,26 +5062,26 @@ std::shared_ptr<Folder> Database::_LoadFolderFromRow(
     return loaded;
 }
 
-std::shared_ptr<DatabaseAction> Database::_LoadDatabaseActionFromRow(
-    LockT& guard, PreparedStatement& statement)
+std::shared_ptr<DatabaseAction> Database::_LoadDatabaseActionFromRow(LockT& guard, PreparedStatement& statement)
 {
     CheckRowID(statement, 0, "id");
 
     DBID id;
-    if(!statement.GetObjectIDFromColumn(id, 0)) {
-
+    if (!statement.GetObjectIDFromColumn(id, 0))
+    {
         LOG_ERROR("Object id column is invalid");
         return nullptr;
     }
 
     auto loaded = LoadedDatabaseActions.GetIfLoaded(id);
 
-    if(loaded)
+    if (loaded)
         return loaded;
 
     loaded = DatabaseAction::Create(*this, guard, statement, id);
 
-    if(!loaded) {
+    if (!loaded)
+    {
         LOG_ERROR("Database: failed to load DatabaseAction with id: " + std::to_string(id));
         return nullptr;
     }
@@ -5077,37 +5089,41 @@ std::shared_ptr<DatabaseAction> Database::_LoadDatabaseActionFromRow(
     LoadedDatabaseActions.OnLoad(loaded);
     return loaded;
 }
+
 // ------------------------------------ //
 // Helper operations
 void Database::_SetActionStatus(LockT& guard, DatabaseAction& action, bool performed)
 {
-    RunSQLAsPrepared(guard, "UPDATE action_history SET performed = ?1 WHERE id = ?2;",
-        performed ? 1 : 0, action.GetID());
+    RunSQLAsPrepared(
+        guard, "UPDATE action_history SET performed = ?1 WHERE id = ?2;", performed ? 1 : 0, action.GetID());
 
     action._ReportPerformedStatus(performed);
 }
 
 void Database::_PurgeImages(LockT& guard, const std::vector<DBID>& images)
 {
-    for(const auto& image : images) {
-
+    for (const auto& image : images)
+    {
         auto loadedImage = SelectImageByID(guard, image);
 
-        if(loadedImage) {
-
-            if(loadedImage->IsDeleted()) {
-
+        if (loadedImage)
+        {
+            if (loadedImage->IsDeleted())
+            {
                 loadedImage->_OnPurged();
                 LoadedImages.Remove(image);
 
                 RunSQLAsPrepared(guard, "DELETE FROM pictures WHERE id = ?1;", image);
-            } else {
+            }
+            else
+            {
                 LOG_INFO("Database: image was meant to be purged but it isn't marked as "
                          "deleted, skipping, id: " +
-                         std::to_string(image));
+                    std::to_string(image));
             }
-
-        } else {
+        }
+        else
+        {
             LOG_WARNING("Database: purging non-existant image");
         }
     }
@@ -5117,21 +5133,24 @@ void Database::_PurgeNetGalleries(LockT& guard, DBID gallery)
 {
     auto loadedResource = SelectNetGalleryByID(guard, gallery);
 
-    if(loadedResource) {
-
-        if(loadedResource->IsDeleted()) {
-
+    if (loadedResource)
+    {
+        if (loadedResource->IsDeleted())
+        {
             loadedResource->_OnPurged();
             LoadedNetGalleries.Remove(gallery);
 
             RunSQLAsPrepared(guard, "DELETE FROM net_gallery WHERE id = ?1;", gallery);
-        } else {
+        }
+        else
+        {
             LOG_INFO("Database: NetGallery was meant to be purged but it isn't marked as "
                      "deleted, skipping, id: " +
-                     std::to_string(gallery));
+                std::to_string(gallery));
         }
-
-    } else {
+    }
+    else
+    {
         LOG_WARNING("Database: purging non-existant NetGallery");
     }
 }
@@ -5140,15 +5159,18 @@ void Database::_PurgeCollection(LockT& guard, DBID collection)
 {
     auto loadedResource = SelectCollectionByID(guard, collection);
 
-    if(!loadedResource) {
+    if (!loadedResource)
+    {
         LOG_WARNING("Database: purging non-existant Collection");
         return;
-
-    } else {
-        if(!loadedResource->IsDeleted()) {
+    }
+    else
+    {
+        if (!loadedResource->IsDeleted())
+        {
             LOG_INFO("Database: Collection was meant to be purged but it isn't marked as "
                      "deleted, skipping, id: " +
-                     std::to_string(collection));
+                std::to_string(collection));
             return;
         }
     }
@@ -5159,20 +5181,20 @@ void Database::_PurgeCollection(LockT& guard, DBID collection)
     auto uncategorized = SelectCollectionByID(guard, DATABASE_UNCATEGORIZED_COLLECTION_ID);
 
     // Add now orphaned images to Uncategorized
-    for(const auto id :
-        SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection(guard, collection)) {
-
-        LOG_INFO("Adding orphaned image (from deleted collection) to uncategorized: " +
-                 std::to_string(id));
+    for (const auto id : SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection(guard, collection))
+    {
+        LOG_INFO("Adding orphaned image (from deleted collection) to uncategorized: " + std::to_string(id));
 
         const auto image = SelectImageByID(guard, id);
 
-        if(image) {
-            InsertImageToCollectionAG(*uncategorized, *image,
-                SelectCollectionLargestShowOrder(guard, *uncategorized) + 1);
-        } else {
-            LOG_WARNING("Could not found orphaned image in DB to add to uncategorized: " +
-                        std::to_string(id));
+        if (image)
+        {
+            InsertImageToCollectionAG(
+                *uncategorized, *image, SelectCollectionLargestShowOrder(guard, *uncategorized) + 1);
+        }
+        else
+        {
+            LOG_WARNING("Could not found orphaned image in DB to add to uncategorized: " + std::to_string(id));
         }
     }
 
@@ -5188,15 +5210,18 @@ void Database::_PurgeFolder(LockT& guard, DBID folder)
 {
     auto loadedResource = SelectFolderByID(guard, folder);
 
-    if(!loadedResource) {
+    if (!loadedResource)
+    {
         LOG_WARNING("Database: purging non-existant Folder");
         return;
-
-    } else {
-        if(!loadedResource->IsDeleted()) {
+    }
+    else
+    {
+        if (!loadedResource->IsDeleted())
+        {
             LOG_INFO("Database: Folder was meant to be purged but it isn't marked as "
                      "deleted, skipping, id: " +
-                     std::to_string(folder));
+                std::to_string(folder));
             return;
         }
     }
@@ -5206,20 +5231,22 @@ void Database::_PurgeFolder(LockT& guard, DBID folder)
     loadedResource->_OnPurged();
     LoadedFolders.Remove(folder);
 }
+
 // ------------------------------------ //
 void Database::ThrowCurrentSqlError(LockT& guard)
 {
     ThrowErrorFromDB(SQLiteDb);
 }
+
 // ------------------------------------ //
 bool Database::_VerifyLoadedVersion(LockT& guard, int fileversion)
 {
-    if(fileversion == DATABASE_CURRENT_VERSION)
+    if (fileversion == DATABASE_CURRENT_VERSION)
         return true;
 
     // Fail if trying to load a newer version
-    if(fileversion > DATABASE_CURRENT_VERSION) {
-
+    if (fileversion > DATABASE_CURRENT_VERSION)
+    {
         LOG_ERROR("Trying to load a database that is newer than program's version");
         return false;
     }
@@ -5227,20 +5254,20 @@ bool Database::_VerifyLoadedVersion(LockT& guard, int fileversion)
     // Update the database //
     int updateversion = fileversion;
 
-    LOG_INFO("Database: updating from version " + Convert::ToString(updateversion) +
-             " to version " + Convert::ToString(DATABASE_CURRENT_VERSION));
+    LOG_INFO("Database: updating from version " + Convert::ToString(updateversion) + " to version " +
+        Convert::ToString(DATABASE_CURRENT_VERSION));
 
-    while(updateversion != DATABASE_CURRENT_VERSION) {
-
-        if(!_UpdateDatabase(guard, updateversion)) {
-
+    while (updateversion != DATABASE_CURRENT_VERSION)
+    {
+        if (!_UpdateDatabase(guard, updateversion))
+        {
             LOG_ERROR("Database update failed, database file version is unsupported");
             return false;
         }
 
         // Get new version //
-        if(!SelectDatabaseVersion(guard, SQLiteDb, updateversion)) {
-
+        if (!SelectDatabaseVersion(guard, SQLiteDb, updateversion))
+        {
             LOG_ERROR("Database failed to retrieve new version after update");
             return false;
         }
@@ -5251,152 +5278,156 @@ bool Database::_VerifyLoadedVersion(LockT& guard, int fileversion)
 
 bool Database::_UpdateDatabase(LockT& guard, const int oldversion)
 {
-    if(oldversion < 14) {
-
+    if (oldversion < 14)
+    {
         LOG_ERROR("Migrations from version 13 and older aren't copied to DualView++ "
                   "and thus not possible to load a database that old");
 
         return false;
     }
 
-    LEVIATHAN_ASSERT(boost::filesystem::exists(DatabaseFile),
-        "UpdateDatabase called when DatabaseFile doesn't exist");
+    LEVIATHAN_ASSERT(boost::filesystem::exists(DatabaseFile), "UpdateDatabase called when DatabaseFile doesn't exist");
 
     // Create a backup //
     int suffix = 1;
     std::string targetfile;
 
-    do {
+    do
+    {
         targetfile = DatabaseFile + "." + Convert::ToString(suffix) + ".bak";
         ++suffix;
 
-    } while(boost::filesystem::exists(targetfile));
+    } while (boost::filesystem::exists(targetfile));
 
     boost::filesystem::copy(DatabaseFile, targetfile);
 
     LOG_INFO("Database: running update from version " + Convert::ToString(oldversion));
 
-    switch(oldversion) {
-    case 14: {
-        _RunSQL(guard,
-            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_14_15.sql"));
-        _SetCurrentDatabaseVersion(guard, 15);
-        return true;
-    }
-    case 15: {
-        // Delete all invalid AppliedTags
-        RunSQLAsPrepared(guard, "DELETE FROM applied_tag WHERE tag = -1;");
-
-        LOG_WARNING("During this update sqlite won't run in synchronous mode");
-        _RunSQL(guard, "PRAGMA synchronous = OFF; PRAGMA journal_mode = MEMORY;");
-
-        // This makes sure all appliedtags are unique, and combines are fine
-        // which is required for the new version
-        try {
-            CombineAllPossibleAppliedTags(guard);
-
-        } catch(...) {
-
-            // Save progress //
-            sqlite3_db_cacheflush(SQLiteDb);
-            throw;
+    switch (oldversion)
+    {
+        case 14:
+        {
+            _RunSQL(guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_14_15.sql"));
+            _SetCurrentDatabaseVersion(guard, 15);
+            return true;
         }
+        case 15:
+        {
+            // Delete all invalid AppliedTags
+            RunSQLAsPrepared(guard, "DELETE FROM applied_tag WHERE tag = -1;");
 
-        _RunSQL(guard, "PRAGMA synchronous = ON; PRAGMA journal_mode = WAL;");
+            LOG_WARNING("During this update sqlite won't run in synchronous mode");
+            _RunSQL(guard, "PRAGMA synchronous = OFF; PRAGMA journal_mode = MEMORY;");
 
-        _RunSQL(guard,
-            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_15_16.sql"));
-        _SetCurrentDatabaseVersion(guard, 16);
+            // This makes sure all appliedtags are unique, and combines are fine
+            // which is required for the new version
+            try
+            {
+                CombineAllPossibleAppliedTags(guard);
+            }
+            catch (...)
+            {
+                // Save progress //
+                sqlite3_db_cacheflush(SQLiteDb);
+                throw;
+            }
 
+            _RunSQL(guard, "PRAGMA synchronous = ON; PRAGMA journal_mode = WAL;");
 
-        return true;
-    }
-    case 16: {
-        _RunSQL(guard,
-            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_16_17.sql"));
-        _SetCurrentDatabaseVersion(guard, 17);
-        return true;
-    }
-    case 17: {
-        // There was a bug where online image tags weren't applied to the images so we need
-        // to apply those
-        _UpdateApplyDownloadTagStrings(guard);
-        _SetCurrentDatabaseVersion(guard, 18);
-        return true;
-    }
-    case 18: {
-        _RunSQL(guard,
-            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_18_19.sql"));
-        _SetCurrentDatabaseVersion(guard, 19);
-        return true;
-    }
-    case 19: {
-        _RunSQL(guard,
-            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_19_20.sql"));
-        _SetCurrentDatabaseVersion(guard, 20);
-        return true;
-    }
-    case 20: {
-        _RunSQL(guard,
-            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_20_21.sql"));
-        _SetCurrentDatabaseVersion(guard, 21);
-        return true;
-    }
-    case 21: {
-        _RunSQL(guard,
-            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_21_22.sql"));
-        _SetCurrentDatabaseVersion(guard, 22);
-        return true;
-    }
-    case 22: {
-        _RunSQL(guard,
-            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_22_23.sql"));
-        _SetCurrentDatabaseVersion(guard, 23);
-        return true;
-    }
-    case 23: {
-        _RunSQL(guard,
-            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_23_24.sql"));
-        _SetCurrentDatabaseVersion(guard, 24);
-        return true;
-    }
-    case 24: {
-        _RunSQL(guard,
-            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_24_25.sql"));
-        GenerateMissingDatabaseActionDescriptions(guard);
-        _SetCurrentDatabaseVersion(guard, 25);
-        return true;
-    }
-    case 25: {
-        _RunSQL(guard,
-            LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_25_26.sql"));
-        _SetCurrentDatabaseVersion(guard, 26);
-        return true;
-    }
-    default: {
-        LOG_ERROR("Unknown database version to update from: " + Convert::ToString(oldversion));
-        return false;
-    }
+            _RunSQL(guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_15_16.sql"));
+            _SetCurrentDatabaseVersion(guard, 16);
+
+            return true;
+        }
+        case 16:
+        {
+            _RunSQL(guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_16_17.sql"));
+            _SetCurrentDatabaseVersion(guard, 17);
+            return true;
+        }
+        case 17:
+        {
+            // There was a bug where online image tags weren't applied to the images so we need
+            // to apply those
+            _UpdateApplyDownloadTagStrings(guard);
+            _SetCurrentDatabaseVersion(guard, 18);
+            return true;
+        }
+        case 18:
+        {
+            _RunSQL(guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_18_19.sql"));
+            _SetCurrentDatabaseVersion(guard, 19);
+            return true;
+        }
+        case 19:
+        {
+            _RunSQL(guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_19_20.sql"));
+            _SetCurrentDatabaseVersion(guard, 20);
+            return true;
+        }
+        case 20:
+        {
+            _RunSQL(guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_20_21.sql"));
+            _SetCurrentDatabaseVersion(guard, 21);
+            return true;
+        }
+        case 21:
+        {
+            _RunSQL(guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_21_22.sql"));
+            _SetCurrentDatabaseVersion(guard, 22);
+            return true;
+        }
+        case 22:
+        {
+            _RunSQL(guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_22_23.sql"));
+            _SetCurrentDatabaseVersion(guard, 23);
+            return true;
+        }
+        case 23:
+        {
+            _RunSQL(guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_23_24.sql"));
+            _SetCurrentDatabaseVersion(guard, 24);
+            return true;
+        }
+        case 24:
+        {
+            _RunSQL(guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_24_25.sql"));
+            GenerateMissingDatabaseActionDescriptions(guard);
+            _SetCurrentDatabaseVersion(guard, 25);
+            return true;
+        }
+        case 25:
+        {
+            _RunSQL(guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/migration_25_26.sql"));
+            _SetCurrentDatabaseVersion(guard, 26);
+            return true;
+        }
+        default:
+        {
+            LOG_ERROR("Unknown database version to update from: " + Convert::ToString(oldversion));
+            return false;
+        }
     }
 }
 
 void Database::_SetCurrentDatabaseVersion(LockT& guard, int newversion)
 {
-    if(sqlite3_exec(SQLiteDb,
-           ("UPDATE version SET number = " + Convert::ToString(newversion) + ";").c_str(),
-           nullptr, nullptr, nullptr) != SQLITE_OK) {
+    if (sqlite3_exec(SQLiteDb, ("UPDATE version SET number = " + Convert::ToString(newversion) + ";").c_str(), nullptr,
+            nullptr, nullptr) != SQLITE_OK)
+    {
         ThrowCurrentSqlError(guard);
     }
 }
+
 // ------------------------------------ //
 bool Database::_VerifyLoadedVersionSignatures(LockT& guard, int fileversion)
 {
-    if(fileversion == DATABASE_CURRENT_SIGNATURES_VERSION)
+    if (fileversion == DATABASE_CURRENT_SIGNATURES_VERSION)
         return true;
 
     // Fail if trying to load a newer version
-    if(fileversion > DATABASE_CURRENT_SIGNATURES_VERSION) {
-
+    if (fileversion > DATABASE_CURRENT_SIGNATURES_VERSION)
+    {
         LOG_ERROR("Trying to load a database that is newer than program's version");
         return false;
     }
@@ -5404,21 +5435,20 @@ bool Database::_VerifyLoadedVersionSignatures(LockT& guard, int fileversion)
     // Update the database //
     int updateversion = fileversion;
 
-    LOG_INFO("Database: updating signatures db from version " +
-             Convert::ToString(updateversion) + " to version " +
-             Convert::ToString(DATABASE_CURRENT_SIGNATURES_VERSION));
+    LOG_INFO("Database: updating signatures db from version " + Convert::ToString(updateversion) + " to version " +
+        Convert::ToString(DATABASE_CURRENT_SIGNATURES_VERSION));
 
-    while(updateversion != DATABASE_CURRENT_SIGNATURES_VERSION) {
-
-        if(!_UpdateDatabaseSignatures(guard, updateversion)) {
-
+    while (updateversion != DATABASE_CURRENT_SIGNATURES_VERSION)
+    {
+        if (!_UpdateDatabaseSignatures(guard, updateversion))
+        {
             LOG_ERROR("Database update failed, database file version is unsupported");
             return false;
         }
 
         // Get new version //
-        if(!SelectDatabaseVersion(guard, PictureSignatureDb, updateversion)) {
-
+        if (!SelectDatabaseVersion(guard, PictureSignatureDb, updateversion))
+        {
             LOG_ERROR("Database failed to retrieve new version after update");
             return false;
         }
@@ -5431,22 +5461,23 @@ bool Database::_UpdateDatabaseSignatures(LockT& guard, const int oldversion)
 {
     // Signatures can be recalculated. no need to backup
 
-    LOG_INFO(
-        "Database(signatures): running update from version " + Convert::ToString(oldversion));
+    LOG_INFO("Database(signatures): running update from version " + Convert::ToString(oldversion));
 
-    switch(oldversion) {
-    default: {
-        LOG_ERROR("Unknown database version to update from: " + Convert::ToString(oldversion));
-        return false;
-    }
+    switch (oldversion)
+    {
+        default:
+        {
+            LOG_ERROR("Unknown database version to update from: " + Convert::ToString(oldversion));
+            return false;
+        }
     }
 }
 
 void Database::_SetCurrentDatabaseVersionSignatures(LockT& guard, int newversion)
 {
-    if(sqlite3_exec(PictureSignatureDb,
-           ("UPDATE version SET number = " + Convert::ToString(newversion) + ";").c_str(),
-           nullptr, nullptr, nullptr) != SQLITE_OK) {
+    if (sqlite3_exec(PictureSignatureDb, ("UPDATE version SET number = " + Convert::ToString(newversion) + ";").c_str(),
+            nullptr, nullptr, nullptr) != SQLITE_OK)
+    {
         ThrowCurrentSqlError(guard);
     }
 }
@@ -5454,29 +5485,28 @@ void Database::_SetCurrentDatabaseVersionSignatures(LockT& guard, int newversion
 // ------------------------------------ //
 void Database::_UpdateApplyDownloadTagStrings(LockT& guard)
 {
-    const char str[] =
-        "SELECT pictures.id, net_files.tags_string FROM net_files "
-        "INNER JOIN pictures ON net_files.file_url = pictures.from_file WHERE "
-        "net_files.tags_string IS NOT NULL AND LENGTH(net_files.tags_string) > 0;";
+    const char str[] = "SELECT pictures.id, net_files.tags_string FROM net_files "
+                       "INNER JOIN pictures ON net_files.file_url = pictures.from_file WHERE "
+                       "net_files.tags_string IS NOT NULL AND LENGTH(net_files.tags_string) > 0;";
 
-    PreparedStatement statementobj(SQLiteDb, str, sizeof(str));
+    PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementinuse = statementobj.Setup();
+    auto statementInUse = statementObj.Setup();
 
-    while(statementobj.Step(statementinuse) == PreparedStatement::STEP_RESULT::ROW) {
-
+    while (statementObj.Step(statementInUse) == PreparedStatement::STEP_RESULT::ROW)
+    {
         DBID imgid;
 
-        if(!statementobj.GetObjectIDFromColumn(imgid, 0)) {
-
+        if (!statementObj.GetObjectIDFromColumn(imgid, 0))
+        {
             LOG_ERROR("Invalid DB update id received");
             continue;
         }
 
-        const auto tags = statementobj.GetColumnAsString(1);
+        const auto tags = statementObj.GetColumnAsString(1);
 
-        if(tags.empty()) {
-
+        if (tags.empty())
+        {
             LOG_WARNING("DB update skipping applying empty tag string");
             continue;
         }
@@ -5484,8 +5514,8 @@ void Database::_UpdateApplyDownloadTagStrings(LockT& guard)
         // Load the image //
         auto image = SelectImageByID(guard, imgid);
 
-        if(!image) {
-
+        if (!image)
+        {
             LOG_ERROR("DB update didn't find image a tag string should be applied to");
             continue;
         }
@@ -5494,24 +5524,24 @@ void Database::_UpdateApplyDownloadTagStrings(LockT& guard)
         std::vector<std::string> tagparts;
         Leviathan::StringOperations::CutString<std::string>(tags, ";", tagparts);
 
-        for(auto& line : tagparts) {
-
-            if(line.empty())
+        for (auto& line : tagparts)
+        {
+            if (line.empty())
                 continue;
 
             std::shared_ptr<AppliedTag> tag;
 
-            try {
-
+            try
+            {
                 tag = DualView::Get().ParseTagFromString(line);
-
-            } catch(const Leviathan::Exception& e) {
-
+            }
+            catch (const Leviathan::Exception& e)
+            {
                 LOG_ERROR("DB Update applying tag failed. Invalid tag: " + line);
                 continue;
             }
 
-            if(!tag)
+            if (!tag)
                 continue;
 
             InsertImageTag(guard, image, *tag);
@@ -5522,19 +5552,17 @@ void Database::_UpdateApplyDownloadTagStrings(LockT& guard)
         LOG_INFO("Applied DB download tag string to image id: " + std::to_string(imgid));
     }
 }
+
 // ------------------------------------ //
 void Database::_CreateTableStructure(LockT& guard)
 {
     _RunSQL(guard, "BEGIN TRANSACTION;");
 
-    _RunSQL(
-        guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/maintables.sql"));
+    _RunSQL(guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/maintables.sql"));
 
-    _RunSQL(guard,
-        LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/defaulttablevalues.sql"));
+    _RunSQL(guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/defaulttablevalues.sql"));
 
-    _RunSQL(
-        guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/defaulttags.sql"));
+    _RunSQL(guard, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/defaulttags.sql"));
 
     // Default collections //
     InsertCollection(guard, "Uncategorized", false);
@@ -5542,8 +5570,7 @@ void Database::_CreateTableStructure(LockT& guard)
     InsertCollection(guard, "Backgrounds", false);
 
     // Insert version last //
-    _RunSQL(guard, "INSERT INTO version (number) VALUES (" +
-                       Convert::ToString(DATABASE_CURRENT_VERSION) + ");");
+    _RunSQL(guard, "INSERT INTO version (number) VALUES (" + Convert::ToString(DATABASE_CURRENT_VERSION) + ");");
 
     _RunSQL(guard, "COMMIT TRANSACTION;");
 }
@@ -5552,16 +5579,16 @@ void Database::_CreateTableStructureSignatures(LockT& guard)
 {
     _RunSQL(guard, PictureSignatureDb, "BEGIN TRANSACTION;");
 
-    _RunSQL(guard, PictureSignatureDb,
-        LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/signaturetables.sql"));
+    _RunSQL(
+        guard, PictureSignatureDb, LoadResourceCopy("/com/boostslair/dualviewpp/resources/sql/signaturetables.sql"));
 
     // Insert version last //
     _RunSQL(guard, PictureSignatureDb,
-        "INSERT INTO version (number) VALUES (" +
-            Convert::ToString(DATABASE_CURRENT_SIGNATURES_VERSION) + ");");
+        "INSERT INTO version (number) VALUES (" + Convert::ToString(DATABASE_CURRENT_SIGNATURES_VERSION) + ");");
 
     _RunSQL(guard, PictureSignatureDb, "COMMIT TRANSACTION;");
 }
+
 // ------------------------------------ //
 void Database::_RunSQL(LockT& guard, const std::string& sql)
 {
@@ -5572,34 +5599,34 @@ void Database::_RunSQL(LockT& guard, sqlite3* db, const std::string& sql)
 {
     auto result = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, nullptr);
 
-    if(SQLITE_OK != result) {
-
+    if (SQLITE_OK != result)
+    {
         ThrowErrorFromDB(db, result);
     }
 }
 
 void Database::PrintResultingRows(LockT& guard, sqlite3* db, const std::string& str)
 {
-    PreparedStatement statementobj(db, str);
+    PreparedStatement statementObj(db, str);
 
-    auto statementinuse = statementobj.Setup();
+    auto statementInUse = statementObj.Setup();
 
     LOG_INFO("SQL result from: \"" + str + "\"");
-    statementobj.StepAndPrettyPrint(statementinuse);
+    statementObj.StepAndPrettyPrint(statementInUse);
 }
+
 // ------------------------------------ //
-int Database::SqliteExecGrabResult(
-    void* user, int columns, char** columnsastext, char** columnname)
+int Database::SqliteExecGrabResult(void* user, int columns, char** columnsastext, char** columnname)
 {
     auto* grabber = reinterpret_cast<GrabResultHolder*>(user);
 
-    if(grabber->MaxRows > 0 && (grabber->Rows.size() >= grabber->MaxRows))
+    if (grabber->MaxRows > 0 && (grabber->Rows.size() >= grabber->MaxRows))
         return 1;
 
     GrabResultHolder::Row row;
 
-    for(int i = 0; i < columns; ++i) {
-
+    for (int i = 0; i < columns; ++i)
+    {
         row.ColumnValues.push_back(columnsastext[i] ? columnsastext[i] : "");
         row.ColumnNames.push_back(columnname[i] ? columnname[i] : "");
     }
@@ -5607,10 +5634,10 @@ int Database::SqliteExecGrabResult(
     grabber->Rows.push_back(row);
     return 0;
 }
+
 // ------------------------------------ //
 std::string Database::EscapeSql(std::string str)
 {
-
     str = Leviathan::StringOperations::Replace<std::string>(str, "\n", " ");
     str = Leviathan::StringOperations::Replace<std::string>(str, "\r\n", " ");
     str = Leviathan::StringOperations::Replace<std::string>(str, "\"\"", "\"");
@@ -5624,23 +5651,25 @@ void Database::BeginTransaction(LockT& guard, bool alsoauxiliary /*= false*/)
 {
     RunSQLAsPrepared(guard, "BEGIN TRANSACTION;");
 
-    if(alsoauxiliary)
+    if (alsoauxiliary)
         RunOnSignatureDB(guard, "BEGIN TRANSACTION;");
 }
 
 void Database::CommitTransaction(LockT& guard, bool alsoauxiliary /*= false*/)
 {
-    try {
+    try
+    {
         RunSQLAsPrepared(guard, "COMMIT TRANSACTION;");
-    } catch(const InvalidSQL&) {
-
+    }
+    catch (const InvalidSQL&)
+    {
         // This failed so rollback the other one
-        if(alsoauxiliary)
+        if (alsoauxiliary)
             RunOnSignatureDB(guard, "ROLLBACK;");
         throw;
     }
 
-    if(alsoauxiliary)
+    if (alsoauxiliary)
         RunOnSignatureDB(guard, "COMMIT TRANSACTION;");
 }
 
@@ -5648,42 +5677,41 @@ void Database::RollbackTransaction(LockT& guard, bool alsoauxiliary /*= false*/)
 {
     RunSQLAsPrepared(guard, "ROLLBACK;");
 
-    if(alsoauxiliary)
+    if (alsoauxiliary)
         RunOnSignatureDB(guard, "ROLLBACK;");
 }
 
-void Database::BeginSavePoint(
-    LockT& guard, const std::string& savepointname, bool alsoauxiliary /*= false*/)
+void Database::BeginSavePoint(LockT& guard, const std::string& savepointname, bool alsoauxiliary /*= false*/)
 {
     _RunSQL(guard, "SAVEPOINT " + savepointname + ";");
 
-    if(alsoauxiliary)
+    if (alsoauxiliary)
         RunOnSignatureDB(guard, "SAVEPOINT " + savepointname + ";");
 }
 
-void Database::ReleaseSavePoint(
-    LockT& guard, const std::string& savepointname, bool alsoauxiliary /*= false*/)
+void Database::ReleaseSavePoint(LockT& guard, const std::string& savepointname, bool alsoauxiliary /*= false*/)
 {
-    try {
+    try
+    {
         _RunSQL(guard, "RELEASE " + savepointname + ";");
-    } catch(const InvalidSQL&) {
-
+    }
+    catch (const InvalidSQL&)
+    {
         // This failed so rollback the other one
-        if(alsoauxiliary)
+        if (alsoauxiliary)
             RunOnSignatureDB(guard, "ROLLBACK TO " + savepointname + ";");
         throw;
     }
 
-    if(alsoauxiliary)
+    if (alsoauxiliary)
         RunOnSignatureDB(guard, "RELEASE " + savepointname + ";");
 }
 
-void Database::RollbackSavePoint(
-    LockT& guard, const std::string& savepointname, bool alsoauxiliary /*= false*/)
+void Database::RollbackSavePoint(LockT& guard, const std::string& savepointname, bool alsoauxiliary /*= false*/)
 {
     _RunSQL(guard, "ROLLBACK TO " + savepointname + ";");
 
-    if(alsoauxiliary)
+    if (alsoauxiliary)
         RunOnSignatureDB(guard, "ROLLBACK TO " + savepointname + ";");
 }
 
@@ -5694,27 +5722,28 @@ bool Database::HasActiveTransaction(LockT& guard)
 
 // ------------------------------------ //
 // DoDBTransaction
-DoDBTransaction::DoDBTransaction(
-    Database& db, RecursiveLock& dblock, bool alsoauxiliary /*= false*/) :
-    DB(db),
-    Locked(dblock), Auxiliary(alsoauxiliary)
+DoDBTransaction::DoDBTransaction(Database& db, RecursiveLock& dblock, bool alsoauxiliary /*= false*/) :
+    DB(db), Locked(dblock), Auxiliary(alsoauxiliary)
 {
     DB.BeginTransaction(Locked, Auxiliary);
 }
 
 DoDBTransaction::~DoDBTransaction()
 {
-    if(Success) {
+    if (Success)
+    {
         DB.CommitTransaction(Locked, Auxiliary);
-    } else {
+    }
+    else
+    {
         DB.RollbackTransaction(Locked, Auxiliary);
     }
 }
 
 // ------------------------------------ //
 // DoDBSavePoint
-DoDBSavePoint::DoDBSavePoint(Database& db, RecursiveLock& dblock, const std::string& savepoint,
-    bool alsoauxiliary /*= false*/) :
+DoDBSavePoint::DoDBSavePoint(
+    Database& db, RecursiveLock& dblock, const std::string& savepoint, bool alsoauxiliary /*= false*/) :
     DB(db),
     Locked(dblock), SavePoint(savepoint), Auxiliary(alsoauxiliary)
 {
@@ -5723,9 +5752,12 @@ DoDBSavePoint::DoDBSavePoint(Database& db, RecursiveLock& dblock, const std::str
 
 DoDBSavePoint::~DoDBSavePoint()
 {
-    if(Success) {
+    if (Success)
+    {
         DB.ReleaseSavePoint(Locked, SavePoint, Auxiliary);
-    } else {
+    }
+    else
+    {
         DB.RollbackSavePoint(Locked, SavePoint, Auxiliary);
     }
 }

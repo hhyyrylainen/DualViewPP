@@ -1,23 +1,21 @@
 #pragma once
 
-#include "Common/ThreadSafe.h"
-#include "SQLHelpers.h"
-
-#include "PreparedStatement.h"
-#include "SingleLoad.h"
-
-#include "Common.h"
-
 #include <string>
+#include <thread>
 #include <vector>
 
-#include <thread>
+#include "Common/ThreadSafe.h"
+
+#include "Common.h"
+#include "PreparedStatement.h"
+#include "SingleLoad.h"
+#include "SQLHelpers.h"
 
 // Forward declare sqlite //
 struct sqlite3;
 
-namespace DV {
-
+namespace DV
+{
 class PreparedStatement;
 
 class CurlWrapper;
@@ -57,13 +55,13 @@ constexpr auto IMAGE_SIGNATURE_WORD_LENGTH = 10;
 //! There should be only one database object at a time. It is contained in DualView
 //! \note This is recursively lockable because otherwise the acrobatics needed to pass around
 //! the single lock is way too much
-class Database : public Leviathan::ThreadSafeRecursive {
-
+class Database : public Leviathan::ThreadSafeRecursive
+{
     //! \brief Holds data in Database::SqliteExecGrabResult
-    struct GrabResultHolder {
-
-        struct Row {
-
+    struct GrabResultHolder
+    {
+        struct Row
+        {
             std::vector<std::string> ColumnValues;
             std::vector<std::string> ColumnNames;
         };
@@ -131,8 +129,7 @@ public:
     std::shared_ptr<ImageDeleteAction> CreateDeleteImageAction(LockT& guard, Image& image);
 
     //! \brief Finds the newest ImageDeleteAction that contains the image
-    std::shared_ptr<ImageDeleteAction> SelectImageDeleteActionForImage(
-        Image& image, bool performed);
+    std::shared_ptr<ImageDeleteAction> SelectImageDeleteActionForImage(Image& image, bool performed);
 
     //! \brief Retrieves an Image based on the hash
     //! \todo All callers need to check if the image is deleted or not
@@ -162,8 +159,7 @@ public:
     //! \brief Counts the number of images in the database
     size_t SelectImageCount(LockT& guard);
 
-    void SelectImagePaths(
-        LockT& guard, std::vector<ImagePath>& results, int64_t offset, int64_t max = 10000);
+    void SelectImagePaths(LockT& guard, std::vector<ImagePath>& results, int64_t offset, int64_t max = 10000);
 
     //! \brief Retrieves signature (or empty string) for image id
     std::string SelectImageSignatureByID(LockT& guard, DBID image);
@@ -173,13 +169,20 @@ public:
     std::vector<DBID> SelectImageIDsWithoutSignature(LockT& guard);
     CREATE_NON_LOCKING_WRAPPER(SelectImageIDsWithoutSignature);
 
+    //! \brief Finds images that are incorrectly orphaned in the DB. Note this is currently different from the other
+    //! orphan checks by finding images not in any folder.
+    void SelectOrphanedImages(LockT& guard, std::vector<DBID>& result);
+
+    //! \brief Finds incorrectly deleted images that are orphaned due to not being part of an action (i.e. an action
+    //! has been incorrectly purged from the DB without removing an image)
+    void SelectIncorrectlyDeletedImages(LockT& guard, std::vector<DBID>& result);
+
     //! \brief Loads a TagCollection for the specified image.
     //! \returns Null if the image is not in the database
     std::shared_ptr<TagCollection> LoadImageTags(const std::shared_ptr<Image>& image);
 
     //! \brief Retrieves all tags added to an image
-    void SelectImageTags(LockT& guard, std::weak_ptr<Image> image,
-        std::vector<std::shared_ptr<AppliedTag>>& tags);
+    void SelectImageTags(LockT& guard, std::weak_ptr<Image> image, std::vector<std::shared_ptr<AppliedTag>>& tags);
 
     //! \brief Adds a tag to an image
     void InsertImageTag(LockT& guard, std::weak_ptr<Image> image, AppliedTag& tag);
@@ -194,8 +197,7 @@ public:
     //! \result Returns the images that have duplicates (lower ids are reported as the original
     //! Image). The vector containing the tuples first has the id of the duplicate Image and
     //! then the strength
-    std::map<DBID, std::vector<std::tuple<DBID, int>>> SelectPotentialImageDuplicates(
-        int sensitivity = 15);
+    std::map<DBID, std::vector<std::tuple<DBID, int>>> SelectPotentialImageDuplicates(int sensitivity = 15);
 
     //
     // Collection functions
@@ -205,14 +207,12 @@ public:
     //! \param name The name to check
     //! \param ignoreDuplicateId If set, a collection with the specified ID is ignored
     //! \returns True if in use
-    bool CheckIsCollectionNameInUse(
-        LockT& guard, const std::string& name, int ignoreDuplicateId = -1);
+    bool CheckIsCollectionNameInUse(LockT& guard, const std::string& name, DBID ignoreDuplicateId = -1);
     CREATE_NON_LOCKING_WRAPPER(CheckIsCollectionNameInUse);
 
     //! \brief Inserts a new collection to the database
     //! \exception InvalidSQL if the collection violates unique constraints (same name)
-    std::shared_ptr<Collection> InsertCollection(
-        LockT& guard, const std::string& name, bool isprivate);
+    std::shared_ptr<Collection> InsertCollection(LockT& guard, const std::string& name, bool isprivate);
     CREATE_NON_LOCKING_WRAPPER(InsertCollection);
 
     //! \brief Updates a collection's properties in the database
@@ -225,12 +225,10 @@ public:
     std::shared_ptr<DatabaseAction> DeleteCollection(Collection& collection);
 
     //! \brief Only creates the action to delete a collection but doesn't execute it
-    std::shared_ptr<CollectionDeleteAction> CreateDeleteCollectionAction(
-        LockT& guard, Collection& collection);
+    std::shared_ptr<CollectionDeleteAction> CreateDeleteCollectionAction(LockT& guard, Collection& collection);
 
     //! \brief Finds the newest ImageDeleteAction that contains the image
-    std::shared_ptr<CollectionDeleteAction> SelectCollectionDeleteAction(
-        Collection& collection, bool performed);
+    std::shared_ptr<CollectionDeleteAction> SelectCollectionDeleteAction(Collection& collection, bool performed);
 
     //! \brief Retrieves a Collection based on the name
     //! \todo Once aliases are implemented this should also check aliases
@@ -239,12 +237,14 @@ public:
 
     std::string SelectCollectionNameByID(DBID id);
 
-    std::vector<std::string> SelectCollectionNamesByWildcard(
-        const std::string& pattern, int64_t max = 50);
+    std::vector<std::string> SelectCollectionNamesByWildcard(const std::string& pattern, int64_t max = 50);
 
     //! \brief Retrieves a Collection based on the id
     std::shared_ptr<Collection> SelectCollectionByID(LockT& guard, DBID id);
     CREATE_NON_LOCKING_WRAPPER(SelectCollectionByID);
+
+    //! \brief Finds collections that are incorrectly orphaned in the DB
+    void SelectIncorrectlyDeletedCollections(LockT& guard, std::vector<DBID>& result);
 
     //! \brief Returns the largest value used for an image in the collection
     //! If the collection is empty returns 0
@@ -257,20 +257,17 @@ public:
 
     //! \brief Loads a TagCollection for the specified collection.
     //! \returns Null if the collection is not in the database
-    std::shared_ptr<TagCollection> LoadCollectionTags(
-        const std::shared_ptr<Collection>& collection);
+    std::shared_ptr<TagCollection> LoadCollectionTags(const std::shared_ptr<Collection>& collection);
 
     //! \brief Retrieves all tags added to an collection
-    void SelectCollectionTags(LockT& guard, std::weak_ptr<Collection> collection,
-        std::vector<std::shared_ptr<AppliedTag>>& tags);
+    void SelectCollectionTags(
+        LockT& guard, std::weak_ptr<Collection> collection, std::vector<std::shared_ptr<AppliedTag>>& tags);
 
     //! \brief Adds a tag to an collection
-    void InsertCollectionTag(
-        LockT& guard, std::weak_ptr<Collection> collection, AppliedTag& tag);
+    void InsertCollectionTag(LockT& guard, std::weak_ptr<Collection> collection, AppliedTag& tag);
 
     //! \brief Removes a tag from an collection
-    void DeleteCollectionTag(
-        LockT& guard, std::weak_ptr<Collection> collection, AppliedTag& tag);
+    void DeleteCollectionTag(LockT& guard, std::weak_ptr<Collection> collection, AppliedTag& tag);
 
     //
     // Collection image
@@ -281,15 +278,12 @@ public:
     //! \param showorder The order number of the image in the collection. If the same one is
     //! already in use the order in which the two images that have the same show_order is
     //! random
-    bool InsertImageToCollection(
-        LockT& guard, DBID collection, Image& image, int64_t showorder);
+    bool InsertImageToCollection(LockT& guard, DBID collection, Image& image, int64_t showorder);
     CREATE_NON_LOCKING_WRAPPER(InsertImageToCollection);
 
-    bool InsertImageToCollection(
-        LockT& guard, Collection& collection, Image& image, int64_t showorder);
+    bool InsertImageToCollection(LockT& guard, Collection& collection, Image& image, int64_t showorder);
 
-    bool InsertImageToCollection(
-        LockT& guard, Collection& collection, DBID image, int64_t showorder);
+    bool InsertImageToCollection(LockT& guard, Collection& collection, DBID image, int64_t showorder);
 
     bool InsertImageToCollection(LockT& guard, DBID collection, DBID image, int64_t showorder);
 
@@ -319,12 +313,10 @@ public:
         LockT& guard, Collection& collection);
     CREATE_NON_LOCKING_WRAPPER(SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection);
 
-    std::vector<DBID> SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection(
-        LockT& guard, DBID collection);
+    std::vector<DBID> SelectImagesThatWouldBecomeOrphanedWhenRemovedFromCollection(LockT& guard, DBID collection);
 
     //! \brief Returns the show_order image has in collection. Or -1
-    int64_t SelectImageShowOrderInCollection(
-        LockT& guard, const Collection& collection, const Image& image);
+    int64_t SelectImageShowOrderInCollection(LockT& guard, const Collection& collection, const Image& image);
     CREATE_NON_LOCKING_WRAPPER(SelectImageShowOrderInCollection);
 
     //! \brief Returns the image with the show order
@@ -335,8 +327,7 @@ public:
     CREATE_NON_LOCKING_WRAPPER(SelectImageInCollectionByShowOrder);
 
     //! \returns Image ID at show order in collection or -1 if not found
-    DBID SelectImageIDInCollectionByShowOrder(
-        LockT& guard, DBID collection, int64_t showorder);
+    DBID SelectImageIDInCollectionByShowOrder(LockT& guard, DBID collection, int64_t showorder);
 
     //! \brief It's possible to end up with multiple Images with the same show order, this
     //! function can be used to still get all the images in that situation
@@ -347,13 +338,11 @@ public:
     std::shared_ptr<Image> SelectCollectionPreviewImage(const Collection& collection);
 
     //! \brief Returns the first image in a collection, or null if empty
-    std::shared_ptr<Image> SelectFirstImageInCollection(
-        LockT& guard, const Collection& collection);
+    std::shared_ptr<Image> SelectFirstImageInCollection(LockT& guard, const Collection& collection);
     CREATE_NON_LOCKING_WRAPPER(SelectFirstImageInCollection);
 
     //! \brief Returns the last image in a collection, or null if empty
-    std::shared_ptr<Image> SelectLastImageInCollection(
-        LockT& guard, const Collection& collection);
+    std::shared_ptr<Image> SelectLastImageInCollection(LockT& guard, const Collection& collection);
     CREATE_NON_LOCKING_WRAPPER(SelectLastImageInCollection);
 
     //! \brief Counts the index image has in a collection based on the show_orders
@@ -369,38 +358,30 @@ public:
     CREATE_NON_LOCKING_WRAPPER(SelectImageInCollectionByShowIndex);
 
     //! \brief Selects the image that has the next show order
-    std::shared_ptr<Image> SelectNextImageInCollectionByShowOrder(
-        const Collection& collection, int64_t showorder);
+    std::shared_ptr<Image> SelectNextImageInCollectionByShowOrder(const Collection& collection, int64_t showorder);
 
     //! \brief Selects the image that has the previous show order
-    std::shared_ptr<Image> SelectPreviousImageInCollectionByShowOrder(
-        const Collection& collection, int64_t showorder);
+    std::shared_ptr<Image> SelectPreviousImageInCollectionByShowOrder(const Collection& collection, int64_t showorder);
 
     //! \brief Returns all images in a collection
-    std::vector<std::shared_ptr<Image>> SelectImagesInCollection(
-        const Collection& collection, int32_t limit = -1);
+    std::vector<std::shared_ptr<Image>> SelectImagesInCollection(const Collection& collection, int32_t limit = -1);
 
-    std::vector<std::tuple<DBID, int64_t>> SelectImageIDsAndShowOrderInCollection(
-        const Collection& collection);
+    std::vector<std::tuple<DBID, int64_t>> SelectImageIDsAndShowOrderInCollection(const Collection& collection);
 
     //! \brief Returns all collections and the show order an image has
-    std::vector<std::tuple<DBID, int64_t>> SelectCollectionIDsImageIsIn(
-        LockT& guard, const Image& image);
+    std::vector<std::tuple<DBID, int64_t>> SelectCollectionIDsImageIsIn(LockT& guard, const Image& image);
 
-    std::vector<std::tuple<DBID, int64_t>> SelectCollectionIDsImageIsIn(
-        LockT& guard, DBID image);
+    std::vector<std::tuple<DBID, int64_t>> SelectCollectionIDsImageIsIn(LockT& guard, DBID image);
     CREATE_NON_LOCKING_WRAPPER(SelectCollectionIDsImageIsIn);
 
     //! \brief Used to push back images in a collection to make space in the middle
     //! \returns Number of changed rows
-    int UpdateShowOrdersInCollection(
-        LockT& guard, DBID collection, int64_t startpoint, int incrementby = 1);
+    int UpdateShowOrdersInCollection(LockT& guard, DBID collection, int64_t startpoint, int incrementby = 1);
 
     //! \brief Updates the show order for a single image
     //!
     //! This does no checks to ensure that this doesn't cause duplicate show orders
-    bool UpdateCollectionImageShowOrder(
-        LockT& guard, DBID collection, DBID image, int64_t showorder);
+    bool UpdateCollectionImageShowOrder(LockT& guard, DBID collection, DBID image, int64_t showorder);
 
     //! \brief Updates the order of collection images in an action
     std::shared_ptr<DatabaseAction> UpdateCollectionImagesOrder(
@@ -417,11 +398,13 @@ public:
     std::shared_ptr<Folder> SelectFolderByID(LockT& guard, DBID id);
     CREATE_NON_LOCKING_WRAPPER(SelectFolderByID);
 
+    //! \brief Finds folders that are incorrectly orphaned in the DB
+    void SelectIncorrectlyDeletedFolders(LockT& guard, std::vector<DBID>& result);
+
     //! \brief Creates a new folder, must have a parent folder
     //! \returns The created folder or null if the name conflicts
     //! \todo Make sure that if there are any quotes they are balanced
-    std::shared_ptr<Folder> InsertFolder(
-        std::string name, bool isprivate, const Folder& parent);
+    std::shared_ptr<Folder> InsertFolder(std::string name, bool isprivate, const Folder& parent);
 
     bool UpdateFolder(LockT& guard, Folder& folder);
 
@@ -436,8 +419,7 @@ public:
     bool InsertCollectionToFolder(LockT& guard, Folder& folder, const Collection& collection);
     CREATE_NON_LOCKING_WRAPPER(InsertCollectionToFolder);
 
-    void DeleteCollectionFromFolder(
-        LockT& guard, Folder& folder, const Collection& collection);
+    void DeleteCollectionFromFolder(LockT& guard, Folder& folder, const Collection& collection);
 
     //! \brief Returns Collections that are directly in folder. And their name contains
     //! matching pattern
@@ -446,8 +428,7 @@ public:
     CREATE_NON_LOCKING_WRAPPER(SelectCollectionsInFolder);
 
     //! \brief Selects collections that are only in the specified folder
-    std::vector<std::shared_ptr<Collection>> SelectCollectionsOnlyInFolder(
-        LockT& guard, const Folder& folder);
+    std::vector<std::shared_ptr<Collection>> SelectCollectionsOnlyInFolder(LockT& guard, const Folder& folder);
 
     //! \brief Returns true if collection is in a Folder
     //! \todo This needs to check for deleted
@@ -455,8 +436,7 @@ public:
 
     //! \brief Returns true if Collection is in another folder than folder
     //! \todo This doesn't handle deleted properly
-    bool SelectCollectionIsInAnotherFolder(
-        LockT& guard, const Folder& folder, const Collection& collection);
+    bool SelectCollectionIsInAnotherFolder(LockT& guard, const Folder& folder, const Collection& collection);
 
     //! \brief Returs Folders Collection is in
     //! \todo This doesn't handle deleted properly
@@ -501,12 +481,10 @@ public:
     CREATE_NON_LOCKING_WRAPPER(SelectFoldersInFolder);
 
     //! \brief Returns Folders that are directly in folder and in no other (non-deleted) folder
-    std::vector<std::shared_ptr<Folder>> SelectFoldersOnlyInFolder(
-        LockT& guard, const Folder& folder);
+    std::vector<std::shared_ptr<Folder>> SelectFoldersOnlyInFolder(LockT& guard, const Folder& folder);
 
     //! \brief Selects a folder based on parent folder and name
-    std::shared_ptr<Folder> SelectFolderByNameAndParent(
-        LockT& guard, const std::string& name, const Folder& parent);
+    std::shared_ptr<Folder> SelectFolderByNameAndParent(LockT& guard, const std::string& name, const Folder& parent);
     CREATE_NON_LOCKING_WRAPPER(SelectFolderByNameAndParent);
 
     //! \brief Selects all parents of a Folder
@@ -526,8 +504,7 @@ public:
     //
 
     //! \brief Creates a new tag
-    std::shared_ptr<Tag> InsertTag(
-        std::string name, std::string description, TAG_CATEGORY category, bool isprivate);
+    std::shared_ptr<Tag> InsertTag(std::string name, std::string description, TAG_CATEGORY category, bool isprivate);
 
     //! \brief Returns tag based on id
     std::shared_ptr<Tag> SelectTagByID(LockT& guard, DBID id);
@@ -580,7 +557,6 @@ public:
     //! \brief Returns the ids of tags implied by tag
     std::vector<DBID> SelectTagImplies(LockT& guard, const Tag& tag);
 
-
     //
     // AppliedTag
     //
@@ -600,8 +576,7 @@ public:
     DBID SelectExistingAppliedTagID(LockT& guard, const AppliedTag& tag);
     CREATE_NON_LOCKING_WRAPPER(SelectExistingAppliedTagID);
 
-    std::vector<std::shared_ptr<TagModifier>> SelectAppliedTagModifiers(
-        LockT& guard, const AppliedTag& appliedtag);
+    std::vector<std::shared_ptr<TagModifier>> SelectAppliedTagModifiers(LockT& guard, const AppliedTag& appliedtag);
 
     //! \brief Returns the right side of a tag combine, appliedtag is the left side
     std::tuple<std::string, std::shared_ptr<AppliedTag>> SelectAppliedTagCombine(
@@ -636,25 +611,19 @@ public:
     //! to first
     void CombineAppliedTagDuplicate(LockT& guard, DBID first, DBID second);
 
-
-
     //
     // TagModifier
     //
     std::shared_ptr<TagModifier> SelectTagModifierByID(LockT& guard, DBID id);
 
-    std::shared_ptr<TagModifier> SelectTagModifierByName(
-        LockT& guard, const std::string& name);
+    std::shared_ptr<TagModifier> SelectTagModifierByName(LockT& guard, const std::string& name);
     CREATE_NON_LOCKING_WRAPPER(SelectTagModifierByName);
 
-    std::shared_ptr<TagModifier> SelectTagModifierByAlias(
-        LockT& guard, const std::string& alias);
+    std::shared_ptr<TagModifier> SelectTagModifierByAlias(LockT& guard, const std::string& alias);
     CREATE_NON_LOCKING_WRAPPER(SelectTagModifierByAlias);
 
-    std::shared_ptr<TagModifier> SelectTagModifierByNameOrAlias(
-        LockT& guard, const std::string& name);
+    std::shared_ptr<TagModifier> SelectTagModifierByNameOrAlias(LockT& guard, const std::string& name);
     CREATE_NON_LOCKING_WRAPPER(SelectTagModifierByNameOrAlias);
-
 
     void UpdateTagModifier(const TagModifier& modifier);
 
@@ -664,11 +633,9 @@ public:
     //! \brief Returns a break rule that can handle str (or might be able to)
     std::shared_ptr<TagBreakRule> SelectTagBreakRuleByStr(const std::string& str);
 
-    std::shared_ptr<TagBreakRule> SelectTagBreakRuleByExactPattern(
-        LockT& guard, const std::string& pattern);
+    std::shared_ptr<TagBreakRule> SelectTagBreakRuleByExactPattern(LockT& guard, const std::string& pattern);
 
-    std::vector<std::shared_ptr<TagModifier>> SelectModifiersForBreakRule(
-        LockT& guard, const TagBreakRule& rule);
+    std::vector<std::shared_ptr<TagModifier>> SelectModifiersForBreakRule(LockT& guard, const TagBreakRule& rule);
 
     //! \todo Implement
     void UpdateTagBreakRule(const TagBreakRule& rule);
@@ -684,6 +651,9 @@ public:
     //! \brief Returns a NetGallery by id
     std::shared_ptr<NetGallery> SelectNetGalleryByID(LockT& guard, DBID id);
     CREATE_NON_LOCKING_WRAPPER(SelectNetGalleryByID);
+
+    //! \brief Finds NetGallery items that are incorrectly orphaned in the DB
+    void SelectIncorrectlyDeletedNetGalleries(LockT& guard, std::vector<DBID>& result);
 
     //! \brief Adds a new NetGallery to the database
     //! \returns True if added, false if it is already added
@@ -722,19 +692,15 @@ public:
     // Wilcard searches for tag suggestions
     //
     //! \brief Returns text of all break rules that contain str
-    void SelectTagBreakRulesByStrWildcard(
-        std::vector<std::string>& breakrules, const std::string& pattern);
+    void SelectTagBreakRulesByStrWildcard(std::vector<std::string>& breakrules, const std::string& pattern);
 
     void SelectTagNamesWildcard(std::vector<std::string>& result, const std::string& pattern);
 
-    void SelectTagAliasesWildcard(
-        std::vector<std::string>& result, const std::string& pattern);
+    void SelectTagAliasesWildcard(std::vector<std::string>& result, const std::string& pattern);
 
-    void SelectTagModifierNamesWildcard(
-        std::vector<std::string>& result, const std::string& pattern);
+    void SelectTagModifierNamesWildcard(std::vector<std::string>& result, const std::string& pattern);
 
-    void SelectTagSuperAliasWildcard(
-        std::vector<std::string>& result, const std::string& pattern);
+    void SelectTagSuperAliasWildcard(std::vector<std::string>& result, const std::string& pattern);
 
     //
     // Complex operations
@@ -747,13 +713,11 @@ public:
     std::shared_ptr<DatabaseAction> MergeImages(
         const Image& mergetarget, const std::vector<std::shared_ptr<Image>>& tomerge);
 
-
     //
     // Actions
     //
     std::shared_ptr<DatabaseAction> SelectDatabaseActionByID(LockT& guard, DBID id);
     CREATE_NON_LOCKING_WRAPPER(SelectDatabaseActionByID);
-
 
     std::shared_ptr<DatabaseAction> SelectOldestDatabaseAction(LockT& guard);
 
@@ -761,7 +725,6 @@ public:
     //!
     //! May not be called with an action that is already in the DB
     void InsertDatabaseAction(LockT& guard, DatabaseAction& action);
-
 
     //! \brief Returns the latest actions matching the optional search string
     //! \param search String that must be found either in the json data or the description of
@@ -818,9 +781,7 @@ public:
 
     //! \brief Helper callback for standard operations
     //! \warning The user parameter has to be a pointer to Database::GrabResultHolder
-    static int SqliteExecGrabResult(
-        void* user, int columns, char** columnsastext, char** columnname);
-
+    static int SqliteExecGrabResult(void* user, int columns, char** columnsastext, char** columnname);
 
     // Statement grouping //
 
@@ -841,14 +802,11 @@ public:
     //! Must be accompanied by a ReleaseSavePoint call
     //! \warning The savepoint name is not sent as a prepared statement, SQL injection is
     //! possible!
-    void BeginSavePoint(
-        LockT& guard, const std::string& savepointname, bool alsoauxiliary = false);
+    void BeginSavePoint(LockT& guard, const std::string& savepointname, bool alsoauxiliary = false);
 
-    void ReleaseSavePoint(
-        LockT& guard, const std::string& savepointname, bool alsoauxiliary = false);
+    void ReleaseSavePoint(LockT& guard, const std::string& savepointname, bool alsoauxiliary = false);
 
-    void RollbackSavePoint(
-        LockT& guard, const std::string& savepointname, bool alsoauxiliary = false);
+    void RollbackSavePoint(LockT& guard, const std::string& savepointname, bool alsoauxiliary = false);
 
     //! \brief Returns true if a transaction is in progress
     bool HasActiveTransaction(LockT& guard);
@@ -893,8 +851,7 @@ protected:
     //!
     //! This version allows settings parameters
     template<typename... TBindTypes>
-    void PrintResultingRows(
-        LockT& guard, sqlite3* db, const std::string& str, TBindTypes&&... valuestobind)
+    void PrintResultingRows(LockT& guard, sqlite3* db, const std::string& str, TBindTypes&&... valuestobind)
     {
         PreparedStatement statementobj(db, str);
 
@@ -914,7 +871,6 @@ protected:
 
         statementobj.StepAll(statementinuse);
     }
-
 
     //! \brief Runs SQL statement as a prepared statement with the values on the signature DB
     template<typename... TBindTypes>
@@ -945,27 +901,22 @@ private:
 
     std::shared_ptr<NetFile> _LoadNetFileFromRow(LockT& guard, PreparedStatement& statement);
 
-    std::shared_ptr<NetGallery> _LoadNetGalleryFromRow(
-        LockT& guard, PreparedStatement& statement);
+    std::shared_ptr<NetGallery> _LoadNetGalleryFromRow(LockT& guard, PreparedStatement& statement);
 
     //! \brief Loads a TagBreakRule object from the current row
-    std::shared_ptr<TagBreakRule> _LoadTagBreakRuleFromRow(
-        LockT& guard, PreparedStatement& statement);
+    std::shared_ptr<TagBreakRule> _LoadTagBreakRuleFromRow(LockT& guard, PreparedStatement& statement);
 
     //! \brief Loads an AppliedTag object from the current row
-    std::shared_ptr<AppliedTag> _LoadAppliedTagFromRow(
-        LockT& guard, PreparedStatement& statement);
+    std::shared_ptr<AppliedTag> _LoadAppliedTagFromRow(LockT& guard, PreparedStatement& statement);
 
     //! \brief Loads a TagModifier object from the current row
-    std::shared_ptr<TagModifier> _LoadTagModifierFromRow(
-        LockT& guard, PreparedStatement& statement);
+    std::shared_ptr<TagModifier> _LoadTagModifierFromRow(LockT& guard, PreparedStatement& statement);
 
     //! \brief Loads a Tag object from the current row
     std::shared_ptr<Tag> _LoadTagFromRow(LockT& guard, PreparedStatement& statement);
 
     //! \brief Loads a Collection object from the current row
-    std::shared_ptr<Collection> _LoadCollectionFromRow(
-        LockT& guard, PreparedStatement& statement);
+    std::shared_ptr<Collection> _LoadCollectionFromRow(LockT& guard, PreparedStatement& statement);
 
     //! \brief Loads an Image object from the current row
     std::shared_ptr<Image> _LoadImageFromRow(LockT& guard, PreparedStatement& statement);
@@ -974,8 +925,7 @@ private:
     std::shared_ptr<Folder> _LoadFolderFromRow(LockT& guard, PreparedStatement& statement);
 
     //! \brief Loads a DatabaseAction derived object from the current row
-    std::shared_ptr<DatabaseAction> _LoadDatabaseActionFromRow(
-        LockT& guard, PreparedStatement& statement);
+    std::shared_ptr<DatabaseAction> _LoadDatabaseActionFromRow(LockT& guard, PreparedStatement& statement);
 
     //
     // Private insert stuff
@@ -1068,7 +1018,8 @@ protected:
 //! \brief Helper class that automatically commits a transaction when it destructs
 //!\ todo Would be nice to be able to conditionally create these
 //! \todo Add a way for this to rollback on exception
-class DoDBTransaction {
+class DoDBTransaction
+{
 public:
     DoDBTransaction(Database& db, RecursiveLock& dblock, bool alsoauxiliary = false);
 
@@ -1095,10 +1046,10 @@ private:
 //! \brief Helper class that automatically handles a savepoint
 //!\ see DoDBTransaction
 //! \warning The savepoint name is not sent as a prepared statement, SQL injection is possible!
-class DoDBSavePoint {
+class DoDBSavePoint
+{
 public:
-    DoDBSavePoint(Database& db, RecursiveLock& dblock, const std::string& savepoint,
-        bool alsoauxiliary = false);
+    DoDBSavePoint(Database& db, RecursiveLock& dblock, const std::string& savepoint, bool alsoauxiliary = false);
 
     DoDBSavePoint(DoDBSavePoint&& other) = delete;
     DoDBSavePoint(const DoDBSavePoint& other) = delete;

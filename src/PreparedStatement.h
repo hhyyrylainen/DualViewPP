@@ -1,25 +1,29 @@
 #pragma once
 
+#include <cstring>
+#include <sqlite3.h>
+#include <thread>
+
 #include "Common.h"
 #include "SQLHelpers.h"
 
-#include <cstring>
-#include <sqlite3.h>
-
-#include <thread>
-
-namespace DV {
+namespace DV
+{
 
 //! \brief Helper class for working with prepared statements
 //! \note The sqlite object needs to be locked whenever using this class
-class PreparedStatement {
+class PreparedStatement
+{
 public:
     //! \brief Helper class to make sure statements are initialized before Step is called
     //!
     //! Must be created each time a statement is to be used
-    class SetupStatementForUse {
+    class SetupStatementForUse
+    {
     public:
-        SetupStatementForUse(PreparedStatement& statement) : Statement(statement) {}
+        SetupStatementForUse(PreparedStatement& statement) : Statement(statement)
+        {
+        }
 
         SetupStatementForUse(SetupStatementForUse&& other) : Statement(other.Statement)
         {
@@ -31,7 +35,7 @@ public:
 
         ~SetupStatementForUse()
         {
-            if(!DontReset)
+            if (!DontReset)
                 Statement.Reset();
         }
 
@@ -39,8 +43,8 @@ public:
         bool DontReset = false;
     };
 
-    enum class STEP_RESULT {
-
+    enum class STEP_RESULT
+    {
         ROW,
         COMPLETED
     };
@@ -81,21 +85,21 @@ public:
     {
         const auto result = sqlite3_step(Statement);
 
-        if(result == SQLITE_DONE) {
-
+        if (result == SQLITE_DONE)
+        {
             // Finished //
             return STEP_RESULT::COMPLETED;
         }
 
-        if(result == SQLITE_BUSY) {
-
+        if (result == SQLITE_BUSY)
+        {
             LOG_WARNING("SQL statement: database is busy, retrying...");
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
             return Step(isprepared);
         }
 
-        if(result == SQLITE_ROW) {
-
+        if (result == SQLITE_ROW)
+        {
             // A row can be read //
             return STEP_RESULT::ROW;
         }
@@ -111,7 +115,8 @@ public:
     //! \brief Steps until statement is completed, ignores any rows that might be returned
     void StepAll(const SetupStatementForUse& isprepared)
     {
-        while(Step(isprepared) != STEP_RESULT::COMPLETED) {
+        while (Step(isprepared) != STEP_RESULT::COMPLETED)
+        {
         }
     }
 
@@ -135,8 +140,9 @@ public:
     //! \brief Asserts if accessing column out of range
     inline void AssertIfColumnOutOfRange(int column) const
     {
-        LEVIATHAN_ASSERT(column < GetColumnCount(), "SQL statement accessing out "
-                                                    "of range result row");
+        LEVIATHAN_ASSERT(column < GetColumnCount(),
+            "SQL statement accessing out "
+            "of range result row");
     }
 
     //! This will return one of:
@@ -192,7 +198,7 @@ public:
     {
         AssertIfColumnOutOfRange(column);
 
-        if(GetColumnType(column) == SQLITE_NULL)
+        if (GetColumnType(column) == SQLITE_NULL)
             return false;
 
         int value = sqlite3_column_int(Statement, column);
@@ -217,10 +223,10 @@ public:
     //! \returns True if column is valid and not null
     bool GetObjectIDFromColumn(DBID& id, int column = 0)
     {
-        if(column >= GetColumnCount())
+        if (column >= GetColumnCount())
             return false;
 
-        if(IsColumnNull(column) || GetColumnType(column) != SQLITE_INTEGER)
+        if (IsColumnNull(column) || GetColumnType(column) != SQLITE_INTEGER)
             return false;
 
         id = GetColumnAsInt64(column);
@@ -233,7 +239,6 @@ public:
     {
         static_assert(sizeof(TParam) == -1, "SetBindWithType non-specialized version called");
     }
-
 
     template<typename TParamType>
     PreparedStatement& Bind(const TParamType& value)
@@ -258,13 +263,13 @@ public:
     //! \brief Throws if returncode isn't SQLITE_OK
     inline void CheckBindSuccess(int returncode, int index)
     {
-        if(returncode == SQLITE_OK)
+        if (returncode == SQLITE_OK)
             return;
 
         auto* desc = sqlite3_errstr(returncode);
 
-        throw InvalidSQL("Binding argument at index " + Convert::ToString(index) + " failed",
-            returncode, desc ? desc : "no description");
+        throw InvalidSQL("Binding argument at index " + Convert::ToString(index) + " failed", returncode,
+            desc ? desc : "no description");
     }
 
     sqlite3* DB;
@@ -295,20 +300,27 @@ void PreparedStatement::SetBindWithType(int index, const std::nullptr_t& value);
 template<>
 void PreparedStatement::SetBindWithType(int index, const bool& value);
 
-
-
+#if defined(_DEBUG) && !defined(NDEBUG)
 inline void CheckRowID(PreparedStatement& statement, int index, const char* name)
 {
     auto* columnName = statement.GetColumnNameDirect(index);
     LEVIATHAN_ASSERT(columnName, "Column name retrieval for verification failed");
 
-    if(strcmp(name, columnName) == 0)
+    if (strcmp(name, columnName) == 0)
         return;
 
-    LEVIATHAN_ASSERT(false, "SQL returned row columns are unexpected, at " +
-                                Convert::ToString(index) + ": " + std::string(columnName) +
-                                " != " + std::string(name));
+    LEVIATHAN_ASSERT(false,
+        "SQL returned row columns are unexpected, at " + Convert::ToString(index) + ": " + std::string(columnName) +
+            " != " + std::string(name));
 }
-
+#else
+inline void CheckRowID(PreparedStatement& statement, int index, const char* name)
+{
+    // No row ID check when in production mode as this should not be changing
+    UNUSED(statement);
+    UNUSED(index);
+    UNUSED(name);
+}
+#endif
 
 } // namespace DV
