@@ -2,13 +2,6 @@
 <!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.20"/>
-  <object class="GtkAdjustment" id="adjustment1">
-    <property name="lower">25</property>
-    <property name="upper">10000</property>
-    <property name="value">250</property>
-    <property name="step-increment">25</property>
-    <property name="page-increment">100</property>
-  </object>
   <object class="GtkWindow" id="FileImporter">
     <property name="can-focus">False</property>
     <property name="default-width">1400</property>
@@ -558,43 +551,6 @@
                     <property name="visible">True</property>
                     <property name="can-focus">False</property>
                     <property name="min-children-per-line">2</property>
-                    <child>
-                      <object class="GtkFlowBoxChild">
-                        <property name="width-request">100</property>
-                        <property name="height-request">80</property>
-                        <property name="visible">True</property>
-                        <property name="can-focus">True</property>
-                        <child>
-                          <object class="GtkLabel">
-                            <property name="visible">True</property>
-                            <property name="can-focus">False</property>
-                            <property name="label" translatable="yes">Max Images to find at once:</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
-                    <child>
-                      <object class="GtkFlowBoxChild">
-                        <property name="width-request">100</property>
-                        <property name="height-request">80</property>
-                        <property name="visible">True</property>
-                        <property name="can-focus">True</property>
-                        <child>
-                          <object class="GtkSpinButton">
-                            <property name="visible">True</property>
-                            <property name="can-focus">True</property>
-                            <property name="margin-right">15</property>
-                            <property name="max-length">5</property>
-                            <property name="width-chars">5</property>
-                            <property name="text" translatable="yes">250</property>
-                            <property name="adjustment">adjustment1</property>
-                            <property name="snap-to-ticks">True</property>
-                            <property name="numeric">True</property>
-                            <property name="value">250</property>
-                          </object>
-                        </child>
-                      </object>
-                    </child>
                   </object>
                   <packing>
                     <property name="expand">False</property>
@@ -620,7 +576,7 @@
                 </child>
                 <child>
                   <object class="GtkCheckButton" id="SelectOnlyOneImage">
-                    <property name="label" translatable="yes">Select Only One Image</property>
+                    <property name="label" translatable="yes">Select Only One Image At Once</property>
                     <property name="visible">True</property>
                     <property name="can-focus">True</property>
                     <property name="receives-default">False</property>
@@ -687,6 +643,13 @@
         </child>
       </object>
     </child>
+  </object>
+  <object class="GtkAdjustment" id="adjustment1">
+    <property name="lower">25</property>
+    <property name="upper">10000</property>
+    <property name="value">250</property>
+    <property name="step-increment">25</property>
+    <property name="page-increment">100</property>
   </object>
   <object class="GtkListStore" id="liststore1"/>
 </interface>
