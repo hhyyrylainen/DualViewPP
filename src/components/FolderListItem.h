@@ -11,13 +11,13 @@ class Folder;
 //! \brief Widget type for FolderPreview
 class FolderListItem : public ListItem {
 public:
-    FolderListItem(const std::shared_ptr<ItemSelectable>& selectable,
+    explicit FolderListItem(const std::shared_ptr<ItemSelectable>& selectable,
         std::shared_ptr<Folder> shownfolder = nullptr);
 
     //! \brief Sets the shown folder
     void SetFolder(std::shared_ptr<Folder> folder);
 
-    auto GetFolder() const
+    const auto& GetFolder() const noexcept
     {
         return CurrentFolder;
     }

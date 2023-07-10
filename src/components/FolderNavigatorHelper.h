@@ -1,19 +1,21 @@
 #pragma once
 
-#include "IsAlive.h"
-#include "VirtualPath.h"
-
 #include <future>
-#include <gtkmm.h>
 #include <memory>
 #include <string>
 
-namespace DV {
+#include <gtkmm.h>
 
+#include "IsAlive.h"
+#include "VirtualPath.h"
+
+namespace DV
+{
 class Folder;
 
 //! \brief Contains common functions for navigating between folders
-class FolderNavigatorHelper : public IsAlive {
+class FolderNavigatorHelper : public IsAlive
+{
 public:
     FolderNavigatorHelper() = default;
 

@@ -1,15 +1,15 @@
 #pragma once
 
-#include "BaseWindow.h"
-#include "IsAlive.h"
+#include <gtkmm.h>
 
 #include "components/FolderNavigatorHelper.h"
 #include "components/PrimaryMenu.h"
 
-#include <gtkmm.h>
+#include "BaseWindow.h"
+#include "IsAlive.h"
 
-namespace DV {
-
+namespace DV
+{
 class SuperContainer;
 class ResourceWithPreview;
 class Folder;
@@ -18,10 +18,11 @@ class Folder;
 //! \todo Create a base class for all the path moving functions and callbacks
 class CollectionView : public Gtk::Window,
                        public FolderNavigatorHelper,
-                       public std::enable_shared_from_this<CollectionView> {
+                       public std::enable_shared_from_this<CollectionView>
+{
 public:
     CollectionView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder);
-    ~CollectionView();
+    ~CollectionView() override;
 
 private:
     bool _OnClose(GdkEventAny* event);
@@ -34,7 +35,7 @@ private:
     void OnSearchChanged();
 
     //! \brief Common contents fill for OnFolderChanged and OnSearchChanged
-    void _UpdateShownItems();
+    void UpdateShownItems();
 
 private:
     Gtk::MenuButton* Menu;
@@ -48,6 +49,11 @@ private:
     Gtk::Button* UpFolder;
 
     Gtk::SearchEntry* SearchBox;
+
+    //! Used to track which is the latest DB query to prevent out of order queries from messing up the data here
+    std::tuple<std::shared_ptr<Folder>, std::string> LastStartedDBRead;
+
+    VirtualPath LastFullyLoadedFolderPath;
 
     //! True the next time a DB read is done after changing a folder
     bool FolderWasChanged = true;

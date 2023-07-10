@@ -1,20 +1,19 @@
 // ------------------------------------ //
 #include "CollectionView.h"
 
-#include "Database.h"
-#include "DualView.h"
-
 #include "components/FolderListItem.h"
 #include "components/SuperContainer.h"
 #include "resources/Collection.h"
 #include "resources/Folder.h"
 
 #include "Common.h"
+#include "Database.h"
+#include "DualView.h"
 
 using namespace DV;
+
 // ------------------------------------ //
-CollectionView::CollectionView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
-    Gtk::Window(window)
+CollectionView::CollectionView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) : Gtk::Window(window)
 {
     signal_delete_event().connect(sigc::mem_fun(*this, &CollectionView::_OnClose));
 
@@ -36,14 +35,14 @@ CollectionView::CollectionView(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> bu
     RegisterNavigator(*PathEntry, *UpFolder);
 
     BUILDER_GET_WIDGET(SearchBox);
-    SearchBox->signal_search_changed().connect(
-        sigc::mem_fun(*this, &CollectionView::OnSearchChanged));
+    SearchBox->signal_search_changed().connect(sigc::mem_fun(*this, &CollectionView::OnSearchChanged));
 }
 
 CollectionView::~CollectionView()
 {
     LOG_INFO("CollectionView closed");
 }
+
 // ------------------------------------ //
 bool CollectionView::_OnClose(GdkEventAny* event)
 {
@@ -52,6 +51,7 @@ bool CollectionView::_OnClose(GdkEventAny* event)
 
     return true;
 }
+
 // ------------------------------------ //
 void CollectionView::_OnShown()
 {
@@ -61,20 +61,21 @@ void CollectionView::_OnShown()
 void CollectionView::_OnHidden()
 {
     // Explicitly unload items //
-    auto empty = std::vector<std::shared_ptr<ResourceWithPreview>>();
+    const auto empty = std::vector<std::shared_ptr<ResourceWithPreview>>();
 
     Container->SetShownItems(empty.begin(), empty.end());
 }
+
 // ------------------------------------ //
 void CollectionView::OnSearchChanged()
 {
-    _UpdateShownItems();
+    UpdateShownItems();
 }
 
 void CollectionView::OnFolderChanged()
 {
-    if(!DualView::IsOnMainThread()) {
-
+    if (!DualView::IsOnMainThread())
+    {
         // Invoke on the main thread //
         INVOKE_FUNCTION_WITH_ALIVE_CHECK(OnFolderChanged);
         return;
@@ -87,26 +88,32 @@ void CollectionView::OnFolderChanged()
     PathEntry->set_text(CurrentPath.GetPathString());
 
     // Load items //
-    if(SearchBox->get_text().empty()) {
-
-        _UpdateShownItems();
-
-    } else {
-
-        // This calls _UpdateShownItems from the change callback (OnSearchChanged)
+    if (SearchBox->get_text().empty())
+    {
+        UpdateShownItems();
+    }
+    else
+    {
+        // This calls UpdateShownItems from the change callback (OnSearchChanged)
         SearchBox->set_text("");
     }
 }
 
-void CollectionView::_UpdateShownItems()
+void CollectionView::UpdateShownItems()
 {
-    auto isalive = GetAliveMarker();
-    std::string matchingpattern = SearchBox->get_text();
+    DualView::IsOnMainThreadAssert();
+
+    auto isAlive = GetAliveMarker();
+    const std::string matchingPattern = SearchBox->get_text();
 
     auto folder = CurrentFolder;
+    const auto loadedPath = CurrentPath;
 
-    if(!folder) {
+    const auto currentReadPattern = std::make_tuple(CurrentFolder, matchingPattern);
+    LastStartedDBRead = currentReadPattern;
 
+    if (!folder)
+    {
         Container->Clear();
         return;
     }
@@ -114,43 +121,52 @@ void CollectionView::_UpdateShownItems()
     bool folderChanged = FolderWasChanged;
     FolderWasChanged = false;
 
-    DualView::Get().QueueDBThreadFunction([=]() {
-        const auto collections =
-            DualView::Get().GetDatabase().SelectCollectionsInFolderAG(*folder, matchingpattern);
+    DualView::Get().QueueDBThreadFunction(
+        [=]()
+        {
+            const auto collections =
+                DualView::Get().GetDatabase().SelectCollectionsInFolderAG(*folder, matchingPattern);
 
-        const auto folders =
-            DualView::Get().GetDatabase().SelectFoldersInFolderAG(*folder, matchingpattern);
+            const auto folders = DualView::Get().GetDatabase().SelectFoldersInFolderAG(*folder, matchingPattern);
 
-        auto loadedresources =
-            std::make_shared<std::vector<std::shared_ptr<ResourceWithPreview>>>();
+            auto loadedResources = std::make_shared<std::vector<std::shared_ptr<ResourceWithPreview>>>();
 
-        loadedresources->insert(
-            std::end(*loadedresources), std::begin(folders), std::end(folders));
+            loadedResources->insert(std::end(*loadedResources), std::begin(folders), std::end(folders));
 
-        loadedresources->insert(
-            std::end(*loadedresources), std::begin(collections), std::end(collections));
+            loadedResources->insert(std::end(*loadedResources), std::begin(collections), std::end(collections));
 
-        auto changefolder = std::make_shared<ItemSelectable>();
+            auto changeFolderCallback = std::make_shared<ItemSelectable>();
 
-        changefolder->AddFolderSelect([this](ListItem& item) {
-            auto* asfolder = dynamic_cast<FolderListItem*>(&item);
+            changeFolderCallback->AddFolderSelect(
+                [this](ListItem& item)
+                {
+                    auto* asFolder = dynamic_cast<FolderListItem*>(&item);
 
-            if(!asfolder)
-                return;
+                    if (!asFolder)
+                        return;
 
-            // This callback isn't recreated when changing folders so we need to use
-            // CurrentPath here
-            GoToPath(CurrentPath / VirtualPath(asfolder->GetFolder()->GetName()));
+                    // This callback isn't recreated when changing folders, so we need to use the last loaded folder
+                    // path here
+                    TryGoToPath(LastFullyLoadedFolderPath / VirtualPath(asFolder->GetFolder()->GetName()));
+                });
+
+            DualView::Get().InvokeFunction(
+                [this, isAlive, loadedResources, changeFolderCallback, folderChanged, currentReadPattern, loadedPath]()
+                {
+                    INVOKE_CHECK_ALIVE_MARKER(isAlive);
+
+                    if (LastStartedDBRead != currentReadPattern)
+                    {
+                        LOG_INFO("Collection view changed the data parameters before DB query finished, "
+                                 "ignoring this result");
+                        return;
+                    }
+
+                    LastFullyLoadedFolderPath = loadedPath;
+
+                    Container->SetShownItems(loadedResources->begin(), loadedResources->end(), changeFolderCallback,
+                        folderChanged ? SuperContainer::POSITION_KEEP_MODE::SCROLL_TO_TOP :
+                                        SuperContainer::POSITION_KEEP_MODE::SCROLL_TO_EXISTING);
+                });
         });
-
-        DualView::Get().InvokeFunction(
-            [this, isalive, loadedresources, changefolder, folderChanged]() {
-                INVOKE_CHECK_ALIVE_MARKER(isalive);
-
-                Container->SetShownItems(loadedresources->begin(), loadedresources->end(),
-                    changefolder,
-                    folderChanged ? SuperContainer::POSITION_KEEP_MODE::SCROLL_TO_TOP :
-                                    SuperContainer::POSITION_KEEP_MODE::SCROLL_TO_EXISTING);
-            });
-    });
 }
