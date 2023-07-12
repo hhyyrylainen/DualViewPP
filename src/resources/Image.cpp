@@ -188,7 +188,7 @@ void Image::SetSignature(const std::string& signature)
     OnMarkDirty();
 }
 
-std::string& Image::GetSignature()
+const std::string& Image::GetSignature()
 {
     GUARD_LOCK();
 

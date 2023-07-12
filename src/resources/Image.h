@@ -99,97 +99,97 @@ public:
 
     //! \brief Returns a tag collection
     //!
-    //! If this is in the databse then the collection will automatically save to the database.
+    //! If this is in the database then the collection will automatically save to the database.
     //! If this isn't in the database the collection won't be saved unless this image
     //! is imported to the collection in DualView::AddToCollection
-    std::shared_ptr<TagCollection> GetTags()
+    [[nodiscard]] const std::shared_ptr<TagCollection>& GetTags()
     {
         return Tags;
     }
 
     //! \brief Returns true if this is ready to be added to the database
-    inline bool IsReady() const
+    [[nodiscard]] inline bool IsReady() const
     {
         return IsReadyToAdd;
     }
 
     //! \brief Returns true if there hasn't been an error with this image
-    inline auto GetIsValid() const
+    [[nodiscard]] inline auto GetIsValid() const
     {
         return IsValid;
     }
 
     //! \returns True if hash calculation has been attempted but it failed
-    inline bool IsHashInvalid() const
+    [[nodiscard]] inline bool IsHashInvalid() const
     {
         return HashCalculateAttempted && !IsHashValid;
     }
 
     //! \brief Returns a shared_ptr pointing to this instance
-    inline std::shared_ptr<Image> GetPtr()
+    [[nodiscard]] inline std::shared_ptr<Image> GetPtr()
     {
         return shared_from_this();
     }
 
     //! \brief Returns the name
-    inline std::string GetName() const
+    [[nodiscard]] inline const std::string& GetName() const
     {
         return ResourceName;
     }
 
-    inline auto GetResourcePath() const
+    [[nodiscard]] inline const auto& GetResourcePath() const
     {
         return ResourcePath;
     }
 
-    inline auto GetExtension() const
+    [[nodiscard]] inline const auto&  GetExtension() const
     {
         return Extension;
     }
 
-    inline auto GetWidth() const
+    [[nodiscard]] inline auto GetWidth() const
     {
         return Width;
     }
 
-    inline auto GetHeight() const
+    [[nodiscard]] inline auto GetHeight() const
     {
         return Height;
     }
 
-    inline auto GetPixelCount() const
+    [[nodiscard]]  inline auto GetPixelCount() const
     {
         return Width * Height;
     }
 
-    inline auto GetIsPrivate() const
+    [[nodiscard]] inline auto GetIsPrivate() const
     {
         return IsPrivate;
     }
 
-    inline auto GetFromFile() const
+    [[nodiscard]] inline const auto& GetFromFile() const
     {
         return ImportLocation;
     }
 
-    std::string GetAddDateStr() const
+    [[nodiscard]] std::string GetAddDateStr() const
     {
         return TimeHelpers::format8601(AddDate);
     }
 
-    std::string GetLastViewStr() const
+    [[nodiscard]] std::string GetLastViewStr() const
     {
         return TimeHelpers::format8601(LastView);
     }
 
     //! \copydoc Image::Deleted
-    bool IsDeleted() const
+    [[nodiscard]] bool IsDeleted() const
     {
         return Deleted;
     }
 
     //! \copydoc Image::Merged
-    bool IsMerged() const
+    [[nodiscard]] bool IsMerged() const
     {
         return Merged;
     }
@@ -202,21 +202,21 @@ public:
     void SetSignature(const std::string& signature);
 
     //! \note Loads the signature from DB if not loaded already
-    std::string& GetSignature();
+    [[nodiscard]] const std::string& GetSignature();
 
     //! \brief Returns true if the signature is loaded
-    bool HasSignatureRetrieved() const
+    [[nodiscard]] bool HasSignatureRetrieved() const
     {
         return SignatureRetrieved;
     }
 
-    std::string GetSignatureBase64();
+    [[nodiscard]] std::string GetSignatureBase64();
 
     //! \brief Returns a hash calculated from the file at ResourcePath
     //! \note This takes a while and should be called from a background thread
     //! \returns A base64 encoded sha256 of the entire file contents. With /'s replaced
     //! with _'s
-    std::string CalculateFileHash() const;
+    [[nodiscard]] std::string CalculateFileHash() const;
 
     //! \brief Returns true if the images represent the same image
     //! \todo Fix this

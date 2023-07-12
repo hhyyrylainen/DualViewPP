@@ -80,7 +80,7 @@ public:
     void StartPageScanning();
 
     //! \brief Adds an image to the list of found images
-    void OnFoundContent(const ScanFoundImage& content);
+    void OnFoundContent(const ScanFoundImage& item);
 
     //! \brief Returns true if a new image link can be added
     bool IsValidTargetForImageAdd() const;
@@ -166,6 +166,8 @@ protected:
 
     //! Updates the links in the found links tab
     void _UpdateFoundLinks();
+
+    void AddFoundTagsToImage(const std::shared_ptr<TagCollection>& tagDestination, const std::vector<std::string> &rawTags);
 
     void _CopyToClipboard();
     //! \todo This has problems with special characters as they get URL encoded even when they

@@ -53,18 +53,24 @@ public:
     }
 
     //! \brief Returns a loaded image object that will download this image
-    virtual std::shared_ptr<LoadedImage> GetImage() override;
+    std::shared_ptr<LoadedImage> GetImage() override;
 
     //! \brief Returns a loaded image object that will download this image and then scale it
     //! \todo Add support for downloading premade thumbnails
-    virtual std::shared_ptr<LoadedImage> GetThumbnail() override;
+    std::shared_ptr<LoadedImage> GetThumbnail() override;
 
-    auto GetURL() const
+    //! \brief Returns true if this was created from the given link
+    [[nodiscard]] bool MatchesFoundImage(const ScanFoundImage& link)
+    {
+        return link.URL == DLURL;
+    }
+
+    [[nodiscard]] const auto& GetURL() const
     {
         return DLURL;
     }
 
-    auto GetReferrer() const
+    [[nodiscard]] const auto& GetReferrer() const
     {
         return Referrer;
     }

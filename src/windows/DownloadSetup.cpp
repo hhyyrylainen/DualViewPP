@@ -379,13 +379,29 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage& content)
 {
     DualView::IsOnMainThreadAssert();
 
-    for (auto& existinglink : ImagesToDownload)
+    for (auto& existingLink : ImagesToDownload)
     {
-        if (existinglink == content)
+        if (existingLink == content)
         {
-            LOG_INFO("TODO: merge tags to the actual image object, duplicate now merged only "
-                     "into ImagesToDownload links");
-            existinglink.Merge(content);
+            existingLink.Merge(content);
+
+            bool found = false;
+
+            for (auto& existingImage : ImageObjects)
+            {
+                if (existingImage->MatchesFoundImage(content) && existingImage->GetTags())
+                {
+                    found = true;
+                    AddFoundTagsToImage(existingImage->GetTags(), content.Tags);
+                    break;
+                }
+            }
+
+            if (!found)
+            {
+                LOG_ERROR("Could not merge new tags into image download setup, related image to link to not found");
+            }
+
             return;
         }
     }
@@ -396,8 +412,7 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage& content)
     }
     catch (const Leviathan::InvalidArgument& e)
     {
-        LOG_ERROR("DownloadSetup: failed to create InternetImage for link because url "
-                  "is invalid, link: " +
+        LOG_ERROR("DownloadSetup: failed to create InternetImage for link because url is invalid, link: " +
             content.URL + ", exception: ");
         e.PrintToLog();
         return;
@@ -410,53 +425,14 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage& content)
 
         LEVIATHAN_ASSERT(tagCollection, "new InternetImage has no tag collection");
 
-        auto alive = GetAliveMarker();
-
-        DualView::Get().QueueDBThreadFunction(
-            [=, tagStr{content.Tags}]()
-            {
-                std::vector<std::shared_ptr<AppliedTag>> parsedTags;
-
-                for (const auto& tag : tagStr)
-                {
-                    try
-                    {
-                        const auto parsedtag = DualView::Get().ParseTagFromString(tag);
-
-                        if (!parsedtag)
-                            throw Leviathan::InvalidArgument("");
-
-                        parsedTags.push_back(parsedtag);
-                    }
-                    catch (const Leviathan::InvalidArgument&)
-                    {
-                        HandleUnknownTag(tag);
-                        continue;
-                    }
-                }
-
-                if (parsedTags.empty())
-                    return;
-
-                DualView::Get().InvokeFunction(
-                    [=]()
-                    {
-                        INVOKE_CHECK_ALIVE_MARKER(alive);
-
-                        LOG_INFO(
-                            "DownloadSetup: adding found tags (" + std::to_string(parsedTags.size()) + ") to image");
-
-                        for (const auto& parsedTag : parsedTags)
-                            tagCollection->Add(parsedTag);
-                    });
-            });
+        AddFoundTagsToImage(tagCollection, content.Tags);
     }
 
     ImagesToDownload.push_back(content);
 
     // Add it to the selectable content //
-    ImageSelection->AddItem(ImageObjects.back(),
-        std::make_shared<ItemSelectable>(std::bind(&DownloadSetup::OnItemSelected, this, std::placeholders::_1)));
+    ImageSelection->AddItem(
+        ImageObjects.back(), std::make_shared<ItemSelectable>([this](ListItem& item) { OnItemSelected(item); }));
 
     LOG_INFO("DownloadSetup added new image: " + content.URL + " referrer: " + content.Referrer);
 }
@@ -930,6 +906,53 @@ void DownloadSetup::UrlCheckFinished(bool wasvalid, const std::string& message)
 
     // The scanner settings are updated when the state is set to STATE::URL_OK automatically //
     _SetState(STATE::URL_OK);
+}
+
+// ------------------------------------ //
+void DownloadSetup::AddFoundTagsToImage(
+    const std::shared_ptr<TagCollection>& tagDestination, const std::vector<std::string>& rawTags)
+{
+    LEVIATHAN_ASSERT(tagDestination, "missing tag destination");
+
+    auto alive = GetAliveMarker();
+
+    DualView::Get().QueueDBThreadFunction(
+        [alive, tagStr = rawTags, tagDestination]()
+        {
+            std::vector<std::shared_ptr<AppliedTag>> parsedTags;
+
+            for (const auto& tag : tagStr)
+            {
+                try
+                {
+                    const auto parsedTag = DualView::Get().ParseTagFromString(tag);
+
+                    if (!parsedTag)
+                        throw Leviathan::InvalidArgument("");
+
+                    parsedTags.push_back(parsedTag);
+                }
+                catch (const Leviathan::InvalidArgument&)
+                {
+                    HandleUnknownTag(tag);
+                    continue;
+                }
+            }
+
+            if (parsedTags.empty())
+                return;
+
+            DualView::Get().InvokeFunction(
+                [alive, tagDestination, parsedTags]()
+                {
+                    INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                    LOG_INFO("DownloadSetup: adding found tags (" + std::to_string(parsedTags.size()) + ") to image");
+
+                    for (const auto& parsedTag : parsedTags)
+                        tagDestination->Add(parsedTag);
+                });
+        });
 }
 
 // ------------------------------------ //
