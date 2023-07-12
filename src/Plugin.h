@@ -3,6 +3,7 @@
 #include <string>
 
 #include "Common.h"
+
 #include "ProcessableURL.h"
 #include "ScanResult.h"
 
@@ -42,13 +43,14 @@ public:
     virtual std::string RewriteURL(const std::string& url) = 0;
 
     //! \brief Returns true if this supports ConvertToCanonicalURL
-    virtual bool HasCanonicalURLFeature() const = 0;
+    [[nodiscard]] virtual bool HasCanonicalURLFeature() const = 0;
 
     //! \brief Converts a URL to a form that doesn't have any unnecessary parameters
     //!
     //! Canonical URLs are used to prevent the scanning or detecting of a duplicate content image / page
     //! \param url The url to convert
-    //! \return The converted URL or the input URL if there is nothing to modify
+    //! \return The converted URL or an empty string if there is nothing to modify (returning the input is allowed but
+    //! not recommended)
     virtual std::string ConvertToCanonicalURL(const std::string& url) = 0;
 
     //! \brief Scans a webpage

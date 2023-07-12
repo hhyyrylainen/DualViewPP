@@ -29,9 +29,18 @@ public:
         Canonical(canonicalUrl), Referrer(referrer){};
 
     //! \brief Constructor when canonical URL is not known, noCanonicalUrl has to be true
-    ProcessableURL(std::string url, bool noCanonicalUrl);
+    ProcessableURL(std::string url, bool noCanonicalUrl) : URL(std::move(url))
+    {
+        if (!noCanonicalUrl)
+            throw std::runtime_error("no canonical parameter has to be always true");
+    }
 
-    ProcessableURL(std::string url, bool noCanonicalUrl, std::string referrer);
+    ProcessableURL(std::string url, bool noCanonicalUrl, std::string referrer) :
+        URL(std::move(url)), Referrer(std::move(referrer))
+    {
+        if (!noCanonicalUrl)
+            throw std::runtime_error("no canonical parameter has to be always true");
+    }
 
     ProcessableURL(const ProcessableURL& other) = default;
 
@@ -43,7 +52,14 @@ public:
 
     ProcessableURL& operator=(const ProcessableURL& other) = default;
 
-    ProcessableURL& operator=(ProcessableURL&& other) noexcept;
+    ProcessableURL& operator=(ProcessableURL&& other) noexcept
+    {
+        URL = std::move(other.URL);
+        Canonical = std::move(other.Canonical);
+        Referrer = std::move(other.Referrer);
+        Cookies = std::move(other.Cookies);
+        return *this;
+    }
 
     inline bool operator==(const ProcessableURL& other) const noexcept
     {

@@ -41,8 +41,8 @@ add_library(Core
 
   DualView.h DualView.cpp
   Plugin.h PluginManager.h PluginManager.cpp
-  ProcessableURL.cpp ProcessableURL.h
-  ScanResult.cpp ScanResult.h
+  ProcessableURL.h
+  ScanResult.h
 
   Settings.h Settings.cpp
   CurlWrapper.h CurlWrapper.cpp
