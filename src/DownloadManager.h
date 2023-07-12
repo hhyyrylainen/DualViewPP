@@ -15,6 +15,8 @@ namespace DV
 {
 constexpr auto PAGE_SCAN_RETRIES = 6;
 
+constexpr auto DOWNLOADER_USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/114.0";
+
 class DownloadManager;
 
 size_t CurlWriteCallback(char* ptr, size_t size, size_t nmemb, void* userdata);

@@ -282,8 +282,7 @@ void DownloadJob::DoDownload(DownloadManager& manager)
     }
 
     // Mozilla useragent
-    curl_easy_setopt(
-        curl, CURLOPT_USERAGENT, "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:49.0) Gecko/20100101 Firefox/49.0");
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, DOWNLOADER_USER_AGENT);
 
     // Capture error messages
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, curlError);
