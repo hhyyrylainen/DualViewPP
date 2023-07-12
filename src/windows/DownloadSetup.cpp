@@ -20,6 +20,10 @@
 using namespace DV;
 
 // ------------------------------------ //
+std::set<std::string> DownloadSetup::ReportedUnknownTags;
+std::mutex DownloadSetup::UnknownTagMutex;
+
+// ------------------------------------ //
 DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) : Gtk::Window(window)
 {
     signal_delete_event().connect(sigc::mem_fun(*this, &BaseWindow::_OnClosed));
@@ -426,7 +430,7 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage& content)
                     }
                     catch (const Leviathan::InvalidArgument&)
                     {
-                        LOG_WARNING("DownloadSetup: unknown tag: " + tag);
+                        HandleUnknownTag(tag);
                         continue;
                     }
                 }
@@ -862,7 +866,7 @@ void DownloadSetup::OnURLChanged()
                                 }
                                 catch (const Leviathan::InvalidArgument&)
                                 {
-                                    LOG_WARNING("DownloadSetup: unknown tag: " + ptag);
+                                    HandleUnknownTag(ptag);
                                     continue;
                                 }
                             }
@@ -1386,4 +1390,24 @@ void DownloadSetup::_LoadFromClipboard()
 
     if (State == STATE::URL_CHANGED)
         _SetState(STATE::URL_OK);
+}
+
+void DownloadSetup::HandleUnknownTag(const std::string& tag)
+{
+    Lock guard(UnknownTagMutex);
+
+    // Report each problem tag once
+    if (!std::get<1>(ReportedUnknownTags.insert(tag)))
+    {
+        // Already there
+        return;
+    }
+
+    LOG_INFO("DownloadSetup: unknown tag: " + tag);
+
+    if (ReportedUnknownTags.size() > 10000)
+    {
+        LOG_WARNING("Too many unknown tags, clearing memory and reporting unknown tags again");
+        ReportedUnknownTags.clear();
+    }
 }

@@ -184,6 +184,7 @@ int CurlProgressCallback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, cu
 
 bool DownloadJob::OnDownloadProgress(float dlprogress, float uploadprogress)
 {
+    // TODO: add timeout
     // Timeout //
     if (false)
     {
@@ -419,7 +420,7 @@ void PageScanJob::HandleContent()
         throw RetryDownload();
     }
 
-    // Copy result //
+    // Show info in logs about the scan //
     Result.PrintInfo();
 
     OnFinished(true);

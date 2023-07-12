@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <set>
 
 #include <gtkmm.h>
 
@@ -172,7 +173,12 @@ protected:
     //! \todo This should also check that things are URLs
     void _LoadFromClipboard();
 
+    static void HandleUnknownTag(const std::string& tag);
+
 private:
+    static std::set<std::string> ReportedUnknownTags;
+    static std::mutex UnknownTagMutex;
+
     //! Main state, controls what buttons can be pressed
     //! \todo When changed queue a "set sensitive" task on the main thread
     std::atomic<STATE> State = {STATE::URL_CHANGED};
