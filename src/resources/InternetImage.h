@@ -1,24 +1,23 @@
 #pragma once
 
 #include "CacheManager.h"
-#include "Plugin.h"
+#include "Image.h"
+#include "ScanResult.h"
 #include "TaskListWithPriority.h"
 
-#include "Image.h"
-
-namespace DV {
-
+namespace DV
+{
 class DownloadJob;
 
 //! \brief Loads an image from memory to be displayed
-class DownloadLoadedImage : public LoadedImage {
+class DownloadLoadedImage : public LoadedImage
+{
 public:
     //! \param thumb If true will resize the image after loading
-    DownloadLoadedImage(bool thumb);
+    explicit DownloadLoadedImage(bool thumb);
 
     //! When download fails
-    void OnFail(std::shared_ptr<DownloadLoadedImage> thisobject,
-        const std::string& error = "HTTP request failed");
+    void OnFail(std::shared_ptr<DownloadLoadedImage> thisobject, const std::string& error = "HTTP request failed");
 
     //! \brief Called when download succeeds, this should queue a worker task to load
     //! the image
@@ -30,22 +29,23 @@ protected:
 
 //! \brief Image that is loaded from an URL. Can be used pretty much the same,
 //! but cannot be imported to the database
-class InternetImage : public Image {
+class InternetImage : public Image
+{
 protected:
     //! \brief Loads url and (future) tags from link
-    InternetImage(const ScanFoundImage& link);
+    explicit InternetImage(const ScanFoundImage& link);
 
     //! Called by Create functions
-    void Init();
+    void Init() override;
 
 public:
     //! \brief Loads a database image
     //! \exception Leviathan::InvalidArgument if link doesn't have filename
-    inline static auto Create(const ScanFoundImage& link, bool autosavecache)
+    static inline auto Create(const ScanFoundImage& link, bool autosavecache)
     {
         auto obj = std::shared_ptr<InternetImage>(new InternetImage(link));
 
-        if(autosavecache)
+        if (autosavecache)
             obj->AutoSaveCache = true;
 
         obj->Init();
@@ -91,7 +91,6 @@ protected:
 protected:
     //! Download URL for the full image
     std::string DLURL;
-
 
     //! Referrer to use when downloading
     std::string Referrer;

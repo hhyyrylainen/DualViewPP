@@ -143,8 +143,6 @@ void InternetImage::_CheckFileDownload()
 
             us->DLReady = true;
 
-            us->FileDL->GetDownloadedBytes();
-
             if (!success)
             {
                 // LOG_WRITE("InternetImage: TODO: retry nicely");

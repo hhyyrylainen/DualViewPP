@@ -1,38 +1,39 @@
 #pragma once
 
-#include "BaseWindow.h"
-#include "IsAlive.h"
-
-#include "Plugin.h"
-#include "components/PrimaryMenu.h"
+#include <atomic>
 
 #include <gtkmm.h>
 
-#include <atomic>
+#include "components/PrimaryMenu.h"
 
-namespace DV {
+#include "BaseWindow.h"
+#include "IsAlive.h"
+#include "ScanResult.h"
 
+namespace DV
+{
 class NetGallery;
 class NetFile;
 class PageScanJob;
 class InternetImage;
 
 //! \brief Allows editing the download options of a gallery
-class DownloadItemEditor : public BaseWindow, public Gtk::Window, public IsAlive {
-
+class DownloadItemEditor : public BaseWindow,
+                           public Gtk::Window,
+                           public IsAlive
+{
     struct ScanJobData;
 
 public:
-    DownloadItemEditor(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder,
-        const std::shared_ptr<NetGallery>& toedit);
-    ~DownloadItemEditor();
+    DownloadItemEditor(
+        _GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder, const std::shared_ptr<NetGallery>& toedit);
+    ~DownloadItemEditor() override;
 
     void LoadDownloadProperties();
 
     void StartReferrerScan();
 
     void StopReferrerScan();
-
 
 protected:
     void _OnClose() override;

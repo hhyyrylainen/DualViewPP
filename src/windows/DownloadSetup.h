@@ -10,7 +10,7 @@
 
 #include "BaseWindow.h"
 #include "IsAlive.h"
-#include "Plugin.h"
+#include "ScanResult.h"
 
 namespace DV
 {
@@ -60,7 +60,7 @@ class DownloadSetup : public BaseWindow,
 
 public:
     DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder);
-    ~DownloadSetup();
+    ~DownloadSetup() override;
 
     //! \brief Accepts this window settings and closes
     void OnUserAcceptSettings();

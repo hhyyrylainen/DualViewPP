@@ -36,7 +36,7 @@ class Image : public ResourceWithPreview,
 protected:
     //! \brief Creates a non-db version of an Image.
     //! \exception Leviathan::InvalidArgument if something is wrong with the file
-    Image(const std::string& file);
+    explicit Image(const std::string& file);
 
     //! \see Image::Create
     Image(const std::string& file, const std::string& name, const std::string& importoverride);
@@ -51,10 +51,10 @@ protected:
     //! \brief Init that must be called after a shared_ptr to this instance is created
     //!
     //! Called by Create functions
-    void Init();
+    virtual void Init();
 
 public:
-    virtual ~Image();
+    ~Image() override;
 
     //! \brief Loads a database image
     //! \exception InvalidSQL if data is missing in the statement

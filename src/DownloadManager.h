@@ -8,7 +8,7 @@
 #include <thread>
 #include <vector>
 
-#include "Plugin.h"
+#include "ScanResult.h"
 #include "TaskListWithPriority.h"
 
 namespace DV
@@ -41,7 +41,7 @@ public:
     //! \param callback Called on finish, gets passed the data and success flag. If returns false this forces a retry
     void SetFinishCallback(const std::function<bool(DownloadJob&, bool)>& callback);
 
-    const std::string& GetDownloadedBytes() const
+    [[nodiscard]] const std::string& GetDownloadedBytes() const
     {
         return DownloadBytes;
     }
@@ -55,17 +55,17 @@ public:
         Progress = 0;
     }
 
-    bool IsReady() const
+    [[nodiscard]] bool IsReady() const
     {
         return HasFinished;
     }
 
-    bool HasFailed() const
+    [[nodiscard]] bool HasFailed() const
     {
         return !HasSucceeded;
     }
 
-    auto GetURL() const
+    [[nodiscard]] auto GetURL() const
     {
         return URL;
     }
@@ -141,7 +141,7 @@ public:
     //! if false numbers are added to the end of the name if it exists already
     ImageFileDLJob(const std::string& url, const std::string& referrer, bool replacelocal = false);
 
-    auto GetLocalFile() const
+    [[nodiscard]] auto GetLocalFile() const
     {
         return LocalFile;
     }
@@ -162,7 +162,7 @@ class LocallyCachedDLJob : public DownloadJob
 {
 public:
     //! \exception Leviathan::InvalidArgument if file doesn't exist
-    LocallyCachedDLJob(const std::string& file);
+    explicit LocallyCachedDLJob(const std::string& file);
 
     void DoDownload(DownloadManager& manager) override;
 
