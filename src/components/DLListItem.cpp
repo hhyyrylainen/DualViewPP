@@ -80,8 +80,6 @@ void DLListItem::ReadGalleryData()
 
         GUARD_LOCK();
 
-        LOG_INFO("Settings DLListItem data");
-
         if(!IsConnectedTo(Gallery.get(), guard))
             ConnectToNotifier(guard, Gallery.get());
 
@@ -91,8 +89,6 @@ void DLListItem::ReadGalleryData()
         NameBox.set_text(Gallery->GetTargetGalleryName());
 
         ErrorLabel.set_text("");
-
-        LOG_INFO("Finished DLListItem data update");
     });
 }
 // ------------------------------------ //

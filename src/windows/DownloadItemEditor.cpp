@@ -312,11 +312,11 @@ void DownloadItemEditor::QueueNextThing(std::shared_ptr<ScanJobData> data, Downl
         editor->_OnReferrerScanCompleted(data->Scans);
     };
 
-    // TODO: this is very similar to DV::QueueNextThing DownloadSetup.h
+    // TODO: this is very similar to DV::QueueNextThing in DownloadSetup.h
 
     if (data->PagesToScan.size() <= data->CurrentPageToScan)
     {
-        LOG_INFO("DownloadItemEditor: scan finished, result:");
+        LOG_INFO("DownloadItemEditor: scan finished, total result:");
         data->Scans.PrintInfo();
         DualView::Get().InvokeFunction(finished);
         return;
@@ -325,7 +325,7 @@ void DownloadItemEditor::QueueNextThing(std::shared_ptr<ScanJobData> data, Downl
     const auto current = data->CurrentPageToScan + 1;
     const auto total = data->PagesToScan.size();
 
-    const float progress = static_cast<float>(data->CurrentPageToScan) / total;
+    const float progress = static_cast<float>(data->CurrentPageToScan) /  static_cast<float>(total);
 
     const auto url = data->PagesToScan[data->CurrentPageToScan];
     ++data->CurrentPageToScan;

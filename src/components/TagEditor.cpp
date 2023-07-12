@@ -92,7 +92,6 @@ void TagEditor::_CommonCtor()
 
 TagEditor::~TagEditor()
 {
-    LOG_INFO("TagEditor properly closed");
 }
 // ------------------------------------ //
 void TagEditor::SetEditable(bool editable)
