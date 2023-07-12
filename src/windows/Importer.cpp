@@ -559,6 +559,7 @@ bool Importer::StartImporting(bool move)
                 if (!boost::filesystem::exists(pathtodelete))
                     continue;
 
+                // TODO: would be really nice to able to answer "yes to all" here
                 auto dialog = Gtk::MessageDialog(
                     *this, "Delete Existing File?", false, Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
 
