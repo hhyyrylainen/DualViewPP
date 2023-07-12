@@ -1043,7 +1043,7 @@ bool DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
     LOG_INFO("DownloadSetup running scanning task " + Convert::ToString(data->CurrentPageToScan + 1) + "/" +
         Convert::ToString(data->PagesToScan.size()));
 
-    float progress = static_cast<float>(data->CurrentPageToScan) / data->PagesToScan.size();
+    float progress = static_cast<float>(data->CurrentPageToScan) / static_cast<float>(data->PagesToScan.size());
 
     const auto str = data->PagesToScan[data->CurrentPageToScan];
     ++data->CurrentPageToScan;
@@ -1082,8 +1082,8 @@ bool DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
                             return;
                         }
 
-                        DualView::Get().QueueWorkerFunction(
-                            std::bind(&DV::QueueNextThing, data, setup, alive, weakScan.lock()));
+                        DualView::Get().QueueWorkerFunction([data, setup, alive, lockedScan = weakScan.lock()]
+                            { return DV::QueueNextThing(data, setup, alive, lockedScan); });
                     });
 
                 return true;
@@ -1292,7 +1292,7 @@ void DownloadSetup::_DoSelectAllAndOK()
 // ------------------------------------ //
 void DownloadSetup::_UpdateFoundLinks()
 {
-    if (!DualView::Get().IsOnMainThread())
+    if (!DualView::IsOnMainThread())
     {
         const auto alive = GetAliveMarker();
         DualView::Get().InvokeFunction(
