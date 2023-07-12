@@ -541,7 +541,7 @@ void DownloadSetup::AddExternalScanLinkRaw(const std::string& rawURL)
         return;
     }
 
-    AddSubpage(HandleCanonization(rawURL, *scanner));
+    AddExternalScanLink(HandleCanonization(rawURL, *scanner));
 }
 
 void DownloadSetup::DisableAddActive()
