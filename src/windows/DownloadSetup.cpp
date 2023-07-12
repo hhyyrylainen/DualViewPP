@@ -361,7 +361,7 @@ void DownloadSetup::OnUserAcceptSettings()
 }
 
 // ------------------------------------ //
-void DownloadSetup::AddSubpage(const std::string& url, bool suppressupdate /*= false*/)
+void DownloadSetup::AddSubpage(const ProcessableURL& url, bool suppressupdate /*= false*/)
 {
     for (const auto& existing : PagesToScan)
     {
@@ -413,7 +413,7 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage& content)
     catch (const Leviathan::InvalidArgument& e)
     {
         LOG_ERROR("DownloadSetup: failed to create InternetImage for link because url is invalid, link: " +
-            content.URL + ", exception: ");
+            content.URL.GetURL() + ", exception: ");
         e.PrintToLog();
         return;
     }
@@ -434,7 +434,7 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage& content)
     ImageSelection->AddItem(
         ImageObjects.back(), std::make_shared<ItemSelectable>([this](ListItem& item) { OnItemSelected(item); }));
 
-    LOG_INFO("DownloadSetup added new image: " + content.URL + " referrer: " + content.Referrer);
+    LOG_INFO("DownloadSetup added new image: " + content.URL.GetURL() + " referrer: " + content.URL.GetReferrer());
 }
 
 bool DownloadSetup::IsValidTargetForImageAdd() const
@@ -449,15 +449,30 @@ bool DownloadSetup::IsValidTargetForImageAdd() const
     }
 }
 
-void DownloadSetup::AddExternallyFoundLink(const std::string& url, const std::string& referrer)
+void DownloadSetup::AddExternallyFoundLink(const ProcessableURL& url)
 {
-    OnFoundContent(ScanFoundImage(url, referrer));
+    OnFoundContent(ScanFoundImage(url));
 
     // Update image counts and stuff //
     UpdateReadyStatus();
 
     if (State == STATE::URL_CHANGED)
         _SetState(STATE::URL_OK);
+}
+
+void DownloadSetup::AddExternallyFoundLinkRaw(const std::string& url, const std::string& referrer)
+{
+    const auto scanner = GetPluginForURL(url);
+
+    if (!scanner)
+    {
+        LOG_WARNING("Adding link without supported scanner, won't have canonical address set");
+        AddExternallyFoundLink(ProcessableURL(url, std::string(), referrer));
+    }
+    else
+    {
+        AddExternallyFoundLink(ProcessableURL(HandleCanonization(url, *scanner), referrer));
+    }
 }
 
 bool DownloadSetup::IsValidForNewPageScan() const
@@ -493,7 +508,7 @@ bool DownloadSetup::IsValidTargetForScanLink() const
     }
 }
 
-void DownloadSetup::AddExternalScanLink(const std::string& url)
+void DownloadSetup::AddExternalScanLink(const ProcessableURL& url)
 {
     DualView::IsOnMainThreadAssert();
 
@@ -512,6 +527,21 @@ void DownloadSetup::AddExternalScanLink(const std::string& url)
         _SetState(STATE::URL_OK);
 
     _UpdateWidgetStates();
+}
+
+void DownloadSetup::AddExternalScanLinkRaw(const std::string& rawURL)
+{
+    DualView::IsOnMainThreadAssert();
+
+    const auto scanner = GetPluginForURL(rawURL);
+
+    if (!scanner)
+    {
+        LOG_WARNING("No scanner for URL, can't add external link: " + rawURL);
+        return;
+    }
+
+    AddSubpage(HandleCanonization(rawURL, *scanner));
 }
 
 void DownloadSetup::DisableAddActive()
@@ -751,7 +781,7 @@ void DownloadSetup::OnURLChanged()
     CurrentlyCheckedURL = str;
 
     // Find plugin for URL //
-    auto scanner = DualView::Get().GetPluginManager().GetScannerForURL(str);
+    auto scanner = GetPluginForURL(str);
 
     if (!scanner)
     {
@@ -766,22 +796,24 @@ void DownloadSetup::OnURLChanged()
         URLEntry->set_text(str.c_str());
     }
 
+    ProcessableURL url = HandleCanonization(str, *scanner);
+
     // Detect single image page
     bool singleImagePage = false;
 
-    if (scanner->IsUrlNotGallery(str))
+    if (scanner->IsUrlNotGallery(url))
     {
         singleImagePage = true;
     }
 
     try
     {
-        auto scan = std::make_shared<PageScanJob>(str, true);
+        auto scan = std::make_shared<PageScanJob>(url, true);
 
         auto alive = GetAliveMarker();
 
         scan->SetFinishCallback(
-            [this, alive, weakScan = std::weak_ptr<PageScanJob>(scan), str, singleImagePage](
+            [this, alive, weakScan = std::weak_ptr<PageScanJob>(scan), url, singleImagePage](
                 DownloadJob& job, bool success)
             {
                 auto scan = weakScan.lock();
@@ -801,10 +833,10 @@ void DownloadSetup::OnURLChanged()
                         // Store the pages //
                         if (success)
                         {
-                            ScanResult& result = scan->GetResult();
+                            const auto& result = scan->GetResult();
 
                             // Add the main page //
-                            AddSubpage(str, true);
+                            AddSubpage(url, true);
 
                             for (const auto& page : result.PageLinks)
                                 AddSubpage(page, true);
@@ -829,11 +861,11 @@ void DownloadSetup::OnURLChanged()
                         {
                             LOG_INFO("DownloadSetup parsing tags, count: " + Convert::ToString(result.PageTags.size()));
 
-                            for (const auto& ptag : result.PageTags)
+                            for (const auto& rawTag : result.PageTags)
                             {
                                 try
                                 {
-                                    const auto tag = DualView::Get().ParseTagFromString(ptag);
+                                    const auto tag = DualView::Get().ParseTagFromString(rawTag);
 
                                     if (!tag)
                                         throw Leviathan::InvalidArgument("");
@@ -842,7 +874,7 @@ void DownloadSetup::OnURLChanged()
                                 }
                                 catch (const Leviathan::InvalidArgument&)
                                 {
-                                    HandleUnknownTag(ptag);
+                                    HandleUnknownTag(rawTag);
                                     continue;
                                 }
                             }
@@ -888,13 +920,13 @@ void DownloadSetup::OnInvalidateURL()
     DetectedSettings->set_text("URL changed, accept it to update.");
 }
 
-void DownloadSetup::UrlCheckFinished(bool wasvalid, const std::string& message)
+void DownloadSetup::UrlCheckFinished(bool wasValid, const std::string& message)
 {
     DualView::IsOnMainThreadAssert();
 
     UrlBeingChecked = false;
 
-    if (!wasvalid)
+    if (!wasValid)
     {
         DetectedSettings->set_text("Invalid URL: " + message);
 
@@ -961,7 +993,7 @@ struct DV::SetupScanQueueData
 {
     std::string MainReferrer;
 
-    std::vector<std::string> PagesToScan;
+    std::vector<ProcessableURL> PagesToScan;
     size_t CurrentPageToScan = 0;
 
     ScanResult Scans;
@@ -981,7 +1013,7 @@ bool DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
             foundContent = true;
         }
 
-        // If found new subpages add them to the queue to scan them now too //
+        // If found new subpages, add them to the queue to scan them now too //
         for (const auto& subpage : scanned->GetResult().PageLinks)
         {
             // Skip duplicates //
@@ -995,7 +1027,7 @@ bool DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
                 }
             }
 
-            LOG_INFO("DownloadSetup: found subpage, adding to queue to scan all in one go: " + subpage);
+            LOG_INFO("DownloadSetup: found subpage, adding to queue to scan all in one go: " + subpage.GetURL());
 
             if (!found)
             {
@@ -1006,7 +1038,7 @@ bool DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
 
         if (!foundContent)
         {
-            LOG_INFO("DownloadSetup: page scan found no new stuff, retrying scanning: " + scanned->GetURL());
+            LOG_INFO("DownloadSetup: page scan found no new stuff, retrying scanning: " + scanned->GetURL().GetURL());
             return false;
         }
     }
@@ -1045,18 +1077,18 @@ bool DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
 
     float progress = static_cast<float>(data->CurrentPageToScan) / static_cast<float>(data->PagesToScan.size());
 
-    const auto str = data->PagesToScan[data->CurrentPageToScan];
+    const auto url = data->PagesToScan[data->CurrentPageToScan];
     ++data->CurrentPageToScan;
 
     // Update status //
     DualView::Get().InvokeFunction(
-        [setup, alive, str, progress]()
+        [setup, alive, url, progress]()
         {
             INVOKE_CHECK_ALIVE_MARKER(alive);
 
             // Scanned link //
-            setup->CurrentScanURL->set_uri(str);
-            setup->CurrentScanURL->set_label(str);
+            setup->CurrentScanURL->set_uri(url.GetURL());
+            setup->CurrentScanURL->set_label(url.GetURL());
             setup->CurrentScanURL->set_sensitive(true);
 
             // Progress bar //
@@ -1065,7 +1097,9 @@ bool DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
 
     try
     {
-        auto scan = std::make_shared<PageScanJob>(str, false, data->MainReferrer);
+        const auto mainUrl = data->MainReferrer.empty() ? url : ProcessableURL(url, data->MainReferrer);
+
+        auto scan = std::make_shared<PageScanJob>(mainUrl, false);
 
         // Queue next call //
         scan->SetFinishCallback(
@@ -1093,7 +1127,7 @@ bool DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
     }
     catch (const Leviathan::InvalidArgument&)
     {
-        LOG_ERROR("DownloadSetup invalid url to scan: " + str);
+        LOG_ERROR("DownloadSetup invalid url to scan: " + url.GetURL());
     }
 
     return true;
@@ -1318,7 +1352,7 @@ void DownloadSetup::_UpdateFoundLinks()
 
         for (const auto& page : PagesToScan)
         {
-            if (page == uri)
+            if (page.GetURL() == uri)
             {
                 good = true;
                 break;
@@ -1342,7 +1376,7 @@ void DownloadSetup::_UpdateFoundLinks()
 
         for (const auto& existing : existingLinks)
         {
-            if (existing == page)
+            if (existing == page.GetURL())
             {
                 exists = true;
                 break;
@@ -1351,7 +1385,7 @@ void DownloadSetup::_UpdateFoundLinks()
 
         if (!exists)
         {
-            Glib::ustring uri = page;
+            Glib::ustring uri = page.GetURL();
 
             auto* button = Glib::wrap(reinterpret_cast<GtkLinkButton*>(gtk_link_button_new(uri.c_str())));
 
@@ -1377,7 +1411,7 @@ void DownloadSetup::_CopyToClipboard()
         if (!first)
             text << "\n";
         first = false;
-        text << page;
+        text << page.GetURL();
     }
 
     Gtk::Clipboard::get()->set_text(text.str());
@@ -1403,7 +1437,17 @@ void DownloadSetup::_LoadFromClipboard()
             continue;
 
         LOG_INFO("Adding URL: " + line);
-        AddSubpage(line, true);
+
+        const auto scanner = GetPluginForURL(line);
+
+        if (!scanner)
+        {
+            LOG_WARNING("Loaded URL has no supported scanner, it won't be scanned");
+        }
+        else
+        {
+            AddSubpage(HandleCanonization(line, *scanner), true);
+        }
     }
 
     _UpdateFoundLinks();
@@ -1415,6 +1459,19 @@ void DownloadSetup::_LoadFromClipboard()
         _SetState(STATE::URL_OK);
 }
 
+// ------------------------------------ //
+ProcessableURL DownloadSetup::HandleCanonization(const std::string& url, IWebsiteScanner& scanner)
+{
+    return scanner.HasCanonicalURLFeature() ? ProcessableURL(url, scanner.ConvertToCanonicalURL(url)) :
+                                              ProcessableURL(url, true);
+}
+
+std::shared_ptr<IWebsiteScanner> DownloadSetup::GetPluginForURL(const std::string& url)
+{
+    return DualView::Get().GetPluginManager().GetScannerForURL(url);
+}
+
+// ------------------------------------ //
 void DownloadSetup::HandleUnknownTag(const std::string& tag)
 {
     Lock guard(UnknownTagMutex);

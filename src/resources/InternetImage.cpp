@@ -16,19 +16,19 @@
 using namespace DV;
 
 // ------------------------------------ //
-InternetImage::InternetImage(const ScanFoundImage& link) : DLURL(link.URL), Referrer(link.Referrer)
+InternetImage::InternetImage(const ScanFoundImage& link) : DLURL(link.URL)
 {
     // Extract filename from the url
-    ResourceName = DownloadManager::ExtractFileName(DLURL);
+    ResourceName = DownloadManager::ExtractFileName(DLURL.GetURL());
 
     if (ResourceName.empty())
         throw Leviathan::InvalidArgument("link doesn't contain filename");
 
     Extension = Leviathan::StringOperations::GetExtension(ResourceName);
 
-    ResourcePath = DownloadManager::GetCachePathForURL(DLURL);
+    ResourcePath = DownloadManager::GetCachePathForURL(DLURL.GetURL());
 
-    ImportLocation = DLURL;
+    ImportLocation = DLURL.GetURL();
 }
 
 void InternetImage::Init()
@@ -107,14 +107,14 @@ void InternetImage::_CheckFileDownload()
     // Check does the file exist already //
     if (boost::filesystem::exists(ResourcePath))
     {
-        LOG_INFO("InternetImage: hashed url file already exists: " + DLURL + " at path: " + ResourcePath);
+        LOG_INFO("InternetImage: hashed url file already exists: " + DLURL.GetURL() + " at path: " + ResourcePath);
 
         FileDL = std::make_shared<LocallyCachedDLJob>(ResourcePath);
         WasAlreadyCached = true;
     }
     else
     {
-        FileDL = std::make_shared<MemoryDLJob>(DLURL, Referrer);
+        FileDL = std::make_shared<MemoryDLJob>(DLURL);
     }
 
     std::weak_ptr<InternetImage> us;
@@ -195,7 +195,7 @@ bool InternetImage::SaveFileToDisk(Lock& guard)
     {
         if (!FullImage->IsValid())
         {
-            LOG_WARNING("Not saving InternetImage to disk because FullImage is invalid, url:" + DLURL);
+            LOG_WARNING("Not saving InternetImage to disk because FullImage is invalid, url:" + DLURL.GetURL());
             isvalid = false;
         }
     }

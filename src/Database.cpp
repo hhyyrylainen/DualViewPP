@@ -7,6 +7,9 @@
 
 #include <boost/filesystem.hpp>
 
+#include "Common.h"
+#include "DualView.h"
+
 #include "Common/StringOperations.h"
 #include "resources/Collection.h"
 #include "resources/DatabaseAction.h"
@@ -18,9 +21,7 @@
 
 #include "CacheManager.h"
 #include "ChangeEvents.h"
-#include "Common.h"
 #include "CurlWrapper.h"
-#include "DualView.h"
 #include "Exceptions.h"
 #include "PreparedStatement.h"
 #include "TimeHelpers.h"
@@ -3621,8 +3622,8 @@ void Database::InsertNetFile(LockT& guard, NetFile& netfile, NetGallery& gallery
 
     PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementInUse = statementObj.Setup(netfile.GetFileURL(), netfile.GetPageReferrer(),
-        netfile.GetPreferredName(), netfile.GetTagsString(), gallery.GetID());
+    auto statementInUse = statementObj.Setup(netfile.GetRawURL(), netfile.GetPageReferrer(), netfile.GetPreferredName(),
+        netfile.GetTagsString(), gallery.GetID());
 
     statementObj.StepAll(statementInUse);
     netfile.OnAdopted(sqlite3_last_insert_rowid(SQLiteDb), *this);
@@ -3637,8 +3638,8 @@ void Database::UpdateNetFile(NetFile& netfile)
 
     PreparedStatement statementObj(SQLiteDb, str, sizeof(str));
 
-    auto statementInUse = statementObj.Setup(netfile.GetFileURL(), netfile.GetPageReferrer(),
-        netfile.GetPreferredName(), netfile.GetTagsString(), netfile.GetID());
+    auto statementInUse = statementObj.Setup(netfile.GetRawURL(), netfile.GetPageReferrer(), netfile.GetPreferredName(),
+        netfile.GetTagsString(), netfile.GetID());
 
     statementObj.StepAll(statementInUse);
 }

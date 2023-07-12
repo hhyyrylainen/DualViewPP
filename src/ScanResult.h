@@ -5,6 +5,8 @@
 #include <utility>
 #include <vector>
 
+#include "ProcessableURL.h"
+
 namespace DV
 {
 /// \brief Result type for scan result combining
@@ -39,7 +41,7 @@ inline ResultCombine CombineResultCombineValues(ResultCombine left, ResultCombin
 struct ScanFoundImage
 {
 public:
-    ScanFoundImage(std::string url, std::string referrer, bool stripOptions = false);
+    explicit ScanFoundImage(ProcessableURL url);
 
     bool operator==(const ScanFoundImage& other) const;
 
@@ -71,12 +73,8 @@ public:
         return resultCombine;
     }
 
-    std::string URL;
-    std::string Referrer;
+    ProcessableURL URL;
     std::vector<std::string> Tags;
-
-    //! If true when comparing to another the options (everything after '?') is ignored
-    bool StripOptionsOnCompare = false;
 };
 
 //! \brief Result data for IWebsiteScanner
@@ -87,7 +85,7 @@ public:
     ResultCombine AddContentLink(const ScanFoundImage& link);
 
     //! \brief Used by scanners when more pages for a gallery are found
-    ResultCombine AddSubpage(const std::string& url);
+    ResultCombine AddSubpage(const ProcessableURL& url);
 
     //! \brief Used by scanners to add tags to currently scanned thing
     ResultCombine AddTagStr(const std::string& tag);
@@ -97,7 +95,7 @@ public:
     void PrintInfo() const;
 
     std::vector<ScanFoundImage> ContentLinks;
-    std::vector<std::string> PageLinks;
+    std::vector<ProcessableURL> PageLinks;
     std::vector<std::string> PageTags;
 
     //! Title of the scanned page

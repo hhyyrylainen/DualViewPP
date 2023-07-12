@@ -2,6 +2,7 @@
 
 #include "DatabaseResource.h"
 #include "Exceptions.h"
+#include "ProcessableURL.h"
 #include "VirtualPath.h"
 
 namespace DV
@@ -21,24 +22,30 @@ public:
     //! \brief Constructor for database loading
     NetFile(Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id);
 
-    ~NetFile();
+    ~NetFile() override;
 
-    auto GetFileURL() const
+    [[nodiscard]] auto GetFileURL() const
     {
-        return FileURL;
+        // When saved in the DB the canonical URL doesn't matter anymore
+        return ProcessableURL(FileURL, std::string(), PageReferrer);
     }
 
-    auto GetPageReferrer() const
+    [[nodiscard]] const auto& GetPageReferrer() const noexcept
     {
         return PageReferrer;
     }
 
-    auto GetPreferredName() const
+    [[nodiscard]] const auto& GetRawURL() const noexcept
+    {
+        return FileURL;
+    }
+
+    [[nodiscard]] const auto& GetPreferredName() const noexcept
     {
         return PreferredName;
     }
 
-    auto GetTagsString() const
+    [[nodiscard]] const auto& GetTagsString() const noexcept
     {
         return TagsString;
     }

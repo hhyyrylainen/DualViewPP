@@ -11,10 +11,11 @@ namespace DV
 //! \brief Data for IWebsiteScanner::ScanSite
 struct SiteToScan
 {
-    // TODO: switch these to string_view
+    //! The entire downloaded body. This is a string reference as the data is buffered there anyway and a scanner
+    //! library that is used by the example plugin must be given a string
     const std::string& Body;
-    const std::string& URL;
-    const std::string& ContentType;
+    const ProcessableURL& URL;
+    const std::string_view ContentType;
 
     bool InitialPage;
 };
@@ -27,6 +28,9 @@ public:
     virtual const char* GetName() = 0;
 
     //! \brief Returns true if this plugin can handle url
+    //!
+    //! \param url The url to check, this doesn't have rewriting or canonization performed on it
+    //! \return True if this plugin can handle the URL. The first plugin to say it can handle an URL is always picked
     virtual bool CanHandleURL(const std::string& url) = 0;
 
     //! \brief Returns true if this plugin uses URL rewriting
@@ -37,20 +41,30 @@ public:
     //! Only valid if UsesURLRewrite returns true
     virtual std::string RewriteURL(const std::string& url) = 0;
 
+    //! \brief Returns true if this supports ConvertToCanonicalURL
+    virtual bool HasCanonicalURLFeature() const = 0;
+
+    //! \brief Converts a URL to a form that doesn't have any unnecessary parameters
+    //!
+    //! Canonical URLs are used to prevent the scanning or detecting of a duplicate content image / page
+    //! \param url The url to convert
+    //! \return The converted URL or the input URL if there is nothing to modify
+    virtual std::string ConvertToCanonicalURL(const std::string& url) = 0;
+
     //! \brief Scans a webpage
-    //! \param contenttype Content type sent by the server. Probably equals "text/html"
+    //! \param params Contains the content type sent by the server. Probably equals "text/html"
     //! but it may have junk after it so maybe use std::string::find("text/html") ... for
     //! checking
     virtual ScanResult ScanSite(const SiteToScan& params) = 0;
 
     //! \brief Returns true if this scanner considers the link to be a page that contains
     //! only a single image and is not actually a gallery
-    virtual bool IsUrlNotGallery(const std::string& url) = 0;
+    virtual bool IsUrlNotGallery(const ProcessableURL& url) = 0;
 
     //! \brief If this returns true, then the page is scanned again if
     //! no images have been found
     //! \note This is rescanned up to a maximum of 5 times
-    virtual bool ScanAgainIfNoImages(const std::string& url) = 0;
+    virtual bool ScanAgainIfNoImages(const ProcessableURL& url) = 0;
 };
 
 //! \brief Description of a plugin

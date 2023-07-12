@@ -70,11 +70,6 @@ public:
         return DLURL;
     }
 
-    [[nodiscard]] const auto& GetReferrer() const
-    {
-        return Referrer;
-    }
-
     //! \brief If a file has been downloaded saves it to disk
     //! \returns True if saved, false if a file wasn't downloaded
     bool SaveFileToDisk(Lock& guard);
@@ -96,10 +91,7 @@ protected:
 
 protected:
     //! Download URL for the full image
-    std::string DLURL;
-
-    //! Referrer to use when downloading
-    std::string Referrer;
+    ProcessableURL DLURL;
 
     //! The downloaded image file, can be written to a file and added to the database if wanted
     std::shared_ptr<DownloadJob> FileDL;

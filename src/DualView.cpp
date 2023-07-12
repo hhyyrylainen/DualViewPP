@@ -1,15 +1,28 @@
 // ------------------------------------ //
 #include "DualView.h"
+
+#include <chrono>
+#include <iostream>
+
+#include <boost/filesystem.hpp>
+#include <cryptopp/sha.h>
+
 #include "Common.h"
 
+#include "Common/StringOperations.h"
+#include "Iterators/StringIterator.h"
+#include "resources/Collection.h"
+#include "resources/Folder.h"
+#include "resources/Image.h"
+#include "resources/Tags.h"
 #include "windows/ActionEditors.h"
 #include "windows/AddToFolder.h"
 #include "windows/AlreadyImportedImageDeleter.h"
 #include "windows/CollectionView.h"
 #include "windows/DebugWindow.h"
+#include "windows/Downloader.h"
 #include "windows/DownloadItemEditor.h"
 #include "windows/DownloadSetup.h"
-#include "windows/Downloader.h"
 #include "windows/DuplicateFinder.h"
 #include "windows/FolderCreator.h"
 #include "windows/ImageFinder.h"
@@ -23,34 +36,16 @@
 #include "windows/TagManager.h"
 #include "windows/Undo.h"
 
+#include "base64.h"
 #include "CacheManager.h"
 #include "ChangeEvents.h"
 #include "CurlWrapper.h"
 #include "Database.h"
-
-#include "resources/Collection.h"
-#include "resources/Folder.h"
-#include "resources/Image.h"
-#include "resources/Tags.h"
-
 #include "DownloadManager.h"
 #include "Exceptions.h"
 #include "PluginManager.h"
 #include "Settings.h"
-
 #include "UtilityHelpers.h"
-
-#include "Common/StringOperations.h"
-#include "Iterators/StringIterator.h"
-
-#include <boost/filesystem.hpp>
-#include <chrono>
-#include <iostream>
-
-#include <cryptopp/sha.h>
-
-
-#include "base64.h"
 
 using namespace DV;
 // ------------------------------------ //
@@ -78,35 +73,34 @@ DualView::DualView(Glib::RefPtr<Gtk::Application> app) : Application(app)
     // This is called when the application is ran with a file //
     app->signal_open().connect(sigc::mem_fun(*this, &DualView::_OnSignalOpen));
 
-    app->signal_handle_local_options().connect(
-        sigc::mem_fun(*this, &DualView::_OnPreParseCommandLine));
+    app->signal_handle_local_options().connect(sigc::mem_fun(*this, &DualView::_OnPreParseCommandLine));
 }
 
 DualView::~DualView()
 {
     QuitWorkerThreads = true;
 
-    if(_CacheManager) {
-
+    if (_CacheManager)
+    {
         // Cache manager start close //
         _CacheManager->QuitProcessingThreads();
     }
 
     // Signal downloads to end after the next one
-    if(_DownloadManager)
+    if (_DownloadManager)
         _DownloadManager->StopDownloads();
 
-    if(!IsInitialized) {
-
+    if (!IsInitialized)
+    {
         _WaitForWorkerThreads();
         _CacheManager.reset();
         _Settings.reset();
 
         // Reset staticinstance only if it is still us. This is for running tests
-        if(Staticinstance == this)
+        if (Staticinstance == this)
             Staticinstance = nullptr;
 
-        if(!SuppressSecondInstance)
+        if (!SuppressSecondInstance)
             std::cout << "DualView++ Main Instance Notified (If there were no errors). \n"
                          "Extra instance quitting"
                       << std::endl;
@@ -176,7 +170,7 @@ DualView::DualView(bool tests, const std::string& dbfile)
 
     _ChangeEvents = std::make_unique<ChangeEvents>();
 
-    if(!dbfile.empty())
+    if (!dbfile.empty())
         _Database = std::make_unique<Database>(dbfile);
 
     _StartWorkerThreads();
@@ -208,7 +202,7 @@ DualView::DualView(std::string tests, std::unique_ptr<Database>&& db /*= nullptr
 {
     _Logger = std::make_unique<Leviathan::Logger>("empty_dualview_log.txt");
 
-    if(db)
+    if (db)
         _Database = std::move(db);
 
     _ChangeEvents = std::make_unique<ChangeEvents>();
@@ -222,7 +216,6 @@ DualView::DualView(std::string tests, std::unique_ptr<Database>&& db /*= nullptr
     Staticinstance = this;
     ThreadSpecifier = MAIN_THREAD_MAGIC;
 }
-
 
 DualView* DualView::Staticinstance = nullptr;
 
@@ -241,11 +234,12 @@ void DualView::IsOnMainThreadAssert()
 {
     LEVIATHAN_ASSERT(DualView::IsOnMainThread(), "Function not called on the main thread");
 }
+
 // ------------------------------------ //
 void DualView::_OnInstanceLoaded()
 {
-    if(IsInitialized) {
-
+    if (IsInitialized)
+    {
         return;
     }
 
@@ -253,8 +247,8 @@ void DualView::_OnInstanceLoaded()
 
     _Logger = std::make_unique<Leviathan::Logger>("log.txt");
 
-    if(!_Logger) {
-
+    if (!_Logger)
+    {
         std::cerr << "Logger creation failed" << std::endl;
         throw Leviathan::InvalidState("Log opening failed");
         return;
@@ -279,12 +273,9 @@ void DualView::_OnInstanceLoaded()
 
     StyleContext = Gtk::StyleContext::create();
 
-    StyleContext->add_provider_for_screen(
-        screen, CustomCSS, GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    StyleContext->add_provider_for_screen(screen, CustomCSS, GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-
-    MainBuilder = Gtk::Builder::create_from_resource(
-        "/com/boostslair/dualviewpp/resources/gui/main_gui.glade");
+    MainBuilder = Gtk::Builder::create_from_resource("/com/boostslair/dualviewpp/resources/gui/main_gui.glade");
 
     // Get all the glade resources //
     MainBuilder->get_widget("WelcomeWindow", WelcomeWindow);
@@ -309,17 +300,13 @@ void DualView::_OnInstanceLoaded()
     MainBuilder->get_widget("OpenImageFile", OpenImageFile);
     LEVIATHAN_ASSERT(OpenImageFile, "Invalid .glade file");
 
-    OpenImageFile->signal_clicked().connect(
-        sigc::mem_fun(*this, &DualView::OpenImageFile_OnClick));
-
+    OpenImageFile->signal_clicked().connect(sigc::mem_fun(*this, &DualView::OpenImageFile_OnClick));
 
     Gtk::Button* OpenCollection = nullptr;
     MainBuilder->get_widget("OpenCollection", OpenCollection);
     LEVIATHAN_ASSERT(OpenCollection, "Invalid .glade file");
 
-    OpenCollection->signal_clicked().connect(
-        sigc::mem_fun(*this, &DualView::OpenCollection_OnClick));
-
+    OpenCollection->signal_clicked().connect(sigc::mem_fun(*this, &DualView::OpenCollection_OnClick));
 
     Gtk::ToolButton* OpenDebug = nullptr;
     MainBuilder->get_widget("OpenDebug", OpenDebug);
@@ -331,22 +318,19 @@ void DualView::_OnInstanceLoaded()
     MainBuilder->get_widget("OpenUndoWindow", OpenUndo);
     LEVIATHAN_ASSERT(OpenUndo, "Invalid .glade file");
 
-    OpenUndo->signal_clicked().connect(
-        sigc::mem_fun(*this, &DualView::OpenUndoWindow_OnClick));
+    OpenUndo->signal_clicked().connect(sigc::mem_fun(*this, &DualView::OpenUndoWindow_OnClick));
 
     Gtk::ToolButton* openMaintenance = nullptr;
     MainBuilder->get_widget("OpenMaintenance", openMaintenance);
     LEVIATHAN_ASSERT(openMaintenance, "Invalid .glade file");
 
-    openMaintenance->signal_clicked().connect(
-        sigc::mem_fun<void>(*this, &DualView::OpenMaintenance_OnClick));
+    openMaintenance->signal_clicked().connect(sigc::mem_fun<void>(*this, &DualView::OpenMaintenance_OnClick));
 
     Gtk::Button* OpenImporter = nullptr;
     MainBuilder->get_widget("OpenImporter", OpenImporter);
     LEVIATHAN_ASSERT(OpenImporter, "Invalid .glade file");
 
-    OpenImporter->signal_clicked().connect(
-        sigc::mem_fun<void>(*this, &DualView::OpenImporter));
+    OpenImporter->signal_clicked().connect(sigc::mem_fun<void>(*this, &DualView::OpenImporter));
 
     Gtk::Button* OpenTags = nullptr;
     MainBuilder->get_widget("OpenTags", OpenTags);
@@ -358,24 +342,19 @@ void DualView::_OnInstanceLoaded()
     MainBuilder->get_widget("OpenDownloader", OpenDownloader);
     LEVIATHAN_ASSERT(OpenDownloader, "Invalid .glade file");
 
-    OpenDownloader->signal_clicked().connect(
-        sigc::mem_fun<void>(*this, &DualView::OpenDownloader));
-
+    OpenDownloader->signal_clicked().connect(sigc::mem_fun<void>(*this, &DualView::OpenDownloader));
 
     Gtk::Button* OpenImageFinder = nullptr;
     MainBuilder->get_widget("OpenImageFinder", OpenImageFinder);
     LEVIATHAN_ASSERT(OpenImageFinder, "Invalid .glade file");
 
-    OpenImageFinder->signal_clicked().connect(
-        sigc::mem_fun<void>(*this, &DualView::OpenImageFinder));
+    OpenImageFinder->signal_clicked().connect(sigc::mem_fun<void>(*this, &DualView::OpenImageFinder));
 
     Gtk::Button* openDuplicateFinder = nullptr;
     MainBuilder->get_widget("OpenDuplicateFinder", openDuplicateFinder);
     LEVIATHAN_ASSERT(openDuplicateFinder, "Invalid .glade file");
 
-    openDuplicateFinder->signal_clicked().connect(
-        sigc::mem_fun<void>(*this, &DualView::OpenDuplicateFinder_OnClick));
-
+    openDuplicateFinder->signal_clicked().connect(sigc::mem_fun<void>(*this, &DualView::OpenDuplicateFinder_OnClick));
 
     //_CollectionView
     CollectionView* tmpCollection = nullptr;
@@ -401,7 +380,6 @@ void DualView::_OnInstanceLoaded()
     // Store the window //
     _Downloader = std::shared_ptr<Downloader>(tmpDownloader);
 
-
     // Debug window
     DebugWindow* tmpDebug = nullptr;
     MainBuilder->get_widget_derived("DebugWindow", tmpDebug);
@@ -410,16 +388,13 @@ void DualView::_OnInstanceLoaded()
     // Store the window //
     _DebugWindow = std::shared_ptr<DebugWindow>(tmpDebug);
 
-
     // Already imported
     AlreadyImportedImageDeleter* tmpAlreadyImported = nullptr;
     MainBuilder->get_widget_derived("AlreadyImportedImageDeleter", tmpAlreadyImported);
     LEVIATHAN_ASSERT(tmpAlreadyImported, "Invalid .glade file");
 
     // Store the window //
-    _AlreadyImportedImageDeleter =
-        std::shared_ptr<AlreadyImportedImageDeleter>(tmpAlreadyImported);
-
+    _AlreadyImportedImageDeleter = std::shared_ptr<AlreadyImportedImageDeleter>(tmpAlreadyImported);
 
     // Maintenance window
     MaintenanceTools* tmpMaintenance = nullptr;
@@ -444,11 +419,12 @@ void DualView::_OnInstanceLoaded()
 bool DualView::_DoInitThreadAction()
 {
     // Load settings //
-    try {
+    try
+    {
         _Settings = std::make_unique<Settings>("dv_settings.levof");
-
-    } catch(const Leviathan::InvalidArgument& e) {
-
+    }
+    catch (const Leviathan::InvalidArgument& e)
+    {
         LOG_ERROR("Invalid configuration. Please delete it and try again:");
         e.PrintToLog();
         return true;
@@ -462,14 +438,14 @@ bool DualView::_DoInitThreadAction()
     // Load plugins //
     const auto plugins = _Settings->GetPluginList();
 
-    if(!plugins.empty()) {
-
+    if (!plugins.empty())
+    {
         const auto pluginFolder = boost::filesystem::path(_Settings->GetPluginFolder());
 
         LOG_INFO("Loading " + Convert::ToString(plugins.size()) + " plugin(s)");
 
-        for(const auto& plugin : plugins) {
-
+        for (const auto& plugin : plugins)
+        {
             // Plugin name
 #ifdef _WIN32
             const auto libname = plugin + ".dll";
@@ -477,8 +453,8 @@ bool DualView::_DoInitThreadAction()
             const auto libname = "lib" + plugin + ".so";
 #endif //_WIN32
 
-            if(!_PluginManager->LoadPlugin((pluginFolder / libname).string())) {
-
+            if (!_PluginManager->LoadPlugin((pluginFolder / libname).string()))
+            {
                 LOG_ERROR("Failed to load plugin: " + plugin);
                 return true;
             }
@@ -500,16 +476,18 @@ bool DualView::_DoInitThreadAction()
 
     _Database->SetMaxActionHistory(_Settings->GetActionHistorySize());
 
-    try {
+    try
+    {
         _Database->Init();
-
-    } catch(const Leviathan::InvalidState& e) {
-
+    }
+    catch (const Leviathan::InvalidState& e)
+    {
         LOG_ERROR("Database initialization failed: ");
         e.PrintToLog();
         return true;
-    } catch(const InvalidSQL& e) {
-
+    }
+    catch (const InvalidSQL& e)
+    {
         LOG_ERROR("Database initialization logic has a bug, sql error: ");
         e.PrintToLog();
         return true;
@@ -526,14 +504,17 @@ void DualView::_RunInitThread()
     LOG_INFO("Running Init thread");
     LoadError = false;
 
-    DateInitThread = std::thread([]() -> void {
-        // Load timezone database
-        TimeHelpers::TimeZoneDatabaseSetup();
-    });
+    DateInitThread = std::thread(
+        []() -> void
+        {
+            // Load timezone database
+            TimeHelpers::TimeZoneDatabaseSetup();
+        });
 
     bool result = _DoInitThreadAction();
 
-    if(result) {
+    if (result)
+    {
         // Sleep if an error occured to let the user read it
         LoadError = true;
 
@@ -549,11 +530,11 @@ void DualView::_OnLoadingFinished()
     AssertIfNotMainThread();
 
     // The thread needs to be joined or an exception is thrown
-    if(LoadThread.joinable())
+    if (LoadThread.joinable())
         LoadThread.join();
 
-    if(LoadError) {
-
+    if (LoadError)
+    {
         // Loading failed
         LOG_ERROR("Loading Failed");
         WelcomeWindow->close();
@@ -577,6 +558,7 @@ void DualView::_OnLoadingFinished()
     // OpenImageViewer("/home/hhyyrylainen/690806.jpg");
     // OpenImporter();
 }
+
 // ------------------------------------ //
 int DualView::_HandleCmdLine(const Glib::RefPtr<Gio::ApplicationCommandLine>& command_line)
 {
@@ -584,59 +566,64 @@ int DualView::_HandleCmdLine(const Glib::RefPtr<Gio::ApplicationCommandLine>& co
     auto alreadyParsed = command_line->get_options_dict();
 
     Glib::ustring referrer;
-    if(!alreadyParsed->lookup_value("dl-referrer", referrer)) {
-
+    if (!alreadyParsed->lookup_value("dl-referrer", referrer))
+    {
         referrer = "";
     }
 
-
     Glib::ustring fileUrl;
-    if(alreadyParsed->lookup_value("dl-image", fileUrl)) {
-
-        InvokeFunction([=]() -> void {
-            LOG_INFO("File to download: " + std::string(fileUrl.c_str()));
-            OnNewImageLinkReceived(fileUrl, referrer);
-        });
-    }
-
-    if(alreadyParsed->lookup_value("dl-page", fileUrl)) {
-
-        InvokeFunction([=]() -> void {
-            LOG_INFO("Page to download: " + std::string(fileUrl.c_str()));
-            OnNewGalleryLinkReceived(fileUrl);
-        });
-    }
-
-    if(alreadyParsed->lookup_value("dl-auto", fileUrl)) {
-
-        InvokeFunction([=]() -> void {
-            LOG_INFO("Auto detect and download: " + std::string(fileUrl.c_str()));
-
-            // If the file has a content extension then open as an image
-            const auto extension = Leviathan::StringOperations::GetExtension(
-                DownloadManager::ExtractFileName(fileUrl.c_str()));
-
-            if(IsExtensionContent("." + extension)) {
-
-                LOG_INFO("Detected as an image");
+    if (alreadyParsed->lookup_value("dl-image", fileUrl))
+    {
+        InvokeFunction(
+            [=]() -> void
+            {
+                LOG_INFO("File to download: " + std::string(fileUrl.c_str()));
                 OnNewImageLinkReceived(fileUrl, referrer);
-                return;
-            }
+            });
+    }
 
-            // Otherwise open as a page
-            LOG_INFO("Detected as a gallery page");
-            OnNewGalleryLinkReceived(fileUrl);
-        });
+    if (alreadyParsed->lookup_value("dl-page", fileUrl))
+    {
+        InvokeFunction(
+            [=]() -> void
+            {
+                LOG_INFO("Page to download: " + std::string(fileUrl.c_str()));
+                OnNewGalleryLinkReceived(fileUrl);
+            });
+    }
+
+    if (alreadyParsed->lookup_value("dl-auto", fileUrl))
+    {
+        InvokeFunction(
+            [=]() -> void
+            {
+                LOG_INFO("Auto detect and download: " + std::string(fileUrl.c_str()));
+
+                // If the file has a content extension then open as an image
+                const auto extension =
+                    Leviathan::StringOperations::GetExtension(DownloadManager::ExtractFileName(fileUrl.c_str()));
+
+                if (IsExtensionContent("." + extension))
+                {
+                    LOG_INFO("Detected as an image");
+                    OnNewImageLinkReceived(fileUrl, referrer);
+                    return;
+                }
+
+                // Otherwise open as a page
+                LOG_INFO("Detected as a gallery page");
+                OnNewGalleryLinkReceived(fileUrl);
+            });
     }
 
     int argc;
     char** argv = command_line->get_arguments(argc);
 
-    if(argc > 1) {
-
+    if (argc > 1)
+    {
         std::cout << "Extra arguments: " << std::endl;
 
-        for(int i = 1; i < argc; ++i)
+        for (int i = 1; i < argc; ++i)
             std::cout << argv[i] << (i + 1 < argc ? ", " : " ");
 
         std::cout << std::endl;
@@ -654,8 +641,8 @@ int DualView::_HandleCmdLine(const Glib::RefPtr<Gio::ApplicationCommandLine>& co
 int DualView::_OnPreParseCommandLine(const Glib::RefPtr<Glib::VariantDict>& options)
 {
     bool version;
-    if(options->lookup_value("version", version)) {
-
+    if (options->lookup_value("version", version))
+    {
         std::cout << "DualView++ Version " << DUALVIEW_VERSION << std::endl;
         SuppressSecondInstance = true;
         return 0;
@@ -663,17 +650,18 @@ int DualView::_OnPreParseCommandLine(const Glib::RefPtr<Glib::VariantDict>& opti
 
     return -1;
 }
+
 // ------------------------------------ //
-void DualView::_OnSignalOpen(
-    const std::vector<Glib::RefPtr<Gio::File>>& files, const Glib::ustring& stuff)
+void DualView::_OnSignalOpen(const std::vector<Glib::RefPtr<Gio::File>>& files, const Glib::ustring& stuff)
 {
     LOG_INFO("Got file list to open:");
 
-    for(const auto& file : files) {
-
+    for (const auto& file : files)
+    {
         LOG_WRITE("\t" + file->get_path());
     }
 }
+
 // ------------------------------------ //
 void DualView::_HandleMessages()
 {
@@ -682,17 +670,17 @@ void DualView::_HandleMessages()
     std::lock_guard<std::mutex> lock(MessageQueueMutex);
 
     // Handle all messages, because we might not get a dispatch for each message
-    while(!CloseEvents.empty()) {
-
+    while (!CloseEvents.empty())
+    {
         auto event = CloseEvents.front();
         CloseEvents.pop_front();
 
         // Handle the event
         // Find the window //
-        for(auto iter = OpenWindows.begin(); iter != OpenWindows.end(); ++iter) {
-
-            if((*iter).get() == event->AffectedWindow) {
-
+        for (auto iter = OpenWindows.begin(); iter != OpenWindows.end(); ++iter)
+        {
+            if ((*iter).get() == event->AffectedWindow)
+            {
                 LOG_INFO("DualView: notified of a closed window");
                 OpenWindows.erase(iter);
                 break;
@@ -700,6 +688,7 @@ void DualView::_HandleMessages()
         }
     }
 }
+
 // ------------------------------------ //
 void DualView::QueueImageHashCalculate(std::shared_ptr<Image> img)
 {
@@ -714,19 +703,19 @@ void DualView::_RunHashCalculateThread()
 {
     std::unique_lock<std::mutex> lock(HashImageQueueMutex);
 
-    while(!QuitWorkerThreads) {
-
-        if(HashImageQueue.empty())
+    while (!QuitWorkerThreads)
+    {
+        if (HashImageQueue.empty())
             HashCalculationThreadNotify.wait(lock);
 
-        while(!HashImageQueue.empty()) {
-
+        while (!HashImageQueue.empty())
+        {
             auto img = HashImageQueue.front().lock();
 
             HashImageQueue.pop_front();
 
-            if(!img) {
-
+            if (!img)
+            {
                 // Image has been deallocated already //
                 continue;
             }
@@ -738,21 +727,23 @@ void DualView::_RunHashCalculateThread()
             lock.lock();
 
             // Replace with an existing image if the hash exists //
-            try {
+            try
+            {
                 auto existing = _Database->SelectImageByHashAG(img->GetHash());
 
-                if(existing) {
-
+                if (existing)
+                {
                     LOG_INFO("Calculated hash for a duplicate image");
                     img->BecomeDuplicateOf(*existing);
                     continue;
                 }
-
-            } catch(const InvalidSQL&) {
-
+            }
+            catch (const InvalidSQL&)
+            {
                 // Database probably isn't initialized
-            } catch(const Leviathan::InvalidState& e) {
-
+            }
+            catch (const Leviathan::InvalidState& e)
+            {
                 LOG_ERROR("Image hash calculation failed, exception:");
                 e.PrintToLog();
             }
@@ -761,10 +752,11 @@ void DualView::_RunHashCalculateThread()
         }
     }
 }
+
 // ------------------------------------ //
 void DualView::QueueDBThreadFunction(std::function<void()> func, int64_t priority /*= -1*/)
 {
-    if(priority == -1)
+    if (priority == -1)
         priority = TimeHelpers::GetCurrentUnixTimestamp();
 
     GUARD_LOCK_OTHER(DatabaseFuncQueue);
@@ -776,7 +768,7 @@ void DualView::QueueDBThreadFunction(std::function<void()> func, int64_t priorit
 
 void DualView::QueueWorkerFunction(std::function<void()> func, int64_t priority /*= -1*/)
 {
-    if(priority == -1)
+    if (priority == -1)
         priority = TimeHelpers::GetCurrentUnixTimestamp();
 
     GUARD_LOCK_OTHER(WorkerFuncQueue);
@@ -799,13 +791,13 @@ void DualView::_RunDatabaseThread()
 {
     GUARD_LOCK_OTHER(DatabaseFuncQueue);
 
-    while(!QuitWorkerThreads) {
-
-        if(DatabaseFuncQueue.Empty(guard))
+    while (!QuitWorkerThreads)
+    {
+        if (DatabaseFuncQueue.Empty(guard))
             DatabaseThreadNotify.wait(guard);
 
-        while(auto task = DatabaseFuncQueue.Pop(guard)) {
-
+        while (auto task = DatabaseFuncQueue.Pop(guard))
+        {
             guard.unlock();
 
             task->Task->operator()();
@@ -820,13 +812,13 @@ void DualView::_RunWorkerThread()
 {
     GUARD_LOCK_OTHER(WorkerFuncQueue);
 
-    while(!QuitWorkerThreads) {
-
-        if(WorkerFuncQueue.Empty(guard))
+    while (!QuitWorkerThreads)
+    {
+        if (WorkerFuncQueue.Empty(guard))
             WorkerThreadNotify.wait(guard);
 
-        while(auto task = WorkerFuncQueue.Pop(guard)) {
-
+        while (auto task = WorkerFuncQueue.Pop(guard))
+        {
             guard.unlock();
 
             task->Task->operator()();
@@ -841,13 +833,13 @@ void DualView::_RunConditionalThread()
 {
     std::unique_lock<std::mutex> lock(ConditionalFuncQueueMutex);
 
-    while(!QuitWorkerThreads) {
-
-        if(ConditionalFuncQueue.empty())
+    while (!QuitWorkerThreads)
+    {
+        if (ConditionalFuncQueue.empty())
             ConditionalWorkerThreadNotify.wait(lock);
 
-        for(size_t i = 0; i < ConditionalFuncQueue.size();) {
-
+        for (size_t i = 0; i < ConditionalFuncQueue.size();)
+        {
             const auto func = ConditionalFuncQueue[i];
 
             lock.unlock();
@@ -856,22 +848,23 @@ void DualView::_RunConditionalThread()
 
             lock.lock();
 
-            if(result) {
-
+            if (result)
+            {
                 // Remove //
                 ConditionalFuncQueue.erase(ConditionalFuncQueue.begin() + i);
-
-            } else {
-
+            }
+            else
+            {
                 ++i;
             }
         }
 
         // Don't constantly check whether functions are ready to run
-        if(!ConditionalFuncQueue.empty() && !QuitWorkerThreads)
+        if (!ConditionalFuncQueue.empty() && !QuitWorkerThreads)
             ConditionalWorkerThreadNotify.wait_for(lock, std::chrono::milliseconds(12));
     }
 }
+
 // ------------------------------------ //
 void DualView::InvokeFunction(std::function<void()> func)
 {
@@ -885,12 +878,12 @@ void DualView::InvokeFunction(std::function<void()> func)
 
 void DualView::RunOnMainThread(const std::function<void()>& func)
 {
-    if(IsOnMainThread()) {
-
+    if (IsOnMainThread())
+    {
         func();
-
-    } else {
-
+    }
+    else
+    {
         InvokeFunction(func);
     }
 }
@@ -898,7 +891,7 @@ void DualView::RunOnMainThread(const std::function<void()>& func)
 void DualView::_ProcessInvokeQueue()
 {
     // Wait until completely loaded before invoking
-    if(!LoadCompletelyFinished)
+    if (!LoadCompletelyFinished)
         return;
 
     std::unique_lock<std::mutex> lock(InvokeQueueMutex);
@@ -907,8 +900,8 @@ void DualView::_ProcessInvokeQueue()
     // at once
     int processedInvokes = 0;
 
-    while(!InvokeQueue.empty()) {
-
+    while (!InvokeQueue.empty())
+    {
         const auto func = InvokeQueue.front();
 
         InvokeQueue.pop_front();
@@ -919,10 +912,11 @@ void DualView::_ProcessInvokeQueue()
 
         lock.lock();
 
-        if(++processedInvokes >= MAX_INVOKES_PER_CALL)
+        if (++processedInvokes >= MAX_INVOKES_PER_CALL)
             break;
     }
 }
+
 // ------------------------------------ //
 void DualView::_StartWorkerThreads()
 {
@@ -943,97 +937,95 @@ void DualView::_WaitForWorkerThreads()
     WorkerThreadNotify.notify_all();
     ConditionalWorkerThreadNotify.notify_all();
 
-    if(HashCalculationThread.joinable())
+    if (HashCalculationThread.joinable())
         HashCalculationThread.join();
 
-    if(DatabaseThread.joinable())
+    if (DatabaseThread.joinable())
         DatabaseThread.join();
 
-    if(DateInitThread.joinable())
+    if (DateInitThread.joinable())
         DateInitThread.join();
 
-    if(Worker1Thread.joinable())
+    if (Worker1Thread.joinable())
         Worker1Thread.join();
 
-    if(ConditionalWorker1.joinable())
+    if (ConditionalWorker1.joinable())
         ConditionalWorker1.join();
 }
+
 // ------------------------------------ //
 std::string DualView::GetPathToCollection(bool isprivate) const
 {
-    if(isprivate) {
-
+    if (isprivate)
+    {
         return _Settings->GetPrivateCollection();
-
-    } else {
-
+    }
+    else
+    {
         return _Settings->GetPublicCollection();
     }
 }
 
-bool DualView::MoveFileToCollectionFolder(
-    std::shared_ptr<Image> img, std::shared_ptr<Collection> collection, bool move)
+bool DualView::MoveFileToCollectionFolder(std::shared_ptr<Image> img, std::shared_ptr<Collection> collection, bool move)
 {
     std::string targetfolder = "";
 
     // Special case, uncategorized //
-    if(collection->GetID() == DATABASE_UNCATEGORIZED_COLLECTION_ID ||
-        collection->GetID() == DATABASE_UNCATEGORIZED_PRIVATECOLLECTION_ID) {
+    if (collection->GetID() == DATABASE_UNCATEGORIZED_COLLECTION_ID ||
+        collection->GetID() == DATABASE_UNCATEGORIZED_PRIVATECOLLECTION_ID)
+    {
         targetfolder =
-            (boost::filesystem::path(GetPathToCollection(collection->GetIsPrivate())) /
-                "no_category/")
-                .c_str();
-    } else {
-        targetfolder =
-            (boost::filesystem::path(GetPathToCollection(collection->GetIsPrivate())) /
-                "collections" / collection->GetNameForFolder())
-                .c_str();
+            (boost::filesystem::path(GetPathToCollection(collection->GetIsPrivate())) / "no_category/").c_str();
+    }
+    else
+    {
+        targetfolder = (boost::filesystem::path(GetPathToCollection(collection->GetIsPrivate())) / "collections" /
+            collection->GetNameForFolder())
+                           .c_str();
 
         boost::filesystem::create_directories(targetfolder);
     }
 
     // Skip if already there //
-    if(boost::filesystem::equivalent(
-           targetfolder, boost::filesystem::path(img->GetResourcePath()).remove_filename())) {
+    if (boost::filesystem::equivalent(targetfolder, boost::filesystem::path(img->GetResourcePath()).remove_filename()))
+    {
         return true;
     }
 
-    const auto targetPath = boost::filesystem::path(targetfolder) /
-                            boost::filesystem::path(img->GetResourcePath()).filename();
+    const auto targetPath =
+        boost::filesystem::path(targetfolder) / boost::filesystem::path(img->GetResourcePath()).filename();
 
     // Make short enough and unique //
     const auto finalPath = MakePathUniqueAndShort(targetPath.string());
 
-    try {
-        if(move) {
-
-            if(!MoveFile(img->GetResourcePath(), finalPath)) {
-
-                LOG_ERROR("Failed to move file to collection: " + img->GetResourcePath() +
-                          " -> " + finalPath);
+    try
+    {
+        if (move)
+        {
+            if (!MoveFile(img->GetResourcePath(), finalPath))
+            {
+                LOG_ERROR("Failed to move file to collection: " + img->GetResourcePath() + " -> " + finalPath);
                 return false;
             }
-
-        } else {
-
+        }
+        else
+        {
             boost::filesystem::copy_file(img->GetResourcePath(), finalPath);
         }
-    } catch(const boost::filesystem::filesystem_error& e) {
-
-        LOG_ERROR("Failed to copy file to collection: " + img->GetResourcePath() + " -> " +
-                  finalPath);
+    }
+    catch (const boost::filesystem::filesystem_error& e)
+    {
+        LOG_ERROR("Failed to copy file to collection: " + img->GetResourcePath() + " -> " + finalPath);
         LOG_WRITE("Exception: " + std::string(e.what()));
         return false;
     }
 
-    LEVIATHAN_ASSERT(boost::filesystem::exists(finalPath),
-        "Move to collection, final path doesn't exist after copy");
+    LEVIATHAN_ASSERT(boost::filesystem::exists(finalPath), "Move to collection, final path doesn't exist after copy");
 
     // Notify image cache that the file was moved //
-    if(move) {
-
-        LOG_INFO("Moved file to collection. From: " + img->GetResourcePath() +
-                 ", Target: " + finalPath);
+    if (move)
+    {
+        LOG_INFO("Moved file to collection. From: " + img->GetResourcePath() + ", Target: " + finalPath);
 
         _CacheManager->NotifyMovedFile(img->GetResourcePath(), finalPath);
     }
@@ -1045,44 +1037,46 @@ bool DualView::MoveFileToCollectionFolder(
 bool DualView::MoveFile(const std::string& original, const std::string& targetname)
 {
     // First try renaming //
-    try {
+    try
+    {
         boost::filesystem::rename(original, targetname);
 
         // Renaming succeeded //
         return true;
-
-    } catch(const boost::filesystem::filesystem_error&) {
+    }
+    catch (const boost::filesystem::filesystem_error&)
+    {
     }
 
     // Rename failed, we need to copy the file and delete the original //
-    try {
-
+    try
+    {
         boost::filesystem::copy_file(original, targetname);
 
         // Make sure copy worked before deleting original //
-        if(boost::filesystem::file_size(original) !=
-            boost::filesystem::file_size(targetname)) {
-
+        if (boost::filesystem::file_size(original) != boost::filesystem::file_size(targetname))
+        {
             LOG_ERROR("File copy: new file is of different size");
             return false;
         }
 
         boost::filesystem::remove(original);
-
-    } catch(const boost::filesystem::filesystem_error&) {
-
+    }
+    catch (const boost::filesystem::filesystem_error&)
+    {
         // Failed //
         throw;
     }
 
     return true;
 }
+
 // ------------------------------------ //
 bool DualView::IsExtensionContent(const std::string& extension)
 {
-    for(const auto& type : SUPPORTED_EXTENSIONS) {
-
-        if(std::get<0>(type) == extension)
+    for (const auto& type : SUPPORTED_EXTENSIONS)
+    {
+        if (std::get<0>(type) == extension)
             return true;
     }
 
@@ -1095,6 +1089,7 @@ bool DualView::IsFileContent(const std::string& file)
 
     return IsExtensionContent(extension);
 }
+
 // ------------------------------------ //
 bool DualView::OpenImageViewer(const std::string& file)
 {
@@ -1106,19 +1101,17 @@ bool DualView::OpenImageViewer(const std::string& file)
     return true;
 }
 
-void DualView::OpenImageViewer(
-    std::shared_ptr<Image> image, std::shared_ptr<ImageListScroll> scroll)
+void DualView::OpenImageViewer(std::shared_ptr<Image> image, std::shared_ptr<ImageListScroll> scroll)
 {
     AssertIfNotMainThread();
 
-    auto builder = Gtk::Builder::create_from_resource(
-        "/com/boostslair/dualviewpp/resources/gui/single_view.glade");
+    auto builder = Gtk::Builder::create_from_resource("/com/boostslair/dualviewpp/resources/gui/single_view.glade");
 
     SingleView* window;
     builder->get_widget_derived("SingleView", window);
 
-    if(!window) {
-
+    if (!window)
+    {
         LOG_ERROR("SingleView window GUI layout is invalid");
         return;
     }
@@ -1134,14 +1127,14 @@ void DualView::OpenSingleCollectionView(std::shared_ptr<Collection> collection)
 {
     AssertIfNotMainThread();
 
-    auto builder = Gtk::Builder::create_from_resource(
-        "/com/boostslair/dualviewpp/resources/gui/single_collection.glade");
+    auto builder =
+        Gtk::Builder::create_from_resource("/com/boostslair/dualviewpp/resources/gui/single_collection.glade");
 
     SingleCollection* window;
     builder->get_widget_derived("SingleCollection", window);
 
-    if(!window) {
-
+    if (!window)
+    {
         LOG_ERROR("SingleCollection window GUI layout is invalid");
         return;
     }
@@ -1193,14 +1186,13 @@ void DualView::OpenImporter()
 {
     AssertIfNotMainThread();
 
-    auto builder = Gtk::Builder::create_from_resource(
-        "/com/boostslair/dualviewpp/resources/gui/importer.glade");
+    auto builder = Gtk::Builder::create_from_resource("/com/boostslair/dualviewpp/resources/gui/importer.glade");
 
     Importer* window;
     builder->get_widget_derived("FileImporter", window);
 
-    if(!window) {
-
+    if (!window)
+    {
         LOG_ERROR("Importer window GUI layout is invalid");
         return;
     }
@@ -1216,14 +1208,14 @@ void DualView::OpenMainWindow(bool present /*= true*/)
 {
     AssertIfNotMainThread();
 
-    if(MainMenu) {
-
-        if(!MainMenu->is_visible())
+    if (MainMenu)
+    {
+        if (!MainMenu->is_visible())
             Application->add_window(*MainMenu);
 
         MainMenu->show();
 
-        if(present)
+        if (present)
             MainMenu->present();
     }
 }
@@ -1232,14 +1224,13 @@ void DualView::OpenImporter(const std::vector<std::shared_ptr<Image>>& images)
 {
     AssertIfNotMainThread();
 
-    auto builder = Gtk::Builder::create_from_resource(
-        "/com/boostslair/dualviewpp/resources/gui/importer.glade");
+    auto builder = Gtk::Builder::create_from_resource("/com/boostslair/dualviewpp/resources/gui/importer.glade");
 
     Importer* window;
     builder->get_widget_derived("FileImporter", window);
 
-    if(!window) {
-
+    if (!window)
+    {
         LOG_ERROR("Importer window GUI layout is invalid");
         return;
     }
@@ -1301,37 +1292,35 @@ void DualView::RunFolderCreatorAsDialog(
 
     int result = window.run();
 
-    if(result != Gtk::RESPONSE_OK)
+    if (result != Gtk::RESPONSE_OK)
         return;
 
     std::string name;
     VirtualPath createpath;
     window.GetNewName(name, createpath);
 
-    LOG_INFO("Trying to create new folder \"" + name +
-             "\" at: " + createpath.operator std::string());
+    LOG_INFO("Trying to create new folder \"" + name + "\" at: " + createpath.operator std::string());
 
-    try {
+    try
+    {
         auto parent = GetFolderFromPath(createpath);
 
-        if(!parent)
+        if (!parent)
             throw std::runtime_error("Parent folder at path doesn't exist");
 
         auto created = _Database->InsertFolder(name, isprivate, *parent);
 
-        if(!created)
+        if (!created)
             throw std::runtime_error("Failed to create folder");
-
-    } catch(const std::exception& e) {
-
+    }
+    catch (const std::exception& e)
+    {
         auto dialog = Gtk::MessageDialog(parentwindow,
-            "Failed to create folder \"" + name +
-                "\" at: " + createpath.operator std::string(),
-            false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
-        dialog.set_secondary_text(
-            "Try again without using special characters in the "
-            "folder name. And verify that the path at which the folder is to be "
-            "created is valid. Exception message: " +
+            "Failed to create folder \"" + name + "\" at: " + createpath.operator std::string(), false,
+            Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
+        dialog.set_secondary_text("Try again without using special characters in the "
+                                  "folder name. And verify that the path at which the folder is to be "
+                                  "created is valid. Exception message: " +
             std::string(e.what()));
         dialog.run();
     }
@@ -1341,14 +1330,13 @@ void DualView::OpenImageFinder()
 {
     AssertIfNotMainThread();
 
-    auto builder = Gtk::Builder::create_from_resource(
-        "/com/boostslair/dualviewpp/resources/gui/image_finder.glade");
+    auto builder = Gtk::Builder::create_from_resource("/com/boostslair/dualviewpp/resources/gui/image_finder.glade");
 
     ImageFinder* window;
     builder->get_widget_derived("FileFinder", window);
 
-    if(!window) {
-
+    if (!window)
+    {
         LOG_ERROR("FileFinder window GUI layout is invalid");
         return;
     }
@@ -1358,14 +1346,14 @@ void DualView::OpenImageFinder()
     wrapped->show();
 }
 
-
 void DualView::OpenUndoWindow()
 {
     AssertIfNotMainThread();
 
     auto existing = _UndoWindow.lock();
 
-    if(existing) {
+    if (existing)
+    {
         existing->show();
         return;
     }
@@ -1392,7 +1380,8 @@ void DualView::OpenDuplicateFinder()
 
     auto existing = _DuplicateFinderWindow.lock();
 
-    if(existing) {
+    if (existing)
+    {
         existing->show();
         return;
     }
@@ -1406,7 +1395,7 @@ void DualView::OpenDuplicateFinder()
 
 void DualView::OpenReorder(const std::shared_ptr<Collection>& collection)
 {
-    if(!collection)
+    if (!collection)
         return;
 
     AssertIfNotMainThread();
@@ -1419,27 +1408,31 @@ void DualView::OpenReorder(const std::shared_ptr<Collection>& collection)
 void DualView::OpenCollectionRename(
     const std::shared_ptr<Collection>& collection, Gtk::Window* parentWindow /*= nullptr*/)
 {
-    if(!collection)
+    if (!collection)
         return;
 
     AssertIfNotMainThread();
 
     auto window = std::make_shared<RenameWindow>(
         collection->GetName(),
-        [this, collection](const std::string& newName) {
-            if(!collection->Rename(newName)) {
-                return std::make_tuple<bool, std::string>(
-                    false, "Collection rename failed. Check logs for SQL errors");
+        [this, collection](const std::string& newName)
+        {
+            if (!collection->Rename(newName))
+            {
+                return std::make_tuple<bool, std::string>(false, "Collection rename failed. Check logs for SQL errors");
             }
 
             return std::make_tuple<bool, std::string>(true, "");
         },
-        [this, collection](const std::string& potentialName) {
-            if(potentialName.empty()) {
+        [this, collection](const std::string& potentialName)
+        {
+            if (potentialName.empty())
+            {
                 return std::make_tuple<bool, std::string>(false, "Name can't be empty");
             }
 
-            if(_Database->CheckIsCollectionNameInUseAG(potentialName, collection->GetID())) {
+            if (_Database->CheckIsCollectionNameInUseAG(potentialName, collection->GetID()))
+            {
                 return std::make_tuple<bool, std::string>(false, "Name is already in-use");
             }
 
@@ -1447,54 +1440,56 @@ void DualView::OpenCollectionRename(
         });
 
     _AddOpenWindow(window, *window);
-    if(parentWindow)
+    if (parentWindow)
         window->set_transient_for(*parentWindow);
     window->show();
 }
 
-void DualView::OpenFolderRename(
-    const std::shared_ptr<Folder>& folder, Gtk::Window* parentWindow /*= nullptr*/)
+void DualView::OpenFolderRename(const std::shared_ptr<Folder>& folder, Gtk::Window* parentWindow /*= nullptr*/)
 {
-    if(!folder)
+    if (!folder)
         return;
 
     AssertIfNotMainThread();
 
     auto window = std::make_shared<RenameWindow>(
         folder->GetName(),
-        [this, folder](const std::string& newName) {
-            if(!folder->Rename(newName)) {
-                return std::make_tuple<bool, std::string>(
-                    false, "Folder rename failed. Check logs for errors");
+        [this, folder](const std::string& newName)
+        {
+            if (!folder->Rename(newName))
+            {
+                return std::make_tuple<bool, std::string>(false, "Folder rename failed. Check logs for errors");
             }
 
             return std::make_tuple<bool, std::string>(true, "");
         },
-        [this, folder](const std::string& potentialName) {
-            if(potentialName.empty()) {
+        [this, folder](const std::string& potentialName)
+        {
+            if (potentialName.empty())
+            {
                 return std::make_tuple<bool, std::string>(false, "Name can't be empty");
             }
 
-            const auto conflictIn = _Database->SelectFirstParentFolderWithChildFolderNamedAG(
-                *folder, potentialName);
+            const auto conflictIn = _Database->SelectFirstParentFolderWithChildFolderNamedAG(*folder, potentialName);
 
-            if(conflictIn) {
-                return std::make_tuple<bool, std::string>(false,
-                    "New name already exists in folder '" + conflictIn->GetName() + "'");
+            if (conflictIn)
+            {
+                return std::make_tuple<bool, std::string>(
+                    false, "New name already exists in folder '" + conflictIn->GetName() + "'");
             }
 
             return std::make_tuple<bool, std::string>(true, "");
         });
 
     _AddOpenWindow(window, *window);
-    if(parentWindow)
+    if (parentWindow)
         window->set_transient_for(*parentWindow);
     window->show();
 }
 
 void DualView::OpenActionEdit(const std::shared_ptr<ImageMergeAction>& action)
 {
-    if(!action)
+    if (!action)
         return;
 
     AssertIfNotMainThread();
@@ -1506,18 +1501,19 @@ void DualView::OpenActionEdit(const std::shared_ptr<ImageMergeAction>& action)
 
 void DualView::OpenDownloadItemEditor(const std::shared_ptr<NetGallery>& download)
 {
-    if(!download)
+    if (!download)
         return;
 
     AssertIfNotMainThread();
 
-    auto builder = Gtk::Builder::create_from_resource(
-        "/com/boostslair/dualviewpp/resources/gui/download_item_editor.glade");
+    auto builder =
+        Gtk::Builder::create_from_resource("/com/boostslair/dualviewpp/resources/gui/download_item_editor.glade");
 
     DownloadItemEditor* window;
     builder->get_widget_derived("DownloadItemEditor", window, download);
 
-    if(!window) {
+    if (!window)
+    {
         LOG_ERROR("DownloadItemEditor window GUI layout is invalid");
         return;
     }
@@ -1526,25 +1522,29 @@ void DualView::OpenDownloadItemEditor(const std::shared_ptr<NetGallery>& downloa
     _AddOpenWindow(wrapped, *window);
     wrapped->show();
 }
+
 // ------------------------------------ //
 void DualView::OnNewImageLinkReceived(const std::string& url, const std::string& referrer)
 {
     AssertIfNotMainThread();
 
+    // TODO: support passing cookies through this method (cookies should be deleted after the download is done)
+
     // Find a downloader that can be used
     std::shared_ptr<DownloadSetup> existing;
     bool openednew = false;
 
-    while(true) {
-        for(const auto& dlsetup : OpenDLSetups) {
-
+    while (true)
+    {
+        for (const auto& dlsetup : OpenDLSetups)
+        {
             // Check is it good for us //
             auto locked = dlsetup.lock();
 
-            if(!locked)
+            if (!locked)
                 continue;
 
-            if(!locked->IsValidTargetForImageAdd())
+            if (!locked->IsValidTargetForImageAdd())
                 continue;
 
             // Found a good one //
@@ -1552,15 +1552,15 @@ void DualView::OnNewImageLinkReceived(const std::string& url, const std::string&
             break;
         }
 
-        if(existing) {
-
+        if (existing)
+        {
             // We don't need a new window //
-            existing->AddExternallyFoundLink(url, referrer);
+            existing->AddExternallyFoundLinkRaw(url, referrer);
             return;
         }
 
-        if(openednew) {
-
+        if (openednew)
+        {
             LOG_ERROR("Failed to find a suitable DownloadSetup even after opening a new one");
             return;
         }
@@ -1578,28 +1578,33 @@ void DualView::OnNewGalleryLinkReceived(const std::string& url)
 
     auto scanner = _PluginManager->GetScannerForURL(url);
 
-    if(scanner && scanner->IsUrlNotGallery(url)) {
+    if (scanner)
+    {
+        const auto handledUrl = DownloadSetup::HandleCanonization(url, *scanner);
 
-        LOG_INFO("New gallery link is actually a content page");
-        OnNewImagePageLinkReceived(url);
-        return;
+        if (scanner->IsUrlNotGallery(handledUrl))
+        {
+            LOG_INFO("New gallery link is actually a content page");
+            OnNewImagePageLinkReceived(url);
+            return;
+        }
     }
 
     // Find a downloader that can be used
     std::shared_ptr<DownloadSetup> existing;
     bool openednew = false;
 
-    while(true) {
-
-        for(const auto& dlsetup : OpenDLSetups) {
-
+    while (true)
+    {
+        for (const auto& dlsetup : OpenDLSetups)
+        {
             // Check is it good for us //
             auto locked = dlsetup.lock();
 
-            if(!locked)
+            if (!locked)
                 continue;
 
-            if(!locked->IsValidForNewPageScan())
+            if (!locked->IsValidForNewPageScan())
                 continue;
 
             // Found a good one //
@@ -1607,15 +1612,15 @@ void DualView::OnNewGalleryLinkReceived(const std::string& url)
             break;
         }
 
-        if(existing) {
-
+        if (existing)
+        {
             // We don't need a new window //
             existing->SetNewUrlToDl(url);
             return;
         }
 
-        if(openednew) {
-
+        if (openednew)
+        {
             LOG_ERROR("Failed to find a suitable DownloadSetup even after opening a new one");
             return;
         }
@@ -1633,17 +1638,17 @@ void DualView::OnNewImagePageLinkReceived(const std::string& url)
     std::shared_ptr<DownloadSetup> existing;
     bool openednew = false;
 
-    while(true) {
-
-        for(const auto& dlsetup : OpenDLSetups) {
-
+    while (true)
+    {
+        for (const auto& dlsetup : OpenDLSetups)
+        {
             // Check is it good for us //
             auto locked = dlsetup.lock();
 
-            if(!locked)
+            if (!locked)
                 continue;
 
-            if(!locked->IsValidTargetForScanLink())
+            if (!locked->IsValidTargetForScanLink())
                 continue;
 
             // Found a good one //
@@ -1651,15 +1656,15 @@ void DualView::OnNewImagePageLinkReceived(const std::string& url)
             break;
         }
 
-        if(existing) {
-
+        if (existing)
+        {
             // We don't need a new window //
-            existing->AddExternalScanLink(url);
+            existing->AddExternalScanLinkRaw(url);
             return;
         }
 
-        if(openednew) {
-
+        if (openednew)
+        {
             LOG_ERROR("Failed to find a suitable DownloadSetup even after opening a new one");
             return;
         }
@@ -1671,21 +1676,19 @@ void DualView::OnNewImagePageLinkReceived(const std::string& url)
     }
 }
 
-std::shared_ptr<DownloadSetup> DualView::OpenDownloadSetup(
-    bool useropened /*= true*/, bool capture /*= false*/)
+std::shared_ptr<DownloadSetup> DualView::OpenDownloadSetup(bool useropened /*= true*/, bool capture /*= false*/)
 {
     LEVIATHAN_ASSERT(!(useropened && capture), "both useropened and capture may not be true");
 
     AssertIfNotMainThread();
 
-    auto builder = Gtk::Builder::create_from_resource(
-        "/com/boostslair/dualviewpp/resources/gui/download_setup.glade");
+    auto builder = Gtk::Builder::create_from_resource("/com/boostslair/dualviewpp/resources/gui/download_setup.glade");
 
     DownloadSetup* window;
     builder->get_widget_derived("DownloadSetup", window);
 
-    if(!window) {
-
+    if (!window)
+    {
         LOG_ERROR("DownloadSetup window GUI layout is invalid");
         return nullptr;
     }
@@ -1696,18 +1699,16 @@ std::shared_ptr<DownloadSetup> DualView::OpenDownloadSetup(
     _AddOpenWindow(wrapped, *window);
     OpenDLSetups.push_back(wrapped);
 
-    if(useropened)
+    if (useropened)
         wrapped->DisableAddActive();
 
     wrapped->show();
 
-    if(capture)
+    if (capture)
         wrapped->EnableAddActive();
 
     return wrapped;
 }
-
-
 
 // ------------------------------------ //
 void DualView::RegisterWindow(Gtk::Window& window)
@@ -1733,24 +1734,24 @@ void DualView::_AddOpenWindow(std::shared_ptr<BaseWindow> window, Gtk::Window& g
     OpenWindows.push_back(window);
     RegisterWindow(gtk);
 }
+
 // ------------------------------------ //
 std::string DualView::GetThumbnailFolder() const
 {
-    return (boost::filesystem::path(GetSettings().GetPrivateCollection()) /
-            boost::filesystem::path("thumbnails/"))
+    return (boost::filesystem::path(GetSettings().GetPrivateCollection()) / boost::filesystem::path("thumbnails/"))
         .c_str();
 }
+
 // ------------------------------------ //
 // Database saving functions
-bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bool move,
-    std::string collectionname, const TagCollection& addcollectiontags,
-    std::function<void(float)> progresscallback /*= nullptr*/)
+bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bool move, std::string collectionname,
+    const TagCollection& addcollectiontags, std::function<void(float)> progresscallback /*= nullptr*/)
 {
     // Make sure ready to add //
-    for(const auto& img : resources) {
-
-        if(!img->IsReady() || !img->GetIsValid()) {
-
+    for (const auto& img : resources)
+    {
+        if (!img->IsReady() || !img->GetIsValid())
+        {
             LOG_WARNING("Cannot import because at least one image isn't ready or valid");
             return false;
         }
@@ -1766,16 +1767,16 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
     auto uncategorized = GetUncategorized();
 
     // No collection specified, get Uncategorized //
-    if(collectionname.empty()) {
-
+    if (collectionname.empty())
+    {
         addtocollection = uncategorized;
         canapplytags = false;
-
-    } else {
-
+    }
+    else
+    {
         addtocollection = GetOrCreateCollection(collectionname, IsInPrivateMode);
 
-        if(!addtocollection)
+        if (!addtocollection)
             throw Leviathan::InvalidArgument("Invalid collection name");
     }
 
@@ -1788,7 +1789,7 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
 
         auto transaction = std::make_unique<DoDBTransaction>(*_Database, guard);
 
-        if(canapplytags)
+        if (canapplytags)
             addtocollection->AddTags(addcollectiontags, guard);
 
         size_t currentitem = 0;
@@ -1801,45 +1802,48 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
 
         // Save resources to database if not loaded from the database //
 
-        for(auto& resource : resources) {
-
+        for (auto& resource : resources)
+        {
             std::shared_ptr<Image> actualresource;
 
-            if(!resource->IsInDatabase()) {
-
+            if (!resource->IsInDatabase())
+            {
                 // If the image hash is in the collection then we shouldn't be here //
                 // But just in case we should check to make absolutely sure
                 auto existingimage = _Database->SelectImageByHash(guard, resource->GetHash());
 
-                if(existingimage) {
-
+                if (existingimage)
+                {
                     LOG_WARNING("Trying to import a duplicate hash image");
 
-                    if(existingimage->IsDeleted()) {
+                    if (existingimage->IsDeleted())
+                    {
                     }
 
                     // Delete original file if moving //
-                    if(move) {
-
+                    if (move)
+                    {
                         const auto path = resource->GetResourcePath();
 
-                        onSuccessFunctions.push_back([path]() {
-                            LOG_INFO("Deleting moved (duplicate) file: " + path);
+                        onSuccessFunctions.push_back(
+                            [path]()
+                            {
+                                LOG_INFO("Deleting moved (duplicate) file: " + path);
 
-                            boost::filesystem::remove(path);
-                        });
+                                boost::filesystem::remove(path);
+                            });
                     }
 
-                    if(resource->GetTags()->HasTags(guard))
+                    if (resource->GetTags()->HasTags(guard))
                         existingimage->GetTags()->Add(*resource->GetTags(), guard);
 
                     actualresource = existingimage;
-
-                } else {
-
+                }
+                else
+                {
                     // TODO: unmove if fails to add
-                    if(!MoveFileToCollectionFolder(resource, addtocollection, move)) {
-
+                    if (!MoveFileToCollectionFolder(resource, addtocollection, move))
+                    {
                         LOG_ERROR("Failed to move file to collection's folder");
                         return false;
                     }
@@ -1847,14 +1851,15 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
                     std::shared_ptr<TagCollection> tagstoapply;
 
                     // Store tags for applying //
-                    if(resource->GetTags()->HasTags(guard))
+                    if (resource->GetTags()->HasTags(guard))
                         tagstoapply = resource->GetTags();
 
-                    try {
+                    try
+                    {
                         _Database->InsertImage(guard, *resource);
-
-                    } catch(const InvalidSQL& e) {
-
+                    }
+                    catch (const InvalidSQL& e)
+                    {
                         // We have already moved the image so this is a problem
                         LOG_INFO("TODO: move file back after adding fails");
                         LOG_ERROR("Sql error adding image to collection: ");
@@ -1863,32 +1868,31 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
                     }
 
                     // Apply tags //
-                    if(tagstoapply)
+                    if (tagstoapply)
                         resource->GetTags()->Add(*tagstoapply, guard);
 
                     actualresource = resource;
                 }
-
-            } else {
-
+            }
+            else
+            {
                 actualresource = resource;
 
                 // Remove from uncategorized if not adding to that //
-                if(addtocollection != uncategorized) {
-
+                if (addtocollection != uncategorized)
+                {
                     uncategorized->RemoveImage(actualresource, guard);
                 }
             }
 
-            LEVIATHAN_ASSERT(
-                actualresource, "actualresource not set in DualView import image");
+            LEVIATHAN_ASSERT(actualresource, "actualresource not set in DualView import image");
 
             // Associate with collection //
             addtocollection->AddImage(actualresource, ++order, guard);
 
             currentitem++;
 
-            if(progresscallback)
+            if (progresscallback)
                 progresscallback(currentitem / (float)maxitems);
         }
 
@@ -1896,71 +1900,72 @@ bool DualView::AddToCollection(std::vector<std::shared_ptr<Image>> resources, bo
         // by reseting the smart pointer
         transaction.reset();
 
-        for(const auto& func : onSuccessFunctions) {
-
+        for (const auto& func : onSuccessFunctions)
+        {
             func();
         }
 
         // We no longer use the database
     }
 
-
     // These are duplicate files of already existing ones
     bool exists = false;
 
-    do {
-
+    do
+    {
         exists = false;
 
-        for(const std::string& file : filestodelete) {
-
-            if(boost::filesystem::exists(file)) {
-
+        for (const std::string& file : filestodelete)
+        {
+            if (boost::filesystem::exists(file))
+            {
                 exists = true;
 
-                try {
+                try
+                {
                     boost::filesystem::remove(file);
-                } catch(const boost::filesystem::filesystem_error&) {
+                }
+                catch (const boost::filesystem::filesystem_error&)
+                {
                 }
             }
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-    } while(exists);
+    } while (exists);
 
     return true;
 }
+
 // ------------------------------------ //
-std::shared_ptr<Collection> DualView::GetOrCreateCollection(
-    const std::string& name, bool isprivate)
+std::shared_ptr<Collection> DualView::GetOrCreateCollection(const std::string& name, bool isprivate)
 {
     auto existing = _Database->SelectCollectionByNameAG(name);
 
-    if(existing)
+    if (existing)
         return existing;
 
     return _Database->InsertCollectionAG(name, isprivate);
 }
 
-void DualView::AddCollectionToFolder(std::shared_ptr<Folder> folder,
-    std::shared_ptr<Collection> collection, bool removefromroot /*= true*/)
+void DualView::AddCollectionToFolder(
+    std::shared_ptr<Folder> folder, std::shared_ptr<Collection> collection, bool removefromroot /*= true*/)
 {
-    if(!folder || !collection)
+    if (!folder || !collection)
         return;
 
     _Database->InsertCollectionToFolderAG(*folder, *collection);
 
-    if(!folder->IsRoot() && removefromroot) {
-
+    if (!folder->IsRoot() && removefromroot)
+    {
         _Database->DeleteCollectionFromRootIfInAnotherFolder(*collection);
     }
 }
 
-void DualView::RemoveCollectionFromFolder(
-    std::shared_ptr<Collection> collection, std::shared_ptr<Folder> folder)
+void DualView::RemoveCollectionFromFolder(std::shared_ptr<Collection> collection, std::shared_ptr<Folder> folder)
 {
-    if(!folder || !collection)
+    if (!folder || !collection)
         return;
 
     GUARD_LOCK_OTHER(_Database);
@@ -1975,7 +1980,7 @@ void DualView::RemoveCollectionFromFolder(
 // Database load functions
 std::shared_ptr<Folder> DualView::GetRootFolder()
 {
-    if(RootFolder)
+    if (RootFolder)
         return RootFolder;
 
     LEVIATHAN_ASSERT(_Database, "Trying to GetRootFolder before database is opened");
@@ -1986,7 +1991,7 @@ std::shared_ptr<Folder> DualView::GetRootFolder()
 
 std::shared_ptr<Collection> DualView::GetUncategorized()
 {
-    if(UncategorizedCollection)
+    if (UncategorizedCollection)
         return UncategorizedCollection;
 
     LEVIATHAN_ASSERT(_Database, "Trying to GetUncategorized before database is opened");
@@ -1996,18 +2001,17 @@ std::shared_ptr<Collection> DualView::GetUncategorized()
 }
 
 // ------------------------------------ //
-std::vector<std::string> DualView::GetFoldersCollectionIsIn(
-    std::shared_ptr<Collection> collection)
+std::vector<std::string> DualView::GetFoldersCollectionIsIn(std::shared_ptr<Collection> collection)
 {
     std::vector<std::string> result;
 
-    if(!collection)
+    if (!collection)
         return result;
 
     const auto folderids = _Database->SelectFoldersCollectionIsIn(*collection);
 
-    for(auto id : folderids) {
-
+    for (auto id : folderids)
+    {
         result.push_back(ResolvePathToFolder(id));
     }
 
@@ -2018,47 +2022,48 @@ std::vector<std::string> DualView::GetFoldersFolderIsIn(std::shared_ptr<Folder> 
 {
     std::vector<std::string> result;
 
-    if(!folder)
+    if (!folder)
         return result;
 
     const auto folderIds = _Database->SelectFolderParents(*folder);
 
-    for(auto id : folderIds) {
+    for (auto id : folderIds)
+    {
         result.push_back(ResolvePathToFolder(id));
     }
 
     return result;
 }
+
 // ------------------------------------ //
 std::shared_ptr<Folder> DualView::GetFolderFromPath(const VirtualPath& path)
 {
     // Root folder //
-    if(path.IsRootPath())
+    if (path.IsRootPath())
         return GetRootFolder();
-
 
     // Loop through all the path components and verify that a folder exists
 
     std::shared_ptr<Folder> currentfolder;
 
-    for(auto iter = path.begin(); iter != path.end(); ++iter) {
-
+    for (auto iter = path.begin(); iter != path.end(); ++iter)
+    {
         auto part = *iter;
 
-        if(part.empty()) {
-
+        if (part.empty())
+        {
             // String ended //
             return currentfolder;
         }
 
-        if(!currentfolder && (part == "Root")) {
-
+        if (!currentfolder && (part == "Root"))
+        {
             currentfolder = GetRootFolder();
             continue;
         }
 
-        if(!currentfolder) {
-
+        if (!currentfolder)
+        {
             // Didn't begin with root //
             return nullptr;
         }
@@ -2066,8 +2071,8 @@ std::shared_ptr<Folder> DualView::GetFolderFromPath(const VirtualPath& path)
         // Find a folder with the current name inside currentfolder //
         auto nextfolder = _Database->SelectFolderByNameAndParentAG(part, *currentfolder);
 
-        if(!nextfolder) {
-
+        if (!nextfolder)
+        {
             // There's a nonexistant folder in the path
             return nullptr;
         }
@@ -2080,21 +2085,21 @@ std::shared_ptr<Folder> DualView::GetFolderFromPath(const VirtualPath& path)
 }
 
 //! Prevents ResolvePathHelperRecursive from going through infinite loops
-struct DV::ResolvePathInfinityBlocker {
-
+struct DV::ResolvePathInfinityBlocker
+{
     std::vector<DBID> EarlierFolders;
 };
 
-std::tuple<bool, VirtualPath> DualView::ResolvePathHelperRecursive(DBID currentid,
-    const VirtualPath& currentpath, const ResolvePathInfinityBlocker& earlieritems)
+std::tuple<bool, VirtualPath> DualView::ResolvePathHelperRecursive(
+    DBID currentid, const VirtualPath& currentpath, const ResolvePathInfinityBlocker& earlieritems)
 {
     auto currentfolder = _Database->SelectFolderByIDAG(currentid);
 
-    if(!currentfolder)
+    if (!currentfolder)
         return std::make_tuple(false, currentpath);
 
-    if(currentfolder->IsRoot()) {
-
+    if (currentfolder->IsRoot())
+    {
         return std::make_tuple(true, VirtualPath() / currentpath);
     }
 
@@ -2102,28 +2107,28 @@ std::tuple<bool, VirtualPath> DualView::ResolvePathHelperRecursive(DBID currenti
     infinity.EarlierFolders = earlieritems.EarlierFolders;
     infinity.EarlierFolders.push_back(currentid);
 
-    for(auto parentid : _Database->SelectFolderParents(*currentfolder)) {
-
+    for (auto parentid : _Database->SelectFolderParents(*currentfolder))
+    {
         // Skip already seen folders //
         bool found = false;
 
-        for(auto alreadychecked : infinity.EarlierFolders) {
-
-            if(alreadychecked == parentid) {
-
+        for (auto alreadychecked : infinity.EarlierFolders)
+        {
+            if (alreadychecked == parentid)
+            {
                 found = true;
                 break;
             }
         }
 
-        if(found)
+        if (found)
             continue;
 
-        const auto result = ResolvePathHelperRecursive(
-            parentid, VirtualPath(currentfolder->GetName()) / currentpath, infinity);
+        const auto result =
+            ResolvePathHelperRecursive(parentid, VirtualPath(currentfolder->GetName()) / currentpath, infinity);
 
-        if(std::get<0>(result)) {
-
+        if (std::get<0>(result))
+        {
             // Found a full path //
             return result;
         }
@@ -2139,28 +2144,29 @@ VirtualPath DualView::ResolvePathToFolder(DBID id)
 
     const auto result = ResolvePathHelperRecursive(id, VirtualPath(""), infinityblocker);
 
-    if(!std::get<0>(result)) {
-
+    if (!std::get<0>(result))
+    {
         // Failed //
         return "Recursive Path: " + static_cast<std::string>(std::get<1>(result));
     }
 
     return std::get<1>(result);
 }
+
 // ------------------------------------ //
 std::shared_ptr<AppliedTag> DualView::ParseTagWithBreakRule(const std::string& str) const
 {
     auto rule = _Database->SelectTagBreakRuleByStr(str);
 
-    if(!rule)
+    if (!rule)
         return nullptr;
 
     std::string tagname;
     std::shared_ptr<Tag> tag;
     auto modifiers = rule->DoBreak(str, tagname, tag);
 
-    if(!tag && modifiers.empty()) {
-
+    if (!tag && modifiers.empty())
+    {
         // Rule didn't match //
         return nullptr;
     }
@@ -2177,14 +2183,14 @@ std::shared_ptr<AppliedTag> DualView::ParseTagName(const std::string& str) const
 {
     auto byname = _Database->SelectTagByNameOrAlias(str);
 
-    if(byname)
+    if (byname)
         return std::make_shared<AppliedTag>(byname);
 
     // Try to get expanded form //
     const auto expanded = GetExpandedTagFromSuperAlias(str);
 
-    if(!expanded.empty()) {
-
+    if (!expanded.empty())
+    {
         // Parse the replacement tag //
         return ParseTagFromString(expanded);
     }
@@ -2192,15 +2198,15 @@ std::shared_ptr<AppliedTag> DualView::ParseTagName(const std::string& str) const
     return nullptr;
 }
 
-std::tuple<std::shared_ptr<AppliedTag>, std::string, std::shared_ptr<AppliedTag>>
-    DualView::ParseTagWithComposite(const std::string& str) const
+std::tuple<std::shared_ptr<AppliedTag>, std::string, std::shared_ptr<AppliedTag>> DualView::ParseTagWithComposite(
+    const std::string& str) const
 {
     // First split it into words //
     std::vector<std::string> words;
     Leviathan::StringOperations::CutString<std::string>(str, " ", words);
 
     // Must be 3 words or more
-    if(words.size() < 3)
+    if (words.size() < 3)
         return std::make_tuple(nullptr, "", nullptr);
 
     // Find a middle word for which the following works
@@ -2211,53 +2217,52 @@ std::tuple<std::shared_ptr<AppliedTag>, std::string, std::shared_ptr<AppliedTag>
     std::vector<std::string*> left;
     std::vector<std::string*> right;
 
-    for(size_t i = 1; i < words.size() - 1; ++i) {
-
+    for (size_t i = 1; i < words.size() - 1; ++i)
+    {
         // Build the words //
         size_t insertIndex = 0;
         left.resize(i);
 
-        for(size_t a = 0; a < i; ++a) {
-
+        for (size_t a = 0; a < i; ++a)
+        {
             left[insertIndex++] = &words[a];
         }
 
         std::shared_ptr<AppliedTag> parsedleft;
         std::shared_ptr<AppliedTag> parsedright;
 
-        try {
-
-            parsedleft = ParseTagFromString(
-                Leviathan::StringOperations::StitchTogether<std::string>(left, " "));
-
-        } catch(const Leviathan::InvalidArgument&) {
-
+        try
+        {
+            parsedleft = ParseTagFromString(Leviathan::StringOperations::StitchTogether<std::string>(left, " "));
+        }
+        catch (const Leviathan::InvalidArgument&)
+        {
             // No such tag //
             continue;
         }
 
-        if(!parsedleft)
+        if (!parsedleft)
             continue;
 
         insertIndex = 0;
         right.resize(words.size() - 1 - i);
 
-        for(size_t a = i + 1; a < words.size(); ++a) {
-
+        for (size_t a = i + 1; a < words.size(); ++a)
+        {
             right[insertIndex++] = &words[a];
         }
 
-        try {
-            parsedright = ParseTagFromString(
-                Leviathan::StringOperations::StitchTogether<std::string>(right, " "));
-
-        } catch(const Leviathan::InvalidArgument&) {
-
+        try
+        {
+            parsedright = ParseTagFromString(Leviathan::StringOperations::StitchTogether<std::string>(right, " "));
+        }
+        catch (const Leviathan::InvalidArgument&)
+        {
             // No such tag //
             continue;
         }
 
-        if(!parsedright)
+        if (!parsedright)
             continue;
 
         auto middle = words[i];
@@ -2274,22 +2279,20 @@ std::tuple<std::shared_ptr<AppliedTag>, std::string, std::shared_ptr<AppliedTag>
     return std::make_tuple(nullptr, "", nullptr);
 }
 
-
 std::shared_ptr<AppliedTag> DualView::ParseHelperCheckModifiersAndBreakRules(
-    const std::shared_ptr<AppliedTag>& maintag, const std::vector<std::string*>& words,
-    bool taglast) const
+    const std::shared_ptr<AppliedTag>& maintag, const std::vector<std::string*>& words, bool taglast) const
 {
     // All the words need to be modifiers or a break rule must accept them //
     bool success = true;
     std::vector<std::shared_ptr<TagModifier>> modifiers;
     modifiers.reserve(words.size());
 
-    for(size_t a = 0; a < words.size(); ++a) {
-
+    for (size_t a = 0; a < words.size(); ++a)
+    {
         auto mod = _Database->SelectTagModifierByNameOrAliasAG(*words[a]);
 
-        if(mod) {
-
+        if (mod)
+        {
             modifiers.push_back(mod);
             continue;
         }
@@ -2298,21 +2301,21 @@ std::shared_ptr<AppliedTag> DualView::ParseHelperCheckModifiersAndBreakRules(
         auto broken = ParseTagWithBreakRule(*words[a]);
 
         // Must have parsed a tag that has only modifiers
-        if(!broken || broken->GetTag() || broken->GetModifiers().empty()) {
-
+        if (!broken || broken->GetTag() || broken->GetModifiers().empty())
+        {
             // unknown modifier and no break rule //
             return nullptr;
         }
 
         // Modifiers from break rule //
-        for(const auto& alreadyset : broken->GetModifiers()) {
-
+        for (const auto& alreadyset : broken->GetModifiers())
+        {
             modifiers.push_back(alreadyset);
         }
     }
 
-    for(const auto& alreadyset : maintag->GetModifiers()) {
-
+    for (const auto& alreadyset : maintag->GetModifiers())
+    {
         modifiers.push_back(alreadyset);
     }
 
@@ -2326,7 +2329,7 @@ std::shared_ptr<AppliedTag> DualView::ParseTagWithOnlyModifiers(const std::strin
     Leviathan::StringOperations::CutString<std::string>(str, " ", words);
 
     // Must be more than 1 word
-    if(words.size() < 2)
+    if (words.size() < 2)
         return nullptr;
 
     // Then try to match all the stuff in front of the tag into modifiers and the
@@ -2334,25 +2337,24 @@ std::shared_ptr<AppliedTag> DualView::ParseTagWithOnlyModifiers(const std::strin
     std::vector<std::string*> back;
     std::vector<std::string*> front;
 
-    for(size_t i = 0; i < words.size(); ++i) {
-
+    for (size_t i = 0; i < words.size(); ++i)
+    {
         // Build the back string with the first excluded word being at words[i]
         size_t insertIndex = 0;
         back.resize(words.size() - 1 - i);
 
-        for(size_t a = i + 1; a < words.size(); ++a) {
-
+        for (size_t a = i + 1; a < words.size(); ++a)
+        {
             back[insertIndex++] = &words[a];
         }
 
         front.resize(i + 1);
         insertIndex = 0;
 
-        for(size_t a = 0; a <= i; ++a) {
-
+        for (size_t a = 0; a <= i; ++a)
+        {
             front[insertIndex++] = &words[a];
         }
-
 
         // Create strings //
         auto backStr = Leviathan::StringOperations::StitchTogether<std::string>(back, " ");
@@ -2360,21 +2362,20 @@ std::shared_ptr<AppliedTag> DualView::ParseTagWithOnlyModifiers(const std::strin
         // Back needs to be a tag //
         auto tag = ParseTagName(backStr);
 
-        if(!tag) {
-
+        if (!tag)
+        {
             // Maybe tag is first //
-            auto frontStr =
-                Leviathan::StringOperations::StitchTogether<std::string>(front, " ");
+            auto frontStr = Leviathan::StringOperations::StitchTogether<std::string>(front, " ");
 
             tag = ParseTagName(frontStr);
 
-            if(!tag)
+            if (!tag)
                 continue;
 
             // Try parsing it //
             auto finished = ParseHelperCheckModifiersAndBreakRules(tag, back, false);
 
-            if(finished)
+            if (finished)
                 return finished;
 
             continue;
@@ -2382,8 +2383,8 @@ std::shared_ptr<AppliedTag> DualView::ParseTagWithOnlyModifiers(const std::strin
 
         auto finished = ParseHelperCheckModifiersAndBreakRules(tag, front, false);
 
-        if(finished) {
-
+        if (finished)
+        {
             // It succeeded //
             return finished;
         }
@@ -2398,7 +2399,7 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const
     // Strip whitespace //
     Leviathan::StringOperations::RemovePreceedingTrailingSpaces(str);
 
-    if(str.empty())
+    if (str.empty())
         return nullptr;
 
     // Convert to lower //
@@ -2407,7 +2408,7 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const
     // Exact match a tag //
     auto existingtag = ParseTagName(str);
 
-    if(existingtag)
+    if (existingtag)
         return existingtag;
 
     // Wasn't exactly a single tag //
@@ -2416,31 +2417,31 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const
     // TODO: also check if converting underscores to spaces helps
     auto nowhitespace = Leviathan::StringOperations::RemoveCharacters<std::string>(str, " ");
 
-    if(nowhitespace.size() != str.size()) {
-
+    if (nowhitespace.size() != str.size())
+    {
         existingtag = ParseTagName(nowhitespace);
 
-        if(existingtag)
+        if (existingtag)
             return existingtag;
     }
 
     // Modifier before tag //
     auto modifiedtag = ParseTagWithOnlyModifiers(str);
 
-    if(modifiedtag)
+    if (modifiedtag)
         return modifiedtag;
 
     // Detect a composite //
     std::vector<std::string> words;
     Leviathan::StringOperations::CutString<std::string>(str, " ", words);
 
-    if(!words.empty()) {
-
+    if (!words.empty())
+    {
         // Try to break composite //
         auto composite = ParseTagWithComposite(str);
 
-        if(std::get<0>(composite)) {
-
+        if (std::get<0>(composite))
+        {
             return std::get<0>(composite);
         }
     }
@@ -2448,12 +2449,14 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const
     // Break rules are detected by ParseTagName
 
     // Check does removing ending 's' create an existing tag
-    if(str.back() == 's' && str.size() > 1) {
-
-        try {
+    if (str.back() == 's' && str.size() > 1)
+    {
+        try
+        {
             return ParseTagFromString(str.substr(0, str.size() - 1));
-        } catch(const Leviathan::InvalidArgument& e) {
-
+        }
+        catch (const Leviathan::InvalidArgument& e)
+        {
             // It didn't
             throw Leviathan::InvalidArgument("unknown tag '" + str + "'");
         }
@@ -2461,6 +2464,7 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const
 
     throw Leviathan::InvalidArgument("unknown tag '" + str + "'");
 }
+
 // ------------------------------------ //
 // #define GETSUGGESTIONS_DEBUG
 
@@ -2469,18 +2473,18 @@ std::shared_ptr<AppliedTag> DualView::ParseTagFromString(std::string str) const
 #define SUGG_DEBUG(x) LOG_WRITE("Suggestions " + std::string(x));
 
 #else
-#define SUGG_DEBUG(x) \
-    {}
+#define SUGG_DEBUG(x)                                                                                                  \
+    {                                                                                                                  \
+    }
 
 #endif
 
-std::vector<std::string> DualView::GetSuggestionsForTag(
-    std::string str, size_t maxcount /*= 100*/) const
+std::vector<std::string> DualView::GetSuggestionsForTag(std::string str, size_t maxcount /*= 100*/) const
 {
     // Strip whitespace //
     Leviathan::StringOperations::RemovePreceedingTrailingSpaces(str);
 
-    if(str.empty())
+    if (str.empty())
         return {};
 
     // Convert to lower //
@@ -2499,39 +2503,40 @@ std::vector<std::string> DualView::GetSuggestionsForTag(
     bool tagallowed = true;
 
     // Consume all the valid parts from the front //
-    while(!itr.IsOutOfBounds()) {
-
+    while (!itr.IsOutOfBounds())
+    {
         auto currentword = itr.GetUntilNextCharacterOrAll<std::string>(' ');
 
-        if(!currentword)
+        if (!currentword)
             continue;
 
         currentpart += currentpart.empty() ? *currentword : " " + *currentword;
 
-        if(false) {
-
-        thingwasvalidlabel:
+        if (false)
+        {
+thingwasvalidlabel:
             SUGG_DEBUG("Part was valid: " + currentpart);
             prefix += prefix.empty() ? currentpart : " " + currentpart;
             currentpart.clear();
             continue;
         }
 
-        if(tagallowed) {
+        if (tagallowed)
+        {
             auto byname = _Database->SelectTagByNameOrAlias(currentpart);
-            if(byname) {
-
+            if (byname)
+            {
                 tagallowed = false;
                 modifierallowed = false;
                 goto thingwasvalidlabel;
             }
         }
 
-        if(modifierallowed) {
-
+        if (modifierallowed)
+        {
             auto mod = _Database->SelectTagModifierByNameOrAliasAG(currentpart);
-            if(mod) {
-
+            if (mod)
+            {
                 modifierallowed = false;
                 tagallowed = true;
                 goto thingwasvalidlabel;
@@ -2540,14 +2545,14 @@ std::vector<std::string> DualView::GetSuggestionsForTag(
 
         auto rule = _Database->SelectTagBreakRuleByStr(currentpart);
 
-        if(rule) {
-
+        if (rule)
+        {
             std::string tagname;
             std::shared_ptr<Tag> tag;
             auto modifiers = rule->DoBreak(currentpart, tagname, tag);
 
-            if(tag || !modifiers.empty()) {
-
+            if (tag || !modifiers.empty())
+            {
                 // Rule matched
                 modifierallowed = false;
                 tagallowed = true;
@@ -2556,7 +2561,8 @@ std::vector<std::string> DualView::GetSuggestionsForTag(
         }
 
         auto alias = _Database->SelectTagSuperAlias(currentpart);
-        if(!alias.empty()) {
+        if (!alias.empty())
+        {
             modifierallowed = false;
             tagallowed = true;
             goto thingwasvalidlabel;
@@ -2566,7 +2572,7 @@ std::vector<std::string> DualView::GetSuggestionsForTag(
     }
 
     // Add space after prefix //
-    if(!prefix.empty())
+    if (!prefix.empty())
         prefix += " ";
 
     SUGG_DEBUG("Finished parsing and valid prefix is: " + prefix);
@@ -2574,27 +2580,28 @@ std::vector<std::string> DualView::GetSuggestionsForTag(
 
     // If there's nothing left in currentpart the tag would be successfully parsed
     // So just make sure that it is and add it to the result
-    if(currentpart.empty()) {
-
-        try {
+    if (currentpart.empty())
+    {
+        try
+        {
             auto parsed = ParseTagFromString(str);
 
-            if(parsed)
+            if (parsed)
                 result.push_back(str);
-
-        } catch(...) {
-
+        }
+        catch (...)
+        {
             // Not actually a tag
             LOG_WARNING("Get suggestions thought \"" + str +
-                        "\" would be a valid tag "
-                        "but it isn't");
+                "\" would be a valid tag "
+                "but it isn't");
         }
 
         // Also we want to get longer tags that start with the same thing //
         RetrieveTagsMatching(result, str);
-
-    } else {
-
+    }
+    else
+    {
         // This is used to block generating combine suggestions where the word from which the
         // further suggestions are generated was actually part of a multiword tag
         // TODO: find a better way to do this
@@ -2609,13 +2616,13 @@ std::vector<std::string> DualView::GetSuggestionsForTag(
 
             result.reserve(result.size() + tmpholder.size());
 
-            for(const auto& gotmatch : tmpholder) {
-
-                if(!foundExactPrefix) {
-
-                    if(gotmatch.find(currentpart) == 0) {
-                        SUGG_DEBUG("Found exact prefix: " + gotmatch +
-                                   ", currentpart: " + currentpart);
+            for (const auto& gotmatch : tmpholder)
+            {
+                if (!foundExactPrefix)
+                {
+                    if (gotmatch.find(currentpart) == 0)
+                    {
+                        SUGG_DEBUG("Found exact prefix: " + gotmatch + ", currentpart: " + currentpart);
                         foundExactPrefix = true;
                     }
                 }
@@ -2628,25 +2635,25 @@ std::vector<std::string> DualView::GetSuggestionsForTag(
         // Combines //
         const auto tail = Leviathan::StringOperations::RemoveFirstWords(currentpart, 1);
 
-        if(tail != currentpart && !foundExactPrefix) {
-
+        if (tail != currentpart && !foundExactPrefix)
+        {
             SUGG_DEBUG("Finding combine suggestions: " + tail);
 
-            const auto tailprefix =
-                prefix + currentpart.substr(0, currentpart.size() - tail.size());
+            const auto tailprefix = prefix + currentpart.substr(0, currentpart.size() - tail.size());
 
             std::vector<std::string> tmpholder =
                 GetSuggestionsForTag(tail, std::max(maxcount - result.size(), maxcount / 4));
 
             result.reserve(result.size() + tmpholder.size());
 
-            for(const auto& gotmatch : tmpholder) {
-
-                SUGG_DEBUG(
-                    "Found combine suggestion: " + gotmatch + ", prefix: " + tailprefix);
+            for (const auto& gotmatch : tmpholder)
+            {
+                SUGG_DEBUG("Found combine suggestion: " + gotmatch + ", prefix: " + tailprefix);
                 result.push_back(tailprefix + gotmatch);
             }
-        } else {
+        }
+        else
+        {
         }
     }
 
@@ -2655,18 +2662,18 @@ std::vector<std::string> DualView::GetSuggestionsForTag(
 
     result.erase(std::unique(result.begin(), result.end()), result.end());
 
-    if(result.size() > maxcount)
+    if (result.size() > maxcount)
         result.resize(maxcount);
 
     SUGG_DEBUG("Resulting suggestions: " + Convert::ToString(result.size()));
-    for(auto iter = result.begin(); iter != result.end(); ++iter)
+    for (auto iter = result.begin(); iter != result.end(); ++iter)
         SUGG_DEBUG(*iter);
 
     return result;
 }
+
 // ------------------------------------ //
-void DualView::RetrieveTagsMatching(
-    std::vector<std::string>& result, const std::string& str) const
+void DualView::RetrieveTagsMatching(std::vector<std::string>& result, const std::string& str) const
 {
     _Database->SelectTagNamesWildcard(result, str);
 
@@ -2678,7 +2685,6 @@ void DualView::RetrieveTagsMatching(
 
     _Database->SelectTagSuperAliasWildcard(result, str);
 }
-
 
 // ------------------------------------ //
 // Gtk callbacks
@@ -2695,8 +2701,8 @@ void DualView::OpenImageFile_OnClick()
     auto filter_image = Gtk::FileFilter::create();
     filter_image->set_name("Image Files");
 
-    for(const auto& type : SUPPORTED_EXTENSIONS) {
-
+    for (const auto& type : SUPPORTED_EXTENSIONS)
+    {
         filter_image->add_mime_type(std::get<1>(type));
     }
     dialog.add_filter(filter_image);
@@ -2710,21 +2716,24 @@ void DualView::OpenImageFile_OnClick()
     int result = dialog.run();
 
     // Handle the response:
-    switch(result) {
-    case(Gtk::RESPONSE_OK): {
-        std::string filename = dialog.get_filename();
+    switch (result)
+    {
+        case (Gtk::RESPONSE_OK):
+        {
+            std::string filename = dialog.get_filename();
 
-        if(filename.empty())
+            if (filename.empty())
+                return;
+
+            OpenImageViewer(filename);
             return;
-
-        OpenImageViewer(filename);
-        return;
-    }
-    case(Gtk::RESPONSE_CANCEL):
-    default: {
-        // Canceled / nothing selected //
-        return;
-    }
+        }
+        case (Gtk::RESPONSE_CANCEL):
+        default:
+        {
+            // Canceled / nothing selected //
+            return;
+        }
     }
 }
 
@@ -2749,7 +2758,7 @@ void DualView::OpenUndoWindow_OnClick()
 
     auto window = _UndoWindow.lock();
 
-    if(window)
+    if (window)
         window->present();
 }
 
@@ -2759,7 +2768,7 @@ void DualView::OpenDuplicateFinder_OnClick()
 
     auto window = _DuplicateFinderWindow.lock();
 
-    if(window)
+    if (window)
         window->present();
 }
 
@@ -2769,6 +2778,7 @@ void DualView::OpenMaintenance_OnClick()
     _MaintenanceTools->show();
     _MaintenanceTools->present();
 }
+
 // ------------------------------------ //
 std::string DualView::MakePathUniqueAndShort(const std::string& path)
 {
@@ -2781,37 +2791,37 @@ std::string DualView::MakePathUniqueAndShort(const std::string& path)
     const auto baseFolder = original.parent_path();
     const auto fileName = original.stem();
 
-    if(length > DUALVIEW_MAX_ALLOWED_PATH) {
-
+    if (length > DUALVIEW_MAX_ALLOWED_PATH)
+    {
         const std::string name = fileName.string();
 
-        for(size_t cutPoint = name.size() / 2; cutPoint > 0; --cutPoint) {
-
+        for (size_t cutPoint = name.size() / 2; cutPoint > 0; --cutPoint)
+        {
             // Cutting may result in invalid utf8 sequences
-            try {
+            try
+            {
                 const std::string newName = name.substr(0, cutPoint);
-                return MakePathUniqueAndShort(
-                    (baseFolder / (newName + extension.string())).string());
-
-            } catch(const boost::filesystem::filesystem_error& e) {
-
+                return MakePathUniqueAndShort((baseFolder / (newName + extension.string())).string());
+            }
+            catch (const boost::filesystem::filesystem_error& e)
+            {
                 LOG_WARNING(std::string("MakePathUniqueAndShort: filename cutting "
                                         "resulted in invalid string, exception: ") +
-                            e.what());
+                    e.what());
             }
         }
 
         // Failed to cut //
         LOG_FATAL("MakePathUniqueAndShort: file name cutting failed to find valid filename, "
                   "start string: " +
-                  fileName.string());
+            fileName.string());
         // We could not do a fatal here, as this should probably work
         return MakePathUniqueAndShort((baseFolder / ("a" + extension.string())).string());
     }
 
     // Then make sure it doesn't exist //
-    if(!boost::filesystem::exists(original)) {
-
+    if (!boost::filesystem::exists(original))
+    {
         return original.c_str();
     }
 
@@ -2819,12 +2829,11 @@ std::string DualView::MakePathUniqueAndShort(const std::string& path)
 
     boost::filesystem::path finaltarget;
 
-    do {
+    do
+    {
+        finaltarget = baseFolder / (fileName.string() + "_" + Convert::ToString(++number) + extension.string());
 
-        finaltarget = baseFolder / (fileName.string() + "_" + Convert::ToString(++number) +
-                                       extension.string());
-
-    } while(boost::filesystem::exists(finaltarget));
+    } while (boost::filesystem::exists(finaltarget));
 
     // Make sure it is still short enough
     return MakePathUniqueAndShort(finaltarget.string());
@@ -2835,8 +2844,7 @@ std::string DualView::CalculateBase64EncodedHash(const std::string& str)
     // Calculate sha256 hash //
     unsigned char digest[CryptoPP::SHA256::DIGESTSIZE];
 
-    CryptoPP::SHA256().CalculateDigest(
-        digest, reinterpret_cast<const unsigned char*>(str.data()), str.length());
+    CryptoPP::SHA256().CalculateDigest(digest, reinterpret_cast<const unsigned char*>(str.data()), str.length());
 
     static_assert(sizeof(digest) == CryptoPP::SHA256::DIGESTSIZE, "sizeof funkyness");
 

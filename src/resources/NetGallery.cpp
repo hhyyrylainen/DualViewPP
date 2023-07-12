@@ -1,20 +1,21 @@
 // ------------------------------------ //
 #include "NetGallery.h"
 
-#include "Database.h"
 #include "resources/InternetImage.h"
 #include "resources/Tags.h"
 
+#include "Database.h"
 #include "Exceptions.h"
 
 using namespace DV;
+
 // ------------------------------------ //
 NetGallery::NetGallery(const std::string& url, const std::string& targetgallery) :
     DatabaseResource(true), GalleryURL(url), TargetGalleryName(targetgallery)
-{}
+{
+}
 
-NetGallery::NetGallery(
-    Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id) :
+NetGallery::NetGallery(Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id) :
     DatabaseResource(id, db)
 {
     // Load properties //
@@ -45,28 +46,30 @@ NetGallery::~NetGallery()
 {
     DBResourceDestruct();
 }
+
 // ------------------------------------ //
 void NetGallery::AddFilesToDownload(
     const std::vector<std::shared_ptr<InternetImage>>& images, DatabaseLockT& databaselock)
 {
-    if(!IsInDatabase())
+    if (!IsInDatabase())
         throw Leviathan::InvalidState("NetGallery not in database");
 
-    for(const auto& image : images) {
-
-        std::string tags = "";
+    for (const auto& image : images)
+    {
+        std::string tags;
 
         auto tagsObj = image->GetTags();
 
         // Make sure it is loaded so that the HasTags call doesn't try to relock the database
         tagsObj->CheckIsLoaded(databaselock);
 
-        if(tagsObj->HasTags()) {
-
+        if (tagsObj->HasTags())
+        {
             tags = tagsObj->TagsAsString(";");
         }
 
-        NetFile file(image->GetURL(), image->GetReferrer(), image->GetName(), tags);
+        // TODO: support for cookie storing (cookies should be deleted on download success)
+        NetFile file(image->GetURL().GetURL(), image->GetURL().GetReferrer(), image->GetName(), tags);
         InDatabase->InsertNetFile(databaselock, file, *this);
     }
 }
@@ -74,7 +77,7 @@ void NetGallery::AddFilesToDownload(
 void NetGallery::ReplaceItemsWith(
     const std::vector<std::shared_ptr<InternetImage>>& images, DatabaseLockT& databaselock)
 {
-    if(!IsInDatabase())
+    if (!IsInDatabase())
         throw Leviathan::InvalidState("NetGallery not in database");
 
     DoDBSavePoint transaction(*InDatabase, databaselock, "netgallery_replace_items");
@@ -83,7 +86,8 @@ void NetGallery::ReplaceItemsWith(
     auto existing = InDatabase->SelectNetFilesFromGallery(*this);
 
     // TODO: this can't be reversed
-    for(const auto& item : existing) {
+    for (const auto& item : existing)
+    {
         // NetFile cannot be on its own so it must be deleted here
         InDatabase->DeleteNetFile(*item);
     }
@@ -91,6 +95,7 @@ void NetGallery::ReplaceItemsWith(
     AddFilesToDownload(images, databaselock);
     transaction.AllowCommit(true);
 }
+
 // ------------------------------------ //
 void NetGallery::_DoSave(Database& db)
 {
@@ -99,14 +104,14 @@ void NetGallery::_DoSave(Database& db)
 
 // ------------------------------------ //
 // NetFile
-NetFile::NetFile(const std::string& url, const std::string& referrer, const std::string& name,
-    const std::string& tagstr /*= ""*/) :
+NetFile::NetFile(
+    const std::string& url, const std::string& referrer, const std::string& name, const std::string& tagstr /*= ""*/) :
     DatabaseResource(true),
     FileURL(url), PageReferrer(referrer), PreferredName(name), TagsString(tagstr)
-{}
+{
+}
 
-NetFile::NetFile(
-    Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id) :
+NetFile::NetFile(Database& db, DatabaseLockT& dblock, PreparedStatement& statement, int64_t id) :
     DatabaseResource(id, db)
 {
     // Load properties //
@@ -125,6 +130,7 @@ NetFile::~NetFile()
 {
     DBResourceDestruct();
 }
+
 // ------------------------------------ //
 void NetFile::_DoSave(Database& db)
 {

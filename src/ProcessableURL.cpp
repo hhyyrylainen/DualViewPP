@@ -22,6 +22,8 @@ ProcessableURL& ProcessableURL::operator=(ProcessableURL&& other) noexcept
 {
     URL = std::move(other.URL);
     Canonical = std::move(other.Canonical);
+    Referrer = std::move(other.Referrer);
+    Cookies = std::move(other.Cookies);
     return *this;
 }
 

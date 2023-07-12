@@ -8,6 +8,7 @@
 #include <thread>
 #include <vector>
 
+#include "ProcessableURL.h"
 #include "ScanResult.h"
 #include "TaskListWithPriority.h"
 
@@ -27,7 +28,7 @@ class DownloadJob
     friend size_t CurlWriteCallback(char* ptr, size_t size, size_t nmemb, void* userdata);
 
 public:
-    DownloadJob(const std::string& url, const std::string& referrer);
+    DownloadJob(const ProcessableURL& url);
 
     //! \brief Called on the download thread to process this download
     virtual void DoDownload(DownloadManager& manager);
@@ -88,13 +89,12 @@ protected:
     virtual void OnFinished(bool success);
 
 protected:
-    std::string URL;
-    std::string Referrer;
+    ProcessableURL URL;
 
     //! Holds data while downloading
     std::string DownloadBytes;
 
-    //! After fetching has the content type if the server sent the type to us
+    //! Contains the content type after fetching has the content type if the server sent the type to us
     std::string DownloadedContentType;
 
     bool HasFinished = false;
@@ -114,7 +114,7 @@ public:
     //! \exception Leviathan::InvalidArgument if the URL is not supported
     //! \param initialpage True if this is the main page and tag scanning should be forced
     //! on even if the scanner for the url doesn't usually automatically find tags
-    PageScanJob(const std::string& url, bool initialpage, const std::string& referrer = "");
+    PageScanJob(const ProcessableURL& url, bool initialpage);
     virtual ~PageScanJob() = default;
 
     ScanResult& GetResult()
@@ -126,8 +126,8 @@ protected:
     void HandleContent() override;
 
 protected:
-    std::vector<std::string> Links;
-    std::vector<std::string> Content;
+    std::vector<ProcessableURL> Links;
+    std::vector<ProcessableURL> Content;
 
     bool InitialPage = false;
     ScanResult Result;
@@ -137,9 +137,9 @@ protected:
 class ImageFileDLJob : public DownloadJob
 {
 public:
-    //! \param replacelocal If true the local filename is not made unique before downloading.
+    //! \param replaceLocal If true the local filename is not made unique before downloading.
     //! if false numbers are added to the end of the name if it exists already
-    ImageFileDLJob(const std::string& url, const std::string& referrer, bool replacelocal = false);
+    ImageFileDLJob(const ProcessableURL& url, bool replaceLocal = false);
 
     [[nodiscard]] auto GetLocalFile() const
     {
@@ -174,7 +174,7 @@ protected:
 class MemoryDLJob : public DownloadJob
 {
 public:
-    MemoryDLJob(const std::string& url, const std::string& referrer);
+    explicit MemoryDLJob(const ProcessableURL& url);
 
 protected:
     void HandleContent() override;
@@ -196,10 +196,20 @@ public:
     std::shared_ptr<BaseTaskItem> QueueDownload(std::shared_ptr<DownloadJob> job, int64_t priority = -1);
 
     //! \brief Extracts a filename from an url
-    static std::string ExtractFileName(const std::string& url);
+    [[nodiscard]] static std::string ExtractFileName(const std::string& url);
+
+    [[nodiscard]] static inline std::string ExtractFileName(const ProcessableURL& url)
+    {
+        return ExtractFileName(url.GetURL());
+    }
 
     //! \brief Returns a local path for caching an URL
-    static std::string GetCachePathForURL(const std::string& url);
+    [[nodiscard]] static std::string GetCachePathForURL(const std::string& url);
+
+    [[nodiscard]] static std::string GetCachePathForURL(const ProcessableURL& url)
+    {
+        return GetCachePathForURL(url.GetURL());
+    }
 
 protected:
     //! Main function for DownloadThread

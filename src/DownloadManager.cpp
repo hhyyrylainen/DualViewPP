@@ -149,7 +149,7 @@ class RetryDownload : std::exception
 
 // ------------------------------------ //
 // DownloadJob
-DownloadJob::DownloadJob(const std::string& url, const std::string& referrer) : URL(url), Referrer(referrer)
+DownloadJob::DownloadJob(const ProcessableURL& url) : URL(url)
 {
 }
 
@@ -167,8 +167,8 @@ void DownloadJob::OnFinished(bool success)
     {
         if (!FinishCallback(*this, success))
         {
-            LOG_INFO(
-                "Retrying url download as finish callback signaled a problem with the data to request a retry: " + URL);
+            LOG_INFO("Retrying url download as finish callback signaled a problem with the data to request a retry: " +
+                URL.GetURL());
             throw RetryDownload();
         }
     }
@@ -178,8 +178,8 @@ int CurlProgressCallback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, cu
 {
     auto* obj = reinterpret_cast<DownloadJob*>(clientp);
 
-    return obj->OnDownloadProgress(dltotal != 0 ? static_cast<float>(dlnow) / dltotal : 0.f,
-        ultotal != 0 ? static_cast<float>(ulnow) / ultotal : 0.f);
+    return obj->OnDownloadProgress(dltotal != 0 ? static_cast<float>(dlnow) / static_cast<float>(dltotal) : 0.f,
+        ultotal != 0 ? static_cast<float>(ulnow) / static_cast<float>(ultotal) : 0.f);
 }
 
 bool DownloadJob::OnDownloadProgress(float dlprogress, float uploadprogress)
@@ -188,7 +188,7 @@ bool DownloadJob::OnDownloadProgress(float dlprogress, float uploadprogress)
     // Timeout //
     if (false)
     {
-        LOG_WARNING("DownloadJob: timing out: " + URL);
+        LOG_WARNING("DownloadJob: timing out: " + URL.GetURL());
         return true;
     }
 
@@ -209,13 +209,20 @@ size_t DV::CurlWriteCallback(char* ptr, size_t size, size_t nmemb, void* userdat
 
 void DownloadJob::DoDownload(DownloadManager& manager)
 {
-    LOG_INFO("DownloadJob running: " + URL);
+    if (URL.HasCanonicalURL())
+    {
+        LOG_INFO("DownloadJob running: " + URL.GetURL() + " (canonical: " + URL.GetCanonicalURL() + ")");
+    }
+    else
+    {
+        LOG_INFO("DownloadJob running: " + URL.GetURL());
+    }
 
     // Holds curl errors //
     char curlError[CURL_ERROR_SIZE];
 
-    CurlWrapper curlwrapper;
-    CURL* curl = curlwrapper.Get();
+    CurlWrapper curlWrapper;
+    CURL* curl = curlWrapper.Get();
 
     bool debug = DualView::Get().GetSettings().GetCurlDebug();
 
@@ -225,10 +232,12 @@ void DownloadJob::DoDownload(DownloadManager& manager)
         curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);
     }
 
+    auto finalURL = URL.GetURL();
+
     // Escape the url in case it has spaces or other things
     {
-        const auto urlBase = Leviathan::StringOperations::BaseHostName(URL);
-        auto path = Leviathan::StringOperations::URLPath(URL, false);
+        const auto urlBase = Leviathan::StringOperations::BaseHostName(finalURL);
+        auto path = Leviathan::StringOperations::URLPath(finalURL, false);
 
         auto questionMark = path.find_first_of('?');
         auto hashMark = path.find_first_of('#');
@@ -248,14 +257,14 @@ void DownloadJob::DoDownload(DownloadManager& manager)
 
         // Looks like we first have to unescape and then escape
         int outlength;
-        auto fullyUnEscaped = curl_easy_unescape(curl, path.c_str(), path.length(), &outlength);
+        auto fullyUnEscaped = curl_easy_unescape(curl, path.c_str(), static_cast<int>(path.length()), &outlength);
 
         path = std::string(fullyUnEscaped, outlength);
 
         curl_free(fullyUnEscaped);
         fullyUnEscaped = nullptr;
 
-        auto escaped = curl_easy_escape(curl, path.c_str(), path.size());
+        auto escaped = curl_easy_escape(curl, path.c_str(), static_cast<int>(path.length()));
 
         if (!escaped)
         {
@@ -268,18 +277,23 @@ void DownloadJob::DoDownload(DownloadManager& manager)
         const auto partiallyEscaped =
             Leviathan::StringOperations::Replace<std::string>(std::string(escaped), "%2F", "/");
 
-        URL = Leviathan::StringOperations::CombineURL(urlBase, partiallyEscaped);
-        URL += queryPart;
+        finalURL = Leviathan::StringOperations::CombineURL(urlBase, partiallyEscaped);
+        finalURL += queryPart;
 
         curl_free(escaped);
     }
 
-    LOG_INFO("DownloadJob: Escaped download url is: " + URL);
-    curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
+    LOG_INFO("DownloadJob: Escaped download url is: " + finalURL);
+    curl_easy_setopt(curl, CURLOPT_URL, finalURL.c_str());
 
-    if (!Referrer.empty())
+    if (URL.HasReferrer())
     {
-        curl_easy_setopt(curl, CURLOPT_REFERER, Referrer.c_str());
+        curl_easy_setopt(curl, CURLOPT_REFERER, URL.GetReferrer().c_str());
+    }
+
+    if (URL.HasCookies())
+    {
+        curl_easy_setopt(curl, CURLOPT_COOKIE, URL.GetCookies().c_str());
     }
 
     // Mozilla useragent
@@ -328,16 +342,16 @@ void DownloadJob::DoDownload(DownloadManager& manager)
             // Download finished successfully
 
             // Check HTTP result code
-            long httpcode = 0;
+            long httpCode = 0;
 
-            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpcode);
+            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
 
-            if (httpcode != 200)
+            if (httpCode != 200)
             {
-                LOG_ERROR("received HTTP error code: " + Convert::ToString(httpcode) + " from url " + URL);
+                LOG_ERROR("received HTTP error code: " + Convert::ToString(httpCode) + " from url " + finalURL);
                 LOG_WRITE("Response data: " + DownloadBytes);
 
-                if (httpcode == 429)
+                if (httpCode == 429)
                 {
                     int sleepTime = 2 + (i * 5);
 
@@ -347,7 +361,7 @@ void DownloadJob::DoDownload(DownloadManager& manager)
                 }
 
 dlRetryLabel:
-                LOG_INFO("Retrying url download: " + URL);
+                LOG_INFO("Retrying url download: " + finalURL);
                 Retry();
                 std::this_thread::sleep_for(std::chrono::milliseconds(350 * static_cast<int>(std::pow(2, i + 1))));
                 continue;
@@ -383,16 +397,15 @@ dlRetryLabel:
         return;
     }
 
-    LOG_ERROR("URL download ran out of retries: " + URL);
+    LOG_ERROR("URL download ran out of retries: " + finalURL);
     HandleError();
 }
 
 // ------------------------------------ //
 // PageScanJob
-PageScanJob::PageScanJob(const std::string& url, bool initialpage, const std::string& referrer /*= ""*/) :
-    DownloadJob(url, referrer), InitialPage(initialpage)
+PageScanJob::PageScanJob(const ProcessableURL& url, bool initialpage) : DownloadJob(url), InitialPage(initialpage)
 {
-    auto scanner = DualView::Get().GetPluginManager().GetScannerForURL(url);
+    auto scanner = DualView::Get().GetPluginManager().GetScannerForURL(url.GetURL());
 
     if (!scanner)
         throw Leviathan::InvalidArgument("Unsupported website for url");
@@ -400,11 +413,11 @@ PageScanJob::PageScanJob(const std::string& url, bool initialpage, const std::st
 
 void PageScanJob::HandleContent()
 {
-    auto scanner = DualView::Get().GetPluginManager().GetScannerForURL(URL);
+    auto scanner = DualView::Get().GetPluginManager().GetScannerForURL(URL.GetURL());
 
     if (!scanner)
     {
-        LOG_ERROR("PageScanJob: scanner is not found anymore with url: " + URL);
+        LOG_ERROR("PageScanJob: scanner is not found anymore with url: " + URL.GetURL());
         HandleError();
         return;
     }
@@ -428,8 +441,8 @@ void PageScanJob::HandleContent()
 
 // ------------------------------------ //
 // ImageFileDLJob
-ImageFileDLJob::ImageFileDLJob(const std::string& url, const std::string& referrer, bool replacelocal /*= false*/) :
-    DownloadJob(url, referrer), ReplaceLocal(replacelocal)
+ImageFileDLJob::ImageFileDLJob(const ProcessableURL& url, bool replaceLocal /*= false*/) :
+    DownloadJob(url), ReplaceLocal(replaceLocal)
 {
 }
 
@@ -441,14 +454,14 @@ void ImageFileDLJob::HandleContent()
     if (ReplaceLocal)
     {
         LocalFile = (boost::filesystem::path(DualView::Get().GetSettings().GetStagingFolder()) /
-            DownloadManager::ExtractFileName(URL))
+            DownloadManager::ExtractFileName(URL.GetURL()))
                         .string();
     }
     else
     {
         LocalFile = DualView::MakePathUniqueAndShort(
             (boost::filesystem::path(DualView::Get().GetSettings().GetStagingFolder()) /
-                DownloadManager::ExtractFileName(URL))
+                DownloadManager::ExtractFileName(URL.GetURL()))
                 .string());
     }
 
@@ -461,7 +474,7 @@ void ImageFileDLJob::HandleContent()
 
 // ------------------------------------ //
 // LocallyCachedDLJob
-LocallyCachedDLJob::LocallyCachedDLJob(const std::string& file) : DownloadJob(file, "")
+LocallyCachedDLJob::LocallyCachedDLJob(const std::string& file) : DownloadJob(ProcessableURL(file, true))
 {
     if (!boost::filesystem::exists(file))
     {
@@ -471,7 +484,7 @@ LocallyCachedDLJob::LocallyCachedDLJob(const std::string& file) : DownloadJob(fi
 
 void LocallyCachedDLJob::DoDownload(DownloadManager& manager)
 {
-    Leviathan::FileSystem::ReadFileEntirely(URL, DownloadBytes);
+    Leviathan::FileSystem::ReadFileEntirely(URL.GetURL(), DownloadBytes);
 
     OnFinished(true);
 }
@@ -483,7 +496,7 @@ void LocallyCachedDLJob::HandleContent()
 
 // ------------------------------------ //
 // MemoryDLJob
-MemoryDLJob::MemoryDLJob(const std::string& url, const std::string& referrer) : DownloadJob(url, referrer)
+MemoryDLJob::MemoryDLJob(const ProcessableURL& url) : DownloadJob(url)
 {
 }
 

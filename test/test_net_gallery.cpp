@@ -1,11 +1,10 @@
 #include "catch.hpp"
 
-
-#include "TestDualView.h"
-
-#include "TestDatabase.h"
 #include "resources/InternetImage.h"
 #include "resources/NetGallery.h"
+
+#include "TestDatabase.h"
+#include "TestDualView.h"
 
 using namespace DV;
 
@@ -31,8 +30,8 @@ TEST_CASE("NetGallery file insert works", "[db]")
     CHECK(db.SelectNetFilesFromGallery(*gallery).empty());
 
     const std::vector<std::shared_ptr<InternetImage>> items = {
-        InternetImage::Create(ScanFoundImage(EXAMPLE_URL_1, EXAMPLE_REFERRER), false),
-        InternetImage::Create(ScanFoundImage(EXAMPLE_URL_2, EXAMPLE_REFERRER), false)};
+        InternetImage::Create(ScanFoundImage(ProcessableURL(EXAMPLE_URL_1, std::string(), EXAMPLE_REFERRER)), false),
+        InternetImage::Create(ScanFoundImage(ProcessableURL(EXAMPLE_URL_2, std::string(), EXAMPLE_REFERRER)), false)};
 
     gallery->AddFilesToDownload(items, guard);
 
@@ -43,10 +42,10 @@ TEST_CASE("NetGallery file insert works", "[db]")
     CHECK(retrieved[1]->GetPageReferrer() == EXAMPLE_REFERRER);
 
     CHECK(std::count_if(retrieved.begin(), retrieved.end(),
-              [](const auto& i) { return i->GetFileURL() == EXAMPLE_URL_1; }) == 1);
+              [](const auto& i) { return i->GetFileURL().GetURL() == EXAMPLE_URL_1; }) == 1);
 
     CHECK(std::count_if(retrieved.begin(), retrieved.end(),
-              [](const auto& i) { return i->GetFileURL() == EXAMPLE_URL_2; }) == 1);
+              [](const auto& i) { return i->GetFileURL().GetURL() == EXAMPLE_URL_2; }) == 1);
 }
 
 TEST_CASE("NetGallery file replace works", "[db]")
@@ -65,16 +64,16 @@ TEST_CASE("NetGallery file replace works", "[db]")
     CHECK(db.SelectNetFilesFromGallery(*gallery).empty());
 
     const std::vector<std::shared_ptr<InternetImage>> oldItems = {
-        InternetImage::Create(ScanFoundImage(EXAMPLE_URL_1, EXAMPLE_REFERRER), false),
-        InternetImage::Create(ScanFoundImage(EXAMPLE_URL_2, EXAMPLE_REFERRER), false)};
+        InternetImage::Create(ScanFoundImage(ProcessableURL(EXAMPLE_URL_1, std::string(), EXAMPLE_REFERRER)), false),
+        InternetImage::Create(ScanFoundImage(ProcessableURL(EXAMPLE_URL_2, std::string(), EXAMPLE_REFERRER)), false)};
 
     gallery->AddFilesToDownload(oldItems, guard);
 
     CHECK(db.SelectNetFilesFromGallery(*gallery).size() == oldItems.size());
 
     const std::vector<std::shared_ptr<InternetImage>> newItems = {
-        InternetImage::Create(ScanFoundImage(EXAMPLE_URL_3, EXAMPLE_REFERRER), false),
-        InternetImage::Create(ScanFoundImage(EXAMPLE_URL_4, EXAMPLE_REFERRER), false)};
+        InternetImage::Create(ScanFoundImage(ProcessableURL(EXAMPLE_URL_3, std::string(), EXAMPLE_REFERRER)), false),
+        InternetImage::Create(ScanFoundImage(ProcessableURL(EXAMPLE_URL_4, std::string(), EXAMPLE_REFERRER)), false)};
 
     gallery->ReplaceItemsWith(newItems, guard);
 
@@ -85,11 +84,11 @@ TEST_CASE("NetGallery file replace works", "[db]")
     CHECK(retrieved[1]->GetPageReferrer() == EXAMPLE_REFERRER);
 
     CHECK(std::count_if(retrieved.begin(), retrieved.end(),
-              [](const auto& i) { return i->GetFileURL() == EXAMPLE_URL_1; }) == 0);
+              [](const auto& i) { return i->GetFileURL().GetURL() == EXAMPLE_URL_1; }) == 0);
 
     CHECK(std::count_if(retrieved.begin(), retrieved.end(),
-              [](const auto& i) { return i->GetFileURL() == EXAMPLE_URL_3; }) == 1);
+              [](const auto& i) { return i->GetFileURL().GetURL() == EXAMPLE_URL_3; }) == 1);
 
     CHECK(std::count_if(retrieved.begin(), retrieved.end(),
-              [](const auto& i) { return i->GetFileURL() == EXAMPLE_URL_4; }) == 1);
+              [](const auto& i) { return i->GetFileURL().GetURL() == EXAMPLE_URL_4; }) == 1);
 }

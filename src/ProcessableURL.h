@@ -18,6 +18,11 @@ public:
     ProcessableURL(const std::string_view& url, const std::string_view& canonicalUrl) :
         URL(url), Canonical(canonicalUrl){};
 
+    //! \brief Overrides referrer in original URL
+    ProcessableURL(const ProcessableURL& originalUrl, std::string newReferrer) :
+        URL(originalUrl.URL), Canonical(originalUrl.Canonical), Referrer(std::move(newReferrer)),
+        Cookies(originalUrl.Cookies){};
+
     ProcessableURL(
         const std::string_view& url, const std::string_view& canonicalUrl, const std::string_view& referrer) :
         URL(url),
@@ -30,7 +35,9 @@ public:
 
     ProcessableURL(const ProcessableURL& other) = default;
 
-    ProcessableURL(ProcessableURL&& other) noexcept : URL(std::move(other.URL)), Canonical(std::move(other.Canonical))
+    ProcessableURL(ProcessableURL&& other) noexcept :
+        URL(std::move(other.URL)), Canonical(std::move(other.Canonical)), Referrer(std::move(other.Referrer)),
+        Cookies(std::move(other.Cookies))
     {
     }
 
@@ -71,6 +78,11 @@ public:
         return Canonical;
     }
 
+    [[nodiscard]] bool HasCanonicalURL() const noexcept
+    {
+        return !Canonical.empty() && Canonical != URL;
+    }
+
     [[nodiscard]] bool HasReferrer() const noexcept
     {
         return !Referrer.empty();
@@ -91,10 +103,32 @@ public:
         Referrer = referrer;
     }
 
+    [[nodiscard]] bool HasCookies() const noexcept
+    {
+        return !Cookies.empty();
+    }
+
+    [[nodiscard]] const std::string& GetCookies() const noexcept
+    {
+        return Cookies;
+    }
+
+    void SetCookies(std::string cookies) noexcept
+    {
+        Cookies = std::move(cookies);
+    }
+
+    void SetCookies(const std::string_view& cookies) noexcept
+    {
+        Cookies = cookies;
+    }
+
 private:
     std::string URL;
     std::string Canonical;
     std::string Referrer;
+
+    std::string Cookies;
 };
 } // namespace DV
 

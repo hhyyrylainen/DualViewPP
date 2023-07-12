@@ -8,20 +8,13 @@ namespace DV
 {
 // ------------------------------------ //
 // ScanFoundImage
-ScanFoundImage::ScanFoundImage(std::string url, std::string referrer, bool stripOptions) :
-    URL(std::move(url)), Referrer(std::move(referrer)), StripOptionsOnCompare(stripOptions)
+ScanFoundImage::ScanFoundImage(ProcessableURL url) : URL(std::move(url))
 {
 }
 
 bool ScanFoundImage::operator==(const ScanFoundImage& other) const
 {
-    if (Leviathan::StringOperations::BaseHostName(URL) != Leviathan::StringOperations::BaseHostName(other.URL))
-    {
-        return false;
-    }
-
-    return Leviathan::StringOperations::URLPath(URL, StripOptionsOnCompare) ==
-        Leviathan::StringOperations::URLPath(other.URL, other.StripOptionsOnCompare);
+    return URL == other.URL;
 }
 
 // ------------------------------------ //
@@ -40,7 +33,7 @@ ResultCombine ScanResult::AddContentLink(const ScanFoundImage& link)
     return ResultCombine::NewResults | ResultCombine::NewContent;
 }
 
-ResultCombine ScanResult::AddSubpage(const std::string& url)
+ResultCombine ScanResult::AddSubpage(const ProcessableURL& url)
 {
     for (auto& existingLink : PageLinks)
     {
@@ -92,7 +85,13 @@ void ScanResult::PrintInfo() const
 
     if (ContentLinks.size() == 1)
     {
-        LOG_INFO("ScanResult: found content: " + ContentLinks.begin()->URL);
+        const auto& url = ContentLinks.begin()->URL;
+        LOG_INFO("ScanResult: found content: " + url.GetURL());
+
+        if (url.HasCanonicalURL())
+        {
+            LOG_INFO("ScanResult: canonical URL is: " + url.GetCanonicalURL());
+        }
     }
 }
 } // namespace DV

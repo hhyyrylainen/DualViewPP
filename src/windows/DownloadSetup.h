@@ -24,6 +24,7 @@ class SuperContainer;
 
 class DownloadSetup;
 class PageScanJob;
+class IWebsiteScanner;
 
 class ListItem;
 class InternetImage;
@@ -74,7 +75,7 @@ public:
 
     //! \brief Adds a page to scan when looking for images
     //! \param suppressupdate If true the list of links is not updated
-    void AddSubpage(const std::string& url, bool suppressupdate = false);
+    void AddSubpage(const ProcessableURL& url, bool suppressupdate = false);
 
     //! \brief Starts page scanning if not currently running
     void StartPageScanning();
@@ -94,7 +95,9 @@ public:
     bool IsValidTargetForScanLink() const;
 
     //! \brief Adds an external link to this window
-    void AddExternallyFoundLink(const std::string& url, const std::string& referrer);
+    void AddExternallyFoundLink(const ProcessableURL& url);
+
+    void AddExternallyFoundLinkRaw(const std::string& url, const std::string& referrer);
 
     //! Disables this from being the active add target
     void DisableAddActive();
@@ -107,7 +110,8 @@ public:
     //! \brief Sets the url
     void SetNewUrlToDl(const std::string& url);
 
-    void AddExternalScanLink(const std::string& url);
+    void AddExternalScanLink(const ProcessableURL& url);
+    void AddExternalScanLinkRaw(const std::string& url);
 
     void SetTargetCollectionName(const std::string& str);
 
@@ -129,11 +133,14 @@ public:
     //! \brief Removes currently selected images
     void RemoveSelectedImages();
 
+    [[nodiscard]] static ProcessableURL HandleCanonization(const std::string& url, IWebsiteScanner& scanner);
+    [[nodiscard]] static std::shared_ptr<IWebsiteScanner> GetPluginForURL(const std::string& url);
+
 protected:
     void _OnClose() override;
 
     //! \brief Called after the url check has finished
-    void UrlCheckFinished(bool wasvalid, const std::string& message);
+    void UrlCheckFinished(bool wasValid, const std::string& message);
 
     //! \brief Updates State and runs the update widget states on the main thread
     void _SetState(STATE newstate);
@@ -167,7 +174,8 @@ protected:
     //! Updates the links in the found links tab
     void _UpdateFoundLinks();
 
-    void AddFoundTagsToImage(const std::shared_ptr<TagCollection>& tagDestination, const std::vector<std::string> &rawTags);
+    void AddFoundTagsToImage(
+        const std::shared_ptr<TagCollection>& tagDestination, const std::vector<std::string>& rawTags);
 
     void _CopyToClipboard();
     //! \todo This has problems with special characters as they get URL encoded even when they
@@ -186,7 +194,7 @@ private:
     std::atomic<STATE> State = {STATE::URL_CHANGED};
 
     //! Found list of pages
-    std::vector<std::string> PagesToScan;
+    std::vector<ProcessableURL> PagesToScan;
 
     //! Found list of images
     std::vector<ScanFoundImage> ImagesToDownload;
