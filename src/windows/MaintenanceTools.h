@@ -41,6 +41,8 @@ private:
     void _ClearResultsPressed();
     void _CancelPressed();
 
+    void DeleteImportedStagingFolderItemsClicked();
+
     void _UpdateState();
     void _OnTaskFinished();
 
@@ -61,6 +63,7 @@ private:
     Gtk::Button* DeleteAllThumbnails;
     Gtk::Button* FixOrphanedResources;
     Gtk::Button* FixOrphanedImages;
+    Gtk::Button* DeleteImportedStagingFolderItems;
 
     Gtk::Box* MaintenanceResults;
     std::vector<std::shared_ptr<Gtk::Widget>> MaintenanceResultWidgets;

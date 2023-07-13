@@ -1,28 +1,37 @@
 #pragma once
 
-#include "BaseWindow.h"
-#include "IsAlive.h"
-
-#include "components/PrimaryMenu.h"
-
-#include <gtkmm.h>
-
 #include <atomic>
 #include <thread>
 
-namespace DV {
+#include <gtkmm.h>
 
+#include "components/PrimaryMenu.h"
+
+#include "BaseWindow.h"
+#include "IsAlive.h"
+
+namespace DV
+{
 //! \brief Tool for deleting images from a path that are already imported, helper to quickly
 //! check if a lot of images are already imported or not
-class AlreadyImportedImageDeleter : public Gtk::Window, public IsAlive {
+class AlreadyImportedImageDeleter : public Gtk::Window,
+                                    public IsAlive
+{
 public:
     AlreadyImportedImageDeleter(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder);
-    ~AlreadyImportedImageDeleter();
+    ~AlreadyImportedImageDeleter() override;
 
     void OnStartStopPressed();
 
     void Stop(bool wait);
     void Start();
+
+    void SetSelectedFolder(const std::string& path);
+
+    [[nodiscard]] bool IsRunning() const noexcept
+    {
+        return !StopProcessing;
+    }
 
 private:
     bool _OnClose(GdkEventAny* event);

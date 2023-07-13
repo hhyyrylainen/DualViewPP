@@ -116,7 +116,7 @@ public:
     void OpenUndoWindow();
 
     //! \brief Opens the delete already imported images window
-    void OpenAlreadyImportedDeleteWindow();
+    void OpenAlreadyImportedDeleteWindow(const std::string& initialPath = {});
 
     //! \brief Opens the window for finding duplicate images
     void OpenDuplicateFinder();

@@ -1365,13 +1365,26 @@ void DualView::OpenUndoWindow()
     _UndoWindow = window;
 }
 
-void DualView::OpenAlreadyImportedDeleteWindow()
+void DualView::OpenAlreadyImportedDeleteWindow(const std::string& initialPath)
 {
     AssertIfNotMainThread();
 
     Application->add_window(*_AlreadyImportedImageDeleter);
     _AlreadyImportedImageDeleter->show();
     _AlreadyImportedImageDeleter->present();
+
+    if (_AlreadyImportedImageDeleter->IsRunning())
+    {
+        LOG_INFO("Already imported deleter is in use already");
+        return;
+    }
+
+    if (!initialPath.empty() && boost::filesystem::exists(initialPath))
+    {
+        LOG_INFO("Automatically starting already imported delete with path: " + initialPath);
+        _AlreadyImportedImageDeleter->SetSelectedFolder(initialPath);
+        _AlreadyImportedImageDeleter->Start();
+    }
 }
 
 void DualView::OpenDuplicateFinder()

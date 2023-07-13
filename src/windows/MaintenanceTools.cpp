@@ -6,6 +6,9 @@
 
 #include <boost/filesystem.hpp>
 
+#include "Common.h"
+#include "DualView.h"
+
 #include "Common/StringOperations.h"
 #include "resources/Collection.h"
 #include "resources/Folder.h"
@@ -13,10 +16,9 @@
 #include "resources/ImagePath.h"
 #include "resources/NetGallery.h"
 
-#include "Common.h"
 #include "Database.h"
-#include "DualView.h"
 #include "Exceptions.h"
+#include "Settings.h"
 
 constexpr auto IMAGE_CHECK_REPORT_PROGRESS_EVERY_N = 200;
 constexpr auto MAX_MAINTENANCE_RESULTS = 10000;
@@ -224,6 +226,10 @@ MaintenanceTools::MaintenanceTools(_GtkWindow* window, Glib::RefPtr<Gtk::Builder
     BUILDER_GET_WIDGET(FixOrphanedImages);
     FixOrphanedImages->signal_clicked().connect(sigc::mem_fun(*this, &MaintenanceTools::StartFixOrphanedResources));
 
+    BUILDER_GET_WIDGET(DeleteImportedStagingFolderItems);
+    DeleteImportedStagingFolderItems->signal_clicked().connect(
+        sigc::mem_fun(*this, &MaintenanceTools::DeleteImportedStagingFolderItemsClicked));
+
     BUILDER_GET_WIDGET(MaintenanceResults);
     BUILDER_GET_WIDGET(MaintenanceClearResults);
     MaintenanceClearResults->signal_clicked().connect(sigc::mem_fun(*this, &MaintenanceTools::_ClearResultsPressed));
@@ -415,6 +421,12 @@ void MaintenanceTools::_CancelPressed()
 }
 
 // ------------------------------------ //
+void MaintenanceTools::DeleteImportedStagingFolderItemsClicked()
+{
+    DualView::Get().OpenAlreadyImportedDeleteWindow(DualView::Get().GetSettings().GetStagingFolder());
+}
+
+// ------------------------------------ //
 void MaintenanceTools::_UpdateState()
 {
     MaintenanceSpinner->property_active() = RunTaskThread;
@@ -427,6 +439,7 @@ void MaintenanceTools::_UpdateState()
         DeleteAllThumbnails->set_sensitive(false);
         FixOrphanedResources->set_sensitive(false);
         FixOrphanedImages->set_sensitive(false);
+        DeleteImportedStagingFolderItems->set_sensitive(false);
     }
     else
     {
@@ -435,6 +448,7 @@ void MaintenanceTools::_UpdateState()
         DeleteAllThumbnails->set_sensitive(true);
         FixOrphanedResources->set_sensitive(true);
         FixOrphanedImages->set_sensitive(true);
+        DeleteImportedStagingFolderItems->set_sensitive(true);
 
         if (HasRunSomething)
         {
