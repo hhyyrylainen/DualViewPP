@@ -3,11 +3,12 @@
 
 #include <boost/filesystem.hpp>
 
+#include "Common.h"
+#include "DualView.h"
+
 #include "Common/StringOperations.h"
 
-#include "Common.h"
 #include "CurlWrapper.h"
-#include "DualView.h"
 #include "FileSystem.h"
 #include "PluginManager.h"
 #include "Settings.h"

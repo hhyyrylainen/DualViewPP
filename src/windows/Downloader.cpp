@@ -4,6 +4,9 @@
 #include <boost/filesystem.hpp>
 #include <Magick++.h>
 
+#include "Common.h"
+#include "DualView.h"
+
 #include "Common/StringOperations.h"
 #include "components/DLListItem.h"
 #include "resources/Collection.h"
@@ -12,17 +15,15 @@
 #include "resources/Tags.h"
 
 #include "ChangeEvents.h"
-#include "Common.h"
 #include "Database.h"
 #include "DownloadManager.h"
-#include "DualView.h"
 #include "Settings.h"
 
 using namespace DV;
 
 // ------------------------------------ //
 Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
-    Gtk::Window(window), EmptyStagingFolder("Empty Staging Folder")
+    Gtk::Window(window), EmptyStagingFolder("Empty Staging Folder"), ViewStagingFolderButton()
 {
     signal_delete_event().connect(sigc::mem_fun(*this, &Downloader::_OnClose));
 
@@ -31,8 +32,13 @@ Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
 
     // Primary menu buttons
     EmptyStagingFolder.property_relief() = Gtk::RELIEF_NONE;
-    EmptyStagingFolder.property_sensitive() = false;
+    EmptyStagingFolder.property_sensitive() = true;
+    EmptyStagingFolder.signal_clicked().connect(sigc::mem_fun(*this, &Downloader::OnStartCleanStagingFolder));
     MenuPopover.Container.pack_start(EmptyStagingFolder);
+
+    ViewStagingFolderButton.set_uri("file://" + DualView::Get().GetSettings().GetStagingFolder());
+    ViewStagingFolderButton.set_label("Staging Folder");
+    MenuPopover.Container.pack_start(ViewStagingFolderButton);
 
     // Get and apply primary menu options
     BUILDER_GET_PRIMARY_MENU_NAMED("MenuButtonDownloader", Menu, MenuPopover);
@@ -256,6 +262,16 @@ void Downloader::_SelectAll()
     {
         item->SetSelected();
     }
+}
+
+// ------------------------------------ //
+void Downloader::OnStartCleanStagingFolder()
+{
+    DualView::Get().OpenAlreadyImportedDeleteWindow(DualView::Get().GetSettings().GetStagingFolder());
+}
+
+void Downloader::OnOpenStagingFolder()
+{
 }
 
 // ------------------------------------ //

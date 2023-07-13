@@ -72,12 +72,17 @@ protected:
 
     void _SelectAll();
 
+    void OnStartCleanStagingFolder();
+
+    void OnOpenStagingFolder();
+
 protected:
     Gtk::MenuButton* Menu;
 
     // Primary menu
     PrimaryMenu MenuPopover;
     Gtk::Button EmptyStagingFolder;
+    Gtk::LinkButton ViewStagingFolderButton;
 
     Gtk::Box* DLWidgets;
 
