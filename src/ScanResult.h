@@ -157,7 +157,7 @@ public:
         if (ContentLinks.size() == 1)
         {
             const auto& url = ContentLinks.begin()->URL;
-            LOG_INFO("ScanResult: found content: " + url.GetURL());
+            LOG_INFO("ScanResult: found single content: " + url.GetURL());
 
             if (url.HasCanonicalURL())
             {

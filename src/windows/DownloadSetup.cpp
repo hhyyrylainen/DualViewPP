@@ -1,6 +1,11 @@
 // ------------------------------------ //
 #include "DownloadSetup.h"
 
+#include <boost/filesystem/path.hpp>
+
+#include "Common.h"
+#include "DualView.h"
+
 #include "Common/StringOperations.h"
 #include "components/FolderSelector.h"
 #include "components/SuperContainer.h"
@@ -11,11 +16,11 @@
 #include "resources/NetGallery.h"
 #include "resources/Tags.h"
 
-#include "Common.h"
 #include "Database.h"
 #include "DownloadManager.h"
-#include "DualView.h"
+#include "FileSystem.h"
 #include "PluginManager.h"
+#include "Settings.h"
 
 using namespace DV;
 
@@ -136,6 +141,16 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     // Need to override the default handler otherwise this isn't called
     ShowFullControls->signal_state_set().connect(sigc::mem_fun(*this, &DownloadSetup::_FullViewToggled), false);
 
+    // Extra settings
+    BUILDER_GET_WIDGET(StoreScannedPages);
+    StoreScannedPages->signal_toggled().connect(sigc::mem_fun(*this, &DownloadSetup::OnScannedPagesStoreChanged));
+
+    BUILDER_GET_WIDGET(DumpScannedToDisk);
+    DumpScannedToDisk->signal_clicked().connect(sigc::mem_fun(*this, &DownloadSetup::WriteScannedPagesToDisk));
+
+    BUILDER_GET_WIDGET(ExtraSettingsStatusText);
+
+    // Found links tab
     BUILDER_GET_WIDGET(FoundLinksBox);
     BUILDER_GET_WIDGET(CopyToClipboard);
     CopyToClipboard->signal_clicked().connect(sigc::mem_fun(*this, &DownloadSetup::_CopyToClipboard));
@@ -143,7 +158,7 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     BUILDER_GET_WIDGET(LoadFromClipboard);
     LoadFromClipboard->signal_clicked().connect(sigc::mem_fun(*this, &DownloadSetup::_LoadFromClipboard));
 
-    // Set all the editor controls read only
+    // Set all the editor controls read only (apply the initial state)
     _UpdateWidgetStates();
 
     // Capture add target if none is set //
@@ -1062,6 +1077,8 @@ bool DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
 
         setup->PageScanProgress->set_value(1.0);
         setup->_SetState(DownloadSetup::STATE::URL_OK);
+
+        setup->UpdateCanWritePagesStatus();
     };
 
     if (data->PagesToScan.size() <= data->CurrentPageToScan)
@@ -1105,6 +1122,29 @@ bool DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
         scan->SetFinishCallback(
             [=, weakScan = std::weak_ptr<PageScanJob>(scan)](DownloadJob& job, bool result)
             {
+                {
+                    Lock lock(setup->ScannedPageContentMutex);
+
+                    if (setup->SaveScannedPageContent)
+                    {
+                        if (result)
+                        {
+                            LOG_INFO("Saving content of scanned page in memory: " + job.GetURL().GetURL());
+                            setup->ScannedPageContent[job.GetURL().GetURL()] = job.GetDownloadedBytes();
+                        }
+                        else
+                        {
+                            LOG_INFO(
+                                "Failed to download page, can't save its content in memory" + job.GetURL().GetURL());
+
+                            const auto existing = setup->ScannedPageContent.find(job.GetURL().GetURL());
+
+                            if (existing != setup->ScannedPageContent.end())
+                                setup->ScannedPageContent.erase(existing);
+                        }
+                    }
+                }
+
                 DualView::Get().InvokeFunction(
                     [=]()
                     {
@@ -1137,12 +1177,18 @@ void DownloadSetup::StartPageScanning()
 {
     DualView::IsOnMainThreadAssert();
 
-    auto expectedstate = STATE::URL_OK;
+    auto expectedState = STATE::URL_OK;
     if (!State.compare_exchange_weak(
-            expectedstate, STATE::SCANNING_PAGES, std::memory_order_release, std::memory_order_acquire))
+            expectedState, STATE::SCANNING_PAGES, std::memory_order_release, std::memory_order_acquire))
     {
         LOG_ERROR("Tried to enter DownloadSetup::StartPageScanning while not in URL_OK state");
         return;
+    }
+
+    // Clear previous scan stored temporary data (if any)
+    {
+        Lock lock(ScannedPageContentMutex);
+        ScannedPageContent.clear();
     }
 
     _UpdateWidgetStates();
@@ -1153,7 +1199,7 @@ void DownloadSetup::StartPageScanning()
     data->PagesToScan = PagesToScan;
     data->MainReferrer = CurrentlyCheckedURL;
 
-    DualView::Get().QueueWorkerFunction(std::bind(&QueueNextThing, data, this, alive, nullptr));
+    DualView::Get().QueueWorkerFunction([data, this, alive] { return QueueNextThing(data, this, alive, nullptr); });
 }
 
 // ------------------------------------ //
@@ -1299,6 +1345,106 @@ bool DownloadSetup::IsReadyToDownload() const
 }
 
 // ------------------------------------ //
+void DownloadSetup::WriteScannedPagesToDisk()
+{
+    DualView::IsOnMainThreadAssert();
+
+    {
+        Lock lock(ScannedPageContentMutex);
+
+        if (ScannedPageContent.empty())
+        {
+            ExtraSettingsStatusText->set_text("No pages stored in memory, please perform a scan first");
+            return;
+        }
+    }
+
+    ExtraSettingsStatusText->set_text("Writing in memory stored pages to disk...");
+
+    const auto alive = GetAliveMarker();
+
+    DualView::Get().QueueWorkerFunction(
+        [this, alive]()
+        {
+            const auto targetFolder =
+                boost::filesystem::path(DualView::Get().GetSettings().GetStagingFolder()) / "scanned_pages";
+
+            Lock lock(ScannedPageContentMutex);
+
+            try
+            {
+                if (boost::filesystem::exists(targetFolder))
+                {
+                    boost::filesystem::remove_all(targetFolder);
+                }
+
+                boost::filesystem::create_directories(targetFolder);
+            }
+            catch (const std::exception& e)
+            {
+                DualView::Get().InvokeFunction(
+                    [=]()
+                    {
+                        INVOKE_CHECK_ALIVE_MARKER(alive);
+
+                        LOG_ERROR("Failed to prepare " + targetFolder.string() + " with exception: " + e.what());
+                        ExtraSettingsStatusText->set_text("Error preparing the folder to write the pages");
+                    });
+
+                return;
+            }
+
+            try
+            {
+                for (const auto& [page, content] : ScannedPageContent)
+                {
+                    // Some sanitization on the URL to convert it to a valid local filename
+                    std::string sanitized = page;
+                    for (char invalid : "\\/<>:\"|")
+                    {
+                        sanitized =
+                            Leviathan::StringOperations::ReplaceSingleCharacter<std::string>(sanitized, invalid, '-');
+                    }
+
+                    for (char& iter : sanitized)
+                    {
+                        if (iter <= 0x1F)
+                            iter = '_';
+                    }
+
+                    // And making sure it is not overwriting anything existing nor is it too long
+                    sanitized = DualView::MakePathUniqueAndShort((targetFolder / sanitized).string() + ".html");
+
+                    auto logMessage = "Writing " + page;
+                    logMessage += " to file: ";
+                    logMessage += sanitized;
+                    LOG_INFO(logMessage);
+
+                    Leviathan::FileSystem::WriteToFile(content, sanitized);
+                }
+            }
+            catch (const std::exception& e)
+            {
+                DualView::Get().InvokeFunction(
+                    [=]()
+                    {
+                        INVOKE_CHECK_ALIVE_MARKER(alive);
+                        ExtraSettingsStatusText->set_text(std::string("Error writing a page file: ") + e.what());
+                    });
+
+                return;
+            }
+
+            DualView::Get().InvokeFunction(
+                [=]()
+                {
+                    INVOKE_CHECK_ALIVE_MARKER(alive);
+                    ExtraSettingsStatusText->set_text("Done writing pages to: " + targetFolder.string());
+                });
+        });
+}
+
+// ------------------------------------ //
 void DownloadSetup::_DoQuickSwapPages()
 {
     if (WindowTabs->get_current_page() == 0)
@@ -1397,6 +1543,40 @@ void DownloadSetup::_UpdateFoundLinks()
             button->show();
         }
     }
+}
+
+// ------------------------------------ //
+void DownloadSetup::OnScannedPagesStoreChanged()
+{
+    DualView::IsOnMainThreadAssert();
+
+    {
+        Lock lock(ScannedPageContentMutex);
+        SaveScannedPageContent = StoreScannedPages->get_active();
+    }
+
+    UpdateCanWritePagesStatus();
+}
+
+void DownloadSetup::UpdateCanWritePagesStatus()
+{
+    auto alive = GetAliveMarker();
+
+    DualView::Get().RunOnMainThread(
+        [this, alive]()
+        {
+            INVOKE_CHECK_ALIVE_MARKER(alive);
+
+            if (State != STATE::URL_OK && State != STATE::URL_CHANGED)
+            {
+                DumpScannedToDisk->set_sensitive(false);
+                return;
+            }
+
+            Lock lock(ScannedPageContentMutex);
+
+            DumpScannedToDisk->set_sensitive(!ScannedPageContent.empty() && SaveScannedPageContent);
+        });
 }
 
 // ------------------------------------ //

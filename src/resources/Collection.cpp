@@ -3,12 +3,13 @@
 
 #include <boost/filesystem.hpp>
 
+#include "Common.h"
+#include "DualView.h"
+
 #include "Common/StringOperations.h"
 #include "components/CollectionListItem.h"
 
-#include "Common.h"
 #include "Database.h"
-#include "DualView.h"
 #include "PreparedStatement.h"
 
 using namespace DV;
@@ -64,10 +65,10 @@ std::string Collection::GetNameForFolder() const
     }
 
     // And then get rid of all characters under 0x1F
-    for (auto iter = sanitized.begin(); iter != sanitized.end(); ++iter)
+    for (char& iter : sanitized)
     {
-        if ((*iter) <= 0x1F)
-            (*iter) = ' ';
+        if (iter <= 0x1F)
+            iter = ' ';
     }
 
     // Remove preceeding and trailing spaces
@@ -83,7 +84,7 @@ std::string Collection::GetNameForFolder() const
     if (sanitized.back() == '.')
         sanitized += "d";
 
-    // Don't start with a dot or an hyphen //
+    // Don't start with a dot or a hyphen //
     if (sanitized.front() == '.' || sanitized.front() == '-')
         sanitized = "d" + sanitized;
 

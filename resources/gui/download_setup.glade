@@ -1,143 +1,48 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.22.1 -->
+<!-- Generated with glade 3.40.0 -->
 <interface>
   <requires lib="gtk+" version="3.20"/>
   <object class="GtkAdjustment" id="adjustment1">
     <property name="lower">1</property>
     <property name="upper">10000</property>
     <property name="value">1000</property>
-    <property name="step_increment">25</property>
-    <property name="page_increment">100</property>
+    <property name="step-increment">25</property>
+    <property name="page-increment">100</property>
   </object>
   <object class="GtkWindow" id="DownloadSetup">
-    <property name="can_focus">False</property>
-    <property name="default_width">800</property>
-    <property name="default_height">750</property>
-    <child type="titlebar">
-      <object class="GtkHeaderBar" id="HeaderBar">
-        <property name="visible">True</property>
-        <property name="can_focus">False</property>
-        <property name="title" translatable="yes">Download Setup</property>
-        <property name="show_close_button">True</property>
-        <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="label" translatable="yes">Target:</property>
-          </object>
-        </child>
-        <child>
-          <object class="GtkSwitch" id="ActiveAsAddTarget">
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <accelerator key="t" signal="activate" modifiers="GDK_CONTROL_MASK"/>
-            <accelerator key="t" signal="activate" modifiers="GDK_MOD1_MASK"/>
-            <accelerator key="l" signal="activate" modifiers="GDK_CONTROL_MASK"/>
-          </object>
-          <packing>
-            <property name="position">1</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkLabel">
-            <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="margin_left">4</property>
-            <property name="label" translatable="yes">Full view:</property>
-          </object>
-          <packing>
-            <property name="position">2</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkSwitch" id="ShowFullControls">
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="active">True</property>
-            <accelerator key="f" signal="activate" modifiers="GDK_MOD1_MASK"/>
-          </object>
-          <packing>
-            <property name="position">3</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkMenuButton" id="MenuButton">
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <child>
-              <placeholder/>
-            </child>
-          </object>
-          <packing>
-            <property name="pack_type">end</property>
-            <property name="position">4</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="OKButton">
-            <property name="label">gtk-ok</property>
-            <property name="width_request">130</property>
-            <property name="visible">True</property>
-            <property name="sensitive">False</property>
-            <property name="can_focus">True</property>
-            <property name="can_default">True</property>
-            <property name="has_default">True</property>
-            <property name="receives_default">True</property>
-            <property name="use_stock">True</property>
-            <property name="always_show_image">True</property>
-          </object>
-          <packing>
-            <property name="pack_type">end</property>
-            <property name="position">5</property>
-          </packing>
-        </child>
-        <child>
-          <object class="GtkButton" id="SelectAllImagesButton">
-            <property name="label" translatable="yes">Select _All Images</property>
-            <property name="visible">True</property>
-            <property name="can_focus">True</property>
-            <property name="receives_default">True</property>
-            <property name="use_underline">True</property>
-            <accelerator key="a" signal="activate" modifiers="GDK_CONTROL_MASK"/>
-          </object>
-          <packing>
-            <property name="pack_type">end</property>
-            <property name="position">6</property>
-          </packing>
-        </child>
-      </object>
-    </child>
+    <property name="can-focus">False</property>
+    <property name="default-width">800</property>
+    <property name="default-height">750</property>
     <child>
       <object class="GtkBox">
         <property name="visible">True</property>
-        <property name="can_focus">False</property>
+        <property name="can-focus">False</property>
         <property name="orientation">vertical</property>
         <child>
           <object class="GtkNotebook" id="WindowTabs">
             <property name="visible">True</property>
-            <property name="can_focus">True</property>
+            <property name="can-focus">True</property>
             <child>
               <object class="GtkBox">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
-                <property name="margin_left">3</property>
+                <property name="can-focus">False</property>
+                <property name="margin-start">3</property>
                 <property name="orientation">vertical</property>
                 <child>
                   <object class="GtkBox">
                     <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="margin_bottom">10</property>
+                    <property name="can-focus">False</property>
+                    <property name="margin-bottom">10</property>
                     <property name="orientation">vertical</property>
                     <child>
                       <object class="GtkBox">
                         <property name="visible">True</property>
-                        <property name="can_focus">False</property>
+                        <property name="can-focus">False</property>
                         <property name="spacing">3</property>
                         <child>
                           <object class="GtkLabel">
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
+                            <property name="can-focus">False</property>
                             <property name="label" translatable="yes">Url To Download:</property>
                           </object>
                           <packing>
@@ -149,10 +54,10 @@
                         <child>
                           <object class="GtkEntry" id="URLEntry">
                             <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="has_focus">True</property>
-                            <property name="placeholder_text" translatable="yes">Write URL here and press enter</property>
-                            <property name="input_purpose">url</property>
+                            <property name="can-focus">True</property>
+                            <property name="has-focus">True</property>
+                            <property name="placeholder-text" translatable="yes">Write URL here and press enter</property>
+                            <property name="input-purpose">url</property>
                           </object>
                           <packing>
                             <property name="expand">True</property>
@@ -163,7 +68,7 @@
                         <child>
                           <object class="GtkSpinner" id="URLCheckSpinner">
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
+                            <property name="can-focus">False</property>
                           </object>
                           <packing>
                             <property name="expand">False</property>
@@ -181,7 +86,7 @@
                     <child>
                       <object class="GtkLabel" id="DetectedSettings">
                         <property name="visible">True</property>
-                        <property name="can_focus">False</property>
+                        <property name="can-focus">False</property>
                         <property name="label" translatable="yes">Detected Settings for URL: None</property>
                       </object>
                       <packing>
@@ -200,14 +105,13 @@
                 <child>
                   <object class="GtkBox">
                     <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="margin_right">3</property>
-                    <property name="margin_top">10</property>
+                    <property name="can-focus">False</property>
+                    <property name="margin-top">10</property>
+                    <property name="margin-bottom">3</property>
                     <property name="orientation">vertical</property>
                     <child>
                       <object class="GtkLabel">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
+                        <property name="can-focus">False</property>
                         <property name="label" translatable="yes">Pages to Scan (also check Extra Settings)</property>
                       </object>
                       <packing>
@@ -219,18 +123,17 @@
                     <child>
                       <object class="GtkBox">
                         <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="margin_bottom">5</property>
+                        <property name="can-focus">False</property>
+                        <property name="margin-bottom">5</property>
                         <property name="orientation">vertical</property>
                         <child>
                           <object class="GtkBox">
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
+                            <property name="can-focus">False</property>
                             <property name="spacing">2</property>
                             <child>
                               <object class="GtkLabel">
-                                <property name="visible">True</property>
-                                <property name="can_focus">False</property>
+                                <property name="can-focus">False</property>
                                 <property name="label" translatable="yes">Maximum Pages to Scan:</property>
                               </object>
                               <packing>
@@ -241,8 +144,8 @@
                             </child>
                             <child>
                               <object class="GtkSpinButton">
-                                <property name="visible">True</property>
-                                <property name="can_focus">True</property>
+                                <property name="sensitive">False</property>
+                                <property name="can-focus">True</property>
                                 <property name="adjustment">adjustment1</property>
                               </object>
                               <packing>
@@ -261,12 +164,12 @@
                         <child>
                           <object class="GtkBox">
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
+                            <property name="can-focus">False</property>
                             <property name="spacing">2</property>
                             <child>
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
-                                <property name="can_focus">False</property>
+                                <property name="can-focus">False</property>
                                 <property name="label" translatable="yes">Detected Page Count (scan again to update): </property>
                               </object>
                               <packing>
@@ -278,7 +181,7 @@
                             <child>
                               <object class="GtkLabel" id="PageRangeLabel">
                                 <property name="visible">True</property>
-                                <property name="can_focus">False</property>
+                                <property name="can-focus">False</property>
                                 <property name="label" translatable="yes">1-1</property>
                               </object>
                               <packing>
@@ -296,11 +199,10 @@
                         </child>
                         <child>
                           <object class="GtkEntry" id="PageRangeEntry">
-                            <property name="visible">True</property>
                             <property name="sensitive">False</property>
-                            <property name="can_focus">True</property>
-                            <property name="tooltip_markup" translatable="yes">For example "1-3" scans pages 1,2, and 3. "1,3-4" scans the 1,3,4 pages</property>
-                            <property name="placeholder_text" translatable="yes">Write the wanted page range here (leave blank for all)</property>
+                            <property name="can-focus">True</property>
+                            <property name="tooltip-markup" translatable="yes">For example "1-3" scans pages 1,2, and 3. "1,3-4" scans the 1,3,4 pages</property>
+                            <property name="placeholder-text" translatable="yes">Write the wanted page range here (leave blank for all)</property>
                           </object>
                           <packing>
                             <property name="expand">True</property>
@@ -318,19 +220,19 @@
                     <child>
                       <object class="GtkBox">
                         <property name="visible">True</property>
-                        <property name="can_focus">False</property>
+                        <property name="can-focus">False</property>
                         <property name="orientation">vertical</property>
                         <child>
                           <object class="GtkBox">
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
+                            <property name="can-focus">False</property>
                             <child>
                               <object class="GtkButton" id="ScanPages">
                                 <property name="label" translatable="yes">Scan Pages</property>
                                 <property name="visible">True</property>
                                 <property name="sensitive">False</property>
-                                <property name="can_focus">True</property>
-                                <property name="receives_default">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">True</property>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -341,7 +243,7 @@
                             <child>
                               <object class="GtkSpinner" id="PageScanSpinner">
                                 <property name="visible">True</property>
-                                <property name="can_focus">False</property>
+                                <property name="can-focus">False</property>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -352,7 +254,7 @@
                             <child>
                               <object class="GtkLevelBar" id="PageScanProgress">
                                 <property name="visible">True</property>
-                                <property name="can_focus">False</property>
+                                <property name="can-focus">False</property>
                               </object>
                               <packing>
                                 <property name="expand">True</property>
@@ -372,8 +274,8 @@
                             <property name="label" translatable="yes">button</property>
                             <property name="visible">True</property>
                             <property name="sensitive">False</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="receives-default">True</property>
                             <property name="relief">none</property>
                           </object>
                           <packing>
@@ -399,14 +301,14 @@
                 <child>
                   <object class="GtkBox">
                     <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="margin_top">3</property>
+                    <property name="can-focus">False</property>
+                    <property name="margin-top">3</property>
                     <property name="orientation">vertical</property>
                     <property name="spacing">5</property>
                     <child>
                       <object class="GtkLabel">
                         <property name="visible">True</property>
-                        <property name="can_focus">False</property>
+                        <property name="can-focus">False</property>
                         <property name="label" translatable="yes">Summary</property>
                       </object>
                       <packing>
@@ -418,12 +320,12 @@
                     <child>
                       <object class="GtkBox">
                         <property name="visible">True</property>
-                        <property name="can_focus">False</property>
+                        <property name="can-focus">False</property>
                         <child>
                           <object class="GtkLabel">
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="margin_right">2</property>
+                            <property name="can-focus">False</property>
+                            <property name="margin-right">2</property>
                             <property name="label" translatable="yes">Target Collection:</property>
                           </object>
                           <packing>
@@ -435,7 +337,7 @@
                         <child>
                           <object class="GtkEntry" id="TargetCollectionName">
                             <property name="visible">True</property>
-                            <property name="can_focus">True</property>
+                            <property name="can-focus">True</property>
                           </object>
                           <packing>
                             <property name="expand">True</property>
@@ -453,19 +355,19 @@
                     <child>
                       <object class="GtkBox">
                         <property name="visible">True</property>
-                        <property name="can_focus">False</property>
+                        <property name="can-focus">False</property>
                         <property name="spacing">5</property>
                         <child>
                           <object class="GtkBox">
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
-                            <property name="margin_top">1</property>
-                            <property name="margin_bottom">3</property>
+                            <property name="can-focus">False</property>
+                            <property name="margin-top">1</property>
+                            <property name="margin-bottom">3</property>
                             <property name="orientation">vertical</property>
                             <child>
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
-                                <property name="can_focus">False</property>
+                                <property name="can-focus">False</property>
                                 <property name="label" translatable="yes">Target Folder</property>
                               </object>
                               <packing>
@@ -477,7 +379,7 @@
                             <child>
                               <object class="GtkBox" id="FolderSelector">
                                 <property name="visible">True</property>
-                                <property name="can_focus">False</property>
+                                <property name="can-focus">False</property>
                                 <property name="orientation">vertical</property>
                                 <child>
                                   <placeholder/>
@@ -499,12 +401,12 @@
                         <child>
                           <object class="GtkBox">
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
+                            <property name="can-focus">False</property>
                             <property name="orientation">vertical</property>
                             <child>
                               <object class="GtkLabel">
                                 <property name="visible">True</property>
-                                <property name="can_focus">False</property>
+                                <property name="can-focus">False</property>
                                 <property name="label" translatable="yes">Tags to set on Collection</property>
                               </object>
                               <packing>
@@ -516,7 +418,7 @@
                             <child>
                               <object class="GtkBox" id="CollectionTags">
                                 <property name="visible">True</property>
-                                <property name="can_focus">False</property>
+                                <property name="can-focus">False</property>
                                 <property name="orientation">vertical</property>
                                 <child>
                                   <placeholder/>
@@ -554,29 +456,29 @@
             <child type="tab">
               <object class="GtkLabel">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
+                <property name="can-focus">False</property>
                 <property name="label" translatable="yes">Overview</property>
                 <accelerator key="1" signal="activate-current-link" modifiers="GDK_CONTROL_MASK"/>
               </object>
               <packing>
-                <property name="tab_fill">False</property>
+                <property name="tab-fill">False</property>
               </packing>
             </child>
             <child>
               <object class="GtkBox">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
+                <property name="can-focus">False</property>
                 <property name="orientation">vertical</property>
                 <child>
                   <object class="GtkBox">
                     <property name="visible">True</property>
-                    <property name="can_focus">False</property>
+                    <property name="can-focus">False</property>
                     <child>
                       <object class="GtkDrawingArea" id="CurrentImage">
-                        <property name="width_request">400</property>
-                        <property name="height_request">300</property>
+                        <property name="width-request">400</property>
+                        <property name="height-request">300</property>
                         <property name="visible">True</property>
-                        <property name="can_focus">False</property>
+                        <property name="can-focus">False</property>
                       </object>
                       <packing>
                         <property name="expand">True</property>
@@ -587,12 +489,12 @@
                     <child>
                       <object class="GtkBox">
                         <property name="visible">True</property>
-                        <property name="can_focus">False</property>
+                        <property name="can-focus">False</property>
                         <property name="orientation">vertical</property>
                         <child>
                           <object class="GtkBox" id="CurrentImageEditor">
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
+                            <property name="can-focus">False</property>
                             <property name="orientation">vertical</property>
                             <child>
                               <placeholder/>
@@ -607,13 +509,13 @@
                         <child>
                           <object class="GtkBox">
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
+                            <property name="can-focus">False</property>
                             <child>
                               <object class="GtkButton" id="RemoveSelected">
                                 <property name="label" translatable="yes">Remove Selected</property>
                                 <property name="visible">True</property>
-                                <property name="can_focus">True</property>
-                                <property name="receives_default">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">True</property>
                               </object>
                               <packing>
                                 <property name="expand">True</property>
@@ -625,8 +527,8 @@
                               <object class="GtkButton" id="ImageSelectPageAll">
                                 <property name="label" translatable="yes">Select All Images</property>
                                 <property name="visible">True</property>
-                                <property name="can_focus">True</property>
-                                <property name="receives_default">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">True</property>
                               </object>
                               <packing>
                                 <property name="expand">True</property>
@@ -638,8 +540,8 @@
                               <object class="GtkButton" id="DeselectImages">
                                 <property name="label" translatable="yes">Deselect Images</property>
                                 <property name="visible">True</property>
-                                <property name="can_focus">True</property>
-                                <property name="receives_default">True</property>
+                                <property name="can-focus">True</property>
+                                <property name="receives-default">True</property>
                                 <accelerator key="d" signal="activate" modifiers="GDK_CONTROL_MASK"/>
                               </object>
                               <packing>
@@ -652,7 +554,7 @@
                           <packing>
                             <property name="expand">False</property>
                             <property name="fill">False</property>
-                            <property name="pack_type">end</property>
+                            <property name="pack-type">end</property>
                             <property name="position">1</property>
                           </packing>
                         </child>
@@ -673,20 +575,20 @@
                 <child>
                   <object class="GtkBox">
                     <property name="visible">True</property>
-                    <property name="can_focus">False</property>
+                    <property name="can-focus">False</property>
                     <child>
                       <object class="GtkButtonBox">
                         <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="layout_style">start</property>
+                        <property name="can-focus">False</property>
+                        <property name="layout-style">start</property>
                         <child>
                           <object class="GtkButton" id="BrowseBack">
                             <property name="label">gtk-go-back</property>
                             <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">True</property>
-                            <property name="use_stock">True</property>
-                            <property name="always_show_image">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="receives-default">True</property>
+                            <property name="use-stock">True</property>
+                            <property name="always-show-image">True</property>
                             <accelerator key="Left" signal="clicked" modifiers="GDK_MOD1_MASK"/>
                           </object>
                           <packing>
@@ -699,10 +601,10 @@
                           <object class="GtkButton" id="BrowseForward">
                             <property name="label">gtk-go-forward</property>
                             <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">True</property>
-                            <property name="use_stock">True</property>
-                            <property name="always_show_image">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="receives-default">True</property>
+                            <property name="use-stock">True</property>
+                            <property name="always-show-image">True</property>
                             <accelerator key="Right" signal="clicked" modifiers="GDK_MOD1_MASK"/>
                           </object>
                           <packing>
@@ -721,17 +623,17 @@
                     <child>
                       <object class="GtkButtonBox">
                         <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="layout_style">start</property>
+                        <property name="can-focus">False</property>
+                        <property name="layout-style">start</property>
                         <child>
                           <object class="GtkCheckButton" id="RemoveAfterAdding">
                             <property name="label" translatable="yes">Remove After Adding</property>
                             <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">False</property>
-                            <property name="tooltip_text" translatable="yes">If active all the selected images will be removed from this window after adding. Can be unchecked to download images to multiple collections.</property>
+                            <property name="can-focus">True</property>
+                            <property name="receives-default">False</property>
+                            <property name="tooltip-text" translatable="yes">If active all the selected images will be removed from this window after adding. Can be unchecked to download images to multiple collections.</property>
                             <property name="active">True</property>
-                            <property name="draw_indicator">True</property>
+                            <property name="draw-indicator">True</property>
                             <accelerator key="r" signal="clicked" modifiers="GDK_CONTROL_MASK"/>
                           </object>
                           <packing>
@@ -744,9 +646,9 @@
                           <object class="GtkCheckButton" id="SelectOnlyOneImage">
                             <property name="label" translatable="yes">Select Only One</property>
                             <property name="visible">True</property>
-                            <property name="can_focus">True</property>
-                            <property name="receives_default">False</property>
-                            <property name="draw_indicator">True</property>
+                            <property name="can-focus">True</property>
+                            <property name="receives-default">False</property>
+                            <property name="draw-indicator">True</property>
                             <accelerator key="o" signal="activate" modifiers="GDK_CONTROL_MASK"/>
                           </object>
                           <packing>
@@ -759,7 +661,7 @@
                       <packing>
                         <property name="expand">False</property>
                         <property name="fill">True</property>
-                        <property name="pack_type">end</property>
+                        <property name="pack-type">end</property>
                         <property name="position">1</property>
                       </packing>
                     </child>
@@ -772,10 +674,10 @@
                 </child>
                 <child>
                   <object class="GtkScrolledWindow" id="ImageDLSelector">
-                    <property name="height_request">300</property>
+                    <property name="height-request">300</property>
                     <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="shadow_type">in</property>
+                    <property name="can-focus">True</property>
+                    <property name="shadow-type">in</property>
                     <child>
                       <placeholder/>
                     </child>
@@ -794,31 +696,43 @@
             <child type="tab">
               <object class="GtkLabel">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
+                <property name="can-focus">False</property>
                 <property name="label" translatable="yes">Select Images</property>
               </object>
               <packing>
                 <property name="position">1</property>
-                <property name="tab_fill">False</property>
+                <property name="tab-fill">False</property>
               </packing>
             </child>
             <child>
               <object class="GtkBox">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
+                <property name="can-focus">False</property>
                 <property name="orientation">vertical</property>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="label" translatable="yes">Advanced Settings</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
                 <child>
                   <object class="GtkBox">
                     <property name="visible">True</property>
-                    <property name="can_focus">False</property>
+                    <property name="can-focus">False</property>
                     <property name="spacing">2</property>
                     <child>
-                      <object class="GtkCheckButton">
-                        <property name="label" translatable="yes">Force Download settings</property>
+                      <object class="GtkCheckButton" id="StoreScannedPages">
+                        <property name="label" translatable="yes">Store Scanned Pages</property>
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">False</property>
-                        <property name="draw_indicator">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">False</property>
+                        <property name="draw-indicator">True</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -827,10 +741,12 @@
                       </packing>
                     </child>
                     <child>
-                      <object class="GtkEntry">
+                      <object class="GtkButton" id="DumpScannedToDisk">
+                        <property name="label" translatable="yes">Save Scanned Pages to Disk</property>
                         <property name="visible">True</property>
                         <property name="sensitive">False</property>
-                        <property name="can_focus">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">True</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -842,14 +758,24 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
-                    <property name="position">0</property>
+                    <property name="position">1</property>
                   </packing>
                 </child>
                 <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
+                  <object class="GtkLabel" id="ExtraSettingsStatusText">
+                    <property name="visible">True</property>
+                    <property name="can-focus">False</property>
+                    <property name="halign">start</property>
+                    <property name="margin-start">3</property>
+                    <property name="margin-end">3</property>
+                    <property name="wrap">True</property>
+                    <property name="selectable">True</property>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="fill">True</property>
+                    <property name="position">2</property>
+                  </packing>
                 </child>
               </object>
               <packing>
@@ -859,32 +785,32 @@
             <child type="tab">
               <object class="GtkLabel">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
+                <property name="can-focus">False</property>
                 <property name="label" translatable="yes">Extra Settings</property>
               </object>
               <packing>
                 <property name="position">2</property>
-                <property name="tab_fill">False</property>
+                <property name="tab-fill">False</property>
               </packing>
             </child>
             <child>
               <object class="GtkBox">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
+                <property name="can-focus">False</property>
                 <property name="orientation">vertical</property>
                 <child>
                   <object class="GtkScrolledWindow">
                     <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="shadow_type">in</property>
+                    <property name="can-focus">True</property>
+                    <property name="shadow-type">in</property>
                     <child>
                       <object class="GtkViewport">
                         <property name="visible">True</property>
-                        <property name="can_focus">False</property>
+                        <property name="can-focus">False</property>
                         <child>
                           <object class="GtkBox" id="FoundLinksBox">
                             <property name="visible">True</property>
-                            <property name="can_focus">False</property>
+                            <property name="can-focus">False</property>
                             <property name="orientation">vertical</property>
                             <child>
                               <placeholder/>
@@ -903,14 +829,14 @@
                 <child>
                   <object class="GtkButtonBox">
                     <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="layout_style">start</property>
+                    <property name="can-focus">False</property>
+                    <property name="layout-style">start</property>
                     <child>
                       <object class="GtkButton" id="CopyToClipboard">
                         <property name="label" translatable="yes">Copy To Clipboard</property>
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">True</property>
                       </object>
                       <packing>
                         <property name="expand">True</property>
@@ -922,8 +848,8 @@
                       <object class="GtkButton" id="LoadFromClipboard">
                         <property name="label" translatable="yes">Load From Clipboard</property>
                         <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="receives_default">True</property>
+                        <property name="can-focus">True</property>
+                        <property name="receives-default">True</property>
                       </object>
                       <packing>
                         <property name="expand">True</property>
@@ -938,7 +864,7 @@
                   <packing>
                     <property name="expand">False</property>
                     <property name="fill">True</property>
-                    <property name="pack_type">end</property>
+                    <property name="pack-type">end</property>
                     <property name="position">1</property>
                   </packing>
                 </child>
@@ -950,12 +876,12 @@
             <child type="tab">
               <object class="GtkLabel">
                 <property name="visible">True</property>
-                <property name="can_focus">False</property>
+                <property name="can-focus">False</property>
                 <property name="label" translatable="yes">Found Links</property>
               </object>
               <packing>
                 <property name="position">3</property>
-                <property name="tab_fill">False</property>
+                <property name="tab-fill">False</property>
               </packing>
             </child>
           </object>
@@ -968,17 +894,17 @@
         <child>
           <object class="GtkButtonBox" id="BottomButtons">
             <property name="visible">True</property>
-            <property name="can_focus">False</property>
-            <property name="layout_style">start</property>
+            <property name="can-focus">False</property>
+            <property name="layout-style">start</property>
             <child>
               <object class="GtkButton" id="QuickSwapPages">
                 <property name="label" translatable="yes">Quick Swap Pag_es</property>
                 <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="margin_left">10</property>
-                <property name="margin_right">5</property>
-                <property name="use_underline">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+                <property name="margin-left">10</property>
+                <property name="margin-right">5</property>
+                <property name="use-underline">True</property>
                 <accelerator key="e" signal="activate" modifiers="GDK_CONTROL_MASK"/>
               </object>
               <packing>
@@ -991,8 +917,8 @@
               <object class="GtkButton" id="DetargetAndCollapse">
                 <property name="label" translatable="yes">Detarget and Collapse</property>
                 <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
               </object>
               <packing>
                 <property name="expand">True</property>
@@ -1004,14 +930,14 @@
               <object class="GtkButton" id="SelectAllAndOK">
                 <property name="label" translatable="yes">_Select All and OK</property>
                 <property name="visible">True</property>
-                <property name="can_focus">True</property>
-                <property name="receives_default">True</property>
-                <property name="use_underline">True</property>
+                <property name="can-focus">True</property>
+                <property name="receives-default">True</property>
+                <property name="use-underline">True</property>
               </object>
               <packing>
                 <property name="expand">True</property>
                 <property name="fill">True</property>
-                <property name="pack_type">end</property>
+                <property name="pack-type">end</property>
                 <property name="position">2</property>
               </packing>
             </child>
@@ -1025,7 +951,7 @@
         <child>
           <object class="GtkLabel" id="MainStatusLabel">
             <property name="visible">True</property>
-            <property name="can_focus">False</property>
+            <property name="can-focus">False</property>
             <property name="label" translatable="yes">Not ready to download 0 images from None</property>
             <attributes>
               <attribute name="font-desc" value="DejaVu Sans 12"/>
@@ -1035,6 +961,101 @@
             <property name="expand">False</property>
             <property name="fill">True</property>
             <property name="position">2</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <child type="titlebar">
+      <object class="GtkHeaderBar" id="HeaderBar">
+        <property name="visible">True</property>
+        <property name="can-focus">False</property>
+        <property name="title" translatable="yes">Download Setup</property>
+        <property name="show-close-button">True</property>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="label" translatable="yes">Target:</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkSwitch" id="ActiveAsAddTarget">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <accelerator key="l" signal="activate" modifiers="GDK_CONTROL_MASK"/>
+            <accelerator key="t" signal="activate" modifiers="GDK_MOD1_MASK"/>
+            <accelerator key="t" signal="activate" modifiers="GDK_CONTROL_MASK"/>
+          </object>
+          <packing>
+            <property name="position">1</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkLabel">
+            <property name="visible">True</property>
+            <property name="can-focus">False</property>
+            <property name="margin-left">4</property>
+            <property name="label" translatable="yes">Full view:</property>
+          </object>
+          <packing>
+            <property name="position">2</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkSwitch" id="ShowFullControls">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="active">True</property>
+            <accelerator key="f" signal="activate" modifiers="GDK_MOD1_MASK"/>
+          </object>
+          <packing>
+            <property name="position">3</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkMenuButton" id="MenuButton">
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+            <child>
+              <placeholder/>
+            </child>
+          </object>
+          <packing>
+            <property name="pack-type">end</property>
+            <property name="position">4</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="OKButton">
+            <property name="label">gtk-ok</property>
+            <property name="width-request">130</property>
+            <property name="visible">True</property>
+            <property name="sensitive">False</property>
+            <property name="can-focus">True</property>
+            <property name="can-default">True</property>
+            <property name="has-default">True</property>
+            <property name="receives-default">True</property>
+            <property name="use-stock">True</property>
+            <property name="always-show-image">True</property>
+          </object>
+          <packing>
+            <property name="pack-type">end</property>
+            <property name="position">5</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkButton" id="SelectAllImagesButton">
+            <property name="label" translatable="yes">Select _All Images</property>
+            <property name="visible">True</property>
+            <property name="can-focus">True</property>
+            <property name="receives-default">True</property>
+            <property name="use-underline">True</property>
+            <accelerator key="a" signal="activate" modifiers="GDK_CONTROL_MASK"/>
+          </object>
+          <packing>
+            <property name="pack-type">end</property>
+            <property name="position">6</property>
           </packing>
         </child>
       </object>

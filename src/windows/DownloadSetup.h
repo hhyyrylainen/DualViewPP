@@ -115,6 +115,8 @@ public:
 
     void SetTargetCollectionName(const std::string& str);
 
+    void WriteScannedPagesToDisk();
+
     //! \returns True if ready to download
     bool IsReadyToDownload() const;
 
@@ -177,7 +179,11 @@ protected:
     void AddFoundTagsToImage(
         const std::shared_ptr<TagCollection>& tagDestination, const std::vector<std::string>& rawTags);
 
+    void OnScannedPagesStoreChanged();
+    void UpdateCanWritePagesStatus();
+
     void _CopyToClipboard();
+
     //! \todo This has problems with special characters as they get URL encoded even when they
     //! shouldn't be. A fix is to somehow mark these URLs as already good
     //! \todo This should also check that things are URLs
@@ -209,6 +215,10 @@ private:
     //! Holds the original url that is being checked. Can be used to
     //! get the original URL when URL rewriting has changed it
     std::string CurrentlyCheckedURL;
+
+    bool SaveScannedPageContent;
+    std::map<std::string, std::string> ScannedPageContent;
+    std::mutex ScannedPageContentMutex;
 
     // Previous stored size when going to small size
     int PreviousWidth = 1;
@@ -269,6 +279,11 @@ private:
     Gtk::Button* BrowseBack;
 
     Gtk::Button* SelectAllImagesButton;
+
+    // Extra settings tab
+    Gtk::CheckButton* StoreScannedPages;
+    Gtk::Button* DumpScannedToDisk;
+    Gtk::Label* ExtraSettingsStatusText;
 
     // List of all links
     Gtk::Box* FoundLinksBox;
