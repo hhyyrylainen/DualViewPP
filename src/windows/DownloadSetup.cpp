@@ -75,6 +75,7 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
     OKButton->signal_clicked().connect(sigc::mem_fun(*this, &DownloadSetup::OnUserAcceptSettings));
 
     BUILDER_GET_WIDGET(PageRangeLabel);
+    PageRangeLabel->set_text("0");
 
     BUILDER_GET_WIDGET(ScanPages);
     ScanPages->signal_clicked().connect(sigc::mem_fun(*this, &DownloadSetup::StartPageScanning));
@@ -88,8 +89,8 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
 
     BUILDER_GET_WIDGET(TargetCollectionName);
     CollectionNameCompletion.Init(TargetCollectionName, nullptr,
-        std::bind(&Database::SelectCollectionNamesByWildcard, &DualView::Get().GetDatabase(), std::placeholders::_1,
-            std::placeholders::_2));
+        [database = &DualView::Get().GetDatabase()](const std::string& str, size_t maxCount)
+        { return database->SelectCollectionNamesByWildcard(str, static_cast<int64_t>(maxCount)); });
 
     TargetCollectionName->signal_changed().connect(sigc::mem_fun(*this, &DownloadSetup::UpdateReadyStatus));
 

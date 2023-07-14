@@ -22,7 +22,7 @@ class EasyEntryCompletion : public IsAlive {
     };
 
 public:
-    EasyEntryCompletion(size_t suggestionstoshow = 50, size_t mincharsbeforecomplete = 3);
+    explicit EasyEntryCompletion(size_t suggestionstoshow = 50, size_t mincharsbeforecomplete = 3);
     ~EasyEntryCompletion();
 
     //! \brief Call this to setup this object to show suggestions on entry
@@ -30,7 +30,7 @@ public:
     //! if returns true the entry is accepted and the current text is cleared. Passing in
     //! null here will use the default Gtk action for the completion
     void Init(Gtk::Entry* entry, std::function<bool(const Glib::ustring& str)> onselected,
-        std::function<std::vector<std::string>(std::string str, size_t max)> getsuggestions);
+        std::function<std::vector<std::string>(const std::string& str, size_t max)> getsuggestions);
 
 
 protected:
@@ -51,7 +51,7 @@ protected:
     std::function<bool(const Glib::ustring& str)> OnSelected;
 
     //! Called to get the completion data
-    std::function<std::vector<std::string>(std::string str, size_t max)> GetSuggestions;
+    std::function<std::vector<std::string>(const std::string& str, size_t max)> GetSuggestions;
 
     Gtk::Entry* EntryWithSuggestions = nullptr;
 
