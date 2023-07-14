@@ -36,8 +36,6 @@ Downloader::Downloader(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> builder) :
     EmptyStagingFolder.signal_clicked().connect(sigc::mem_fun(*this, &Downloader::OnStartCleanStagingFolder));
     MenuPopover.Container.pack_start(EmptyStagingFolder);
 
-    ViewStagingFolderButton.set_uri("file://" + DualView::Get().GetSettings().GetStagingFolder());
-    ViewStagingFolderButton.set_label("Staging Folder");
     MenuPopover.Container.pack_start(ViewStagingFolderButton);
 
     // Get and apply primary menu options
@@ -100,6 +98,11 @@ void Downloader::OnNotified(Lock& ownlock, Leviathan::BaseNotifierAll* parent, L
 
 void Downloader::_OnShown()
 {
+    // This can only be set after initialization so this is here to make sure this is fine each time the user can see
+    // this
+    ViewStagingFolderButton.set_uri("file://" + DualView::Get().GetSettings().GetStagingFolder());
+    ViewStagingFolderButton.set_label("Staging Folder");
+
     auto alive = GetAliveMarker();
 
     DualView::Get().QueueDBThreadFunction(
