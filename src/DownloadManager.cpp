@@ -19,7 +19,7 @@ using namespace DV;
 // ------------------------------------ //
 DownloadManager::DownloadManager()
 {
-    DownloadThread = std::thread(&DownloadManager::_RunDLThread, this);
+    DownloadThread = std::thread(&DownloadManager::RunDLThread, this);
 }
 
 DownloadManager::~DownloadManager()
@@ -50,7 +50,7 @@ void DownloadManager::StopDownloads()
 }
 
 // ------------------------------------ //
-void DownloadManager::_RunDLThread()
+void DownloadManager::RunDLThread()
 {
     GUARD_LOCK_OTHER(WorkQueue);
 
@@ -154,9 +154,10 @@ DownloadJob::DownloadJob(const ProcessableURL& url) : URL(url)
 {
 }
 
-void DownloadJob::SetFinishCallback(const std::function<bool(DownloadJob&, bool)>& callback)
+void DownloadJob::SetFinishCallback(const std::function<bool(DownloadJob&, bool)>& callback, bool once)
 {
     FinishCallback = callback;
+    FinishCallbackIsRanOnce = once;
 }
 
 void DownloadJob::OnFinished(bool success)
@@ -172,6 +173,9 @@ void DownloadJob::OnFinished(bool success)
                 URL.GetURL());
             throw RetryDownload();
         }
+
+        if (FinishCallbackIsRanOnce)
+            FinishCallback = nullptr;
     }
 }
 

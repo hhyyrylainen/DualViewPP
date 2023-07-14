@@ -28,7 +28,8 @@ class DownloadJob
     friend size_t CurlWriteCallback(char* ptr, size_t size, size_t nmemb, void* userdata);
 
 public:
-    DownloadJob(const ProcessableURL& url);
+    explicit DownloadJob(const ProcessableURL& url);
+    virtual ~DownloadJob() = default;
 
     //! \brief Called on the download thread to process this download
     virtual void DoDownload(DownloadManager& manager);
@@ -40,7 +41,8 @@ public:
 
     //! \brief Sets a finish callback for this job
     //! \param callback Called on finish, gets passed the data and success flag. If returns false this forces a retry
-    void SetFinishCallback(const std::function<bool(DownloadJob&, bool)>& callback);
+    //! \param once If true the callback is only called once and then cleared
+    void SetFinishCallback(const std::function<bool(DownloadJob&, bool)>& callback, bool once = true);
 
     [[nodiscard]] const std::string& GetDownloadedBytes() const
     {
@@ -104,6 +106,7 @@ protected:
     std::atomic<float> Progress;
 
     std::function<bool(DownloadJob&, bool)> FinishCallback;
+    bool FinishCallbackIsRanOnce = true;
 };
 
 //! \brief Scans a single page and gets a list of all the links and content on it
@@ -115,7 +118,6 @@ public:
     //! \param initialpage True if this is the main page and tag scanning should be forced
     //! on even if the scanner for the url doesn't usually automatically find tags
     PageScanJob(const ProcessableURL& url, bool initialpage);
-    virtual ~PageScanJob() = default;
 
     ScanResult& GetResult()
     {
@@ -139,7 +141,7 @@ class ImageFileDLJob : public DownloadJob
 public:
     //! \param replaceLocal If true the local filename is not made unique before downloading.
     //! if false numbers are added to the end of the name if it exists already
-    ImageFileDLJob(const ProcessableURL& url, bool replaceLocal = false);
+    explicit ImageFileDLJob(const ProcessableURL& url, bool replaceLocal = false);
 
     [[nodiscard]] auto GetLocalFile() const
     {
@@ -213,12 +215,12 @@ public:
 
 protected:
     //! Main function for DownloadThread
-    void _RunDLThread();
+    void RunDLThread();
 
 protected:
     std::thread DownloadThread;
 
-    std::atomic<bool> ThreadQuit = {false};
+    std::atomic<bool> ThreadQuit{false};
 
     std::condition_variable NotifyThread;
 
