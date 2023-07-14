@@ -1178,7 +1178,7 @@ bool DV::QueueNextThing(const std::shared_ptr<SetupScanQueueData>& data, Downloa
 
         // Queue next call //
         scan->SetFinishCallback(
-            [=, weakScan = std::weak_ptr<PageScanJob>(scan)](DownloadJob& job, bool result)
+            [=](DownloadJob& job, bool result)
             {
                 {
                     Lock lock(setup->ScannedPageContentMutex);
@@ -1214,8 +1214,8 @@ bool DV::QueueNextThing(const std::shared_ptr<SetupScanQueueData>& data, Downloa
                             return;
                         }
 
-                        DualView::Get().QueueWorkerFunction([data, setup, alive, lockedScan = weakScan.lock()]
-                            { return DV::QueueNextThing(data, setup, alive, lockedScan); });
+                        DualView::Get().QueueWorkerFunction(
+                            [data, setup, alive, scan] { return DV::QueueNextThing(data, setup, alive, scan); });
                     });
 
                 return true;
