@@ -135,6 +135,18 @@ protected:
     ScanResult Result;
 };
 
+//! \brief Variant of page scan job that works on a locally cached file
+class CachedPageScanJob final : public PageScanJob
+{
+public:
+    CachedPageScanJob(std::string localFile, const ProcessableURL& urlToSelectScannerWith);
+
+    void DoDownload(DownloadManager& manager) override;
+
+private:
+    std::string FilePath;
+};
+
 //! \brief Downloads a file to a local file in the staging folder
 class ImageFileDLJob : public DownloadJob
 {

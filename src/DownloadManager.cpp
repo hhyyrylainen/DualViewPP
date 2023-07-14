@@ -445,6 +445,37 @@ void PageScanJob::HandleContent()
 }
 
 // ------------------------------------ //
+// CachedPageScanJob
+CachedPageScanJob::CachedPageScanJob(std::string localFile, const ProcessableURL& urlToSelectScannerWith) :
+    PageScanJob(urlToSelectScannerWith, false), FilePath(std::move(localFile))
+{
+}
+
+void CachedPageScanJob::DoDownload(DownloadManager& manager)
+{
+    LOG_INFO("DownloadJob reading cached local file: " + FilePath);
+
+    DownloadedContentType = "text/html";
+    if (!FileSystem::ReadFileEntirely(FilePath, DownloadBytes))
+    {
+        LOG_WARNING("DownloadJob reading local file failed");
+        HandleError();
+    }
+    else
+    {
+        try
+        {
+            HandleContent();
+        }
+        catch (const RetryDownload&)
+        {
+            LOG_ERROR("Not retrying cached file scan");
+            HandleError();
+        }
+    }
+}
+
+// ------------------------------------ //
 // ImageFileDLJob
 ImageFileDLJob::ImageFileDLJob(const ProcessableURL& url, bool replaceLocal /*= false*/) :
     DownloadJob(url), ReplaceLocal(replaceLocal)

@@ -55,7 +55,7 @@ public:
     //! \brief Merges tags from other
     ResultCombine Merge(const ScanFoundImage& other)
     {
-        ResultCombine resultCombine = ResultCombine::NoNewContent;
+        auto resultCombine = ResultCombine::NoNewContent;
 
         for (const auto& otherTag : other.Tags)
         {

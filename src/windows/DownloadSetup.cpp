@@ -25,6 +25,8 @@
 using namespace DV;
 
 // ------------------------------------ //
+const std::string DV::FileProtocol = "file://";
+
 std::set<std::string> DownloadSetup::ReportedUnknownTags;
 std::mutex DownloadSetup::UnknownTagMutex;
 
@@ -148,6 +150,16 @@ DownloadSetup::DownloadSetup(_GtkWindow* window, Glib::RefPtr<Gtk::Builder> buil
 
     BUILDER_GET_WIDGET(DumpScannedToDisk);
     DumpScannedToDisk->signal_clicked().connect(sigc::mem_fun(*this, &DownloadSetup::WriteScannedPagesToDisk));
+
+    BUILDER_GET_WIDGET(ScanLocalFiles);
+    ScanLocalFiles->signal_clicked().connect(sigc::mem_fun(*this, &DownloadSetup::LocalScanStartClicked));
+
+    BUILDER_GET_WIDGET(SelectLocalToScan);
+    SelectLocalToScan->signal_selection_changed().connect(
+        sigc::mem_fun(*this, &DownloadSetup::UpdateLocalScanButtonStatus));
+
+    BUILDER_GET_WIDGET(LocalFileScannerToUse);
+    LocalFileScannerToUse->signal_changed().connect(sigc::mem_fun(*this, &DownloadSetup::UpdateLocalScanButtonStatus));
 
     BUILDER_GET_WIDGET(ExtraSettingsStatusText);
 
@@ -689,6 +701,7 @@ void DownloadSetup::UpdateEditedImages()
     // Tag editing //
     std::vector<std::shared_ptr<TagCollection>> tagstoedit;
 
+    tagstoedit.reserve(result.size());
     for (const auto& image : result)
     {
         tagstoedit.push_back(image->GetTags());
@@ -1012,14 +1025,22 @@ struct DV::SetupScanQueueData
     std::vector<ProcessableURL> PagesToScan;
     size_t CurrentPageToScan = 0;
 
+    //! If not empty, overrides the URL used to detect the scan plugin
+    std::string OverridePluginUrl;
+
     ScanResult Scans;
+
+    //! Lock always when handling the data here
+    Mutex ResultMutex;
 };
 
-bool DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup* setup, IsAlive::AliveMarkerT alive,
-    std::shared_ptr<PageScanJob> scanned)
+bool DV::QueueNextThing(const std::shared_ptr<SetupScanQueueData>& data, DownloadSetup* setup,
+    const IsAlive::AliveMarkerT& alive, const std::shared_ptr<PageScanJob>& scanned)
 {
     if (scanned)
     {
+        Lock lock(data->ResultMutex);
+
         bool foundContent = false;
 
         const auto combineResult = data->Scans.Combine(scanned->GetResult());
@@ -1058,12 +1079,21 @@ bool DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
             return false;
         }
     }
+    else
+    {
+        if (data->CurrentPageToScan > 0)
+        {
+            LOG_ERROR("Scan result is missing even though this isn't the first call, "
+                      "it should exist to not lose data");
+        }
+    }
 
     auto finished = [=]()
     {
         DualView::IsOnMainThreadAssert();
         INVOKE_CHECK_ALIVE_MARKER(alive);
 
+        Lock lock(data->ResultMutex);
         LOG_INFO("Finished Scanning");
 
         // Add the content //
@@ -1080,12 +1110,24 @@ bool DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
         setup->_SetState(DownloadSetup::STATE::URL_OK);
 
         setup->UpdateCanWritePagesStatus();
+
+        if (setup->ImageObjects.size() < data->Scans.ContentLinks.size())
+        {
+            std::string message = "DownloadSetup: less image objects created than found content links (";
+            message += std::to_string(setup->ImageObjects.size());
+            message += " < (scanned) ";
+            message += std::to_string(data->Scans.ContentLinks.size());
+            LOG_WARNING(message);
+        }
     };
 
     if (data->PagesToScan.size() <= data->CurrentPageToScan)
     {
+        Lock lock(data->ResultMutex);
+
         LOG_INFO("DownloadSetup scan finished, result:");
         data->Scans.PrintInfo();
+
         DualView::Get().InvokeFunction(finished);
         return true;
     }
@@ -1115,9 +1157,24 @@ bool DV::QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup*
 
     try
     {
-        const auto mainUrl = data->MainReferrer.empty() ? url : ProcessableURL(url, data->MainReferrer);
+        // Set the right referrer
+        const auto withMainUrl =
+            (data->CurrentPageToScan < 2 || url.GetReferrer().empty()) && data->MainReferrer.empty() ?
+            url :
+            ProcessableURL(url, data->MainReferrer);
 
-        auto scan = std::make_shared<PageScanJob>(mainUrl, false);
+        std::shared_ptr<PageScanJob> scan;
+
+        // Locally cached file handling
+        if (withMainUrl.GetURL().find(FileProtocol) == 0)
+        {
+            scan = std::make_shared<CachedPageScanJob>(
+                withMainUrl.GetURL().substr(FileProtocol.size()), ProcessableURL(data->OverridePluginUrl, true));
+        }
+        else
+        {
+            scan = std::make_shared<PageScanJob>(withMainUrl, false);
+        }
 
         // Queue next call //
         scan->SetFinishCallback(
@@ -1199,6 +1256,55 @@ void DownloadSetup::StartPageScanning()
     auto data = std::make_shared<SetupScanQueueData>();
     data->PagesToScan = PagesToScan;
     data->MainReferrer = CurrentlyCheckedURL;
+
+    DualView::Get().QueueWorkerFunction([data, this, alive] { return QueueNextThing(data, this, alive, nullptr); });
+}
+
+void DownloadSetup::StartLocalFileScanning(const std::string& folder, const std::string& urlForScannerSelection)
+{
+    DualView::IsOnMainThreadAssert();
+
+    auto currentState = State.load(std::memory_order_acquire);
+
+    if (currentState == STATE::SCANNING_PAGES || currentState == STATE::CHECKING_URL ||
+        currentState == STATE::ADDING_TO_DB)
+    {
+        LOG_ERROR("Can't start local scan due to bad current state");
+        return;
+    }
+
+    if (!State.compare_exchange_weak(
+            currentState, STATE::SCANNING_PAGES, std::memory_order_release, std::memory_order_acquire))
+    {
+        LOG_ERROR("StartLocalFileScanning start failed because State variable was modified by someone else");
+        return;
+    }
+
+    // Clear previous scan stored temporary data (if any)
+    {
+        Lock lock(ScannedPageContentMutex);
+        ScannedPageContent.clear();
+    }
+
+    auto alive = GetAliveMarker();
+
+    auto data = std::make_shared<SetupScanQueueData>();
+
+    data->PagesToScan;
+
+    for (boost::filesystem::directory_iterator iter(folder); iter != boost::filesystem::directory_iterator(); ++iter)
+    {
+        if (boost::filesystem::is_directory(iter->status()))
+            continue;
+
+        const auto path = boost::filesystem::absolute(*iter).string();
+
+        // Only scan things that probably have html in them
+        if (path.find(".html") != std::string::npos)
+            data->PagesToScan.emplace_back("file://" + path, true);
+    }
+
+    data->OverridePluginUrl = urlForScannerSelection;
 
     DualView::Get().QueueWorkerFunction([data, this, alive] { return QueueNextThing(data, this, alive, nullptr); });
 }
@@ -1286,13 +1392,8 @@ void DownloadSetup::_UpdateWidgetStates()
     switch (State)
     {
         case STATE::CHECKING_URL:
-        {
-        }
-        break;
         case STATE::URL_CHANGED:
-        {
-        }
-        break;
+            break;
         case STATE::URL_OK:
         {
             // Update page scan state //
@@ -1309,17 +1410,16 @@ void DownloadSetup::_UpdateWidgetStates()
 
             // Update main status //
             UpdateReadyStatus();
+
+            break;
         }
-        break;
+
         case STATE::SCANNING_PAGES:
-        {
-        }
-        break;
         case STATE::ADDING_TO_DB:
-        {
-        }
-        break;
+            break;
     }
+
+    UpdateLocalScanButtonStatus();
 }
 
 void DownloadSetup::UpdateReadyStatus()
@@ -1493,7 +1593,11 @@ void DownloadSetup::_UpdateFoundLinks()
 
     for (Gtk::Widget* child : children)
     {
+        // This only has stuff we put here meaning we know for certain what type of object is contained here
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "cppcoreguidelines-pro-type-static-cast-downcast"
         const Glib::ustring uri = static_cast<const Gtk::LinkButton*>(child)->property_uri();
+#pragma clang diagnostic pop
 
         bool good = false;
 
@@ -1638,6 +1742,34 @@ void DownloadSetup::_LoadFromClipboard()
 
     if (State == STATE::URL_CHANGED)
         _SetState(STATE::URL_OK);
+}
+
+// ------------------------------------ //
+void DownloadSetup::LocalScanStartClicked()
+{
+    const std::string folder = SelectLocalToScan->get_filename();
+    const std::string scannerUrl = LocalFileScannerToUse->get_text();
+
+    if (boost::filesystem::exists(folder) && !scannerUrl.empty())
+    {
+        StartLocalFileScanning(folder, scannerUrl);
+    }
+    else
+    {
+        LOG_ERROR("Incorrect settings to start local scan");
+    }
+}
+
+void DownloadSetup::UpdateLocalScanButtonStatus()
+{
+    if (State == STATE::SCANNING_PAGES || State == STATE::CHECKING_URL || State == STATE::ADDING_TO_DB)
+    {
+        ScanLocalFiles->set_sensitive(false);
+        return;
+    }
+
+    ScanLocalFiles->set_sensitive(
+        !SelectLocalToScan->get_filename().empty() && !LocalFileScannerToUse->get_text().empty());
 }
 
 // ------------------------------------ //

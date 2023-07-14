@@ -15,7 +15,6 @@
 
 namespace DV
 {
-
 class SuperViewer;
 class TagEditor;
 class FolderSelector;
@@ -31,8 +30,10 @@ class InternetImage;
 
 struct SetupScanQueueData;
 
-bool QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup* setup, IsAlive::AliveMarkerT alive,
-    std::shared_ptr<PageScanJob> scanned);
+extern const std::string FileProtocol;
+
+bool QueueNextThing(const std::shared_ptr<SetupScanQueueData>& data, DownloadSetup* setup,
+    const IsAlive::AliveMarkerT& alive, const std::shared_ptr<PageScanJob>& scanned);
 
 //! \brief Manages setting up a new gallery to be downloaded
 //! \todo Merge single image selection and tag editing from Importer to a base class
@@ -40,8 +41,8 @@ class DownloadSetup : public BaseWindow,
                       public Gtk::Window,
                       public IsAlive
 {
-    friend bool QueueNextThing(std::shared_ptr<SetupScanQueueData> data, DownloadSetup* setup,
-        IsAlive::AliveMarkerT alive, std::shared_ptr<PageScanJob> scanned);
+    friend bool QueueNextThing(const std::shared_ptr<SetupScanQueueData>& data, DownloadSetup* setup,
+        const IsAlive::AliveMarkerT& alive, const std::shared_ptr<PageScanJob>& scanned);
 
     enum class STATE
     {
@@ -79,6 +80,8 @@ public:
 
     //! \brief Starts page scanning if not currently running
     void StartPageScanning();
+
+    void StartLocalFileScanning(const std::string& folder, const std::string& urlForScannerSelection);
 
     //! \brief Adds an image to the list of found images
     void OnFoundContent(const ScanFoundImage& item);
@@ -189,6 +192,9 @@ protected:
     //! \todo This should also check that things are URLs
     void _LoadFromClipboard();
 
+    void LocalScanStartClicked();
+    void UpdateLocalScanButtonStatus();
+
     static void HandleUnknownTag(const std::string& tag);
 
 private:
@@ -216,7 +222,7 @@ private:
     //! get the original URL when URL rewriting has changed it
     std::string CurrentlyCheckedURL;
 
-    bool SaveScannedPageContent;
+    bool SaveScannedPageContent = false;
     std::map<std::string, std::string> ScannedPageContent;
     std::mutex ScannedPageContentMutex;
 
@@ -283,6 +289,11 @@ private:
     // Extra settings tab
     Gtk::CheckButton* StoreScannedPages;
     Gtk::Button* DumpScannedToDisk;
+
+    Gtk::FileChooser* SelectLocalToScan;
+    Gtk::Entry* LocalFileScannerToUse;
+    Gtk::Button* ScanLocalFiles;
+
     Gtk::Label* ExtraSettingsStatusText;
 
     // List of all links
