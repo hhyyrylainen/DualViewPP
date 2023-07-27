@@ -215,7 +215,13 @@ void DownloadSetup::_OnFinishAccept(bool success)
     // Restore cursor
     auto window = get_window();
     if (window)
+    {
         window->set_cursor();
+    }
+    else
+    {
+        LOG_WARNING("DownloadSetup: missing GDK Window after finished adding downloads to the DB");
+    }
 
     if (!ImageObjects.empty())
     {
