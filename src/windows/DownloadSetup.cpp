@@ -290,6 +290,13 @@ void DownloadSetup::OnUserAcceptSettings()
     }
 
     State = STATE::ADDING_TO_DB;
+    LOG_INFO("DownloadSetup: moving to adding to DB state");
+
+    // Disallow user interactions while doing things
+    set_sensitive(false);
+    auto window = get_window();
+    if (window)
+        window->set_cursor(Gdk::Cursor::create(window->get_display(), Gdk::WATCH));
 
     // Create a DownloadCollection and add that to the database
     const auto selected = GetSelectedImages();
@@ -304,6 +311,9 @@ void DownloadSetup::OnUserAcceptSettings()
             }
         });
 
+    const bool remove = RemoveAfterAdding->get_active();
+    const std::string name = TargetCollectionName->get_text();
+
     // Store values //
 
     // Collection Tags
@@ -317,21 +327,20 @@ void DownloadSetup::OnUserAcceptSettings()
     if (!TargetFolder->TargetPathLockedIn())
         TargetFolder->GoToRoot();
 
+    const auto gallery = std::make_shared<NetGallery>(CurrentlyCheckedURL, name);
+    gallery->SetTags(collectionTags);
+    gallery->SetTargetPath(collectionPath);
+
     const auto alive = GetAliveMarker();
 
-    const bool remove = RemoveAfterAdding->get_active();
+    LOG_INFO("Starting DownloadSetup accept in background thread...");
 
+    // There used to be a crash when `set_sensitive(false);` was called, so this was moved to be the last thing in this
+    // method, hopefully this helps against that
     DualView::Get().QueueWorkerFunction(
-        [us{this}, alive, selected, collectionTags, collectionPath, remove, url{CurrentlyCheckedURL},
-            name{TargetCollectionName->get_text()}]()
+        [us{this}, alive, selected, gallery, remove]()
         {
-            auto gallery = std::make_shared<NetGallery>(url, name);
-
-            gallery->SetTags(collectionTags);
-            gallery->SetTargetPath(collectionPath);
-
-            // Save the net gallery to the databse
-            // (which also allows the DownloadManager to pick it up)
+            // Save the net gallery to the database (which also allows the DownloadManager to pick it up)
             auto& database = DualView::Get().GetDatabase();
 
             bool success = true;
@@ -352,6 +361,9 @@ void DownloadSetup::OnUserAcceptSettings()
                 success = false;
             }
 
+            LOG_INFO("DownloadSetup: wrote net gallery (" + gallery->GetTargetGalleryName() +
+                ") and files to download to the DB");
+
             // We are done
             DualView::Get().InvokeFunction(
                 [=]()
@@ -369,9 +381,12 @@ void DownloadSetup::OnUserAcceptSettings()
                             {
                                 if (us->ImageObjects[i].get() == added.get())
                                 {
-                                    us->ImageObjects.erase(us->ImageObjects.begin() + i);
+                                    // Casts are used here to suppress a warning
+                                    us->ImageObjects.erase(us->ImageObjects.begin() +
+                                        static_cast<decltype(us->ImageObjects)::difference_type>(i));
 
-                                    us->ImagesToDownload.erase(us->ImagesToDownload.begin() + i);
+                                    us->ImagesToDownload.erase(us->ImagesToDownload.begin() +
+                                        static_cast<decltype(us->ImageObjects)::difference_type>(i));
 
                                     removed = true;
                                     break;
@@ -386,12 +401,6 @@ void DownloadSetup::OnUserAcceptSettings()
                     us->DownloadSetup::_OnFinishAccept(success);
                 });
         });
-
-    // Start waiting for things //
-    set_sensitive(false);
-    auto window = get_window();
-    if (window)
-        window->set_cursor(Gdk::Cursor::create(window->get_display(), Gdk::WATCH));
 }
 
 // ------------------------------------ //
