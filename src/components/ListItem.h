@@ -1,18 +1,21 @@
 #pragma once
 
-#include "IsAlive.h"
-#include "SuperViewer.h"
-#include "resources/Image.h"
+#include <memory>
+#include <utility>
 
 #include <gtkmm.h>
 
-#include <memory>
+#include "resources/Image.h"
 
+#include "IsAlive.h"
+#include "SuperViewer.h"
 
-namespace DV {
-
+namespace DV
+{
 //! \brief Base class for all widget types that are used with a SuperContainer
-class ListItem : public Gtk::Frame, public IsAlive {
+class ListItem : public Gtk::Frame,
+                 public IsAlive
+{
     using Point = Leviathan::Float2;
 
 public:
@@ -26,7 +29,7 @@ public:
     ListItem(std::shared_ptr<Image> showimage, const std::string& name,
         const std::shared_ptr<ItemSelectable>& selectable, bool allowpopup);
 
-    ~ListItem();
+    ~ListItem() override;
 
     //! \brief Sets selected status. Changes background colour
     void SetSelected(bool selected);
@@ -34,14 +37,14 @@ public:
     //! \brief Deselects this if currently selected and selecting is enabled
     inline void Deselect()
     {
-        if(Selectable && Selectable->Selectable && CurrentlySelected)
+        if (Selectable && Selectable->Selectable && CurrentlySelected)
             SetSelected(false);
     }
 
     //! \brief Selects this isn't currently selected and selecting is enabled
     inline void Select()
     {
-        if(Selectable && Selectable->Selectable && !CurrentlySelected)
+        if (Selectable && Selectable->Selectable && !CurrentlySelected)
             SetSelected(true);
     }
 
@@ -56,13 +59,13 @@ public:
 
     inline void Deactivate()
     {
-        if(Active)
+        if (Active)
             SetActive(false);
     }
 
     inline void Activate()
     {
-        if(!Active)
+        if (!Active)
             SetActive(true);
     }
 
@@ -73,10 +76,11 @@ public:
 
     inline void SetAdvancedSelection(std::function<void(ListItem&)> shiftSelectCallback)
     {
-        ShiftSelectCallback = shiftSelectCallback;
+        ShiftSelectCallback = std::move(shiftSelectCallback);
     }
 
-    inline bool HasAdvancedSelection() const {
+    inline bool HasAdvancedSelection() const
+    {
         return ShiftSelectCallback.operator bool();
     }
 
@@ -84,7 +88,7 @@ public:
     //! \note The parent container needs to call this or be otherwise notified
     //! that this has changed, otherwise the size won't actually change.
     //! This is virtual so that FolderListItem can change to non-homogeneous layout
-    virtual void SetItemSize(LIST_ITEM_SIZE newsize);
+    virtual void SetItemSize(LIST_ITEM_SIZE newSize);
 
     //! \brief Returns the image shown in ImageIcon
     std::shared_ptr<Image> GetPrimaryImage() const;
@@ -105,8 +109,7 @@ protected:
     // Gtk overrides
     Gtk::SizeRequestMode get_request_mode_vfunc() const override;
     void get_preferred_width_vfunc(int& minimum_width, int& natural_width) const override;
-    void get_preferred_height_for_width_vfunc(
-        int width, int& minimum_height, int& natural_height) const override;
+    void get_preferred_height_for_width_vfunc(int width, int& minimum_height, int& natural_height) const override;
     void get_preferred_height_vfunc(int& minimum_height, int& natural_height) const override;
     // void get_preferred_width_for_height_vfunc(int height,
     //     int& minimum_width, int& natural_width) const override;
@@ -117,11 +120,10 @@ protected:
 
     void _OnDragBegin(const Glib::RefPtr<Gdk::DragContext>& context);
 
-    void _OnDragDataGet(const Glib::RefPtr<Gdk::DragContext>& context,
-        Gtk::SelectionData& selection_data, guint info, guint time);
+    void _OnDragDataGet(
+        const Glib::RefPtr<Gdk::DragContext>& context, Gtk::SelectionData& selection_data, guint info, guint time);
 
     void _OnDragFinished(const Glib::RefPtr<Gdk::DragContext>& context);
-
 
     //! \brief Called when selection status has been updated
     virtual void _OnSelectionUpdated();
@@ -131,11 +133,10 @@ protected:
 
     //! \brief Opens context menu if there is one
     //! \returns True if handled
-    virtual bool _OnRightClick(GdkEventButton* causedbyevent);
+    virtual bool _OnRightClick(GdkEventButton* causedByEvent);
 
     //! \brief Called when this item is either made inactive or active
     virtual void _OnInactiveStatusUpdated();
-
 
 protected:
     Gtk::EventBox Events;
