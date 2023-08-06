@@ -302,6 +302,11 @@ private:
     Gtk::Button* LoadFromClipboard;
 
 private:
+    void OnScanFinished(
+        const AliveMarkerT& alive, const std::shared_ptr<SetupScanQueueData>& data);
+    void AskUserWhatToDoOnScanFail(
+        const AliveMarkerT& alive, const std::shared_ptr<SetupScanQueueData>& data);
+
     //! Called when another DownloadSetup steals our active lock
     void _OnActiveSlotStolen(DownloadSetup* stealer);
 

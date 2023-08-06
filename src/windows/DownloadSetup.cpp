@@ -857,11 +857,8 @@ void DownloadSetup::OnURLChanged()
         auto alive = GetAliveMarker();
 
         scan->SetFinishCallback(
-            [this, alive, weakScan = std::weak_ptr<PageScanJob>(scan), url, singleImagePage](
-                DownloadJob& job, bool success)
+            [this, alive, scan, url, singleImagePage](DownloadJob& job, bool success)
             {
-                auto scan = weakScan.lock();
-
                 DualView::Get().InvokeFunction(
                     [=]()
                     {
@@ -1068,6 +1065,8 @@ bool DV::QueueNextThing(const std::shared_ptr<SetupScanQueueData>& data, Downloa
         // If found new subpages, add them to the queue to scan them now too //
         for (const auto& subpage : scanned->GetResult().PageLinks)
         {
+            LOG_INFO("DownloadSetup: found subpage, adding to queue to scan all in one go: " + subpage.GetURL());
+
             // Skip duplicates //
             bool found = false;
             for (const auto& existing : data->PagesToScan)
@@ -1075,11 +1074,10 @@ bool DV::QueueNextThing(const std::shared_ptr<SetupScanQueueData>& data, Downloa
                 if (existing == subpage)
                 {
                     found = true;
+                    LOG_INFO("DownloadSetup: the found subpage is already to be scanned: " + existing.GetURL());
                     break;
                 }
             }
-
-            LOG_INFO("DownloadSetup: found subpage, adding to queue to scan all in one go: " + subpage.GetURL());
 
             if (!found)
             {
@@ -1098,43 +1096,11 @@ bool DV::QueueNextThing(const std::shared_ptr<SetupScanQueueData>& data, Downloa
     {
         if (data->CurrentPageToScan > 0)
         {
-            LOG_ERROR("Scan result is missing even though this isn't the first call, "
-                      "it should exist to not lose data");
+            LOG_WARNING("Scan result is missing even though this isn't the first call, "
+                        "it should exist to not lose data (unless this is a retry or skip after running out of "
+                        "automatic ones)");
         }
     }
-
-    auto finished = [=]()
-    {
-        DualView::IsOnMainThreadAssert();
-        INVOKE_CHECK_ALIVE_MARKER(alive);
-
-        Lock lock(data->ResultMutex);
-        LOG_INFO("Finished Scanning");
-
-        // Add the content //
-        for (const auto& content : data->Scans.ContentLinks)
-            setup->OnFoundContent(content);
-
-        // Add new subpages //
-        for (const auto& page : data->Scans.PageLinks)
-            setup->AddSubpage(page, true);
-
-        setup->_UpdateFoundLinks();
-
-        setup->PageScanProgress->set_value(1.0);
-        setup->_SetState(DownloadSetup::STATE::URL_OK);
-
-        setup->UpdateCanWritePagesStatus();
-
-        if (setup->ImageObjects.size() < data->Scans.ContentLinks.size())
-        {
-            std::string message = "DownloadSetup: less image objects created than found content links (";
-            message += std::to_string(setup->ImageObjects.size());
-            message += " < (scanned) ";
-            message += std::to_string(data->Scans.ContentLinks.size());
-            LOG_WARNING(message);
-        }
-    };
 
     if (data->PagesToScan.size() <= data->CurrentPageToScan)
     {
@@ -1143,7 +1109,7 @@ bool DV::QueueNextThing(const std::shared_ptr<SetupScanQueueData>& data, Downloa
         LOG_INFO("DownloadSetup scan finished, result:");
         data->Scans.PrintInfo();
 
-        DualView::Get().InvokeFunction(finished);
+        DualView::Get().InvokeFunction([setup, alive, data]() { setup->OnScanFinished(alive, data); });
         return true;
     }
 
@@ -1170,6 +1136,8 @@ bool DV::QueueNextThing(const std::shared_ptr<SetupScanQueueData>& data, Downloa
             setup->PageScanProgress->set_value(progress);
         });
 
+    std::shared_ptr<PageScanJob> scan;
+
     try
     {
         // Set the right referrer
@@ -1177,8 +1145,6 @@ bool DV::QueueNextThing(const std::shared_ptr<SetupScanQueueData>& data, Downloa
             (data->CurrentPageToScan < 2 || url.GetReferrer().empty()) && data->MainReferrer.empty() ?
             url :
             ProcessableURL(url, data->MainReferrer);
-
-        std::shared_ptr<PageScanJob> scan;
 
         // Locally cached file handling
         if (withMainUrl.GetURL().find(FileProtocol) == 0)
@@ -1190,60 +1156,158 @@ bool DV::QueueNextThing(const std::shared_ptr<SetupScanQueueData>& data, Downloa
         {
             scan = std::make_shared<PageScanJob>(withMainUrl, false);
         }
-
-        // Queue next call //
-        scan->SetFinishCallback(
-            [=](DownloadJob& job, bool result)
-            {
-                {
-                    Lock lock(setup->ScannedPageContentMutex);
-
-                    if (setup->SaveScannedPageContent)
-                    {
-                        if (result)
-                        {
-                            LOG_INFO("Saving content of scanned page in memory: " + job.GetURL().GetURL());
-                            setup->ScannedPageContent[job.GetURL().GetURL()] = job.GetDownloadedBytes();
-                        }
-                        else
-                        {
-                            LOG_INFO(
-                                "Failed to download page, can't save its content in memory" + job.GetURL().GetURL());
-
-                            const auto existing = setup->ScannedPageContent.find(job.GetURL().GetURL());
-
-                            if (existing != setup->ScannedPageContent.end())
-                                setup->ScannedPageContent.erase(existing);
-                        }
-                    }
-                }
-
-                DualView::Get().InvokeFunction(
-                    [=]()
-                    {
-                        INVOKE_CHECK_ALIVE_MARKER(alive);
-
-                        if (setup->State != DownloadSetup::STATE::SCANNING_PAGES)
-                        {
-                            LOG_INFO("DownloadSetup: scan cancelled");
-                            return;
-                        }
-
-                        DualView::Get().QueueWorkerFunction(
-                            [data, setup, alive, scan] { return DV::QueueNextThing(data, setup, alive, scan); });
-                    });
-
-                return true;
-            });
-
-        DualView::Get().GetDownloadManager().QueueDownload(scan);
     }
     catch (const Leviathan::InvalidArgument&)
     {
         LOG_ERROR("DownloadSetup invalid url to scan: " + url.GetURL());
     }
 
+    // Queue next call //
+    scan->SetFinishCallback(
+        [=](DownloadJob& job, bool result)
+        {
+            {
+                Lock lock(setup->ScannedPageContentMutex);
+
+                if (setup->SaveScannedPageContent)
+                {
+                    if (result)
+                    {
+                        LOG_INFO("Saving content of scanned page in memory: " + job.GetURL().GetURL());
+                        setup->ScannedPageContent[job.GetURL().GetURL()] = job.GetDownloadedBytes();
+                    }
+                    else
+                    {
+                        LOG_INFO("Failed to download page, can't save its content in memory" + job.GetURL().GetURL());
+
+                        const auto existing = setup->ScannedPageContent.find(job.GetURL().GetURL());
+
+                        if (existing != setup->ScannedPageContent.end())
+                            setup->ScannedPageContent.erase(existing);
+                    }
+                }
+            }
+
+            if (!result)
+            {
+                // Ran out of content retries
+                DualView::Get().InvokeFunction(
+                    [setup, alive, data]() { setup->AskUserWhatToDoOnScanFail(alive, data); });
+
+                LOG_INFO("DownloadSetup: scan ran out of retries");
+                return true;
+            }
+
+            // This needs to run in this callback to ensure this can detect failure and retry
+            if (!DV::QueueNextThing(data, setup, alive, scan))
+            {
+                LOG_INFO("DownloadSetup: QueueNextThing signaled an error, failing this finish callback");
+                return false;
+            }
+
+            return true;
+        });
+
+    DualView::Get().InvokeFunction(
+        [=]()
+        {
+            INVOKE_CHECK_ALIVE_MARKER(alive);
+
+            if (setup->State != DownloadSetup::STATE::SCANNING_PAGES)
+            {
+                LOG_INFO("DownloadSetup: scan cancelled");
+                return;
+            }
+
+            DualView::Get().GetDownloadManager().QueueDownload(scan);
+        });
+
     return true;
+}
+
+void DownloadSetup::OnScanFinished(const IsAlive::AliveMarkerT& alive, const std::shared_ptr<SetupScanQueueData>& data)
+{
+    DualView::IsOnMainThreadAssert();
+    INVOKE_CHECK_ALIVE_MARKER(alive);
+
+    Lock lock(data->ResultMutex);
+    LOG_INFO("Finished Scanning");
+
+    // Add the content //
+    for (const auto& content : data->Scans.ContentLinks)
+        OnFoundContent(content);
+
+    // Add new subpages //
+    for (const auto& page : data->Scans.PageLinks)
+        AddSubpage(page, true);
+
+    _UpdateFoundLinks();
+
+    PageScanProgress->set_value(1.0);
+    _SetState(DownloadSetup::STATE::URL_OK);
+
+    UpdateCanWritePagesStatus();
+
+    if (ImageObjects.size() < data->Scans.ContentLinks.size())
+    {
+        std::string message = "DownloadSetup: less image objects created than found content links (";
+        message += std::to_string(ImageObjects.size());
+        message += " < (scanned) ";
+        message += std::to_string(data->Scans.ContentLinks.size());
+        LOG_WARNING(message);
+    }
+}
+
+void DownloadSetup::AskUserWhatToDoOnScanFail(
+    const IsAlive::AliveMarkerT& alive, const std::shared_ptr<SetupScanQueueData>& data)
+{
+    DualView::IsOnMainThreadAssert();
+    INVOKE_CHECK_ALIVE_MARKER(alive);
+
+    if (State != DownloadSetup::STATE::SCANNING_PAGES)
+    {
+        LOG_INFO("DownloadSetup: scan cancelled");
+        return;
+    }
+
+    auto dialog = Gtk::MessageDialog(*this, "Retry Scanning?", false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_YES_NO, true);
+
+    dialog.set_secondary_text("Scanning a page failed too many times. Retry scanning this page?");
+    int result = dialog.run();
+
+    if (result == Gtk::RESPONSE_YES)
+    {
+        LOG_INFO("DownloadSetup: user selected retry, winding back one scan index and retrying...");
+        --data->CurrentPageToScan;
+
+        DualView::Get().QueueWorkerFunction(
+            [data, this, alive] { return DV::QueueNextThing(data, this, alive, nullptr); });
+        return;
+    }
+
+    // Need to do it like this to make the second level of dialog work
+    DualView::Get().InvokeFunction(
+        [=]()
+        {
+            INVOKE_CHECK_ALIVE_MARKER(alive);
+            auto dialog2 = Gtk::MessageDialog(
+                *this, "Continue Scanning?", false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK_CANCEL, true);
+
+            dialog2.set_secondary_text("Skipping a page may miss some content. Continue scanning other pages?");
+            int result = dialog2.run();
+
+            if (result != Gtk::RESPONSE_CANCEL)
+            {
+                LOG_INFO("DownloadSetup: user selected to continue scanning after failure");
+
+                DualView::Get().QueueWorkerFunction(
+                    [data, this, alive] { return DV::QueueNextThing(data, this, alive, nullptr); });
+                return;
+            }
+
+            LOG_INFO("Current scanning run cancelled by the user");
+            OnScanFinished(alive, data);
+        });
 }
 
 void DownloadSetup::StartPageScanning()
