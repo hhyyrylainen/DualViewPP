@@ -1099,8 +1099,29 @@ bool DV::QueueNextThing(const std::shared_ptr<SetupScanQueueData>& data, Downloa
 
         if (!foundContent)
         {
-            LOG_INFO("DownloadSetup: page scan found no new stuff, retrying scanning: " + scanned->GetURL().GetURL());
-            return false;
+            // Some scanners find a lot of duplicate content, so we need to ignore those
+            auto plugin = setup->GetPluginForURL(scanned->GetURL().GetURL());
+
+            bool retry = true;
+
+            if (plugin != nullptr)
+            {
+                if (!plugin->ScanAgainIfNoImages(scanned->GetURL()))
+                {
+                    retry = false;
+                }
+            }
+            else
+            {
+                LOG_ERROR("DownloadSetup: can't find plugin for URL empty retry check: " + scanned->GetURL().GetURL());
+            }
+
+            if (retry)
+            {
+                LOG_INFO(
+                    "DownloadSetup: page scan found no new stuff, retrying scanning: " + scanned->GetURL().GetURL());
+                return false;
+            }
         }
     }
     else
