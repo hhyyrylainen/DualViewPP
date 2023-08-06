@@ -876,8 +876,19 @@ void DownloadSetup::OnURLChanged()
                         {
                             const auto& result = scan->GetResult();
 
-                            // Add the main page //
-                            AddSubpage(url, true);
+                            // Add the main page (but only if it didn't already find content / subpages)
+                            if (result.PageLinks.empty())
+                            {
+                                LOG_INFO("DownloadSetup: adding main page to scan queue as initial check didn't "
+                                         "return subpages");
+                                AddSubpage(url, true);
+                            }
+                            else
+                            {
+                                LOG_INFO(
+                                    "DownloadSetup: scanning primary URL already found subpages, not going to scan it "
+                                    "again when proper scan is started");
+                            }
 
                             for (const auto& page : result.PageLinks)
                                 AddSubpage(page, true);
@@ -1235,11 +1246,15 @@ void DownloadSetup::OnScanFinished(const IsAlive::AliveMarkerT& alive, const std
 
     // Add the content //
     for (const auto& content : data->Scans.ContentLinks)
+    {
         OnFoundContent(content);
+    }
 
     // Add new subpages //
     for (const auto& page : data->Scans.PageLinks)
+    {
         AddSubpage(page, true);
+    }
 
     _UpdateFoundLinks();
 
