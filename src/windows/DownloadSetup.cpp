@@ -1369,8 +1369,6 @@ void DownloadSetup::StartLocalFileScanning(const std::string& folder, const std:
 
     auto data = std::make_shared<SetupScanQueueData>();
 
-    data->PagesToScan;
-
     for (boost::filesystem::directory_iterator iter(folder); iter != boost::filesystem::directory_iterator(); ++iter)
     {
         if (boost::filesystem::is_directory(iter->status()))
