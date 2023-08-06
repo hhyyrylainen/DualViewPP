@@ -115,9 +115,9 @@ class PageScanJob : public DownloadJob
 {
 public:
     //! \exception Leviathan::InvalidArgument if the URL is not supported
-    //! \param initialpage True if this is the main page and tag scanning should be forced
+    //! \param initialPage True if this is the main page and tag scanning should be forced
     //! on even if the scanner for the url doesn't usually automatically find tags
-    PageScanJob(const ProcessableURL& url, bool initialpage);
+    PageScanJob(const ProcessableURL& url, bool initialPage);
 
     ScanResult& GetResult()
     {

@@ -408,7 +408,7 @@ dlRetryLabel:
 
 // ------------------------------------ //
 // PageScanJob
-PageScanJob::PageScanJob(const ProcessableURL& url, bool initialpage) : DownloadJob(url), InitialPage(initialpage)
+PageScanJob::PageScanJob(const ProcessableURL& url, bool initialPage) : DownloadJob(url), InitialPage(initialPage)
 {
     auto scanner = DualView::Get().GetPluginManager().GetScannerForURL(url.GetURL());
 
