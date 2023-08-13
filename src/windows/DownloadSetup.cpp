@@ -477,7 +477,15 @@ void DownloadSetup::OnFoundContent(const ScanFoundImage& content)
     ImageSelection->AddItem(
         ImageObjects.back(), std::make_shared<ItemSelectable>([this](ListItem& item) { OnItemSelected(item); }));
 
-    LOG_INFO("DownloadSetup added new image: " + content.URL.GetURL() + " referrer: " + content.URL.GetReferrer());
+    if (content.URL.HasCanonicalURL())
+    {
+        LOG_INFO(
+            "DownloadSetup added new image: " + content.URL.GetURL() + " canonical: " + content.URL.GetCanonicalURL());
+    }
+    else
+    {
+        LOG_INFO("DownloadSetup added new image: " + content.URL.GetURL() + " referrer: " + content.URL.GetReferrer());
+    }
 }
 
 bool DownloadSetup::IsValidTargetForImageAdd() const
