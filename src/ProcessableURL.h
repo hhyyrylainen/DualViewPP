@@ -23,6 +23,11 @@ public:
         URL(originalUrl.URL), Canonical(originalUrl.Canonical), Referrer(std::move(newReferrer)),
         Cookies(originalUrl.Cookies){};
 
+    //! \brief Overrides referrer and canonical URL
+    ProcessableURL(const ProcessableURL& originalUrl, std::string newReferrer, std::string canonical) :
+        URL(originalUrl.URL), Canonical(std::move(canonical)), Referrer(std::move(newReferrer)),
+        Cookies(originalUrl.Cookies){};
+
     ProcessableURL(
         const std::string_view& url, const std::string_view& canonicalUrl, const std::string_view& referrer) :
         URL(url),
