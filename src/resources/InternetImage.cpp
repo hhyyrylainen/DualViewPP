@@ -1,14 +1,14 @@
 // ------------------------------------ //
 #include "InternetImage.h"
 
+#include <boost/filesystem.hpp>
 #include <Magick++.h>
 
-#include <boost/filesystem.hpp>
+#include "DualView.h"
 
 #include "Common/StringOperations.h"
 
 #include "DownloadManager.h"
-#include "DualView.h"
 #include "Exceptions.h"
 #include "FileSystem.h"
 #include "Settings.h"
@@ -303,6 +303,12 @@ void DownloadLoadedImage::OnSuccess(std::shared_ptr<DownloadLoadedImage> thisobj
             {
                 // Loading failed //
                 thisobject->OnFail(thisobject, "Downloaded image is invalid, error: " + std::string(e.what()));
+                return;
+            }
+            catch (const Magick::Warning& e)
+            {
+                // Loading failed //
+                thisobject->OnFail(thisobject, "Downloaded image is invalid, error(w): " + std::string(e.what()));
                 return;
             }
 

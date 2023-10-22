@@ -813,6 +813,11 @@ void LoadedImage::LoadImage(const std::string& file, std::shared_ptr<std::vector
         // Loading failed //
         throw Leviathan::InvalidArgument("Loaded image is invalid/unsupported: " + std::string(e.what()));
     }
+    catch (const Magick::Warning& e)
+    {
+        // Loading failed //
+        throw Leviathan::InvalidArgument("Loaded image is invalid/unsupported (W): " + std::string(e.what()));
+    }
 
     if (createdImage->empty())
         throw Leviathan::InvalidArgument("Loaded image is empty");
