@@ -597,7 +597,7 @@ dlretryfailedlable:
                     if (!boost::filesystem::equivalent(cacheFile, wantedpath))
                     {
                         // Rename into target file //
-                        auto path = DualView::MakePathUniqueAndShort(wantedpath);
+                        auto path = DualView::MakePathUniqueAndShort(wantedpath, false);
 
                         boost::filesystem::rename(cacheFile, path);
 

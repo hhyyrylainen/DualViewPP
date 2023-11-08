@@ -198,9 +198,10 @@ public:
     //! copied or moved to
     std::string GetPathToCollection(bool isprivate) const;
 
-    //! \brief Makes a target file path shorter than DUALVIEW_MAX_ALLOWED_PATH and one
-    //! that doesn't exist
-    static std::string MakePathUniqueAndShort(const std::string& path);
+    //! \brief Makes a target file path shorter than DUALVIEW_MAX_ALLOWED_PATH and one that doesn't exist
+    //! \param allowCuttingFolder if true then the folder name is allowed to cut as well if otherwise the name can't be
+    //! made short enough
+    static std::string MakePathUniqueAndShort(const std::string& path, bool allowCuttingFolder);
 
     //! \brief Calculates a sha hash of a string and base64 encodes it
     //!

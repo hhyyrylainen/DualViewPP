@@ -1635,7 +1635,7 @@ void DownloadSetup::WriteScannedPagesToDisk()
                     }
 
                     // And making sure it is not overwriting anything existing nor is it too long
-                    sanitized = DualView::MakePathUniqueAndShort((targetFolder / sanitized).string() + ".html");
+                    sanitized = DualView::MakePathUniqueAndShort((targetFolder / sanitized).string() + ".html", false);
 
                     auto logMessage = "Writing " + page;
                     logMessage += " to file: ";

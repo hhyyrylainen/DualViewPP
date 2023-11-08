@@ -982,21 +982,28 @@ bool DualView::MoveFileToCollectionFolder(std::shared_ptr<Image> img, std::share
         targetfolder = (boost::filesystem::path(GetPathToCollection(collection->GetIsPrivate())) / "collections" /
             collection->GetNameForFolder())
                            .c_str();
-
-        boost::filesystem::create_directories(targetfolder);
     }
 
-    // Skip if already there //
-    if (boost::filesystem::equivalent(targetfolder, boost::filesystem::path(img->GetResourcePath()).remove_filename()))
+    if(boost::filesystem::exists(targetfolder))
     {
-        return true;
+        // Skip if already there //
+        if (boost::filesystem::equivalent(
+                targetfolder, boost::filesystem::path(img->GetResourcePath()).remove_filename()))
+        {
+            return true;
+        }
     }
 
     const auto targetPath =
         boost::filesystem::path(targetfolder) / boost::filesystem::path(img->GetResourcePath()).filename();
 
     // Make short enough and unique //
-    const auto finalPath = MakePathUniqueAndShort(targetPath.string());
+    const auto finalPath = MakePathUniqueAndShort(targetPath.string(), true);
+
+    // Target folder may be changed by MakePathUniqueAndShort, so we only create the folder after that
+    targetfolder = boost::filesystem::path(finalPath).parent_path().string();
+
+    boost::filesystem::create_directories(targetfolder);
 
     try
     {
@@ -2793,7 +2800,7 @@ void DualView::OpenMaintenance_OnClick()
 }
 
 // ------------------------------------ //
-std::string DualView::MakePathUniqueAndShort(const std::string& path)
+std::string DualView::MakePathUniqueAndShort(const std::string& path, bool allowCuttingFolder)
 {
     const auto original = boost::filesystem::path(path);
 
@@ -2808,13 +2815,44 @@ std::string DualView::MakePathUniqueAndShort(const std::string& path)
     {
         const std::string name = fileName.string();
 
+        // Cut the folder name in half if the filename is already short
+        if (name.length() < 12 && allowCuttingFolder)
+        {
+            const auto higherFolder = baseFolder.parent_path();
+            const auto toCut = baseFolder.stem().string();
+
+            if (toCut.length() > 10)
+            {
+                for (size_t cutPoint = toCut.size() / 2; cutPoint > 0; --cutPoint)
+                {
+                    // Cutting may result in invalid utf8 sequences
+                    try
+                    {
+                        const std::string cutFolder = toCut.substr(0, cutPoint);
+                        return MakePathUniqueAndShort(
+                            (higherFolder / cutFolder / (name + extension.string())).string(), true);
+                    }
+                    catch (const boost::filesystem::filesystem_error& e)
+                    {
+                        LOG_WARNING(std::string("MakePathUniqueAndShort: folder cutting resulted in invalid string, "
+                                                "exception: ") +
+                            e.what());
+                    }
+                }
+            }
+            else
+            {
+                LOG_WARNING("Folder name to cut is too short to cut");
+            }
+        }
+
         for (size_t cutPoint = name.size() / 2; cutPoint > 0; --cutPoint)
         {
             // Cutting may result in invalid utf8 sequences
             try
             {
                 const std::string newName = name.substr(0, cutPoint);
-                return MakePathUniqueAndShort((baseFolder / (newName + extension.string())).string());
+                return MakePathUniqueAndShort((baseFolder / (newName + extension.string())).string(), allowCuttingFolder);
             }
             catch (const boost::filesystem::filesystem_error& e)
             {
@@ -2829,7 +2867,8 @@ std::string DualView::MakePathUniqueAndShort(const std::string& path)
                   "start string: " +
             fileName.string());
         // We could not do a fatal here, as this should probably work
-        return MakePathUniqueAndShort((baseFolder / ("a" + extension.string())).string());
+        // NO longer allows cutting the folder as that should have happened before trying to make the name shorter
+        return MakePathUniqueAndShort((baseFolder / ("a" + extension.string())).string(), false);
     }
 
     // Then make sure it doesn't exist //
@@ -2849,7 +2888,7 @@ std::string DualView::MakePathUniqueAndShort(const std::string& path)
     } while (boost::filesystem::exists(finaltarget));
 
     // Make sure it is still short enough
-    return MakePathUniqueAndShort(finaltarget.string());
+    return MakePathUniqueAndShort(finaltarget.string(), allowCuttingFolder);
 }
 
 std::string DualView::CalculateBase64EncodedHash(const std::string& str)

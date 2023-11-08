@@ -498,7 +498,7 @@ void ImageFileDLJob::HandleContent()
         LocalFile = DualView::MakePathUniqueAndShort(
             (boost::filesystem::path(DualView::Get().GetSettings().GetStagingFolder()) /
                 DownloadManager::ExtractFileName(URL.GetURL()))
-                .string());
+                .string(), false);
     }
 
     LOG_INFO("Writing downloaded image to file: " + LocalFile);
