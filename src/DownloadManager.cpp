@@ -403,7 +403,15 @@ dlRetryLabel:
     }
 
     LOG_ERROR("URL download ran out of retries: " + finalURL);
-    HandleError();
+    try
+    {
+        HandleError();
+    }
+    catch (const RetryDownload&)
+    {
+        // TODO: if there is some data in the future that would potential help retrying more, implement that here
+        LOG_INFO("Ignoring retry request as download already ran out of retries");
+    }
 }
 
 // ------------------------------------ //
@@ -498,7 +506,8 @@ void ImageFileDLJob::HandleContent()
         LocalFile = DualView::MakePathUniqueAndShort(
             (boost::filesystem::path(DualView::Get().GetSettings().GetStagingFolder()) /
                 DownloadManager::ExtractFileName(URL.GetURL()))
-                .string(), false);
+                .string(),
+            false);
     }
 
     LOG_INFO("Writing downloaded image to file: " + LocalFile);
