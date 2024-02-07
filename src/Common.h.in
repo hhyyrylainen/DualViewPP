@@ -24,6 +24,7 @@ constexpr auto SUPPORTED_EXTENSIONS = {
     std::make_tuple(".tif", "image/tiff"),
     std::make_tuple(".tiff", "image/tiff"),
     std::make_tuple(".webp", "image/webp"),
+    std::make_tuple(".avif", "image/avif"),
 };
 
 //! List of image types that are animated (this is used to determine save format for
