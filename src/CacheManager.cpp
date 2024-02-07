@@ -326,7 +326,7 @@ void CacheManager::_RunThumbnailGenerationThread()
 void CacheManager::_LoadThumbnail(LoadedImage& thumb, const std::string& hash) const
 {
     // Get the thumbnail folder //
-    auto extension = boost::filesystem::extension(thumb.FromPath);
+    auto extension = boost::filesystem::path(thumb.FromPath).extension().string();
 
     if (extension.empty())
     {
@@ -577,7 +577,7 @@ bool CacheManager::GetImageSize(const std::string& image, int& width, int& heigh
     {
         Magick::Image img(image);
 
-        const auto fileExtension = boost::filesystem::extension(image);
+        const auto fileExtension = boost::filesystem::path(image).extension();
 
         if (fileExtension.empty())
         {
