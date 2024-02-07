@@ -5,10 +5,11 @@
 #include <gtkmm.h>
 #include <Magick++.h>
 
-#include "Common/StringOperations.h"
-
 #include "Common.h"
 #include "DualView.h"
+
+#include "Common/StringOperations.h"
+
 #include "Exceptions.h"
 #include "Settings.h"
 
@@ -677,6 +678,14 @@ std::string CacheManager::GetDatabaseImagePath(const std::string& path)
 }
 
 // ------------------------------------ //
+constexpr auto GetMaxQuantumHelper()
+{
+    // Required as the C-macro is defined within a namespace, so it fails here in C++ otherwise
+    using MagickCore::Quantum;
+
+    return QuantumRange;
+}
+
 void CacheManager::PremultiplyAlphaImageWithBackground(
     Magick::Image& image, const Magick::Color& backgroundColour, bool mixBackground, float transparencyCutoff)
 {
@@ -699,7 +708,7 @@ void CacheManager::PremultiplyAlphaImageWithBackground(
     const auto width = image.columns();
     const auto height = image.rows();
 
-    constexpr auto fullColourPixel = QuantumRange;
+    constexpr auto fullColourPixel = GetMaxQuantumHelper();
     constexpr decltype(fullColourPixel) fullAlphaValue = fullColourPixel;
 
     const auto fullTransparencyCutoff = static_cast<decltype(fullColourPixel)>(fullColourPixel * transparencyCutoff);
