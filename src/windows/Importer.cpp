@@ -3,6 +3,9 @@
 
 #include <boost/filesystem.hpp>
 
+#include "Common.h"
+#include "DualView.h"
+
 #include "Common/StringOperations.h"
 #include "components/FolderSelector.h"
 #include "components/SuperContainer.h"
@@ -12,9 +15,7 @@
 #include "resources/Image.h"
 #include "resources/Tags.h"
 
-#include "Common.h"
 #include "Database.h"
-#include "DualView.h"
 #include "TimeIncludes.h"
 #include "UtilityHelpers.h"
 
@@ -327,6 +328,19 @@ void Importer::UpdateReadyStatus()
     bool invalidLoad = false;
     std::string invalidImageName;
 
+    // Recursive call after first deletion will ask if applying the same operation to others should be done
+    if (AskingUserPopupQuestions)
+    {
+        AskDeleteDuplicatesNext = true;
+    }
+    else
+    {
+        AskingUserPopupQuestions = true;
+        AskedDeleteDuplicatesAlready = false;
+        RememberCurrentPromptAnswer = false;
+        AskDeleteDuplicatesNext = false;
+    }
+
     for (auto iter = ImagesToImport.begin(); iter != ImagesToImport.end(); ++iter)
     {
         const auto& image = *iter;
@@ -361,7 +375,48 @@ void Importer::UpdateReadyStatus()
                 UserHasAnsweredDeleteQuestion.find(image2->GetResourcePath()) == UserHasAnsweredDeleteQuestion.end() &&
                 image->GetResourcePath() != image2->GetResourcePath())
             {
-                LOG_INFO("Importer: duplicate images detected");
+                if (!AskedDeleteDuplicatesAlready)
+                    LOG_INFO("Importer: duplicate images detected");
+
+                // Ask to remember same operation for all images
+                if (AskDeleteDuplicatesNext && !AskedDeleteDuplicatesAlready)
+                {
+                    AskedDeleteDuplicatesAlready = true;
+                    AskDeleteDuplicatesNext = false;
+
+                    auto dialog = Gtk::MessageDialog(*this, "Do Same Operation For All Files?", false,
+                        Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
+
+                    dialog.set_secondary_text("Apply same operation to other files as well? (next file is: " +
+                        image2->GetResourcePath() + ")");
+
+                    int result = dialog.run();
+
+                    if (result == Gtk::RESPONSE_YES)
+                    {
+                        RememberCurrentPromptAnswer = true;
+                    }
+                    else
+                    {
+                        RememberCurrentPromptAnswer = false;
+                    }
+                }
+
+                if (RememberCurrentPromptAnswer)
+                {
+                    if (DeleteDuplicatesAnswer)
+                    {
+                        LOG_INFO("Remembering delete operation for duplicate: " + image2->GetResourcePath());
+                        boost::filesystem::remove(image2->GetResourcePath());
+                        ImagesToImport.erase(iter2);
+
+                        // Next duplicate will be found on the recursive call //
+                        changedimages = true;
+                        break;
+                    }
+
+                    continue;
+                }
 
                 auto dialog = Gtk::MessageDialog(
                     *this, "Remove Duplicate Images", false, Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
@@ -379,11 +434,13 @@ void Importer::UpdateReadyStatus()
 
                     // Next duplicate will be found on the recursive call //
                     changedimages = true;
+                    DeleteDuplicatesAnswer = true;
                     break;
                 }
                 else
                 {
                     UserHasAnsweredDeleteQuestion[image2->GetResourcePath()] = true;
+                    DeleteDuplicatesAnswer = false;
                 }
             }
         }
@@ -392,12 +449,18 @@ void Importer::UpdateReadyStatus()
             break;
     }
 
+    // TODO: should this be made non-recursive? At least it seems like that it's hopefully not possible to
+    // stackoverflow with reasonable image counts
     if (changedimages)
     {
         _UpdateImageList();
         UpdateReadyStatus();
+
+        AskingUserPopupQuestions = false;
         return;
     }
+
+    AskingUserPopupQuestions = false;
 
     if (SelectedImages.empty())
     {
@@ -447,6 +510,10 @@ void Importer::UpdateReadyStatus()
 
 void Importer::OnItemSelected(ListItem& item)
 {
+    // Disallow when automatically modifying item list to avoid crashes
+    if (AskingUserPopupQuestions)
+        return;
+
     // Deselect others if only one is wanted //
     if (SelectOnlyOneImage->get_active() && item.IsSelected())
     {
@@ -479,8 +546,7 @@ void Importer::_OnSelectPrevious()
 void Importer::_RemoveSelected()
 {
     ImagesToImport.erase(
-        std::remove_if(ImagesToImport.begin(), ImagesToImport.end(),
-            [this](auto& x)
+        std::remove_if(ImagesToImport.begin(), ImagesToImport.end(), [this](auto& x)
             { return std::find(SelectedImages.begin(), SelectedImages.end(), x) != SelectedImages.end(); }),
         ImagesToImport.end());
 
@@ -543,6 +609,11 @@ bool Importer::StartImporting(bool move)
     // If going to move ask to delete already existing images //
     if (move)
     {
+        bool first = true;
+        bool askedAlready = false;
+        AskingUserPopupQuestions = true;
+        RememberCurrentPromptAnswer = false;
+
         for (auto iter = SelectedImages.begin(); iter != SelectedImages.end(); ++iter)
         {
             if (!(*iter)->IsInDatabase())
@@ -559,7 +630,39 @@ bool Importer::StartImporting(bool move)
                 if (!boost::filesystem::exists(pathtodelete))
                     continue;
 
-                // TODO: would be really nice to able to answer "yes to all" here
+                // Ask to remember same operation for all images
+                if (!first && !askedAlready)
+                {
+                    askedAlready = true;
+
+                    auto dialog = Gtk::MessageDialog(*this, "Do Same Operation For All Files?", false,
+                        Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
+
+                    dialog.set_secondary_text(
+                        "Apply same operation to other files as well? (next file is: " + pathtodelete + ")");
+
+                    int result = dialog.run();
+
+                    if (result == Gtk::RESPONSE_YES)
+                    {
+                        RememberCurrentPromptAnswer = true;
+                    }
+                    else
+                    {
+                        RememberCurrentPromptAnswer = false;
+                    }
+                }
+
+                if (RememberCurrentPromptAnswer)
+                {
+                    if (DeleteAlreadyImportedAnswer)
+                    {
+                        LOG_INFO("Remembering delete operation for: " + pathtodelete);
+                        boost::filesystem::remove(pathtodelete);
+                    }
+                    continue;
+                }
+
                 auto dialog = Gtk::MessageDialog(
                     *this, "Delete Existing File?", false, Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO, true);
 
@@ -571,9 +674,18 @@ bool Importer::StartImporting(bool move)
                 if (result == Gtk::RESPONSE_YES)
                 {
                     boost::filesystem::remove(pathtodelete);
+                    DeleteAlreadyImportedAnswer = true;
                 }
+                else
+                {
+                    DeleteAlreadyImportedAnswer = false;
+                }
+
+                first = false;
             }
         }
+
+        AskingUserPopupQuestions = false;
     }
 
     // Run import in a new thread //
@@ -635,8 +747,7 @@ void Importer::_OnImportFinished(bool success)
         {
             // Remove SelectedImages from ImagesToImport
             ImagesToImport.erase(
-                std::remove_if(ImagesToImport.begin(), ImagesToImport.end(),
-                    [this](auto& x)
+                std::remove_if(ImagesToImport.begin(), ImagesToImport.end(), [this](auto& x)
                     { return std::find(SelectedImages.begin(), SelectedImages.end(), x) != SelectedImages.end(); }),
                 ImagesToImport.end());
 

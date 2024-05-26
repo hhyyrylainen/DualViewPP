@@ -156,6 +156,16 @@ protected:
 
     //! If true prevents individual image select callbacks from running
     bool SuppressIndividualSelectCallback = false;
+
+    //! True when asking popup questions from the user, should prevent selecting anything to avoid crashes
+    bool AskingUserPopupQuestions = false;
+
+    // The following variables are used to only ask the user once if they want to do the same operation for everything
+    bool RememberCurrentPromptAnswer = false;
+    bool DeleteDuplicatesAnswer = false;
+    bool AskDeleteDuplicatesNext = false;
+    bool AskedDeleteDuplicatesAlready = false;
+    bool DeleteAlreadyImportedAnswer = false;
 };
 
 } // namespace DV
