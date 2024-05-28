@@ -774,7 +774,7 @@ void Importer::_OnImportFinished(bool success)
 
             try
             {
-                if (boost::filesystem::is_empty(*iter) && boost::filesystem::is_directory(*iter))
+                if (boost::filesystem::is_directory(*iter) && boost::filesystem::is_empty(*iter))
                 {
                     remove = true;
                 }
