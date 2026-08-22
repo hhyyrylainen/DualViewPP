@@ -1,0 +1,3 @@
+This is the 2nd version of DualView made with C++ and GTK 3. This is now archived as there's a new reimplemented DualView 3 here: https://github.com/hhyyrylainen/DualView
+
+It turned out to be a total nightmare to port GTK 3 to 4 and that would have been necessary due to years-old bugs that GTK 3 does not fix. So instead there's a rewrite of the entire project...
